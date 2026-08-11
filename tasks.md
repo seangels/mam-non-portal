@@ -179,21 +179,26 @@ Mỗi agent chỉ cập nhật section mình sở hữu sau từng mốc công v
 
 - [x] `ATT-P-01`. Phân tích gap backend/frontend và yêu cầu nghiệp vụ
 - [x] `ATT-P-02`. Tạo plan cross-stack có mã từng đợt tại `api/attendance-plan.md`
-- [~] `ATT-P-03`. `ATT-DEC-01`–`09` đã chốt; còn `ATT-DEC-10` về storage model
-- [ ] `ATT-01`. Nền tảng Teacher/Group/Assignment và UI quản trị
-- [ ] `ATT-02`. Vertical slice đọc điểm danh, filter và card list
-- [ ] `ATT-03`. Vertical slice ghi/clear attendance exception
+- [x] `ATT-P-03`. `ATT-DEC-01`–`10` đã chốt; chọn full daily snapshot gồm `Present`
+- [ ] `ATT-01`. Nền tảng Teacher/Group/current roster và UI quản trị
+- [ ] `ATT-02`. Vertical slice đọc Missing/Saved sheet, filter và card list
+- [ ] `ATT-03`. Vertical slice tạo/cập nhật full daily sheet
 - [ ] `ATT-04`. UX, edge cases và hardening
 - [ ] `ATT-05`. Tài liệu, full regression và release IIS
 
 ### Attendance planning log
 
 - `ATT-P-01`: xác nhận hiện trạng chưa có Teacher profile, Group, assignment hoặc attendance; Student CRUD/search hiện tại chưa scope theo giáo viên và chưa search không dấu.
-- `ATT-P-02`: plan chọn mô hình assignment có khoảng hiệu lực để tái dựng roster quá khứ khi `Present` không được lưu; hỗ trợ Teacher nhiều group nhưng không hard-limit 10 student.
-- REST draft dùng context + daily snapshot + batch save card dirty; `Present` clear exception, không insert row. Admin/SuperAdmin bắt buộc chọn một group; Teacher chỉ nhận group được assign theo ngày.
-- Review chéo backend/frontend đã chuẩn hóa contract theo ngày (`AbsentFullDay`/`AbsentHalfDay`), assignment interval nửa mở, atomic move/end-date endpoint, computed `Present`, version conflict, historical roster và read-only state. Các quyết định `ATT-DEC-01`–`09` đã được duyệt; còn storage model `ATT-DEC-10`.
+- `ATT-P-02`: initial draft từng dùng exception-only + temporal assignment; thiết kế này đã bị `ATT-DEC-10` thay thế.
+- Review chéo backend/frontend đã chuẩn hóa contract theo ngày (`AbsentFullDay`/`AbsentHalfDay`), sheet-level concurrency, Missing/Saved state, historical snapshot và read-only state.
 - `ATT-DEC-06` đã chốt: tối đa 100 học sinh/nhóm; màn hình hiển thị rõ khoảng 8–10 card cùng lúc và scroll dọc để xem toàn bộ, không pagination trong v1.
 - `ATT-DEC-01`–`05`, `07`–`09` đã chốt: điểm danh theo ngày; half-day bắt buộc Morning/Afternoon; 1-1 cố định 60 phút và loại trừ với vắng; phép/không phép cho các loại vắng; Teacher có edit window 1–7 ngày mặc định 7 do Admin/SuperAdmin cấu hình riêng; có UI nhóm; quản trị bắt buộc chọn một group; attendance data giữ lâu dài và audit 90 ngày.
-- Phát sinh `ATT-DEC-10` cần chốt trước `ATT-01`: giữ exception-only + temporal assignment hay chuyển sang full daily snapshot lưu cả `Present`.
+- `ATT-DEC-10` đã chốt full daily snapshot: `attendance_sheets` + `attendance_records`, lưu cả `Present`; bỏ `effective_from/effective_to` và temporal assignment.
+- Plan đã rewrite: current `responsible_teacher_id` trên group, current `group_id` trên Student, Missing preview không phải lịch sử, Saved sheet snapshot bất biến, first save ghi đủ roster, update dùng aggregate sheet version và full replacement.
+- Contract plan dùng `snapshotVersion` bao phủ roster, group/Teacher/Student identity; stale create trả `409 SnapshotChanged`. Ngày quá khứ không thể chứng minh snapshot trả `HistoricalSnapshotUnavailable`; chỉ Admin/SuperAdmin có recovery flow với roster/Teacher rõ ràng, acknowledgement, reason và audit.
+- Review cuối khóa rõ state permission: Missing dùng `canCreate`, Saved dùng `canEdit`; first-save vẫn hoạt động khi dirty bằng 0. Historical recovery có group/student/teacher candidate APIs riêng, machine-readable `ProblemDetails.code` và không được bypass luồng chuẩn.
+- Sheet lưu provenance lâu dài: `CurrentSnapshot` có `sourceSnapshotVersion`; `HistoricalRecovery` có source version null và recovery reason. Concurrency yêu cầu group-row lock, stable multi-group lock order, aggregate sheet version và transaction rollback toàn batch.
+- Backend/frontend review cuối xác nhận không còn blocker plan sau khi chốt recovery là ngoại lệ có kiểm soát cho snapshot không thể tái dựng, group inactive/deleted/không còn responsible Teacher; POST tạo phiếu trả `201 Created` + `Location` + full Saved snapshot.
+- Verification tài liệu: Markdown code fences cân bằng, `git diff --check` đạt và scan không còn contract cũ `rosterVersion`/`HistoricalRosterUnavailable`/exception-only ngoài dòng log mô tả thiết kế đã bị thay thế. Không chạy product build/test vì đợt này chỉ thay đổi plan/memory/task tracking.
 - Git workflow: người dùng cho phép chủ động tạo local commit theo từng milestone; không bao gồm push/merge/rebase/tag nếu chưa được yêu cầu riêng.
 - Chưa thay đổi source/schema/API/UI và chưa chạy build/test trong đợt lập plan này.
