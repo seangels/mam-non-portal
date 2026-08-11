@@ -181,14 +181,64 @@ Mỗi agent chỉ cập nhật section mình sở hữu sau từng mốc công v
 - [x] `ATT-P-02`. Tạo plan cross-stack có mã từng đợt tại `api/attendance-plan.md`
 - [x] `ATT-P-03`. `ATT-DEC-01`–`10` đã chốt; chọn full daily snapshot gồm `Present`
 - [x] `ATT-P-04`. `ATT-DEC-11` đã chốt; toàn bộ UI chỉ sử dụng tiếng Việt
-- [ ] `ATT-01`. Nền tảng Teacher/Group/current roster và UI quản trị
-- [ ] `ATT-02`. Vertical slice đọc Missing/Saved sheet, filter và card list
-- [ ] `ATT-03`. Vertical slice tạo/cập nhật full daily sheet
-- [ ] `ATT-04`. UX, edge cases và hardening
-- [ ] `ATT-05`. Tài liệu, full regression và release IIS
+- [x] `ATT-01`. Nền tảng Teacher/Group/current roster và UI quản trị
+- [x] `ATT-02`. Vertical slice đọc Missing/Saved sheet, filter và card list
+- [x] `ATT-03`. Vertical slice tạo/cập nhật full daily sheet
+- [x] `ATT-04`. UX, edge cases và hardening
+- [x] `ATT-05`. Tài liệu, full regression và release IIS
+
+### Attendance implementation status
+
+Backend:
+
+- [x] `ATT-BE-00`. Khóa DTO/schema/authorization/OpenAPI contract
+- [x] `ATT-BE-01`. Teacher profile, policy và migration/backfill
+- [x] `ATT-BE-02`. StudentGroup, current roster, snapshot version và lifecycle
+- [x] `ATT-BE-03`. Attendance context/daily Missing-Saved query
+- [x] `ATT-BE-04`. Full-sheet POST/PUT, concurrency, transaction và audit
+- [x] `ATT-BE-05`. Historical recovery, candidate lookup và hardening
+- [x] `ATT-BE-06`. OpenAPI, README, requests và migration notes
+
+Frontend:
+
+- [x] `ATT-FE-00`. Khóa models/wireflow và dictionary UI tiếng Việt
+- [x] `ATT-FE-01`. UI quản trị Teacher policy, group và current roster
+- [x] `ATT-FE-02`. Navigation, route, models và attendance service
+- [x] `ATT-FE-03`. Filter panel, local search và card list Missing-Saved
+- [x] `ATT-FE-04`. Editor, full-roster save, dirty state và sticky action
+- [x] `ATT-FE-05`. Historical recovery, error states, responsive và accessibility
+- [x] `ATT-FE-06`. Unit test, README và IIS environment verification
+
+QA/Integration:
+
+- [x] `ATT-QA-01`. Migration/current-assignment/cap/race và CRUD regression
+- [x] `ATT-QA-02`. Read scope, role/group/date và tìm kiếm tiếng Việt
+- [x] `ATT-QA-03`. Full snapshot/status/batch/concurrency/permission
+- [x] `ATT-QA-04`. Historical recovery, stale update, mobile/keyboard và auth regression
+- [x] `ATT-QA-05`. Full build/test, database upgrade rehearsal và IIS package
 
 ### Attendance planning log
 
+- `ATT-01` bắt đầu: đã kiểm tra working tree sạch tại commit `287a477`; giao song song backend sở hữu `api/` và frontend sở hữu `ui/`, root điều phối contract/trạng thái/integration.
+- Preflight QA: .NET SDK `10.0.302`, Node `20.11.0`; Docker Engine `29.7.2` hoạt động và PostgreSQL 17 Compose đang healthy/expose cổng 5432. Lệnh npm trong sandbox bị chặn quyền đọc profile Windows, frontend sẽ chạy build/test với quyền phù hợp khi tới gate.
+- `ATT-BE-00`/`ATT-FE-00`: đã khóa contract quản trị Teacher/StudentGroup/Student group fields và query filters. Group metadata, responsible Teacher và Student group có command mutation riêng; frontend đã nhận DTO thống nhất, root đã đồng bộ `api/attendance-plan.md`.
+- `ATT-FE-00` hoàn tất: TypeScript compile sạch; đã thêm DTO/service đầy đủ, dictionary label/error/read-only, utility DateOnly/search không dấu, Angular `vi-VN`, DevExtreme message tiếng Việt và dọn raw role/status/chuỗi tiếng Anh hiện có. UI không dùng raw `ProblemDetails.title/detail`.
+- `ATT-BE-00` hoàn tất: DTO/controller/OpenAPI contract cho Teacher, StudentGroup, Student group fields, attendance context/daily/create/update/recovery/candidates và machine-readable ProblemDetails đã khóa, không lệch plan; `dotnet build api/AdminPortal.slnx --no-restore` đạt 0 warning/error.
+- `ATT-FE-01` hoàn tất, Angular development build đạt: thêm `/student-groups`, remote group CRUD/filter, phân/gỡ responsible Teacher, roster popup tối đa 100 với search không dấu/gán-gỡ-chuyển Student, Teacher policy grid chỉnh window 1–7 ngày, route/sidebar `Nhóm` và mapping lỗi tiếng Việt.
+- `ATT-BE-01` hoàn tất implementation, build 0 warning/error: Teacher profile/list/get/policy 1–7; tạo/reuse profile theo role; lifecycle conflict khi còn group; đổi tên Teacher tăng snapshot version các group trong transaction/row lock; audit và business-timezone persistence nền đã có. Migration/backfill sẽ được chốt cùng model snapshot ở gate backend.
+- `ATT-BE-02` hoàn tất, build 0 warning/error: StudentGroup CRUD/filter/sort/paging, assignment Teacher, lifecycle/unique-code/audit; Student group fields và atomic assign/move/unassign với row locks, cap 100, chặn move sau điểm danh hôm nay, snapshot version group cũ/mới và identity invariants.
+- `ATT-BE-03` hoàn tất, build 0 warning/error: context/daily phân quyền ba role, business date `Asia/Ho_Chi_Minh`, auto-resolve một Teacher group, Missing preview không ghi DB, Saved immutable snapshot, summary và `canCreate/canEdit/canRecover`/version provenance đúng contract.
+- `ATT-BE-04` hoàn tất: first-save full roster/persisted Present, snapshot/unique conflict, full PUT + aggregate version/atomic lock, conditional validation, Admin historical recovery/candidates, Saved response + Location và audit không ghi raw notes. Build 0 warning/error; baseline unit test 11/11 đạt.
+- `ATT-FE-02`/`ATT-FE-03` hoàn tất, Angular development build đạt: route/nav `Điểm danh`, context ngày/nhóm theo role và 0/1/n group, card list Missing/Saved, search tiếng Việt không dấu, filter status, summary toàn roster, stale-response guard và loading/error state độc lập. Editor đã vào `ATT-FE-04` để harden/test.
+- `ATT-FE-04` hoàn tất, development build đạt: editor đủ bốn trạng thái/conditional fields/notes; Missing dirty=0 vẫn POST full roster, Saved chỉ PUT khi dirty và gửi full roster/version; response reset baseline; sticky count, reveal/focus validation card ẩn, map `records[i]`, xử lý 403/409 giữ draft + CTA đều bằng copy tiếng Việt.
+- `ATT-BE-05` hoàn tất: FK RESTRICT, group/sheet row locks và stable multi-group order, optimistic conflict có currentVersion, lifecycle/auth/audit privacy và retention an toàn. EF migration `AddAttendanceFoundation` được sinh chuẩn với constraints/indexes/composite date FK/Teacher backfill; baseline PostgreSQL Testcontainers 8/8 đạt, EF không có pending model changes. Warning query-filter/required historical FK là chủ ý và history query dùng `IgnoreQueryFilters`.
+- `ATT-FE-05` hoàn tất: dirty guard phủ date/group/route/beforeunload; Admin/SuperAdmin recovery qua ba candidate APIs với 1–100 Student, acknowledgement/reason và best-known warning; error/empty/loading/read-only tiếng Việt; responsive 2 cột khoảng 8–10 card, mobile 1 cột, sticky/a11y/touch/focus hoàn chỉnh. Production AOT và development build đạt; đang tách style để loại budget warning trước gate cuối.
+- `ATT-BE-06` checkpoint: unit 23/23 và PostgreSQL integration 14/14 đã đạt, gồm race first-save và cap 100. Review schema phát hiện `attendance_edit_window_days` scaffold thành `integer` thay vì `smallint`; backend đang sinh lại migration bằng EF rồi mới chạy final gates, chưa đánh dấu QA hoàn tất sớm.
+- `ATT-FE-06` checkpoint: ChromeHeadlessCI 20/20 đạt; production build sạch 3,19 MB raw/583,52 kB transfer; IIS build sạch 3,19 MB/583,80 kB và bundle chứa đúng `https://api-gv-portal.local/api/v1`. Chỉ còn warning license/dev-mode từ dependency trong test log; README/agent docs/memory đang được chốt trước final handoff.
+- `ATT-BE-06` hoàn tất: README/requests/backend memory đồng bộ; migration cuối `20260811130802_AddAttendanceFoundation` dùng Teacher policy `smallint`, version `integer`, partial roster index và backfill profile. Review cuối sửa check constraint dùng đúng cột `recovery_reason`, chặn gán Student inactive và bổ sung coverage rollback roster/window/recovery authorization. Final backend gate: build 0 warning/error, unit 23/23, PostgreSQL 17 Testcontainers Release 15/15, EF no pending changes. EF CLI còn ba warning query-filter/required historical FK có chủ ý (`RESTRICT` + `IgnoreQueryFilters`) và fresh-DB tests xanh.
+- `ATT-FE-06` hoàn tất: ChromeHeadlessCI 21/21 đạt; production AOT sạch 3,20 MB/583,84 kB; IIS AOT sạch và bundle dùng đúng `https://api-gv-portal.local/api/v1`. Recovery ngày quá khứ có entry point cho Admin/SuperAdmin ngay cả khi nhóm inactive/deleted không còn trong context; dictionary UI ánh xạ toàn bộ ProblemCodes sang tiếng Việt; validation tạo/đổi mật khẩu khớp policy API 12–128 ký tự.
+- `ATT-QA-01`–`04` hoàn tất: integration phủ migration/current assignment/cap 100/race, role/group/date/window, Missing không ghi DB, full persisted snapshot/PUT rollback/concurrency, historical recovery/authorization/lifecycle/audit privacy; frontend phủ route/navigation, DateOnly, search không dấu, full save, dirty state và recovery entry.
+- `ATT-QA-05` hoàn tất: test upgrade tự động migrate `InitialCreate`, chèn Teacher User + Student legacy rồi migrate `AddAttendanceFoundation`, xác nhận Teacher profile policy 7 được backfill và dữ liệu cũ giữ nguyên. Gói IIS cuối `release/gv-portal-iis-20260811-132500.zip` có 103 entries, 6.935.733 bytes, SHA-256 `389E4D5CD4510A377AF41C83A20BA7C7C68C41543B8ED85647D04DFADD07C523`; checksum khớp, có API/UI đúng HTTPS URL và không chứa source/PDB/Development config/secret file. Chế độ package chỉ prepare artifact, không thay đổi IIS máy build.
 - `ATT-P-01`: xác nhận hiện trạng chưa có Teacher profile, Group, assignment hoặc attendance; Student CRUD/search hiện tại chưa scope theo giáo viên và chưa search không dấu.
 - `ATT-P-02`: initial draft từng dùng exception-only + temporal assignment; thiết kế này đã bị `ATT-DEC-10` thay thế.
 - Review chéo backend/frontend đã chuẩn hóa contract theo ngày (`AbsentFullDay`/`AbsentHalfDay`), sheet-level concurrency, Missing/Saved state, historical snapshot và read-only state.
@@ -204,4 +254,4 @@ Mỗi agent chỉ cập nhật section mình sở hữu sau từng mốc công v
 - Backend/frontend review cuối xác nhận không còn blocker plan sau khi chốt recovery là ngoại lệ có kiểm soát cho snapshot không thể tái dựng, group inactive/deleted/không còn responsible Teacher; POST tạo phiếu trả `201 Created` + `Location` + full Saved snapshot.
 - Verification tài liệu: Markdown code fences cân bằng, `git diff --check` đạt và scan không còn contract cũ `rosterVersion`/`HistoricalRosterUnavailable`/exception-only ngoài dòng log mô tả thiết kế đã bị thay thế. Không chạy product build/test vì đợt này chỉ thay đổi plan/memory/task tracking.
 - Git workflow: người dùng cho phép chủ động tạo local commit theo từng milestone; không bao gồm push/merge/rebase/tag nếu chưa được yêu cầu riêng.
-- Chưa thay đổi source/schema/API/UI và chưa chạy build/test trong đợt lập plan này.
+- Epic `ATT` đã được triển khai đầy đủ trên source/schema/API/UI, kiểm tra regression và đóng gói IIS; chưa push hoặc triển khai lên máy IIS đích.
