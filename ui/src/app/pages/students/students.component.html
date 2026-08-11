@@ -1,0 +1,63 @@
+<div class="content-block page-toolbar">
+  <div>
+    <h1 class="page-title">Quản lý học sinh</h1>
+    <p class="page-subtitle">Tra cứu và cập nhật hồ sơ học sinh.</p>
+  </div>
+  <dx-button text="Thêm học sinh" icon="plus" type="default" (onClick)="openCreate()"></dx-button>
+</div>
+
+<div class="content-block dx-card grid-card">
+  <div class="filters">
+    <dx-text-box [(value)]="search" placeholder="Mã, tên, người giám hộ" [showClearButton]="true" (onEnterKey)="applyFilters()"></dx-text-box>
+    <dx-select-box [(value)]="statusFilter" [items]="statuses" valueExpr="value" displayExpr="text" placeholder="Trạng thái" [showClearButton]="true"></dx-select-box>
+    <dx-select-box [(value)]="genderFilter" [items]="genders" valueExpr="value" displayExpr="text" placeholder="Giới tính" [showClearButton]="true"></dx-select-box>
+    <dx-date-box [(value)]="dateOfBirthFrom" type="date" displayFormat="dd/MM/yyyy" placeholder="Sinh từ ngày" [showClearButton]="true"></dx-date-box>
+    <dx-date-box [(value)]="dateOfBirthTo" type="date" displayFormat="dd/MM/yyyy" placeholder="Sinh đến ngày" [showClearButton]="true"></dx-date-box>
+    <dx-button text="Lọc" icon="filter" type="default" (onClick)="applyFilters()"></dx-button>
+    <dx-button text="Đặt lại" icon="revert" stylingMode="outlined" (onClick)="resetFilters()"></dx-button>
+  </div>
+
+  <dx-data-grid
+    [dataSource]="dataSource"
+    [remoteOperations]="{ paging: true, sorting: true }"
+    [showBorders]="true"
+    [columnAutoWidth]="true"
+    [rowAlternationEnabled]="true"
+    [hoverStateEnabled]="true"
+    noDataText="Không có học sinh phù hợp">
+    <dxo-load-panel [enabled]="true"></dxo-load-panel>
+    <dxo-paging [pageSize]="20"></dxo-paging>
+    <dxo-pager [visible]="true" [showPageSizeSelector]="true" [allowedPageSizes]="[10, 20, 50, 100]" [showInfo]="true"></dxo-pager>
+    <dxo-sorting mode="single"></dxo-sorting>
+
+    <dxi-column dataField="studentCode" caption="Mã học sinh" sortOrder="asc"></dxi-column>
+    <dxi-column dataField="fullName" caption="Họ và tên"></dxi-column>
+    <dxi-column dataField="nickName" caption="Tên gọi"></dxi-column>
+    <dxi-column dataField="dateOfBirth" caption="Ngày sinh" dataType="date" format="dd/MM/yyyy"></dxi-column>
+    <dxi-column dataField="gender" caption="Giới tính" cellTemplate="genderCell"></dxi-column>
+    <dxi-column dataField="status" caption="Trạng thái" cellTemplate="statusCell"></dxi-column>
+    <dxi-column dataField="guardianName" caption="Người giám hộ" [allowSorting]="false"></dxi-column>
+    <dxi-column dataField="guardianPhone" caption="SĐT giám hộ" [allowSorting]="false"></dxi-column>
+    <dxi-column type="buttons" caption="Thao tác" [width]="95" [buttons]="rowButtons"></dxi-column>
+
+    <div *dxTemplate="let cell of 'genderCell'">{{ genderText(cell.value) }}</div>
+    <div *dxTemplate="let cell of 'statusCell'" class="status" [class.inactive]="cell.value !== 'Active'">{{ statusText(cell.value) }}</div>
+  </dx-data-grid>
+</div>
+
+<dx-popup [(visible)]="editorVisible" [title]="editorTitle" [width]="720" [height]="'auto'" [showCloseButton]="true" [hideOnOutsideClick]="!saving">
+  <form *dxTemplate="let _ of 'content'" (submit)="save($event)">
+    <dx-form [formData]="editor" [disabled]="saving" labelLocation="top" [colCount]="2">
+      <dxi-item dataField="studentCode"><dxo-label text="Mã học sinh"></dxo-label><dxi-validation-rule type="required" message="Vui lòng nhập mã học sinh"></dxi-validation-rule><dxi-validation-rule type="stringLength" [max]="50" message="Tối đa 50 ký tự"></dxi-validation-rule></dxi-item>
+      <dxi-item dataField="status" editorType="dxSelectBox" [editorOptions]="{ items: statuses, valueExpr: 'value', displayExpr: 'text' }"><dxo-label text="Trạng thái"></dxo-label><dxi-validation-rule type="required"></dxi-validation-rule></dxi-item>
+      <dxi-item dataField="fullName"><dxo-label text="Họ và tên"></dxo-label><dxi-validation-rule type="required" message="Vui lòng nhập họ tên"></dxi-validation-rule><dxi-validation-rule type="stringLength" [max]="200" message="Tối đa 200 ký tự"></dxi-validation-rule></dxi-item>
+      <dxi-item dataField="nickName"><dxo-label text="Tên thường gọi"></dxo-label><dxi-validation-rule type="required" message="Vui lòng nhập tên thường gọi"></dxi-validation-rule><dxi-validation-rule type="stringLength" [max]="200" message="Tối đa 200 ký tự"></dxi-validation-rule></dxi-item>
+      <dxi-item dataField="dateOfBirth" editorType="dxDateBox" [editorOptions]="{ type: 'date', displayFormat: 'dd/MM/yyyy', max: today }"><dxo-label text="Ngày sinh"></dxo-label><dxi-validation-rule type="required" message="Vui lòng nhập ngày sinh"></dxi-validation-rule></dxi-item>
+      <dxi-item dataField="gender" editorType="dxSelectBox" [editorOptions]="{ items: genders, valueExpr: 'value', displayExpr: 'text', showClearButton: true }"><dxo-label text="Giới tính"></dxo-label></dxi-item>
+      <dxi-item dataField="guardianName"><dxo-label text="Người giám hộ"></dxo-label><dxi-validation-rule type="stringLength" [max]="200" message="Tối đa 200 ký tự"></dxi-validation-rule></dxi-item>
+      <dxi-item dataField="guardianPhone"><dxo-label text="SĐT người giám hộ"></dxo-label><dxi-validation-rule type="stringLength" [max]="30" message="Tối đa 30 ký tự"></dxi-validation-rule></dxi-item>
+      <dxi-item dataField="note" editorType="dxTextArea" [colSpan]="2" [editorOptions]="{ height: 90, maxLength: 2000 }"><dxo-label text="Ghi chú"></dxo-label></dxi-item>
+      <dxi-item itemType="button" [colSpan]="2" horizontalAlignment="right"><dxo-button-options [text]="isEditing ? 'Lưu thay đổi' : 'Thêm học sinh'" type="default" [useSubmitBehavior]="true" [disabled]="saving"></dxo-button-options></dxi-item>
+    </dx-form>
+  </form>
+</dx-popup>

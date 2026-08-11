@@ -1,0 +1,9 @@
+<h1 class="content-block">Thông tin tài khoản</h1>
+
+<div class="content-block dx-card responsive-paddings profile-card" *ngIf="user$ | async as user">
+  <div><span>Họ và tên</span><strong>{{ user.fullName }}</strong></div>
+  <div><span>Email</span><strong>{{ user.email }}</strong></div>
+  <div><span>Số điện thoại</span><strong>{{ user.phoneNumber || '—' }}</strong></div>
+  <div><span>Vai trò</span><strong>{{ user.role }}</strong></div>
+  <div><span>Trạng thái</span><strong>{{ user.status }}</strong></div>
+</div>

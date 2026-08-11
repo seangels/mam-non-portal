@@ -1,0 +1,55 @@
+<div *ngIf="statusError; else setupForm" class="setup-error">
+  <p>{{statusError}}</p>
+  <button type="button" class="dx-button dx-button-default" [disabled]="loading" (click)="retryStatus()">
+    Thử lại
+  </button>
+</div>
+
+<ng-template #setupForm>
+  <form class="setup-form" (submit)="onSubmit($event)">
+    <dx-form [formData]="formData" [disabled]="loading">
+      <dxi-item dataField="fullName" editorType="dxTextBox"
+        [editorOptions]="{ stylingMode: 'filled', placeholder: 'Họ và tên' }">
+        <dxi-validation-rule type="required" message="Vui lòng nhập họ tên"></dxi-validation-rule>
+        <dxi-validation-rule type="stringLength" [max]="200" message="Họ tên tối đa 200 ký tự"></dxi-validation-rule>
+        <dxo-label [visible]="false"></dxo-label>
+      </dxi-item>
+
+      <dxi-item dataField="email" editorType="dxTextBox"
+        [editorOptions]="{ stylingMode: 'filled', placeholder: 'Email', mode: 'email' }">
+        <dxi-validation-rule type="required" message="Vui lòng nhập email"></dxi-validation-rule>
+        <dxi-validation-rule type="email" message="Email không đúng định dạng"></dxi-validation-rule>
+        <dxo-label [visible]="false"></dxo-label>
+      </dxi-item>
+
+      <dxi-item dataField="password" editorType="dxTextBox"
+        [editorOptions]="{ stylingMode: 'filled', placeholder: 'Mật khẩu', mode: 'password' }">
+        <dxi-validation-rule type="required" message="Vui lòng nhập mật khẩu"></dxi-validation-rule>
+        <dxi-validation-rule type="pattern" [pattern]="passwordPattern"
+          message="Tối thiểu 12 ký tự, gồm chữ hoa, chữ thường, số và ký tự đặc biệt"></dxi-validation-rule>
+        <dxo-label [visible]="false"></dxo-label>
+      </dxi-item>
+
+      <dxi-item dataField="confirmPassword" editorType="dxTextBox"
+        [editorOptions]="{ stylingMode: 'filled', placeholder: 'Nhập lại mật khẩu', mode: 'password' }">
+        <dxi-validation-rule type="required" message="Vui lòng xác nhận mật khẩu"></dxi-validation-rule>
+        <dxi-validation-rule type="compare" [comparisonTarget]="passwordComparison"
+          message="Mật khẩu xác nhận không khớp"></dxi-validation-rule>
+        <dxo-label [visible]="false"></dxo-label>
+      </dxi-item>
+
+      <dxi-item itemType="button">
+        <dxo-button-options width="100%" type="default" [useSubmitBehavior]="true"
+          [template]="'setupSubmitTemplate'"></dxo-button-options>
+      </dxi-item>
+
+      <ng-container *dxTemplate="let item of 'setupSubmitTemplate'">
+        <span class="dx-button-text">
+          <dx-load-indicator *ngIf="loading; else submitText" width="24px" height="24px"
+            [visible]="true"></dx-load-indicator>
+          <ng-template #submitText>Khởi tạo SuperAdmin</ng-template>
+        </span>
+      </ng-container>
+    </dx-form>
+  </form>
+</ng-template>

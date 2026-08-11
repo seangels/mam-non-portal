@@ -1,0 +1,26 @@
+<div class="page-heading content-block">
+  <div>
+    <h1>Xin chào, {{ user?.fullName || user?.email }}</h1>
+    <p>Chọn một khu vực quản lý để bắt đầu.</p>
+  </div>
+  <span class="role-badge">{{ roleLabel }}</span>
+</div>
+
+<div class="content-block dashboard-grid" *ngIf="canManage; else teacherMessage">
+  <a class="dx-card dashboard-card" routerLink="/users">
+    <span class="dx-icon-group card-icon"></span>
+    <strong>Quản lý tài khoản</strong>
+    <small>Giáo viên{{ user?.role === 'SuperAdmin' ? ' và quản trị viên' : '' }}</small>
+  </a>
+  <a class="dx-card dashboard-card" routerLink="/students">
+    <span class="dx-icon-card card-icon"></span>
+    <strong>Quản lý học sinh</strong>
+    <small>Hồ sơ, trạng thái và người giám hộ</small>
+  </a>
+</div>
+
+<ng-template #teacherMessage>
+  <div class="content-block dx-card responsive-paddings empty-state">
+    Tài khoản giáo viên chưa có chức năng quản trị trong phiên bản này.
+  </div>
+</ng-template>

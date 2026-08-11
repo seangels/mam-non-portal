@@ -1,0 +1,4 @@
+:host { display: block; }
+.status { display: inline-block; padding: 3px 8px; border-radius: 999px; background: #e8f7ef; color: #18794e; font-size: 12px; }
+.status.inactive { background: #f3f4f6; color: #596273; }
+@media (max-width: 640px) { .page-toolbar { align-items: flex-start; flex-direction: column; } }

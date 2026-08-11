@@ -1,0 +1,11 @@
+.page-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-top: 12px; }
+h1 { margin: 0 0 6px; font-size: 26px; }
+p { margin: 0; color: #6b7280; }
+.role-badge { padding: 7px 12px; border-radius: 999px; background: #e8f1ff; color: #245ea8; font-weight: 600; }
+.dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 18px; }
+.dashboard-card { display: flex; flex-direction: column; gap: 8px; padding: 24px; color: inherit; text-decoration: none; transition: transform .15s, box-shadow .15s; }
+.dashboard-card:hover { transform: translateY(-2px); box-shadow: 0 7px 24px rgba(20, 44, 82, .12); }
+.card-icon { color: #337ab7; font-size: 30px; }
+.dashboard-card strong { font-size: 18px; }
+.dashboard-card small { color: #6b7280; }
+.empty-state { color: #6b7280; }

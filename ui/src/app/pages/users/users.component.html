@@ -1,0 +1,66 @@
+<div class="content-block page-toolbar">
+  <div>
+    <h1 class="page-title">Quản lý tài khoản</h1>
+    <p class="page-subtitle">Quản lý giáo viên{{ auth.hasRole('SuperAdmin') ? ' và quản trị viên' : '' }}.</p>
+  </div>
+  <dx-button text="Thêm tài khoản" icon="plus" type="default" (onClick)="openCreate()"></dx-button>
+</div>
+
+<div class="content-block dx-card grid-card">
+  <div class="filters">
+    <dx-text-box [(value)]="search" placeholder="Tên, email, số điện thoại" [showClearButton]="true" (onEnterKey)="applyFilters()"></dx-text-box>
+    <dx-select-box [(value)]="roleFilter" [items]="availableRoles" valueExpr="value" displayExpr="text" placeholder="Vai trò" [showClearButton]="true"></dx-select-box>
+    <dx-select-box [(value)]="statusFilter" [items]="userStatuses" valueExpr="value" displayExpr="text" placeholder="Trạng thái" [showClearButton]="true"></dx-select-box>
+    <dx-button text="Lọc" icon="filter" type="default" (onClick)="applyFilters()"></dx-button>
+    <dx-button text="Đặt lại" icon="revert" stylingMode="outlined" (onClick)="resetFilters()"></dx-button>
+  </div>
+
+  <dx-data-grid
+    [dataSource]="dataSource"
+    [remoteOperations]="{ paging: true, sorting: true }"
+    [showBorders]="true"
+    [columnAutoWidth]="true"
+    [rowAlternationEnabled]="true"
+    [hoverStateEnabled]="true"
+    noDataText="Không có tài khoản phù hợp">
+    <dxo-load-panel [enabled]="true"></dxo-load-panel>
+    <dxo-paging [pageSize]="20"></dxo-paging>
+    <dxo-pager [visible]="true" [showPageSizeSelector]="true" [allowedPageSizes]="[10, 20, 50, 100]" [showInfo]="true"></dxo-pager>
+    <dxo-sorting mode="single"></dxo-sorting>
+
+    <dxi-column dataField="fullName" caption="Họ và tên" sortOrder="asc"></dxi-column>
+    <dxi-column dataField="email" caption="Email"></dxi-column>
+    <dxi-column dataField="phoneNumber" caption="Số điện thoại" [allowSorting]="false"></dxi-column>
+    <dxi-column dataField="role" caption="Vai trò" cellTemplate="roleCell"></dxi-column>
+    <dxi-column dataField="status" caption="Trạng thái" cellTemplate="statusCell"></dxi-column>
+    <dxi-column dataField="createdAt" caption="Ngày tạo" dataType="datetime" format="dd/MM/yyyy HH:mm"></dxi-column>
+    <dxi-column type="buttons" caption="Thao tác" [width]="130" [buttons]="rowButtons"></dxi-column>
+
+    <div *dxTemplate="let cell of 'roleCell'">{{ roleText(cell.value) }}</div>
+    <div *dxTemplate="let cell of 'statusCell'" class="status" [class.inactive]="cell.value !== 'Active'">{{ statusText(cell.value) }}</div>
+  </dx-data-grid>
+</div>
+
+<dx-popup [(visible)]="editorVisible" [title]="editorTitle" [width]="620" [height]="'auto'" [showCloseButton]="true" [hideOnOutsideClick]="!saving">
+  <form *dxTemplate="let _ of 'content'" (submit)="save($event)">
+    <dx-form [formData]="editor" [disabled]="saving" labelLocation="top" [colCount]="2">
+      <dxi-item dataField="fullName" [colSpan]="2"><dxo-label text="Họ và tên"></dxo-label><dxi-validation-rule type="required" message="Vui lòng nhập họ tên"></dxi-validation-rule><dxi-validation-rule type="stringLength" [max]="200" message="Tối đa 200 ký tự"></dxi-validation-rule></dxi-item>
+      <dxi-item dataField="email" editorType="dxTextBox" [colSpan]="2" [editorOptions]="{ mode: 'email' }"><dxo-label text="Email"></dxo-label><dxi-validation-rule type="required" message="Vui lòng nhập email"></dxi-validation-rule><dxi-validation-rule type="email" message="Email không hợp lệ"></dxi-validation-rule></dxi-item>
+      <dxi-item dataField="phoneNumber"><dxo-label text="Số điện thoại"></dxo-label><dxi-validation-rule type="stringLength" [max]="30" message="Tối đa 30 ký tự"></dxi-validation-rule></dxi-item>
+      <dxi-item dataField="role" editorType="dxSelectBox" [editorOptions]="{ items: availableRoles, valueExpr: 'value', displayExpr: 'text', searchEnabled: false }"><dxo-label text="Vai trò"></dxo-label><dxi-validation-rule type="required"></dxi-validation-rule></dxi-item>
+      <dxi-item dataField="status" editorType="dxSelectBox" [editorOptions]="{ items: userStatuses, valueExpr: 'value', displayExpr: 'text' }"><dxo-label text="Trạng thái"></dxo-label><dxi-validation-rule type="required"></dxi-validation-rule></dxi-item>
+      <dxi-item *ngIf="!isEditing" dataField="password" editorType="dxTextBox" [colSpan]="2" [editorOptions]="{ mode: 'password' }"><dxo-label text="Mật khẩu"></dxo-label><dxi-validation-rule type="required" message="Vui lòng nhập mật khẩu"></dxi-validation-rule><dxi-validation-rule type="stringLength" [min]="8" [max]="100" message="Mật khẩu từ 8 đến 100 ký tự"></dxi-validation-rule></dxi-item>
+      <dxi-item itemType="button" [colSpan]="2" horizontalAlignment="right"><dxo-button-options [text]="isEditing ? 'Lưu thay đổi' : 'Tạo tài khoản'" type="default" [useSubmitBehavior]="true" [disabled]="saving"></dxo-button-options></dxi-item>
+    </dx-form>
+  </form>
+</dx-popup>
+
+<dx-popup [(visible)]="passwordVisible" title="Đổi mật khẩu" [width]="460" [height]="'auto'" [showCloseButton]="true" [hideOnOutsideClick]="!saving">
+  <form *dxTemplate="let _ of 'content'" (submit)="changePassword($event)">
+    <dx-form [formData]="passwordEditor" [disabled]="saving" labelLocation="top">
+      <dxi-item dataField="password" editorType="dxTextBox" [editorOptions]="{ mode: 'password' }"><dxo-label text="Mật khẩu mới"></dxo-label><dxi-validation-rule type="required"></dxi-validation-rule><dxi-validation-rule type="stringLength" [min]="8" [max]="100" message="Mật khẩu từ 8 đến 100 ký tự"></dxi-validation-rule></dxi-item>
+      <dxi-item dataField="confirmPassword" editorType="dxTextBox" [editorOptions]="{ mode: 'password' }"><dxo-label text="Xác nhận mật khẩu"></dxo-label><dxi-validation-rule type="required"></dxi-validation-rule></dxi-item>
+      <dxi-item itemType="button" horizontalAlignment="right"><dxo-button-options text="Đổi mật khẩu" type="default" [useSubmitBehavior]="true" [disabled]="saving"></dxo-button-options></dxi-item>
+    </dx-form>
+  </form>
+</dx-popup>
