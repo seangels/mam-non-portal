@@ -21,19 +21,23 @@ public sealed class AttendancePersistence(AdminPortalDbContext dbContext) : IAtt
         LockManyAsync("student_groups", groupIds.Distinct().Order(), cancellationToken);
 
     public Task LockStudentAsync(Guid studentId, CancellationToken cancellationToken) =>
-        LockManyAsync("students", [studentId], cancellationToken);
+        LockManyAsync("students", [studentId], cancellationToken, "FOR NO KEY UPDATE");
 
     public Task LockSheetAsync(Guid sheetId, CancellationToken cancellationToken) =>
         LockManyAsync("attendance_sheets", [sheetId], cancellationToken);
 
-    private async Task LockManyAsync(string table, IEnumerable<Guid> ids, CancellationToken cancellationToken)
+    private async Task LockManyAsync(
+        string table,
+        IEnumerable<Guid> ids,
+        CancellationToken cancellationToken,
+        string lockClause = "FOR UPDATE")
     {
         var values = ids.ToArray();
         if (values.Length == 0) return;
         var connection = dbContext.Database.GetDbConnection();
         await using var command = connection.CreateCommand();
         command.Transaction = dbContext.Database.CurrentTransaction?.GetDbTransaction();
-        command.CommandText = $"SELECT id FROM {table} WHERE id = ANY(@ids) ORDER BY id FOR UPDATE";
+        command.CommandText = $"SELECT id FROM {table} WHERE id = ANY(@ids) ORDER BY id {lockClause}";
         command.Parameters.Add(new NpgsqlParameter<Guid[]>("ids", values));
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         while (await reader.ReadAsync(cancellationToken)) { }

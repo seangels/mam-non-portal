@@ -6,6 +6,7 @@
 @teacherId = 00000000-0000-0000-0000-000000000000
 @teacherUserId = 00000000-0000-0000-0000-000000000000
 @teacherVersion = 1
+@studentVersion = 1
 @groupId = 00000000-0000-0000-0000-000000000000
 @sheetId = 00000000-0000-0000-0000-000000000000
 @attendanceDate = 2026-08-11
@@ -63,8 +64,53 @@ Content-Type: application/json
 
 ###
 
-GET {{host}}/api/v1/students?page=1&pageSize=20&status=Active&sortBy=fullName&sortOrder=asc
+GET {{host}}/api/v1/students?page=1&pageSize=20&status=Active&studyMode=FullDay&studyWeekday=Monday&sortBy=studyMode&sortOrder=asc
 Authorization: Bearer {{accessToken}}
+
+###
+
+POST {{host}}/api/v1/students
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "studentCode": "HS-001",
+  "fullName": "Nguyễn Văn An",
+  "nickName": "Bé An",
+  "dateOfBirth": "2021-01-02",
+  "gender": "Male",
+  "status": "Active",
+  "guardianName": null,
+  "guardianPhone": null,
+  "note": null,
+  "studySchedule": {
+    "mode": "FullDay",
+    "weekdays": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
+  }
+}
+
+###
+
+PUT {{host}}/api/v1/students/{{studentId}}
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "studentCode": "HS-001",
+  "fullName": "Nguyễn Văn An",
+  "nickName": "Bé An",
+  "dateOfBirth": "2021-01-02",
+  "gender": "Male",
+  "status": "Active",
+  "guardianName": null,
+  "guardianPhone": null,
+  "note": null,
+  "studySchedule": {
+    "mode": "OneToOne",
+    "weekdays": ["Monday", "Wednesday", "Friday"]
+  },
+  "expectedVersion": {{studentVersion}}
+}
 
 ###
 
@@ -163,8 +209,14 @@ Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
 {
-  "groupId": "{{groupId}}"
+  "groupId": "{{groupId}}",
+  "expectedVersion": {{studentVersion}}
 }
+
+###
+
+DELETE {{host}}/api/v1/students/{{studentId}}?expectedVersion={{studentVersion}}
+Authorization: Bearer {{accessToken}}
 
 ###
 

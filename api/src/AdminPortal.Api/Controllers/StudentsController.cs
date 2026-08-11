@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using AdminPortal.Application.Common.Models;
 using AdminPortal.Application.Students;
 using Microsoft.AspNetCore.Authorization;
@@ -50,9 +51,12 @@ public sealed class StudentsController(IStudentService studentService) : Control
 
     [HttpDelete("{id:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
-    public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
+    public async Task<IActionResult> Delete(
+        Guid id,
+        [FromQuery, Range(1, int.MaxValue)] int expectedVersion,
+        CancellationToken cancellationToken)
     {
-        await studentService.DeleteAsync(id, cancellationToken);
+        await studentService.DeleteAsync(id, expectedVersion, cancellationToken);
         return NoContent();
     }
 }

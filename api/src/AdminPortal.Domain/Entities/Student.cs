@@ -14,6 +14,9 @@ public sealed class Student
     public string? GuardianName { get; set; }
     public string? GuardianPhone { get; set; }
     public string? Note { get; set; }
+    public StudyMode StudyMode { get; set; }
+    public short StudyWeekdayMask { get; set; }
+    public int Version { get; set; } = 1;
     public Guid? GroupId { get; set; }
     public StudentGroup? Group { get; set; }
     public DateTimeOffset? GroupAssignedAt { get; set; }

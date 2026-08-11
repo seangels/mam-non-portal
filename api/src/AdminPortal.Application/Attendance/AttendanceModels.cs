@@ -58,7 +58,7 @@ public sealed record CreateAttendanceSheetRequest(
     Guid GroupId,
     DateOnly Date,
     [param: Range(1, int.MaxValue)] int ExpectedSnapshotVersion,
-    [param: Required, MinLength(1), MaxLength(100)] IReadOnlyList<AttendanceRecordRequest> Records);
+    [param: Required, MaxLength(100)] IReadOnlyList<AttendanceRecordRequest> Records);
 
 public sealed record UpdateAttendanceSheetRequest(
     [param: Range(1, int.MaxValue)] int ExpectedVersion,

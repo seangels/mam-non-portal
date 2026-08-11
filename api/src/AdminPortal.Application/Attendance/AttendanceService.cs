@@ -2,6 +2,7 @@ using AdminPortal.Application.Common;
 using AdminPortal.Application.Common.Exceptions;
 using AdminPortal.Application.Common.Interfaces;
 using AdminPortal.Application.Common.Models;
+using AdminPortal.Application.Students;
 using AdminPortal.Domain.Entities;
 using AdminPortal.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
@@ -46,8 +47,10 @@ public sealed class AttendanceService(
             .Where(x => x.AttendanceDate == attendanceDate && groupIds.Contains(x.GroupId))
             .Select(x => new { x.GroupId, Count = x.Records.Count })
             .ToDictionaryAsync(x => x.GroupId, x => x.Count, cancellationToken);
+        var weekdayMask = StudentScheduleRules.ToMask(attendanceDate.DayOfWeek);
         var rosterCounts = await dbContext.Students.AsNoTracking()
-            .Where(x => x.GroupId != null && groupIds.Contains(x.GroupId.Value) && x.Status == StudentStatus.Active)
+            .Where(x => weekdayMask != 0 && x.GroupId != null && groupIds.Contains(x.GroupId.Value) &&
+                x.Status == StudentStatus.Active && (x.StudyWeekdayMask & weekdayMask) != 0)
             .GroupBy(x => x.GroupId!.Value)
             .Select(x => new { GroupId = x.Key, Count = x.Count() })
             .ToDictionaryAsync(x => x.GroupId, x => x.Count, cancellationToken);
@@ -120,19 +123,19 @@ public sealed class AttendanceService(
         DateOnly attendanceDate,
         CancellationToken cancellationToken)
     {
-        var roster = await dbContext.Students.AsNoTracking()
-            .Where(x => x.GroupId == group.Id && x.Status == StudentStatus.Active)
+        var roster = await ScheduledRoster(group.Id, attendanceDate)
             .OrderBy(x => x.FullName).ThenBy(x => x.StudentCode)
             .ToListAsync(cancellationToken);
         var datePolicy = EvaluateDatePolicy(actor, teacher, attendanceDate, businessDateProvider.Today);
         var standardAvailable = IsStandardSnapshotAvailable(group, attendanceDate);
-        var canCreate = datePolicy.CanEdit && standardAvailable;
+        var standardReason = StandardReadOnlyReason(group, attendanceDate, datePolicy.Reason);
+        var reason = standardReason ?? (roster.Count == 0 ? AttendanceReadOnlyReason.NoScheduledStudents : null);
+        var canCreate = reason is null;
         var canRecover = actor.Role is UserRole.Admin or UserRole.SuperAdmin &&
             attendanceDate < businessDateProvider.Today && !standardAvailable;
-        var reason = canCreate ? null : StandardReadOnlyReason(group, attendanceDate, datePolicy.Reason);
         var items = roster.Select(x => new AttendanceItemResponse(
             null, x.Id, x.StudentCode, x.FullName, x.NickName,
-            AttendanceStatus.Present, null, null, null, null, null)).ToList();
+            DefaultStatus(x.StudyMode), null, null, DefaultDuration(x.StudyMode), null, null)).ToList();
         return new AttendanceDailyResponse(
             attendanceDate,
             businessDateProvider.Today,
@@ -202,6 +205,23 @@ public sealed class AttendanceService(
         items.Count(x => x.Status is AttendanceStatus.AbsentFullDay or AttendanceStatus.AbsentHalfDay),
         items.Count(x => x.Status == AttendanceStatus.OneToOneHour));
 
+    private IQueryable<Student> ScheduledRoster(Guid groupId, DateOnly attendanceDate)
+    {
+        var weekdayMask = StudentScheduleRules.ToMask(attendanceDate.DayOfWeek);
+        return dbContext.Students.AsNoTracking().Where(student =>
+            weekdayMask != 0 && student.GroupId == groupId && student.Status == StudentStatus.Active &&
+            (student.StudyWeekdayMask & weekdayMask) != 0);
+    }
+
+    private static AttendanceStatus DefaultStatus(StudyMode mode) => mode switch
+    {
+        StudyMode.FullDay => AttendanceStatus.Present,
+        StudyMode.OneToOne => AttendanceStatus.OneToOneHour,
+        _ => throw new InvalidOperationException("Stored study mode is invalid.")
+    };
+
+    private static int? DefaultDuration(StudyMode mode) => mode == StudyMode.OneToOne ? 60 : null;
+
     private async Task<Guid> ResolveGroupIdAsync(
         ActorContext actor,
         Teacher? teacher,
@@ -262,7 +282,7 @@ public sealed class AttendanceService(
     {
         var actor = currentActor.GetRequired();
         EnsureAttendanceRole(actor);
-        AttendanceRules.ValidateRecords(request.Records);
+        AttendanceRules.ValidateRecords(request.Records, allowEmpty: true);
         EnsureNotFuture(request.Date);
         var teacher = actor.Role == UserRole.Teacher
             ? await GetCurrentTeacherAsync(actor.UserId, cancellationToken)
@@ -276,17 +296,18 @@ public sealed class AttendanceService(
             .SingleOrDefaultAsync(x => x.Id == request.GroupId, cancellationToken)
             ?? throw new NotFoundException("Không tìm thấy nhóm học sinh.");
         EnsureGroupAccess(actor, teacher, group);
-        EnsureStandardCreationAvailable(group, request.Date);
         if (request.ExpectedSnapshotVersion != group.SnapshotVersion)
             throw ConflictWithVersion("Snapshot nhóm đã thay đổi.", ProblemCodes.SnapshotChanged,
                 "currentSnapshotVersion", group.SnapshotVersion);
+        EnsureStandardCreationAvailable(group, request.Date);
         if (await dbContext.AttendanceSheets.AnyAsync(
             x => x.GroupId == group.Id && x.AttendanceDate == request.Date, cancellationToken))
             throw new ConflictException("Phiếu điểm danh đã tồn tại.", ProblemCodes.AttendanceSheetAlreadyExists);
 
-        var roster = await dbContext.Students.AsNoTracking()
-            .Where(x => x.GroupId == group.Id && x.Status == StudentStatus.Active)
+        var roster = await ScheduledRoster(group.Id, request.Date)
             .OrderBy(x => x.Id).ToListAsync(cancellationToken);
+        if (roster.Count == 0)
+            throw new ConflictException("Không có học sinh có lịch học trong ngày này.", ProblemCodes.NoScheduledStudents);
         EnsureRosterMatches(request.Records, roster.Select(x => x.Id));
         var now = timeProvider.GetUtcNow();
         var sheet = new AttendanceSheet

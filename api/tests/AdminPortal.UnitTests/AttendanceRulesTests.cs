@@ -42,6 +42,13 @@ public sealed class AttendanceRulesTests
         Assert.Contains("records[1].studentId", exception.Errors.Keys);
     }
 
+    [Fact]
+    public void StandardCreateCanDeferEmptyRosterToBusinessValidation()
+    {
+        AttendanceRules.ValidateRecords([], allowEmpty: true);
+        Assert.Throws<AppValidationException>(() => AttendanceRules.ValidateRecords([]));
+    }
+
     [Theory]
     [InlineData(1, 0, true)]
     [InlineData(1, -1, false)]

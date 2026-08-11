@@ -8,7 +8,12 @@ internal sealed class StudentConfiguration : IEntityTypeConfiguration<Student>
 {
     public void Configure(EntityTypeBuilder<Student> builder)
     {
-        builder.ToTable("students");
+        builder.ToTable("students", table =>
+        {
+            table.HasCheckConstraint("ck_students_study_mode", "study_mode IN ('OneToOne', 'FullDay')");
+            table.HasCheckConstraint("ck_students_study_weekday_mask", "study_weekday_mask BETWEEN 1 AND 63");
+            table.HasCheckConstraint("ck_students_version", "version >= 1");
+        });
         builder.HasKey(x => x.Id);
         builder.Property(x => x.StudentCode).HasMaxLength(50).IsRequired();
         builder.Property(x => x.FullName).HasMaxLength(200).IsRequired();
@@ -17,6 +22,9 @@ internal sealed class StudentConfiguration : IEntityTypeConfiguration<Student>
         builder.Property(x => x.Status).HasConversion<string>().HasMaxLength(30);
         builder.Property(x => x.GuardianName).HasMaxLength(200);
         builder.Property(x => x.GuardianPhone).HasMaxLength(30);
+        builder.Property(x => x.StudyMode).HasConversion<string>().HasMaxLength(20).IsRequired();
+        builder.Property(x => x.StudyWeekdayMask).IsRequired();
+        builder.Property(x => x.Version).HasDefaultValue(1).IsConcurrencyToken();
         builder.HasQueryFilter(x => x.DeletedAt == null);
         builder.HasIndex(x => x.StudentCode)
             .IsUnique()

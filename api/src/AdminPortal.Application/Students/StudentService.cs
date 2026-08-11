@@ -18,13 +18,12 @@ public sealed class StudentService(
 {
     public async Task<PagedResponse<StudentResponse>> ListAsync(StudentListQuery query, CancellationToken cancellationToken)
     {
-        var actor = currentActor.GetRequired();
-        AuthorizationRules.EnsurePortalManager(actor);
+        AuthorizationRules.EnsurePortalManager(currentActor.GetRequired());
         var students = dbContext.Students.AsNoTracking();
         if (!string.IsNullOrWhiteSpace(query.Search))
         {
             var search = query.Search.Trim().ToLowerInvariant();
-#pragma warning disable CA1304, CA1311, CA1862 // Parameterless ToLower is translated to PostgreSQL lower().
+#pragma warning disable CA1304, CA1311, CA1862
             students = students.Where(student =>
                 student.StudentCode.ToLower().Contains(search) ||
                 student.FullName.ToLower().Contains(search) ||
@@ -48,23 +47,32 @@ public sealed class StudentService(
 
         if (query.GroupId is not null) students = students.Where(student => student.GroupId == query.GroupId);
         if (query.Unassigned == true) students = students.Where(student => student.GroupId == null);
+        if (query.StudyMode is not null) students = students.Where(student => student.StudyMode == query.StudyMode);
+        if (query.StudyWeekday is not null)
+        {
+            var weekdayMask = StudentScheduleRules.ToMask(query.StudyWeekday.Value);
+            students = students.Where(student => (student.StudyWeekdayMask & weekdayMask) != 0);
+        }
 
         var totalItems = await students.CountAsync(cancellationToken);
         var descending = query.SortOrder.Equals("desc", StringComparison.OrdinalIgnoreCase);
         var page = ApplySort(students, query.SortBy, descending)
             .Skip((query.Page - 1) * query.PageSize)
             .Take(query.PageSize);
-        var items = await Project(page)
-            .ToListAsync(cancellationToken);
+        var rows = await ProjectRows(page).ToListAsync(cancellationToken);
         return new PagedResponse<StudentResponse>(
-            items,
-            new PaginationMetadata(query.Page, query.PageSize, totalItems, (int)Math.Ceiling(totalItems / (double)query.PageSize)));
+            rows.Select(Map).ToList(),
+            new PaginationMetadata(query.Page, query.PageSize, totalItems,
+                (int)Math.Ceiling(totalItems / (double)query.PageSize)));
     }
 
     public async Task<StudentResponse> GetAsync(Guid id, CancellationToken cancellationToken)
     {
         AuthorizationRules.EnsurePortalManager(currentActor.GetRequired());
-        return Map(await FindRequiredAsync(id, false, cancellationToken));
+        var row = await ProjectRows(dbContext.Students.AsNoTracking().Where(student => student.Id == id))
+            .SingleOrDefaultAsync(cancellationToken)
+            ?? throw StudentNotFound();
+        return Map(row);
     }
 
     public async Task<StudentResponse> CreateAsync(CreateStudentRequest request, CancellationToken cancellationToken)
@@ -75,6 +83,7 @@ public sealed class StudentService(
         ValidateRequired(request.FullName, "fullName", "Họ tên là bắt buộc.");
         ValidateRequired(request.NickName, "nickName", "Tên thường gọi là bắt buộc.");
         ValidateDateOfBirth(request.DateOfBirth);
+        var weekdayMask = StudentScheduleRules.Encode(request.StudySchedule);
 
         var code = NormalizeCode(request.StudentCode);
         if (await dbContext.Students.AnyAsync(student => student.StudentCode == code, cancellationToken))
@@ -95,11 +104,15 @@ public sealed class StudentService(
             GuardianName = NormalizeOptional(request.GuardianName),
             GuardianPhone = NormalizeOptional(request.GuardianPhone),
             Note = NormalizeOptional(request.Note),
+            StudyMode = request.StudySchedule.Mode,
+            StudyWeekdayMask = weekdayMask,
+            Version = 1,
             CreatedAt = now,
             UpdatedAt = now
         };
         dbContext.Students.Add(student);
-        AddAudit(actor, "Student.Created", student.Id, null, Snapshot(student));
+        AddAudit(actor, "Student.Created", student.Id, null,
+            AuditState(student, StudentEditableFields, false));
         await dbContext.SaveChangesAsync(cancellationToken);
         return Map(student);
     }
@@ -114,12 +127,14 @@ public sealed class StudentService(
         await using var transaction = await attendancePersistence.BeginTransactionAsync(cancellationToken);
         await attendancePersistence.LockStudentAsync(id, cancellationToken);
         var student = await FindRequiredAsync(id, true, cancellationToken);
+        EnsureVersion(student, request.ExpectedVersion);
         if (student.GroupId is not null) await attendancePersistence.LockGroupsAsync([student.GroupId.Value], cancellationToken);
-        var oldValues = Snapshot(student);
+
         ValidateRequired(request.StudentCode, "studentCode", "Mã học sinh không được để trống.");
         ValidateRequired(request.FullName, "fullName", "Họ tên không được để trống.");
         ValidateRequired(request.NickName, "nickName", "Tên thường gọi không được để trống.");
         ValidateDateOfBirth(request.DateOfBirth);
+        var weekdayMask = StudentScheduleRules.Encode(request.StudySchedule);
         var code = NormalizeCode(request.StudentCode);
         if (code != student.StudentCode &&
             await dbContext.Students.AnyAsync(candidate => candidate.StudentCode == code && candidate.Id != id, cancellationToken))
@@ -132,9 +147,13 @@ public sealed class StudentService(
             throw new ConflictException("Không thể ngừng hoạt động học sinh đang thuộc nhóm.", ProblemCodes.StudentHasCurrentGroup);
         }
 
+        var changedFields = ChangedFields(student, request, code, weekdayMask);
+        var scheduleChanged = student.StudyMode != request.StudySchedule.Mode ||
+            student.StudyWeekdayMask != weekdayMask;
         var snapshotChanged = student.GroupId is not null &&
             (code != student.StudentCode || request.FullName.Trim() != student.FullName ||
-             request.NickName.Trim() != student.NickName || request.Status != student.Status);
+             request.NickName.Trim() != student.NickName || scheduleChanged);
+        var oldAudit = AuditState(student, changedFields, changedFields.Contains("note", StringComparer.Ordinal));
 
         student.StudentCode = code;
         student.FullName = request.FullName.Trim();
@@ -145,6 +164,9 @@ public sealed class StudentService(
         student.GuardianName = NormalizeOptional(request.GuardianName);
         student.GuardianPhone = NormalizeOptional(request.GuardianPhone);
         student.Note = NormalizeOptional(request.Note);
+        student.StudyMode = request.StudySchedule.Mode;
+        student.StudyWeekdayMask = weekdayMask;
+        student.Version++;
         student.UpdatedAt = timeProvider.GetUtcNow();
         if (snapshotChanged)
         {
@@ -153,27 +175,32 @@ public sealed class StudentService(
             group.SnapshotChangedAt = student.UpdatedAt;
             group.UpdatedAt = student.UpdatedAt;
         }
-        AddAudit(actor, "Student.Updated", student.Id, oldValues, Snapshot(student));
-        await dbContext.SaveChangesAsync(cancellationToken);
+
+        AddAudit(actor, "Student.Updated", student.Id, oldAudit,
+            AuditState(student, changedFields, changedFields.Contains("note", StringComparer.Ordinal)));
+        await SaveWithVersionGuardAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
         return Map(student);
     }
 
-    public async Task DeleteAsync(Guid id, CancellationToken cancellationToken)
+    public async Task DeleteAsync(Guid id, int expectedVersion, CancellationToken cancellationToken)
     {
         var actor = currentActor.GetRequired();
         AuthorizationRules.EnsurePortalManager(actor);
         await using var transaction = await attendancePersistence.BeginTransactionAsync(cancellationToken);
         await attendancePersistence.LockStudentAsync(id, cancellationToken);
         var student = await FindRequiredAsync(id, true, cancellationToken);
+        EnsureVersion(student, expectedVersion);
         if (student.GroupId is not null)
             throw new ConflictException("Không thể xóa học sinh đang thuộc nhóm.", ProblemCodes.StudentHasCurrentGroup);
-        var oldValues = Snapshot(student);
+        var oldAudit = AuditState(student, ["deletedAt"], false);
         var now = timeProvider.GetUtcNow();
         student.DeletedAt = now;
         student.UpdatedAt = now;
-        AddAudit(actor, "Student.Deleted", student.Id, oldValues, null);
-        await dbContext.SaveChangesAsync(cancellationToken);
+        student.Version++;
+        AddAudit(actor, "Student.Deleted", student.Id, oldAudit,
+            AuditState(student, ["deletedAt"], false));
+        await SaveWithVersionGuardAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
     }
 
@@ -187,11 +214,13 @@ public sealed class StudentService(
         await using var transaction = await attendancePersistence.BeginTransactionAsync(cancellationToken);
         await attendancePersistence.LockStudentAsync(id, cancellationToken);
         var student = await FindRequiredAsync(id, true, cancellationToken);
+        EnsureVersion(student, request.ExpectedVersion);
         if (student.GroupId == request.GroupId)
         {
             await transaction.CommitAsync(cancellationToken);
             return Map(student);
         }
+
         if (await dbContext.AttendanceRecords.AnyAsync(
             x => x.StudentId == id && x.AttendanceDate == businessDateProvider.Today,
             cancellationToken))
@@ -200,6 +229,7 @@ public sealed class StudentService(
                 "Không thể đổi nhóm sau khi học sinh đã có điểm danh hôm nay.",
                 ProblemCodes.StudentAlreadyRecordedToday);
         }
+
         var groupIds = new[] { student.GroupId, request.GroupId }.Where(x => x is not null).Select(x => x!.Value);
         await attendancePersistence.LockGroupsAsync(groupIds, cancellationToken);
         StudentGroup? group = null;
@@ -214,16 +244,18 @@ public sealed class StudentService(
             var activeCount = await dbContext.Students.CountAsync(
                 x => x.GroupId == group.Id && x.Status == StudentStatus.Active && x.Id != id,
                 cancellationToken);
-            if (student.Status == StudentStatus.Active && activeCount >= 100)
+            if (activeCount >= 100)
                 throw new ConflictException("Nhóm đã đủ tối đa 100 học sinh.", ProblemCodes.GroupCapacityExceeded);
         }
 
         var oldGroupId = student.GroupId;
+        var versionBefore = student.Version;
         var now = timeProvider.GetUtcNow();
         student.GroupId = group?.Id;
         student.Group = group;
         student.GroupAssignedAt = group is null ? null : now;
         student.GroupAssignedByUserId = group is null ? null : actor.UserId;
+        student.Version++;
         student.UpdatedAt = now;
         var affectedGroups = await dbContext.StudentGroups
             .Where(x => x.Id == oldGroupId || x.Id == student.GroupId)
@@ -234,14 +266,16 @@ public sealed class StudentService(
             affected.SnapshotChangedAt = now;
             affected.UpdatedAt = now;
         }
+
         var action = oldGroupId is null
             ? "Student.GroupAssigned"
             : student.GroupId is null
                 ? "Student.GroupRemoved"
                 : "Student.GroupMoved";
-        AddAudit(actor, action, student.Id, new { GroupId = oldGroupId },
-            new { student.GroupId });
-        await dbContext.SaveChangesAsync(cancellationToken);
+        AddAudit(actor, action, student.Id,
+            new { groupId = oldGroupId, version = versionBefore },
+            new { student.GroupId, student.Version });
+        await SaveWithVersionGuardAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
         return Map(student);
     }
@@ -249,8 +283,19 @@ public sealed class StudentService(
     private async Task<Student> FindRequiredAsync(Guid id, bool tracked, CancellationToken cancellationToken)
     {
         var query = (tracked ? dbContext.Students.AsQueryable() : dbContext.Students.AsNoTracking()).Include(x => x.Group);
-        return await query.SingleOrDefaultAsync(student => student.Id == id, cancellationToken)
-            ?? throw new NotFoundException("Không tìm thấy học sinh.");
+        return await query.SingleOrDefaultAsync(student => student.Id == id, cancellationToken) ?? throw StudentNotFound();
+    }
+
+    private async Task SaveWithVersionGuardAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            throw new ConflictException("Phiên bản học sinh đã thay đổi.", ProblemCodes.StudentVersionConflict);
+        }
     }
 
     private void AddAudit(ActorContext actor, string action, Guid entityId, object? oldValues, object? newValues) =>
@@ -266,19 +311,39 @@ public sealed class StudentService(
             CreatedAt = timeProvider.GetUtcNow()
         });
 
-    private static object Snapshot(Student student) => new
+    private static object AuditState(Student student, IReadOnlyCollection<string> changedFields, bool noteChanged) => new
     {
+        student.Id,
         student.StudentCode,
-        student.FullName,
-        student.NickName,
-        student.DateOfBirth,
-        Gender = student.Gender?.ToString(),
         Status = student.Status.ToString(),
-        student.GuardianName,
-        student.GuardianPhone,
-        student.Note,
-        student.DeletedAt
+        StudyMode = student.StudyMode.ToString(),
+        student.StudyWeekdayMask,
+        student.Version,
+        ChangedFields = changedFields,
+        NoteChanged = noteChanged,
+        IsDeleted = student.DeletedAt is not null
     };
+
+    private static string[] ChangedFields(
+        Student student,
+        UpdateStudentRequest request,
+        string normalizedCode,
+        short weekdayMask)
+    {
+        var fields = new List<string>();
+        if (student.StudentCode != normalizedCode) fields.Add("studentCode");
+        if (student.FullName != request.FullName.Trim()) fields.Add("fullName");
+        if (student.NickName != request.NickName.Trim()) fields.Add("nickName");
+        if (student.DateOfBirth != request.DateOfBirth) fields.Add("dateOfBirth");
+        if (student.Gender != request.Gender) fields.Add("gender");
+        if (student.Status != request.Status) fields.Add("status");
+        if (student.GuardianName != NormalizeOptional(request.GuardianName)) fields.Add("guardianName");
+        if (student.GuardianPhone != NormalizeOptional(request.GuardianPhone)) fields.Add("guardianPhone");
+        if (student.Note != NormalizeOptional(request.Note)) fields.Add("note");
+        if (student.StudyMode != request.StudySchedule.Mode) fields.Add("studySchedule.mode");
+        if (student.StudyWeekdayMask != weekdayMask) fields.Add("studySchedule.weekdays");
+        return fields.ToArray();
+    }
 
     private static IOrderedQueryable<Student> ApplySort(IQueryable<Student> query, string sortBy, bool descending) =>
         (sortBy.ToLowerInvariant(), descending) switch
@@ -295,60 +360,73 @@ public sealed class StudentService(
             ("gender", true) => query.OrderByDescending(student => student.Gender).ThenByDescending(student => student.Id),
             ("status", false) => query.OrderBy(student => student.Status).ThenBy(student => student.Id),
             ("status", true) => query.OrderByDescending(student => student.Status).ThenByDescending(student => student.Id),
+            ("studymode", false) => query.OrderBy(student => student.StudyMode).ThenBy(student => student.Id),
+            ("studymode", true) => query.OrderByDescending(student => student.StudyMode).ThenByDescending(student => student.Id),
             ("createdat", false) => query.OrderBy(student => student.CreatedAt).ThenBy(student => student.Id),
             ("createdat", true) => query.OrderByDescending(student => student.CreatedAt).ThenByDescending(student => student.Id),
             _ => throw new AppValidationException("Trường sắp xếp không hợp lệ.", new Dictionary<string, string[]>
             {
-                ["sortBy"] = ["Chỉ hỗ trợ studentCode, fullName, nickName, dateOfBirth, gender, status hoặc createdAt."]
+                ["sortBy"] = ["Chỉ hỗ trợ studentCode, fullName, nickName, dateOfBirth, gender, status, studyMode hoặc createdAt."]
             })
         };
 
     private static StudentResponse Map(Student student) => new(
-        student.Id,
-        student.StudentCode,
-        student.FullName,
-        student.NickName,
-        student.DateOfBirth,
-        student.Gender,
-        student.Status,
-        student.GuardianName,
-        student.GuardianPhone,
-        student.Note,
-        student.GroupId,
-        student.Group?.Code,
-        student.Group?.Name,
-        student.CreatedAt,
-        student.UpdatedAt);
+        student.Id, student.StudentCode, student.FullName, student.NickName, student.DateOfBirth,
+        student.Gender, student.Status, student.GuardianName, student.GuardianPhone, student.Note,
+        student.GroupId, student.Group?.Code, student.Group?.Name,
+        new StudyScheduleResponse(student.StudyMode, StudentScheduleRules.Decode(student.StudyWeekdayMask)),
+        student.Version, student.CreatedAt, student.UpdatedAt);
 
-    private static IQueryable<StudentResponse> Project(IQueryable<Student> query) =>
-        query.Select(student => new StudentResponse(
-            student.Id,
-            student.StudentCode,
-            student.FullName,
-            student.NickName,
-            student.DateOfBirth,
-            student.Gender,
-            student.Status,
-            student.GuardianName,
-            student.GuardianPhone,
-            student.Note,
-            student.GroupId,
-            student.Group == null ? null : student.Group.Code,
-            student.Group == null ? null : student.Group.Name,
-            student.CreatedAt,
-            student.UpdatedAt));
+    private static StudentResponse Map(StudentRow row) => new(
+        row.Id, row.StudentCode, row.FullName, row.NickName, row.DateOfBirth,
+        row.Gender, row.Status, row.GuardianName, row.GuardianPhone, row.Note,
+        row.GroupId, row.GroupCode, row.GroupName,
+        new StudyScheduleResponse(row.StudyMode, StudentScheduleRules.Decode(row.StudyWeekdayMask)),
+        row.Version, row.CreatedAt, row.UpdatedAt);
+
+    private static IQueryable<StudentRow> ProjectRows(IQueryable<Student> query) =>
+        query.Select(student => new StudentRow(
+            student.Id, student.StudentCode, student.FullName, student.NickName, student.DateOfBirth,
+            student.Gender, student.Status, student.GuardianName, student.GuardianPhone, student.Note,
+            student.GroupId, student.Group == null ? null : student.Group.Code,
+            student.Group == null ? null : student.Group.Name, student.StudyMode,
+            student.StudyWeekdayMask, student.Version, student.CreatedAt, student.UpdatedAt));
+
+    private static void EnsureVersion(Student student, int expectedVersion)
+    {
+        if (student.Version != expectedVersion)
+        {
+            throw new ConflictException(
+                "Phiên bản học sinh đã thay đổi.",
+                ProblemCodes.StudentVersionConflict,
+                new Dictionary<string, object?> { ["currentVersion"] = student.Version });
+        }
+    }
+
+    private static NotFoundException StudentNotFound() =>
+        new("Không tìm thấy học sinh.", ProblemCodes.StudentNotFound);
 
     private static string NormalizeCode(string code) => code.Trim().ToUpperInvariant();
     private static string? NormalizeOptional(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
-    private void ValidateDateOfBirth(DateOnly value)
-        => StudentRules.ValidateDateOfBirth(value, DateOnly.FromDateTime(timeProvider.GetUtcNow().UtcDateTime));
+    private void ValidateDateOfBirth(DateOnly value) =>
+        StudentRules.ValidateDateOfBirth(value, DateOnly.FromDateTime(timeProvider.GetUtcNow().UtcDateTime));
 
     private static void ValidateRequired(string value, string field, string message)
     {
         if (string.IsNullOrWhiteSpace(value))
-        {
             throw new AppValidationException(message, new Dictionary<string, string[]> { [field] = [message] });
-        }
     }
+
+    private static readonly string[] StudentEditableFields =
+    [
+        "studentCode", "fullName", "nickName", "dateOfBirth", "gender", "status",
+        "guardianName", "guardianPhone", "note", "studySchedule.mode", "studySchedule.weekdays"
+    ];
+
+    private sealed record StudentRow(
+        Guid Id, string StudentCode, string FullName, string NickName, DateOnly DateOfBirth,
+        Gender? Gender, StudentStatus Status, string? GuardianName, string? GuardianPhone, string? Note,
+        Guid? GroupId, string? GroupCode, string? GroupName, StudyMode StudyMode,
+        short StudyWeekdayMask, int Version, DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt);
 }

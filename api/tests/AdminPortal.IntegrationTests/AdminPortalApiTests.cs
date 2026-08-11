@@ -15,6 +15,10 @@ namespace AdminPortal.IntegrationTests;
 
 public sealed class AdminPortalApiTests(ApiFactory factory) : IClassFixture<ApiFactory>
 {
+    private static readonly string[] MondayThursday = ["Monday", "Thursday"];
+    private static readonly string[] ThursdayMonday = ["Thursday", "Monday"];
+    private static readonly string[] Tuesday = ["Tuesday"];
+    private static readonly string[] DuplicateMonday = ["Monday", "Monday"];
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
         Converters = { new JsonStringEnumConverter() }
@@ -58,7 +62,8 @@ public sealed class AdminPortalApiTests(ApiFactory factory) : IClassFixture<ApiF
             status = "Active",
             guardianName = "Nguyễn Bình",
             guardianPhone = "0900000000",
-            note = "Ghi chú"
+            note = "Ghi chú",
+            studySchedule = FullWeekSchedule
         });
         Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
         var created = await createResponse.Content.ReadFromJsonAsync<StudentResponse>(JsonOptions);
@@ -70,7 +75,8 @@ public sealed class AdminPortalApiTests(ApiFactory factory) : IClassFixture<ApiF
             fullName = "Trùng mã",
             nickName = "Trùng",
             dateOfBirth = "2021-01-02",
-            status = "Active"
+            status = "Active",
+            studySchedule = FullWeekSchedule
         });
         Assert.Equal(HttpStatusCode.Conflict, duplicateResponse.StatusCode);
 
@@ -84,7 +90,9 @@ public sealed class AdminPortalApiTests(ApiFactory factory) : IClassFixture<ApiF
             status = "Inactive",
             guardianName = (string?)null,
             guardianPhone = (string?)null,
-            note = (string?)null
+            note = (string?)null,
+            studySchedule = FullWeekSchedule,
+            expectedVersion = created.Version
         });
         updateResponse.EnsureSuccessStatusCode();
         var updated = await updateResponse.Content.ReadFromJsonAsync<StudentResponse>(JsonOptions);
@@ -93,7 +101,7 @@ public sealed class AdminPortalApiTests(ApiFactory factory) : IClassFixture<ApiF
         Assert.Null(updated?.GuardianPhone);
         Assert.Null(updated?.Note);
 
-        var deleteResponse = await client.DeleteAsync($"/api/v1/students/{created.Id}");
+        var deleteResponse = await client.DeleteAsync($"/api/v1/students/{created.Id}?expectedVersion={updated!.Version}");
         Assert.Equal(HttpStatusCode.NoContent, deleteResponse.StatusCode);
         var deletedGetResponse = await client.GetAsync($"/api/v1/students/{created.Id}");
         Assert.Equal(HttpStatusCode.NotFound, deletedGetResponse.StatusCode);
@@ -108,7 +116,8 @@ public sealed class AdminPortalApiTests(ApiFactory factory) : IClassFixture<ApiF
             status = "Active",
             guardianName = (string?)null,
             guardianPhone = (string?)null,
-            note = (string?)null
+            note = (string?)null,
+            studySchedule = FullWeekSchedule
         });
         Assert.Equal(HttpStatusCode.Created, reuseResponse.StatusCode);
     }
@@ -125,7 +134,8 @@ public sealed class AdminPortalApiTests(ApiFactory factory) : IClassFixture<ApiF
             studentCode = $"HS-{Guid.NewGuid():N}"[..20],
             fullName = "Missing Date",
             nickName = "Missing",
-            status = "Active"
+            status = "Active",
+            studySchedule = FullWeekSchedule
         });
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
@@ -257,6 +267,112 @@ public sealed class AdminPortalApiTests(ApiFactory factory) : IClassFixture<ApiF
         Assert.Contains("Alpha", page.Items[0].FullName, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task StudentScheduleRoundTripsFiltersAndRejectsStaleWrites()
+    {
+        using var client = CreateClient();
+        var auth = await LoginAsync(client, ApiFactory.SuperAdminEmail, ApiFactory.SuperAdminPassword);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", auth.AccessToken);
+        var marker = Guid.NewGuid().ToString("N")[..8];
+        var create = await client.PostAsJsonAsync("/api/v1/students", new
+        {
+            studentCode = $"SC-{marker}",
+            fullName = $"Schedule {marker}",
+            nickName = $"Nick {marker}",
+            dateOfBirth = "2021-01-02",
+            gender = (string?)null,
+            status = "Active",
+            guardianName = (string?)null,
+            guardianPhone = (string?)null,
+            note = (string?)null,
+            studySchedule = new
+            {
+                mode = "OneToOne",
+                weekdays = ThursdayMonday
+            }
+        });
+        Assert.Equal(HttpStatusCode.Created, create.StatusCode);
+        var student = await create.Content.ReadFromJsonAsync<StudentResponse>(JsonOptions);
+        Assert.NotNull(student);
+        Assert.Equal(1, student.Version);
+        Assert.Equal(StudyMode.OneToOne, student.StudySchedule.Mode);
+        Assert.Equal([StudyWeekday.Monday, StudyWeekday.Thursday], student.StudySchedule.Weekdays);
+
+        var filtered = await client.GetFromJsonAsync<PagedResponse<StudentResponse>>(
+            $"/api/v1/students?search={marker}&studyMode=OneToOne&studyWeekday=Monday&sortBy=studyMode&sortOrder=asc",
+            JsonOptions);
+        Assert.NotNull(filtered);
+        Assert.Single(filtered.Items);
+        Assert.Equal(student.Id, filtered.Items[0].Id);
+
+        var noOp = await client.PutAsJsonAsync($"/api/v1/students/{student.Id}", new
+        {
+            student.StudentCode,
+            student.FullName,
+            student.NickName,
+            student.DateOfBirth,
+            student.Gender,
+            student.Status,
+            student.GuardianName,
+            student.GuardianPhone,
+            student.Note,
+            studySchedule = new { mode = "OneToOne", weekdays = MondayThursday },
+            expectedVersion = student.Version
+        }, JsonOptions);
+        noOp.EnsureSuccessStatusCode();
+        var versionTwo = await noOp.Content.ReadFromJsonAsync<StudentResponse>(JsonOptions);
+        Assert.Equal(2, versionTwo?.Version);
+
+        var stale = await client.PutAsJsonAsync($"/api/v1/students/{student.Id}", new
+        {
+            student.StudentCode,
+            fullName = "Must Not Persist",
+            student.NickName,
+            student.DateOfBirth,
+            student.Gender,
+            student.Status,
+            student.GuardianName,
+            student.GuardianPhone,
+            student.Note,
+            studySchedule = new { mode = "FullDay", weekdays = Tuesday },
+            expectedVersion = 1
+        }, JsonOptions);
+        Assert.Equal(HttpStatusCode.Conflict, stale.StatusCode);
+        using (var problem = JsonDocument.Parse(await stale.Content.ReadAsStringAsync()))
+        {
+            Assert.Equal("StudentVersionConflict", problem.RootElement.GetProperty("code").GetString());
+            Assert.Equal(2, problem.RootElement.GetProperty("currentVersion").GetInt32());
+        }
+
+        var staleDelete = await client.DeleteAsync($"/api/v1/students/{student.Id}?expectedVersion=1");
+        Assert.Equal(HttpStatusCode.Conflict, staleDelete.StatusCode);
+        var current = await client.GetFromJsonAsync<StudentResponse>($"/api/v1/students/{student.Id}", JsonOptions);
+        Assert.Equal(student.FullName, current?.FullName);
+        Assert.Equal(StudyMode.OneToOne, current?.StudySchedule.Mode);
+        var delete = await client.DeleteAsync($"/api/v1/students/{student.Id}?expectedVersion=2");
+        Assert.Equal(HttpStatusCode.NoContent, delete.StatusCode);
+
+        var duplicateDays = await client.PostAsJsonAsync("/api/v1/students", new
+        {
+            studentCode = $"SD-{marker}", fullName = "Duplicate Days", nickName = "Duplicate",
+            dateOfBirth = "2021-01-02", status = "Active",
+            studySchedule = new { mode = "FullDay", weekdays = DuplicateMonday }
+        });
+        Assert.Equal(HttpStatusCode.BadRequest, duplicateDays.StatusCode);
+        using var validation = JsonDocument.Parse(await duplicateDays.Content.ReadAsStringAsync());
+        Assert.True(validation.RootElement.GetProperty("errors").TryGetProperty("studySchedule.weekdays", out _));
+
+        var missingMode = await client.PostAsJsonAsync("/api/v1/students", new
+        {
+            studentCode = $"SM-{marker}", fullName = "Missing Mode", nickName = "Missing",
+            dateOfBirth = "2021-01-02", status = "Active",
+            studySchedule = new { weekdays = MondayThursday }
+        });
+        Assert.Equal(HttpStatusCode.BadRequest, missingMode.StatusCode);
+        using var modeValidation = JsonDocument.Parse(await missingMode.Content.ReadAsStringAsync());
+        Assert.True(modeValidation.RootElement.GetProperty("errors").TryGetProperty("studySchedule.mode", out _));
+    }
+
     private HttpClient CreateClient() => factory.CreateClient(new WebApplicationFactoryClientOptions
     {
         BaseAddress = new Uri("https://localhost"),
@@ -306,8 +422,15 @@ public sealed class AdminPortalApiTests(ApiFactory factory) : IClassFixture<ApiF
             fullName,
             nickName = fullName,
             dateOfBirth = "2021-01-02",
-            status = "Active"
+            status = "Active",
+            studySchedule = FullWeekSchedule
         });
         response.EnsureSuccessStatusCode();
     }
+
+    private static object FullWeekSchedule => new
+    {
+        mode = "FullDay",
+        weekdays = new[] { "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday" }
+    };
 }

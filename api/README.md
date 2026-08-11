@@ -11,7 +11,7 @@ RESTful API quản trị tài khoản Admin, giáo viên, học sinh, nhóm và 
 - Double-submit CSRF cho refresh/logout bằng cookie `XSRF-TOKEN` và header `X-CSRF-TOKEN`.
 - Phân quyền `SuperAdmin`, `Admin`, `Teacher`.
 - User CRUD dành cho tài khoản Admin; đổi mật khẩu dùng chung cho Admin/Teacher; soft delete, pagination/filter/sort.
-- Student CRUD, soft delete, pagination/filter/sort và tái sử dụng student code sau khi xóa.
+- Student CRUD, lịch học tuần, optimistic concurrency, soft delete, pagination/filter/sort và tái sử dụng student code sau khi xóa.
 - Teacher CRUD hợp nhất account/profile, mã do người dùng nhập, optimistic concurrency và policy cửa sổ sửa điểm danh 1–7 ngày.
 - Student group, phân công giáo viên/học sinh hiện tại, giới hạn 100 học sinh và snapshot version.
 - Điểm danh theo ngày với trạng thái Missing/Saved, full-roster first-save/full PUT, immutable identity snapshot và historical recovery có kiểm soát.
@@ -145,7 +145,7 @@ GET    /api/v1/students
 POST   /api/v1/students
 GET    /api/v1/students/{id}
 PUT    /api/v1/students/{id}
-DELETE /api/v1/students/{id}
+DELETE /api/v1/students/{id}?expectedVersion={version}
 PUT    /api/v1/students/{id}/group
 
 GET    /api/v1/teachers
@@ -184,9 +184,18 @@ User CRUD chỉ quản lý tài khoản role `Admin` và list chỉ dành cho `S
 
 User sort: `email`, `fullName`, `role`, `status`, `createdAt`.
 
-Student sort: `studentCode`, `fullName`, `nickName`, `dateOfBirth`, `gender`, `status`, `createdAt`.
+Student sort: `studentCode`, `fullName`, `nickName`, `dateOfBirth`, `gender`, `status`, `studyMode`, `createdAt`.
 
 Enum được gửi/nhận dưới dạng chuỗi. `StudentStatus` chỉ có `Active` và `Inactive`; `Gender` có `Male`, `Female`, `Other` hoặc `null`.
+
+### Quản lý học sinh và lịch học
+
+- `StudentResponse` trả `studySchedule: { mode, weekdays }` và `version`; weekday luôn canonical từ `Monday` đến `Saturday`, không expose bit mask PostgreSQL.
+- Create/full PUT bắt buộc `studySchedule`. `mode` là `OneToOne|FullDay`; `weekdays` có 1–6 ngày unique, không có Chủ nhật. Full PUT thêm `expectedVersion` và luôn tăng version một, kể cả payload no-op.
+- List nhận thêm `studyMode`, `studyWeekday`; filter được áp dụng trước `totalItems`/paging tại PostgreSQL.
+- Phân/chuyển/gỡ nhóm chỉ qua `PUT /students/{id}/group` với `{ "groupId": "uuid-or-null", "expectedVersion": n }`. Cùng group và version hiện tại là no-op; assignment thật tăng Student version và snapshot group.
+- DELETE nhận `expectedVersion` trong query. Stale PUT/group/delete trả `409 StudentVersionConflict` kèm `currentVersion`; Student không tồn tại trả `StudentNotFound`.
+- Student legacy được migration backfill `FullDay`, Thứ Hai–Thứ Bảy, version 1. Audit chỉ lưu ID/mã, metadata field thay đổi, mode/mask và version; không lưu raw tên, guardian hoặc note.
 
 ### Quản lý giáo viên
 
@@ -206,7 +215,8 @@ Các conflict/validation code ổn định: `TeacherNotFound`, `TeacherCodeAlrea
 ### Contract điểm danh
 
 - Ngày nghiệp vụ dùng `Asia/Ho_Chi_Minh`; mọi role bị chặn mutation ngày tương lai. Teacher chỉ thao tác group đang phụ trách và trong policy riêng 1–7 ngày.
-- `GET /attendance/daily` không ghi database. Khi chưa có phiếu, API trả `sheetState=Missing` và preview toàn roster là `Present`; chỉ `POST /attendance/sheets` mới xác nhận/lưu phiếu.
+- `GET /attendance/daily` không ghi database. Khi chưa có phiếu, roster chỉ gồm Student active thuộc group và có lịch trong weekday đó. `FullDay` mặc định `Present`; `OneToOne` mặc định `OneToOneHour`/60 phút. Chỉ `POST /attendance/sheets` mới xác nhận/lưu phiếu.
+- Nếu ngày đó không có Student có lịch, Missing trả items rỗng, `canCreate=false`, `readOnlyReason=NoScheduledStudents`; standard POST trả `409 NoScheduledStudents`. Historical recovery vẫn dùng roster explicit và không suy diễn lịch hiện tại.
 - POST lần đầu và PUT cập nhật đều nhận đúng full roster, tối đa 100 record. POST dùng `expectedSnapshotVersion`; PUT dùng `expectedVersion`. Conflict trả `ProblemDetails.code` ổn định như `SnapshotChanged` hoặc `SheetVersionConflict`.
 - Trạng thái hỗ trợ: `Present`, `AbsentFullDay`, `AbsentHalfDay`, `OneToOneHour`; các field `halfDayPart`, `isExcused`, `durationMinutes` phải đúng bảng điều kiện trong [`../plans/02-ATT-attendance.md`](../plans/02-ATT-attendance.md).
 - Phiếu đã lưu giữ snapshot code/name/nickname của group, Teacher và Student. Rename/move/soft-delete dữ liệu hiện tại không sửa phiếu cũ.
@@ -215,6 +225,8 @@ Các conflict/validation code ổn định: `TeacherNotFound`, `TeacherCodeAlrea
 Migration `AddAttendanceFoundation` tạo toàn bộ schema attendance, backfill Teacher profile cho user role `Teacher` hiện có và để `group_id` của Student hiện tại là `null`. Không seed group hoặc attendance sheet.
 
 Migration `AddTeacherManagement` bổ sung `teacher_code`, `note`, `version`, unique/check constraints và backfill mã legacy theo dạng `GV-MIG-{UUID}`. Migration không cài PostgreSQL `unaccent` và giữ nguyên User/Student/Teacher/attendance hiện có. Khi nâng cấp, apply tuần tự migration attendance rồi Teacher management bằng EF như bình thường.
+
+Migration `AddStudentStudySchedule` bổ sung `study_mode`, `study_weekday_mask`, Student `version` và check constraints. Upgrade backfill mọi Student, kể cả soft-deleted, thành `FullDay`/mask 63/version 1; mỗi group hiện tại có Student active được tăng snapshot đúng một lần. Phiếu Saved hiện có không bị rewrite.
 
 Trước khi release nên chạy:
 

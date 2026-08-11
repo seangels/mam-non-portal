@@ -4,10 +4,10 @@
 
 ## Trạng thái gần nhất
 
-- Cập nhật: 2026-08-11.
-- Backend feature scope trong `plans/01-BASE-admin-portal.md`, `plans/02-ATT-attendance.md` và Teacher management epic `plans/03-TCH-teacher-management.md` đã hoàn tất. `/teachers` hiện là aggregate canonical cho account/profile, mã giáo viên, concurrency, policy và lifecycle.
-- Baseline xác minh gần nhất: solution Release build `0 warning / 0 error`; unit test `32/32`; integration test PostgreSQL 17 Testcontainers Release `21/21`; EF báo không có pending model changes.
-- Integration Teacher phủ accent/literal search + exact server pagination, create/update/nullable clear/duplicate, version/policy, group snapshot, password/status/delete session revoke, User boundary, audit privacy, concurrent mutation/create, fresh migration và rehearsal Initial -> Attendance -> Teacher management có dữ liệu cũ. Regression group/student còn xác minh StudentGroup list/get trả responsible Teacher name + active student count và Student list trả group code/name.
+- Cập nhật: 2026-08-12.
+- Backend feature scope trong `plans/01-BASE-admin-portal.md` đến `plans/04-SCH-student-groups-study-schedule.md` đã hoàn tất. Student có lịch học tuần operational, aggregate version và group command concurrency; attendance Missing dùng scheduled roster trong khi Saved snapshot bất biến.
+- Baseline xác minh gần nhất: solution Release build `0 warning / 0 error`; unit test `38/38`; integration test PostgreSQL 17 Testcontainers Release `24/24`; EF báo không có pending model changes.
+- Integration SCH phủ schedule CRUD/filter/canonical order/version/stale write, assign no-op/stale, group snapshot, audit privacy, scheduled defaults/empty day/Saved invariant, snapshot precedence, schedule-vs-first-save race, fresh constraints và rehearsal Initial -> Attendance -> Teacher -> Schedule có active + soft-deleted dữ liệu cũ.
 - Không có blocker backend đã biết tại thời điểm snapshot. Trước mỗi task phải kiểm tra `git status`, `tasks.md` và source vì trạng thái này có thể đã thay đổi.
 
 ## Bản đồ code
@@ -19,7 +19,7 @@
 - `api/tests/AdminPortal.UnitTests`: authorization/validation rules và `VietnameseSearchNormalizerTests.cs`.
 - `api/tests/AdminPortal.IntegrationTests`: `WebApplicationFactory` + PostgreSQL Testcontainers; Teacher contract/race/lifecycle ở `TeacherManagementApiTests.cs`, upgrade rehearsal ở `MigrationUpgradeTests.cs`.
 - `api/tools/AdminPortal.Maintenance` và `api/scripts/maintenance/cleanup-retention.sql`: cleanup batch audit 90 ngày/session history 30 ngày.
-- Contract nền: `plans/01-BASE-admin-portal.md`; plan có thứ tự tại `plans/README.md`; hướng dẫn chạy/vận hành: `api/README.md`; sample HTTP: `api/requests.http`; tiến độ liên agent: `tasks.md`.
+- Contract nền và feature: `plans/01-BASE-admin-portal.md` đến `plans/04-SCH-student-groups-study-schedule.md`; plan có thứ tự tại `plans/README.md`; hướng dẫn chạy/vận hành: `api/README.md`; sample HTTP: `api/requests.http`; tiến độ liên agent: `tasks.md`.
 
 ## Contract đang được frontend sử dụng
 
@@ -32,7 +32,9 @@
 - Teacher list filter `status/groupId/unassigned`, sort whitelist theo plan và search literal mã/tên/email/phone không dấu/case-insensitive tại .NET trên toàn candidate trước total/paging. Không dùng PostgreSQL `unaccent`; blank search giữ DB fast path.
 - Teacher response có `id/userId/teacherCode`, field account, policy, group count, timestamps và integer `version`; detail thêm nullable `note` và responsible group summaries. Group assignment chỉ qua StudentGroup endpoint.
 - Attendance: GET context/daily; POST sheet full roster; PUT sheet full replacement; Admin/SuperAdmin historical-recovery và ba candidate API. DTO/date/query chính xác nằm trong `plans/02-ATT-attendance.md` section 7.
-- Pagination mặc định page 1/pageSize 20, tối đa 100. User sort whitelist: `email`, `fullName`, `role`, `status`, `createdAt`. Student: `studentCode`, `fullName`, `nickName`, `dateOfBirth`, `gender`, `status`, `createdAt`.
+- Student response có `studySchedule { mode, weekdays }` và integer `version`. Mode là `OneToOne|FullDay`; weekday chỉ Monday–Saturday, response canonical. Create/full PUT bắt buộc schedule; full PUT/group/delete nhận `expectedVersion`; stale trả `StudentVersionConflict` + `currentVersion`.
+- Student list thêm `studyMode`, `studyWeekday`, sort `studyMode`. Group mutation canonical vẫn là `PUT /students/{id}/group`; DELETE dùng query `expectedVersion`.
+- Pagination mặc định page 1/pageSize 20, tối đa 100. User sort whitelist: `email`, `fullName`, `role`, `status`, `createdAt`. Student: `studentCode`, `fullName`, `nickName`, `dateOfBirth`, `gender`, `status`, `studyMode`, `createdAt`.
 - `UserStatus`: `Active`, `Inactive`, `Locked`; `StudentStatus`: `Active`, `Inactive`; `Gender`: `Male`, `Female`, `Other` hoặc null.
 - Role rule: SuperAdmin quản lý Admin qua `/users` và Teacher qua `/teachers`; Admin chỉ Teacher qua `/teachers`; Teacher không truy cập API quản trị. User list không trả SuperAdmin/Teacher.
 
@@ -43,10 +45,12 @@
 - Password policy: tối thiểu 12 ký tự, có chữ hoa, chữ thường, số và ký tự đặc biệt. Login lockout sau 5 lần sai trong 15 phút. Không tiết lộ lý do auth chi tiết cho client.
 - Setup dùng PostgreSQL transaction advisory lock `SetupService` và `IgnoreQueryFilters()` để chống race/mở lại setup sau soft delete.
 - User/Student dùng global soft-delete query filter. Unique normalized email và student code là partial unique index trên `deleted_at IS NULL`; student code có thể tái sử dụng sau delete.
+- Student schedule lưu `study_mode` + `study_weekday_mask` 1..63; bit Monday=1 đến Saturday=32, không expose mask. Student `version` là integer concurrency token; migration legacy backfill FullDay/mask63/version1 cho cả soft-deleted row.
 - Teacher row không hard-delete; `teacher_code` trim/uppercase/unique trên mọi Teacher row nên mã của Teacher đã xóa vẫn được giữ. Legacy profile được backfill `GV-MIG-{UUID}`. Full PUT/policy/delete tăng aggregate `version`; password và group assignment không tăng Teacher version.
 - Lock order Teacher -> User -> group UUID tăng dần. Rename fullName tăng snapshot version đúng một cho mọi group vẫn đang phụ trách trong cùng transaction; code/email/phone/note/policy không tăng group snapshot. StudentGroup assignment lock Teacher trước Group để không đảo lock order.
 - Mọi snapshot mutation lock group row (nhiều group theo UUID tăng dần) và tăng `snapshot_version`; create sheet cũng lock group. PUT sheet lock row và dùng `expectedVersion`; conflict trả `ProblemDetails.code` cùng version hiện tại khi có.
-- Missing daily chỉ là preview Present và không ghi DB. Saved sheet giữ identity snapshot độc lập dữ liệu hiện tại. Attendance records luôn persisted kể cả Present; không có DELETE sheet/record v1.
+- Missing daily không ghi DB và lọc Student active theo group + weekday mask. FullDay mặc định Present; OneToOne mặc định OneToOneHour/60. Không có scheduled Student trả `NoScheduledStudents` và cấm empty sheet. Saved sheet giữ full snapshot, không re-filter khi schedule thay đổi; historical recovery vẫn explicit/manual.
+- Student full PUT lock/check Student version trước business validation, rồi lock group; thay identity attendance hoặc schedule tăng group snapshot đúng một, profile-only/no-op không tăng snapshot. Assignment thật tăng Student version + snapshot old/new; same-group/current-version là no-op. Student lock dùng PostgreSQL `FOR NO KEY UPDATE`: vẫn serialize writers nhưng tương thích AttendanceRecord FK `KEY SHARE`, tránh deadlock khi attendance giữ Group và lưu record.
 - Ngày nghiệp vụ mặc định `Asia/Ho_Chi_Minh`; Teacher dùng policy riêng, Admin/SuperAdmin thao tác mọi ngày không tương lai. Recovery chỉ dành manager khi standard historical snapshot không khả dụng.
 - Teacher audit chỉ lưu IDs, teacherCode, status/presence flags, changed fields và version transition; không lưu raw fullName/email/phone/note/password. Request logger không log body. Cleanup chạy bên ngoài API, theo batch và an toàn khi chạy lại.
 - CORS chỉ dùng allow-list origin cụ thể với credentials, không wildcard. Cookie cross-site yêu cầu HTTPS cho cả API/UI.
@@ -57,9 +61,10 @@
 - JWT bearer phải configure qua DI/`IOptions<JwtOptions>` lazily; capture option rỗng sớm từng gây `IDX10703` trong test.
 - Validation attribute trên positional request record phải dùng target `[param: ...]` với ASP.NET Core 10.
 - Không dùng `.Select(x => Map(x))` khi `Map` đọc navigation. EF chỉ cho client evaluation ở top-level projection nên navigation không được đưa vào SQL, từng làm `StudentGroup.responsibleTeacherName/studentCount` và Student list `groupCode/groupName` bị null/0. Dùng inline/IQueryable projection để EF translate join/count.
+- Không dùng `FOR UPDATE` cho Student row trong workflow SCH: Attendance create giữ Group rồi INSERT FK cần `KEY SHARE` Student; đồng thời schedule PUT giữ Student rồi chờ Group sẽ deadlock 40P01. `FOR NO KEY UPDATE` là lock đúng vì Student mutations không đổi PK/hard-delete và vẫn serialize concurrent Student writers.
 - `AuthSession` cần query filter tương thích soft-delete navigation `User`; bỏ nó sẽ tạo warning required-navigation và có thể làm lệch semantics session.
 - Middleware request logging phải bọc exception handler đúng thứ tự để log status đã map (ví dụ setup conflict là 409, không phải 200).
-- Không sửa/xóa EF Designer hoặc `AdminPortalDbContextModelSnapshot.cs`. Migration hiện có: `20260811000000_InitialCreate`, `20260811130802_AddAttendanceFoundation`, `20260811150730_AddTeacherManagement`. Migration TCH thêm/backfill `teacher_code`, `note`, integer `version`, unique/check constraints; không thêm extension/search column.
+- Không sửa/xóa EF Designer hoặc `AdminPortalDbContextModelSnapshot.cs`. Migration hiện có: `20260811000000_InitialCreate`, `20260811130802_AddAttendanceFoundation`, `20260811150730_AddTeacherManagement`, `20260811172348_AddStudentStudySchedule`. Migration SCH backfill schedule/version upgrade-safe, thêm check constraints và bump mỗi current group có active Student đúng một; mode/mask không giữ database default, version giữ default 1.
 - EF tooling hiện cảnh báo required navigation trỏ tới entity có soft-delete query filter (`Teacher/User`, attendance `Student/User`). Đây là chủ ý: FK lịch sử vẫn non-null + RESTRICT; các query recovery/history dùng `IgnoreQueryFilters`. Pending-model check vẫn sạch.
 
 ## Build, test và migration nhanh

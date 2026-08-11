@@ -6,5 +6,6 @@ public enum AttendanceReadOnlyReason
     AttendanceEditWindowExceeded,
     HistoricalSnapshotUnavailable,
     GroupInactive,
-    ResponsibleTeacherRequired
+    ResponsibleTeacherRequired,
+    NoScheduledStudents
 }

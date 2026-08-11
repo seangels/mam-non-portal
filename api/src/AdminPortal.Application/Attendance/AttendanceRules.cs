@@ -5,10 +5,10 @@ namespace AdminPortal.Application.Attendance;
 
 public static class AttendanceRules
 {
-    public static void ValidateRecords(IReadOnlyList<AttendanceRecordRequest> records)
+    public static void ValidateRecords(IReadOnlyList<AttendanceRecordRequest> records, bool allowEmpty = false)
     {
         var errors = new Dictionary<string, string[]>();
-        if (records.Count is < 1 or > 100)
+        if (records.Count > 100 || (!allowEmpty && records.Count < 1))
             errors["records"] = ["Danh sách phải có từ 1 đến 100 học sinh."];
         var duplicates = records.GroupBy(x => x.StudentId).Where(x => x.Count() > 1).Select(x => x.Key).ToHashSet();
         for (var index = 0; index < records.Count; index++)

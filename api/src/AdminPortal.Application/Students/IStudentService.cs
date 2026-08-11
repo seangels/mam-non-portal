@@ -9,5 +9,5 @@ public interface IStudentService
     Task<StudentResponse> CreateAsync(CreateStudentRequest request, CancellationToken cancellationToken);
     Task<StudentResponse> UpdateAsync(Guid id, UpdateStudentRequest request, CancellationToken cancellationToken);
     Task<StudentResponse> AssignGroupAsync(Guid id, AssignStudentGroupRequest request, CancellationToken cancellationToken);
-    Task DeleteAsync(Guid id, CancellationToken cancellationToken);
+    Task DeleteAsync(Guid id, int expectedVersion, CancellationToken cancellationToken);
 }
