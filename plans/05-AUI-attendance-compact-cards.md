@@ -4,7 +4,7 @@
 
 - **Epic:** `AUI` — Attendance UI.
 - **Thứ tự:** `05`.
-- **Trạng thái:** `AUI-DEC-01`–`07` đã chốt; đang chờ review `AUI-DEC-08`, chưa triển khai source.
+- **Trạng thái:** `AUI-DEC-01`–`08` đã chốt; sẵn sàng triển khai, chưa thay đổi source.
 - **Ngày lập:** 2026-08-12.
 - **Phạm vi:** .NET 10 REST API, PostgreSQL 17 và Angular 15/DevExtreme tại trang `/#/attendance`.
 - **Phụ thuộc:** [`02-ATT-attendance.md`](02-ATT-attendance.md) và [`04-SCH-student-groups-study-schedule.md`](04-SCH-student-groups-study-schedule.md).
@@ -326,6 +326,6 @@ Không dự kiến đổi endpoint URL, auth, Student schedule contract hoặc g
 | `AUI-DEC-05` | Redesign áp dụng cho recovery? | **Đã chốt:** không trong v1; chỉ main daily list |
 | `AUI-DEC-06` | Giới hạn notes trên UI | **Đã chốt:** tối đa 200 ký tự trên UI; API giữ 2.000 để tương thích, không cắt dữ liệu cũ chưa sửa |
 | `AUI-DEC-07` | Mật độ desktop | **Đã chốt:** fluid grid, mục tiêu 5 card/hàng ở 1366 px; không hard-code khi thiếu chỗ |
-| `AUI-DEC-08` | Màu status | Bám nhóm màu trong hình nhưng điều chỉnh token để đạt contrast/accessibility |
+| `AUI-DEC-08` | Màu status | **Đã chốt:** bám nhóm màu trong hình nhưng điều chỉnh design token để đạt contrast/accessibility |
 
-`AUI-DEC-01`–`07` đã được người dùng xác nhận ngày 2026-08-12. Do plan nay có contract/schema delta, implementation phải bắt đầu bằng `AUI-BE-00` và `AUI-FE-00` khóa cùng wire contract; không được triển khai frontend riêng rồi gửi enum giả. Chỉ còn `AUI-DEC-08` chờ xác nhận.
+`AUI-DEC-01`–`08` đã được người dùng xác nhận ngày 2026-08-12. Do plan có contract/schema delta, implementation phải bắt đầu bằng `AUI-BE-00` và `AUI-FE-00` khóa cùng wire contract; không được triển khai frontend riêng rồi gửi enum giả.

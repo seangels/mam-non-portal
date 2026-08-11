@@ -421,7 +421,7 @@ QA/Integration:
 ## Epic giao diện điểm danh compact card `AUI` — owner: `root`
 
 - [x] `AUI-P-01`. Phân tích hình tham chiếu và đối chiếu attendance UI/ATT/SCH contract hiện tại
-- [~] `AUI-P-02`. Review và khóa `AUI-DEC-01`–`AUI-DEC-08`
+- [x] `AUI-P-02`. Review và khóa `AUI-DEC-01`–`AUI-DEC-08`
 - [ ] `AUI-BE-00`. Khóa enum/DTO/summary/validation/OpenAPI và compatibility `halfDayPart` legacy
 - [ ] `AUI-BE-01`. EF migration/check constraint, fresh/upgrade proof
 - [ ] `AUI-BE-02`. Persisted `Unmarked`, half-day write/preserve semantics và audit
@@ -444,7 +444,8 @@ QA/Integration:
 - `AUI` ghi đè riêng quy tắc `ATT` cũ bắt buộc Morning/Afternoon; các contract full-roster, version/snapshot, quyền và recovery còn lại giữ nguyên.
 - `AUI-DEC-04`–`07` chốt ngày 2026-08-12: card chỉ hiển thị `nickname · studentCode`; redesign không áp dụng historical recovery trong v1; notes UI tối đa 200 ký tự; grid fluid hướng tới 5 card/hàng tại 1366 px.
 - API notes vẫn giữ max 2.000 để tương thích; UI không được cắt giá trị cũ dài hơn 200 khi field chưa bị sửa.
-- Chưa triển khai source. Chỉ còn `AUI-DEC-08` đang chờ review; production/IIS skill không được gọi trong giai đoạn plan.
+- `AUI-DEC-08` chốt ngày 2026-08-12 theo đề xuất: bám nhóm màu trong hình nhưng điều chỉnh design token để đạt contrast/accessibility ở enabled, hover, focus, disabled và read-only.
+- `AUI-P-02` hoàn tất; plan sẵn sàng triển khai từ `AUI-BE-00` + `AUI-FE-00`. Chưa triển khai source; production/IIS skill không được gọi trong giai đoạn plan.
 
 ## Tổ chức thư mục kế hoạch — owner: `root`
 
