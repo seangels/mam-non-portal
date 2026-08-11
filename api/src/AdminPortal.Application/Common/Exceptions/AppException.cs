@@ -1,3 +1,5 @@
+using AdminPortal.Application.Common;
+
 namespace AdminPortal.Application.Common.Exceptions;
 
 public abstract class AppException(
@@ -10,7 +12,7 @@ public abstract class AppException(
         extensions ?? new Dictionary<string, object?>();
 }
 
-public sealed class NotFoundException(string message) : AppException(message);
+public sealed class NotFoundException(string message, string? code = null) : AppException(message, code);
 
 public sealed class ConflictException(
     string message,
@@ -26,7 +28,8 @@ public sealed class UnauthorizedException(string message) : AppException(message
 
 public sealed class AppValidationException(
     string message,
-    IReadOnlyDictionary<string, string[]> errors) : AppException(message)
+    IReadOnlyDictionary<string, string[]> errors,
+    string code = ProblemCodes.ValidationFailed) : AppException(message, code)
 {
     public IReadOnlyDictionary<string, string[]> Errors { get; } = errors;
 }

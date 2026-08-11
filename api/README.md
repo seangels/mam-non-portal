@@ -1,6 +1,6 @@
 # Admin Portal API
 
-RESTful API quản trị user và student, xây dựng bằng .NET 10, ASP.NET Core, EF Core 10 và PostgreSQL.
+RESTful API quản trị tài khoản Admin, giáo viên, học sinh, nhóm và điểm danh, xây dựng bằng .NET 10, ASP.NET Core, EF Core 10 và PostgreSQL.
 
 ## Chức năng
 
@@ -10,9 +10,9 @@ RESTful API quản trị user và student, xây dựng bằng .NET 10, ASP.NET C
 - Refresh token 30 ngày trong cookie `HttpOnly`, `Secure`, `SameSite=None`.
 - Double-submit CSRF cho refresh/logout bằng cookie `XSRF-TOKEN` và header `X-CSRF-TOKEN`.
 - Phân quyền `SuperAdmin`, `Admin`, `Teacher`.
-- User CRUD, đổi mật khẩu, soft delete, pagination/filter/sort.
+- User CRUD dành cho tài khoản Admin; đổi mật khẩu dùng chung cho Admin/Teacher; soft delete, pagination/filter/sort.
 - Student CRUD, soft delete, pagination/filter/sort và tái sử dụng student code sau khi xóa.
-- Teacher profile và policy cửa sổ sửa điểm danh 1–7 ngày.
+- Teacher CRUD hợp nhất account/profile, mã do người dùng nhập, optimistic concurrency và policy cửa sổ sửa điểm danh 1–7 ngày.
 - Student group, phân công giáo viên/học sinh hiện tại, giới hạn 100 học sinh và snapshot version.
 - Điểm danh theo ngày với trạng thái Missing/Saved, full-roster first-save/full PUT, immutable identity snapshot và historical recovery có kiểm soát.
 - Audit log, ProblemDetails, rate limit, lockout, OpenAPI và health checks.
@@ -149,7 +149,10 @@ DELETE /api/v1/students/{id}
 PUT    /api/v1/students/{id}/group
 
 GET    /api/v1/teachers
+POST   /api/v1/teachers
 GET    /api/v1/teachers/{id}
+PUT    /api/v1/teachers/{id}
+DELETE /api/v1/teachers/{id}?expectedVersion={version}
 PUT    /api/v1/teachers/{id}/attendance-policy
 
 GET    /api/v1/student-groups
@@ -177,11 +180,28 @@ Các endpoint `PUT` là full replacement đối với toàn bộ field editable.
 
 List dùng `page` (mặc định 1), `pageSize` (mặc định 20, tối đa 100), `search`, filter theo resource, `sortBy` whitelist và `sortOrder=asc|desc`.
 
+User CRUD chỉ quản lý tài khoản role `Admin` và list chỉ dành cho `SuperAdmin`. Mọi create/update/delete role `Teacher` qua `/users` trả `409 TeacherMustBeManagedViaTeachers`; riêng `PUT /users/{userId}/password` tiếp tục dùng cho cả Admin và Teacher.
+
 User sort: `email`, `fullName`, `role`, `status`, `createdAt`.
 
 Student sort: `studentCode`, `fullName`, `nickName`, `dateOfBirth`, `gender`, `status`, `createdAt`.
 
 Enum được gửi/nhận dưới dạng chuỗi. `StudentStatus` chỉ có `Active` và `Inactive`; `Gender` có `Male`, `Female`, `Other` hoặc `null`.
+
+### Quản lý giáo viên
+
+`/api/v1/teachers` là mutation surface canonical và atomic cho cả User role `Teacher` lẫn Teacher profile. Các endpoint cần role `Admin` hoặc `SuperAdmin`:
+
+- List nhận `page`, `pageSize`, `search`, `status`, `groupId`, `unassigned`, `sortBy`, `sortOrder`. `sortBy` hỗ trợ `teacherCode`, `fullName`, `email`, `status`, `attendanceEditWindowDays`, `responsibleGroupCount`, `createdAt`, `updatedAt`.
+- `search` là literal substring trên mã, họ tên, email và điện thoại; server bỏ dấu tiếng Việt/không phân biệt hoa thường trước khi tính `totalItems` và phân trang. `%`/`_` không phải wildcard.
+- Không gửi đồng thời `groupId` và `unassigned=true`; API trả `400 ValidationFailed`.
+- Create nhận `teacherCode`, `fullName`, `email`, `phoneNumber`, `status`, `password`, `note`; server trim và uppercase mã. Policy mặc định là 7 ngày.
+- Full PUT nhận các field editable trên, trừ password, cộng `expectedVersion`. `phoneNumber`/`note` nhận `null` để xóa. Thành công tăng `version` đúng một.
+- Policy PUT nhận `{ "attendanceEditWindowDays": 1..7, "expectedVersion": n }` và dùng chung Teacher version.
+- DELETE nhận `expectedVersion` trong query, bị chặn khi còn nhóm phụ trách; khi thành công soft-delete User, revoke session nhưng giữ Teacher row/mã/lịch sử.
+- Phân công nhóm chỉ qua `PUT /student-groups/{id}/responsible-teacher`; Teacher detail chỉ đọc các nhóm hiện tại.
+
+Các conflict/validation code ổn định: `TeacherNotFound`, `TeacherCodeAlreadyExists`, `EmailAlreadyExists`, `TeacherVersionConflict` (kèm `currentVersion`), `TeacherHasResponsibleGroups`, `TeacherMustBeManagedViaTeachers`, `InvalidAttendanceEditWindow`, `ValidationFailed`.
 
 ### Contract điểm danh
 
@@ -192,7 +212,11 @@ Enum được gửi/nhận dưới dạng chuỗi. `StudentStatus` chỉ có `Ac
 - Phiếu đã lưu giữ snapshot code/name/nickname của group, Teacher và Student. Rename/move/soft-delete dữ liệu hiện tại không sửa phiếu cũ.
 - Historical recovery chỉ dành cho Admin/SuperAdmin khi không thể chứng minh current snapshot của ngày quá khứ; bắt buộc acknowledgment, reason, Teacher và danh sách Student rõ ràng.
 
-Migration `AddAttendanceFoundation` tạo toàn bộ schema attendance, backfill Teacher profile cho user role `Teacher` hiện có và để `group_id` của Student hiện tại là `null`. Không seed group hoặc attendance sheet. Trước khi release nên chạy:
+Migration `AddAttendanceFoundation` tạo toàn bộ schema attendance, backfill Teacher profile cho user role `Teacher` hiện có và để `group_id` của Student hiện tại là `null`. Không seed group hoặc attendance sheet.
+
+Migration `AddTeacherManagement` bổ sung `teacher_code`, `note`, `version`, unique/check constraints và backfill mã legacy theo dạng `GV-MIG-{UUID}`. Migration không cài PostgreSQL `unaccent` và giữ nguyên User/Student/Teacher/attendance hiện có. Khi nâng cấp, apply tuần tự migration attendance rồi Teacher management bằng EF như bình thường.
+
+Trước khi release nên chạy:
 
 ```powershell
 dotnet tool run dotnet-ef migrations has-pending-model-changes `

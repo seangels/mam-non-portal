@@ -4,6 +4,8 @@
 @userId = 00000000-0000-0000-0000-000000000000
 @studentId = 00000000-0000-0000-0000-000000000000
 @teacherId = 00000000-0000-0000-0000-000000000000
+@teacherUserId = 00000000-0000-0000-0000-000000000000
+@teacherVersion = 1
 @groupId = 00000000-0000-0000-0000-000000000000
 @sheetId = 00000000-0000-0000-0000-000000000000
 @attendanceDate = 2026-08-11
@@ -42,7 +44,7 @@ X-CSRF-TOKEN: {{csrfToken}}
 
 ###
 
-GET {{host}}/api/v1/users?page=1&pageSize=20&role=Teacher&sortBy=createdAt&sortOrder=desc
+GET {{host}}/api/v1/users?page=1&pageSize=20&role=Admin&sortBy=createdAt&sortOrder=desc
 Authorization: Bearer {{accessToken}}
 
 ###
@@ -52,10 +54,10 @@ Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
 {
-  "email": "teacher@example.com",
-  "fullName": "Teacher",
+  "email": "admin@example.com",
+  "fullName": "Admin",
   "phoneNumber": null,
-  "role": "Teacher",
+  "role": "Admin",
   "status": "Active"
 }
 
@@ -66,7 +68,70 @@ Authorization: Bearer {{accessToken}}
 
 ###
 
-GET {{host}}/api/v1/teachers?page=1&pageSize=20&unassigned=true&sortBy=fullName&sortOrder=asc
+GET {{host}}/api/v1/teachers?page=1&pageSize=20&search=nguyen&unassigned=true&sortBy=fullName&sortOrder=asc
+Authorization: Bearer {{accessToken}}
+
+###
+
+POST {{host}}/api/v1/teachers
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "teacherCode": "GV-001",
+  "fullName": "Nguyễn Thị Hoàng",
+  "email": "teacher@example.com",
+  "phoneNumber": "0901234567",
+  "status": "Active",
+  "password": "replace-with-strong-password",
+  "note": null
+}
+
+###
+
+GET {{host}}/api/v1/teachers/{{teacherId}}
+Authorization: Bearer {{accessToken}}
+
+###
+
+PUT {{host}}/api/v1/teachers/{{teacherId}}
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "teacherCode": "GV-001",
+  "fullName": "Nguyễn Thị Hoàng",
+  "email": "teacher@example.com",
+  "phoneNumber": null,
+  "status": "Active",
+  "note": null,
+  "expectedVersion": {{teacherVersion}}
+}
+
+###
+
+PUT {{host}}/api/v1/teachers/{{teacherId}}/attendance-policy
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "attendanceEditWindowDays": 7,
+  "expectedVersion": {{teacherVersion}}
+}
+
+###
+
+PUT {{host}}/api/v1/users/{{teacherUserId}}/password
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "password": "replace-with-new-strong-password"
+}
+
+###
+
+DELETE {{host}}/api/v1/teachers/{{teacherId}}?expectedVersion={{teacherVersion}}
 Authorization: Bearer {{accessToken}}
 
 ###

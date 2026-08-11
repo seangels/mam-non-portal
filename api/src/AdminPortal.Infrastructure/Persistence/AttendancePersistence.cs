@@ -11,6 +11,12 @@ public sealed class AttendancePersistence(AdminPortalDbContext dbContext) : IAtt
     public async Task<IAppTransaction> BeginTransactionAsync(CancellationToken cancellationToken) =>
         new AppTransaction(await dbContext.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, cancellationToken));
 
+    public Task LockTeachersAsync(IEnumerable<Guid> teacherIds, CancellationToken cancellationToken) =>
+        LockManyAsync("teachers", teacherIds.Distinct().Order(), cancellationToken);
+
+    public Task LockUsersAsync(IEnumerable<Guid> userIds, CancellationToken cancellationToken) =>
+        LockManyAsync("users", userIds.Distinct().Order(), cancellationToken);
+
     public Task LockGroupsAsync(IEnumerable<Guid> groupIds, CancellationToken cancellationToken) =>
         LockManyAsync("student_groups", groupIds.Distinct().Order(), cancellationToken);
 

@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
+using AdminPortal.Application.Common;
 using AdminPortal.Api.Authentication;
 using AdminPortal.Api.Configuration;
 using AdminPortal.Api.Infrastructure;
@@ -29,6 +30,7 @@ builder.Services.Configure<ApiBehaviorOptions>(options =>
             Title = "Dữ liệu không hợp lệ",
             Type = "https://httpstatuses.com/400"
         };
+        problem.Extensions["code"] = ProblemCodes.ValidationFailed;
         problem.Extensions["traceId"] = context.HttpContext.TraceIdentifier;
         return new BadRequestObjectResult(problem);
     };

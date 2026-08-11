@@ -2,6 +2,13 @@ namespace AdminPortal.Application.Common;
 
 public static class ProblemCodes
 {
+    public const string ValidationFailed = nameof(ValidationFailed);
+    public const string EmailAlreadyExists = nameof(EmailAlreadyExists);
+    public const string TeacherNotFound = nameof(TeacherNotFound);
+    public const string TeacherCodeAlreadyExists = nameof(TeacherCodeAlreadyExists);
+    public const string TeacherVersionConflict = nameof(TeacherVersionConflict);
+    public const string TeacherMustBeManagedViaTeachers = nameof(TeacherMustBeManagedViaTeachers);
+    public const string InvalidAttendanceEditWindow = nameof(InvalidAttendanceEditWindow);
     public const string SnapshotChanged = nameof(SnapshotChanged);
     public const string AttendanceSheetAlreadyExists = nameof(AttendanceSheetAlreadyExists);
     public const string SheetVersionConflict = nameof(SheetVersionConflict);

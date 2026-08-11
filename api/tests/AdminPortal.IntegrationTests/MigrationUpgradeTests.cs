@@ -10,6 +10,7 @@ public sealed class MigrationUpgradeTests : IAsyncLifetime
 {
     private const string InitialMigration = "20260811000000_InitialCreate";
     private const string AttendanceMigration = "20260811130802_AddAttendanceFoundation";
+    private const string TeacherManagementMigration = "20260811150730_AddTeacherManagement";
     private readonly PostgreSqlContainer _postgres = new PostgreSqlBuilder()
         .WithImage("postgres:17-alpine")
         .WithDatabase("admin_portal_upgrade_tests")
@@ -22,7 +23,7 @@ public sealed class MigrationUpgradeTests : IAsyncLifetime
     public Task DisposeAsync() => _postgres.DisposeAsync().AsTask();
 
     [Fact]
-    public async Task ExistingTeacherAndStudentSurviveAttendanceMigrationWithProfileBackfill()
+    public async Task ExistingTeacherAndStudentSurviveAttendanceThenTeacherManagementUpgrade()
     {
         var options = new DbContextOptionsBuilder<AdminPortalDbContext>()
             .UseNpgsql(_postgres.GetConnectionString(), npgsql =>
@@ -56,11 +57,15 @@ public sealed class MigrationUpgradeTests : IAsyncLifetime
             """);
 
         await migrator.MigrateAsync(AttendanceMigration);
+        await migrator.MigrateAsync(TeacherManagementMigration);
         dbContext.ChangeTracker.Clear();
 
         var profile = await dbContext.Teachers.AsNoTracking()
             .SingleAsync(x => x.UserId == teacherUserId);
         Assert.Equal(7, profile.AttendanceEditWindowDays);
+        Assert.Equal($"GV-MIG-{profile.Id:N}".ToUpperInvariant(), profile.TeacherCode);
+        Assert.Null(profile.Note);
+        Assert.Equal(1, profile.Version);
         var legacyUser = await dbContext.Users.AsNoTracking().SingleAsync(x => x.Id == teacherUserId);
         Assert.Equal("Legacy Teacher", legacyUser.FullName);
         var legacyStudent = await dbContext.Students.AsNoTracking().SingleAsync(x => x.Id == studentId);
@@ -68,5 +73,6 @@ public sealed class MigrationUpgradeTests : IAsyncLifetime
         Assert.Equal("legacy note", legacyStudent.Note);
         Assert.Null(legacyStudent.GroupId);
         Assert.Contains(AttendanceMigration, await dbContext.Database.GetAppliedMigrationsAsync());
+        Assert.Contains(TeacherManagementMigration, await dbContext.Database.GetAppliedMigrationsAsync());
     }
 }

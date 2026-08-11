@@ -10,7 +10,6 @@ using AdminPortal.Application.Common.Models;
 using AdminPortal.Application.StudentGroups;
 using AdminPortal.Application.Students;
 using AdminPortal.Application.Teachers;
-using AdminPortal.Application.Users;
 using AdminPortal.Domain.Enums;
 using AdminPortal.Domain.Entities;
 using AdminPortal.Infrastructure.Persistence;
@@ -144,12 +143,13 @@ public sealed class AttendanceApiTests(ApiFactory factory) : IClassFixture<ApiFa
         _ = await AssignStudentAsync(manager, student.Id, groupA.Id);
         var policy = await manager.PutAsJsonAsync($"/api/v1/teachers/{teacherA.Id}/attendance-policy", new
         {
-            attendanceEditWindowDays = 1
+            attendanceEditWindowDays = 1,
+            expectedVersion = teacherA.Version
         });
         policy.EnsureSuccessStatusCode();
 
         using var teacherClient = CreateClient();
-        var login = await LoginAsync(teacherClient, teacherA.UserId);
+        var login = await LoginAsync(teacherClient, teacherA.Email);
         teacherClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", login.AccessToken);
         var date = LocalToday();
         var contextResponse = await teacherClient.GetAsync($"/api/v1/attendance/context?date={Iso(date)}");
@@ -247,7 +247,8 @@ public sealed class AttendanceApiTests(ApiFactory factory) : IClassFixture<ApiFa
         var student = await CreateStudentAsync(client, $"L{marker}", $"Lifecycle Student {marker}");
         _ = await AssignStudentAsync(client, student.Id, group.Id);
 
-        var deleteTeacher = await client.DeleteAsync($"/api/v1/users/{teacher.UserId}");
+        var deleteTeacher = await client.DeleteAsync(
+            $"/api/v1/teachers/{teacher.Id}?expectedVersion={teacher.Version}");
         Assert.Equal(HttpStatusCode.Conflict, deleteTeacher.StatusCode);
         Assert.Equal("TeacherHasResponsibleGroups", await ProblemCodeAsync(deleteTeacher));
         var deactivateGroup = await client.PutAsJsonAsync($"/api/v1/student-groups/{group.Id}", new
@@ -373,36 +374,29 @@ public sealed class AttendanceApiTests(ApiFactory factory) : IClassFixture<ApiFa
         return await ReadAsync<AccessTokenResponse>(response);
     }
 
-    private async Task<AccessTokenResponse> LoginAsync(HttpClient client, Guid teacherUserId)
+    private static async Task<AccessTokenResponse> LoginAsync(HttpClient client, string teacherEmail)
     {
-        var user = await GetUserAsync(teacherUserId);
         var response = await client.PostAsJsonAsync("/api/v1/auth/login",
-            new LoginRequest(user.Email, "StrongTeacherPassword1!"), JsonOptions);
+            new LoginRequest(teacherEmail, "StrongTeacherPassword1!"), JsonOptions);
         response.EnsureSuccessStatusCode();
         return await ReadAsync<AccessTokenResponse>(response);
     }
 
-    private async Task<UserResponse> GetUserAsync(Guid userId)
-    {
-        using var client = await CreateManagerClientAsync();
-        var response = await client.GetAsync($"/api/v1/users/{userId}");
-        response.EnsureSuccessStatusCode();
-        return await ReadAsync<UserResponse>(response);
-    }
-
-    private static async Task<TeacherResponse> CreateTeacherProfileAsync(HttpClient client, string fullName)
+    private static async Task<TeacherDetailResponse> CreateTeacherProfileAsync(HttpClient client, string fullName)
     {
         var email = $"{Guid.NewGuid():N}@example.test";
-        var create = await client.PostAsJsonAsync("/api/v1/users", new
+        var create = await client.PostAsJsonAsync("/api/v1/teachers", new
         {
-            email, fullName, phoneNumber = (string?)null, role = "Teacher", status = "Active",
-            password = "StrongTeacherPassword1!"
+            teacherCode = $"GV-{Guid.NewGuid():N}"[..20],
+            email,
+            fullName,
+            phoneNumber = (string?)null,
+            status = "Active",
+            password = "StrongTeacherPassword1!",
+            note = (string?)null
         });
         create.EnsureSuccessStatusCode();
-        var pageResponse = await client.GetAsync($"/api/v1/teachers?search={Uri.EscapeDataString(fullName)}&pageSize=10");
-        pageResponse.EnsureSuccessStatusCode();
-        var page = await ReadAsync<PagedResponse<TeacherResponse>>(pageResponse);
-        return Assert.Single(page.Items, x => x.FullName == fullName);
+        return await ReadAsync<TeacherDetailResponse>(create);
     }
 
     private static async Task<StudentGroupResponse> CreateGroupAsync(

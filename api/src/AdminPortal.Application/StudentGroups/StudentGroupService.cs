@@ -112,6 +112,10 @@ public sealed class StudentGroupService(
         var actor = currentActor.GetRequired();
         AuthorizationRules.EnsurePortalManager(actor);
         await using var transaction = await attendancePersistence.BeginTransactionAsync(cancellationToken);
+        if (request.TeacherId is not null)
+        {
+            await attendancePersistence.LockTeachersAsync([request.TeacherId.Value], cancellationToken);
+        }
         await attendancePersistence.LockGroupsAsync([id], cancellationToken);
         var group = await FindRequiredAsync(id, cancellationToken);
         Teacher? teacher = null;

@@ -6,6 +6,7 @@ using System.Text.Json.Serialization;
 using AdminPortal.Application.Auth;
 using AdminPortal.Application.Common.Models;
 using AdminPortal.Application.Students;
+using AdminPortal.Application.Teachers;
 using AdminPortal.Application.Users;
 using AdminPortal.Domain.Enums;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -181,14 +182,15 @@ public sealed class AdminPortalApiTests(ApiFactory factory) : IClassFixture<ApiF
         var superAdmin = await LoginAsync(anonymousClient, ApiFactory.SuperAdminEmail, ApiFactory.SuperAdminPassword);
         anonymousClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", superAdmin.AccessToken);
         var teacherEmail = $"teacher-{Guid.NewGuid():N}@example.test";
-        var createTeacher = await anonymousClient.PostAsJsonAsync("/api/v1/users", new
+        var createTeacher = await anonymousClient.PostAsJsonAsync("/api/v1/teachers", new
         {
+            teacherCode = $"GV-{Guid.NewGuid():N}"[..20],
             email = teacherEmail,
             fullName = "Test Teacher",
             phoneNumber = (string?)null,
-            role = "Teacher",
             status = "Active",
-            password = "StrongTeacherPassword1!"
+            password = "StrongTeacherPassword1!",
+            note = (string?)null
         });
         Assert.Equal(HttpStatusCode.Created, createTeacher.StatusCode);
 
@@ -207,15 +209,15 @@ public sealed class AdminPortalApiTests(ApiFactory factory) : IClassFixture<ApiF
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", auth.AccessToken);
         var firstEmail = $"first-{Guid.NewGuid():N}@example.test";
         var secondEmail = $"second-{Guid.NewGuid():N}@example.test";
-        var first = await CreateTeacherAsync(client, firstEmail, "0900000000");
-        _ = await CreateTeacherAsync(client, secondEmail, null);
+        var first = await CreateAdminAsync(client, firstEmail, "0900000000");
+        _ = await CreateAdminAsync(client, secondEmail, null);
 
         var clearPhone = await client.PutAsJsonAsync($"/api/v1/users/{first.Id}", new
         {
             email = firstEmail,
-            fullName = "First Teacher Updated",
+            fullName = "First Admin Updated",
             phoneNumber = (string?)null,
-            role = "Teacher",
+            role = "Admin",
             status = "Active"
         });
         clearPhone.EnsureSuccessStatusCode();
@@ -225,9 +227,9 @@ public sealed class AdminPortalApiTests(ApiFactory factory) : IClassFixture<ApiF
         var duplicate = await client.PutAsJsonAsync($"/api/v1/users/{first.Id}", new
         {
             email = secondEmail,
-            fullName = "First Teacher Updated",
+            fullName = "First Admin Updated",
             phoneNumber = (string?)null,
-            role = "Teacher",
+            role = "Admin",
             status = "Active"
         });
         Assert.Equal(HttpStatusCode.Conflict, duplicate.StatusCode);
@@ -280,14 +282,14 @@ public sealed class AdminPortalApiTests(ApiFactory factory) : IClassFixture<ApiF
             ?? throw new InvalidOperationException("Login response was empty.");
     }
 
-    private static async Task<UserResponse> CreateTeacherAsync(HttpClient client, string email, string? phoneNumber)
+    private static async Task<UserResponse> CreateAdminAsync(HttpClient client, string email, string? phoneNumber)
     {
         var response = await client.PostAsJsonAsync("/api/v1/users", new
         {
             email,
-            fullName = "Teacher",
+            fullName = "Admin",
             phoneNumber,
-            role = "Teacher",
+            role = "Admin",
             status = "Active",
             password = "StrongTeacherPassword1!"
         });

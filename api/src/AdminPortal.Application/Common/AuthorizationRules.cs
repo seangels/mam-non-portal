@@ -14,6 +14,14 @@ public static class AuthorizationRules
         }
     }
 
+    public static void EnsureSuperAdmin(ActorContext actor)
+    {
+        if (actor.Role != UserRole.SuperAdmin)
+        {
+            throw new ForbiddenException("Chỉ siêu quản trị viên được quản lý tài khoản quản trị.");
+        }
+    }
+
     public static void EnsureCanManageUser(ActorContext actor, UserRole targetRole)
     {
         EnsurePortalManager(actor);

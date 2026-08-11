@@ -11,30 +11,23 @@ namespace AdminPortal.Application.Users;
 
 public sealed class UserService(
     IApplicationDbContext dbContext,
-    IPasswordService passwordService,
+    UserAccountCoordinator userAccountCoordinator,
     ICurrentActor currentActor,
-    IAttendancePersistence attendancePersistence,
+    IDatabaseExceptionClassifier databaseExceptionClassifier,
     TimeProvider timeProvider) : IUserService
 {
+    private const string UserEmailIndex = "ix_users_normalized_email";
+
     public async Task<PagedResponse<UserResponse>> ListAsync(UserListQuery query, CancellationToken cancellationToken)
     {
         var actor = currentActor.GetRequired();
-        AuthorizationRules.EnsurePortalManager(actor);
-        if (query.Role is not null)
-        {
-            AuthorizationRules.EnsureCanManageUser(actor, query.Role.Value);
-        }
-
-        var users = dbContext.Users.AsNoTracking().Where(user => user.Role != UserRole.SuperAdmin);
-        if (actor.Role == UserRole.Admin)
-        {
-            users = users.Where(user => user.Role == UserRole.Teacher);
-        }
+        AuthorizationRules.EnsureSuperAdmin(actor);
+        var users = dbContext.Users.AsNoTracking().Where(user => user.Role == UserRole.Admin);
 
         if (!string.IsNullOrWhiteSpace(query.Search))
         {
             var search = query.Search.Trim().ToLowerInvariant();
-#pragma warning disable CA1304, CA1311, CA1862 // Parameterless ToLower is translated to PostgreSQL lower().
+#pragma warning disable CA1304, CA1311, CA1862
             users = users.Where(user =>
                 user.Email.ToLower().Contains(search) ||
                 user.FullName.ToLower().Contains(search) ||
@@ -58,22 +51,24 @@ public sealed class UserService(
 
         var totalItems = await users.CountAsync(cancellationToken);
         var descending = query.SortOrder.Equals("desc", StringComparison.OrdinalIgnoreCase);
-        var ordered = ApplySort(users, query.SortBy, descending);
-        var items = await ordered
+        var items = await ApplySort(users, query.SortBy, descending)
             .Skip((query.Page - 1) * query.PageSize)
             .Take(query.PageSize)
             .Select(user => Map(user))
             .ToListAsync(cancellationToken);
-
-        return new PagedResponse<UserResponse>(
-            items,
-            new PaginationMetadata(query.Page, query.PageSize, totalItems, (int)Math.Ceiling(totalItems / (double)query.PageSize)));
+        return new PagedResponse<UserResponse>(items,
+            new PaginationMetadata(
+                query.Page,
+                query.PageSize,
+                totalItems,
+                (int)Math.Ceiling(totalItems / (double)query.PageSize)));
     }
 
     public async Task<UserResponse> GetAsync(Guid id, CancellationToken cancellationToken)
     {
         var actor = currentActor.GetRequired();
         var user = await FindRequiredAsync(id, false, cancellationToken);
+        EnsureAdminMutation(user.Role);
         AuthorizationRules.EnsureCanManageUser(actor, user.Role);
         return Map(user);
     }
@@ -81,47 +76,20 @@ public sealed class UserService(
     public async Task<UserResponse> CreateAsync(CreateUserRequest request, CancellationToken cancellationToken)
     {
         var actor = currentActor.GetRequired();
+        EnsureAdminMutation(request.Role);
         AuthorizationRules.EnsureCanManageUser(actor, request.Role);
-        PasswordPolicy.Validate(request.Password);
-        EnsureText(request.FullName, "fullName", "Họ tên là bắt buộc.");
-
-        var normalizedEmail = EmailNormalizer.Normalize(request.Email);
-        if (await dbContext.Users.AnyAsync(user => user.NormalizedEmail == normalizedEmail, cancellationToken))
-        {
-            throw new ConflictException("Email đã được sử dụng.");
-        }
-
         var now = timeProvider.GetUtcNow();
-        var user = new User
-        {
-            Id = Guid.NewGuid(),
-            Email = request.Email.Trim(),
-            NormalizedEmail = normalizedEmail,
-            PasswordHash = string.Empty,
-            FullName = request.FullName.Trim(),
-            PhoneNumber = NormalizeOptional(request.PhoneNumber),
-            Role = request.Role,
-            Status = request.Status,
-            CreatedAt = now,
-            UpdatedAt = now
-        };
-        user.PasswordHash = passwordService.Hash(user, request.Password);
-        dbContext.Users.Add(user);
-        if (user.Role == UserRole.Teacher)
-        {
-            var teacher = new Teacher
-            {
-                Id = Guid.NewGuid(),
-                User = user,
-                UserId = user.Id,
-                CreatedAt = now,
-                UpdatedAt = now
-            };
-            dbContext.Teachers.Add(teacher);
-            AddAudit(actor, "TeacherProfile.Created", teacher.Id, null, new { teacher.UserId, teacher.AttendanceEditWindowDays }, "TeacherProfile");
-        }
+        var user = await userAccountCoordinator.CreateAsync(
+            request.Email,
+            request.FullName,
+            request.PhoneNumber,
+            UserRole.Admin,
+            request.Status,
+            request.Password,
+            now,
+            cancellationToken);
         AddAudit(actor, "User.Created", user.Id, null, Snapshot(user));
-        await dbContext.SaveChangesAsync(cancellationToken);
+        await SaveUserChangesAsync(cancellationToken);
         return Map(user);
     }
 
@@ -129,78 +97,26 @@ public sealed class UserService(
     {
         var actor = currentActor.GetRequired();
         var user = await FindRequiredAsync(id, true, cancellationToken);
+        EnsureAdminMutation(user.Role);
+        EnsureAdminMutation(request.Role);
         AuthorizationRules.EnsureCanManageUser(actor, user.Role);
         if (actor.UserId == user.Id)
         {
             throw new ForbiddenException("Không thể tự thay đổi tài khoản quản trị hiện tại.");
         }
 
-        await using var transaction = await attendancePersistence.BeginTransactionAsync(cancellationToken);
         var oldValues = Snapshot(user);
-        EnsureText(request.Email, "email", "Email không được để trống.");
-        EnsureText(request.FullName, "fullName", "Họ tên không được để trống.");
-        var normalizedEmail = EmailNormalizer.Normalize(request.Email);
-        if (normalizedEmail != user.NormalizedEmail &&
-            await dbContext.Users.AnyAsync(candidate => candidate.NormalizedEmail == normalizedEmail && candidate.Id != id, cancellationToken))
-        {
-            throw new ConflictException("Email đã được sử dụng.");
-        }
-
-        var revokeSessions = request.Role != user.Role || request.Status != user.Status;
-        if (request.Role != user.Role)
-        {
-            AuthorizationRules.EnsureCanManageUser(actor, request.Role);
-            if (user.Role == UserRole.Teacher && user.TeacherProfile is not null &&
-                await dbContext.StudentGroups.AnyAsync(x => x.ResponsibleTeacherId == user.TeacherProfile.Id, cancellationToken))
-            {
-                throw new ConflictException(
-                    "Không thể đổi vai trò khi giáo viên còn phụ trách nhóm.",
-                    ProblemCodes.TeacherHasResponsibleGroups);
-            }
-        }
-
-        var nameChanged = !string.Equals(user.FullName, request.FullName.Trim(), StringComparison.Ordinal);
-        List<Guid> affectedGroupIds = user.TeacherProfile is null || !nameChanged
-            ? []
-            : await dbContext.StudentGroups.Where(x => x.ResponsibleTeacherId == user.TeacherProfile.Id)
-                .Select(x => x.Id).ToListAsync(cancellationToken);
-        await attendancePersistence.LockGroupsAsync(affectedGroupIds, cancellationToken);
-
-        user.Email = request.Email.Trim();
-        user.NormalizedEmail = normalizedEmail;
-        user.FullName = request.FullName.Trim();
-        user.PhoneNumber = NormalizeOptional(request.PhoneNumber);
-        user.Role = request.Role;
-        user.Status = request.Status;
-        user.UpdatedAt = timeProvider.GetUtcNow();
-        if (request.Role == UserRole.Teacher && user.TeacherProfile is null)
-        {
-            user.TeacherProfile = new Teacher
-            {
-                Id = Guid.NewGuid(),
-                UserId = user.Id,
-                User = user,
-                CreatedAt = user.UpdatedAt,
-                UpdatedAt = user.UpdatedAt
-            };
-            dbContext.Teachers.Add(user.TeacherProfile);
-            AddAudit(actor, "TeacherProfile.Created", user.TeacherProfile.Id, null,
-                new { user.TeacherProfile.UserId, user.TeacherProfile.AttendanceEditWindowDays }, "TeacherProfile");
-        }
-        if (affectedGroupIds.Count > 0)
-        {
-            var groups = await dbContext.StudentGroups.Where(x => affectedGroupIds.Contains(x.Id)).ToListAsync(cancellationToken);
-            foreach (var group in groups)
-            {
-                group.SnapshotVersion++;
-                group.SnapshotChangedAt = user.UpdatedAt;
-                group.UpdatedAt = user.UpdatedAt;
-            }
-        }
-        if (revokeSessions) await RevokeSessionsAsync(user.Id, user.UpdatedAt, cancellationToken);
+        var now = timeProvider.GetUtcNow();
+        _ = await userAccountCoordinator.UpdateAsync(
+            user,
+            request.Email,
+            request.FullName,
+            request.PhoneNumber,
+            request.Status,
+            now,
+            cancellationToken);
         AddAudit(actor, "User.Updated", user.Id, oldValues, Snapshot(user));
-        await dbContext.SaveChangesAsync(cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
+        await SaveUserChangesAsync(cancellationToken);
         return Map(user);
     }
 
@@ -209,11 +125,8 @@ public sealed class UserService(
         var actor = currentActor.GetRequired();
         var user = await FindRequiredAsync(id, true, cancellationToken);
         AuthorizationRules.EnsureCanManageUser(actor, user.Role);
-        PasswordPolicy.Validate(request.Password);
         var now = timeProvider.GetUtcNow();
-        user.PasswordHash = passwordService.Hash(user, request.Password);
-        user.UpdatedAt = now;
-        await RevokeSessionsAsync(user.Id, now, cancellationToken);
+        await userAccountCoordinator.ChangePasswordAsync(user, request.Password, now, cancellationToken);
         AddAudit(actor, "User.PasswordChanged", user.Id, null, null);
         await dbContext.SaveChangesAsync(cancellationToken);
     }
@@ -222,53 +135,66 @@ public sealed class UserService(
     {
         var actor = currentActor.GetRequired();
         var user = await FindRequiredAsync(id, true, cancellationToken);
+        EnsureAdminMutation(user.Role);
         AuthorizationRules.EnsureCanManageUser(actor, user.Role);
         if (actor.UserId == user.Id)
         {
             throw new ForbiddenException("Không thể tự xóa tài khoản hiện tại.");
         }
-        if (user.TeacherProfile is not null &&
-            await dbContext.StudentGroups.AnyAsync(x => x.ResponsibleTeacherId == user.TeacherProfile.Id, cancellationToken))
-        {
-            throw new ConflictException(
-                "Không thể xóa giáo viên đang phụ trách nhóm.",
-                ProblemCodes.TeacherHasResponsibleGroups);
-        }
 
-        var now = timeProvider.GetUtcNow();
         var oldValues = Snapshot(user);
-        user.DeletedAt = now;
-        user.UpdatedAt = now;
-        await RevokeSessionsAsync(user.Id, now, cancellationToken);
+        var now = timeProvider.GetUtcNow();
+        await userAccountCoordinator.SoftDeleteAsync(user, now, cancellationToken);
         AddAudit(actor, "User.Deleted", user.Id, oldValues, null);
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
     private async Task<User> FindRequiredAsync(Guid id, bool tracked, CancellationToken cancellationToken)
     {
-        var query = (tracked ? dbContext.Users.AsQueryable() : dbContext.Users.AsNoTracking())
-            .Include(x => x.TeacherProfile);
+        var query = tracked ? dbContext.Users.AsQueryable() : dbContext.Users.AsNoTracking();
         return await query.SingleOrDefaultAsync(user => user.Id == id, cancellationToken)
             ?? throw new NotFoundException("Không tìm thấy tài khoản.");
     }
 
-    private Task<int> RevokeSessionsAsync(Guid userId, DateTimeOffset now, CancellationToken cancellationToken) =>
-        dbContext.AuthSessions
-            .Where(session => session.UserId == userId && session.RevokedAt == null)
-            .ExecuteUpdateAsync(setters => setters.SetProperty(session => session.RevokedAt, now), cancellationToken);
+    private async Task SaveUserChangesAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException exception) when (
+            databaseExceptionClassifier.IsUniqueViolation(exception, UserEmailIndex))
+        {
+            throw new ConflictException("Email đã được sử dụng.", ProblemCodes.EmailAlreadyExists);
+        }
+    }
+
+    private static void EnsureAdminMutation(UserRole role)
+    {
+        if (role == UserRole.Teacher)
+        {
+            throw new ConflictException(
+                "Giáo viên phải được quản lý qua API giáo viên.",
+                ProblemCodes.TeacherMustBeManagedViaTeachers);
+        }
+
+        if (role != UserRole.Admin)
+        {
+            throw new ForbiddenException("Chỉ có thể quản lý tài khoản quản trị viên qua API này.");
+        }
+    }
 
     private void AddAudit(
         ActorContext actor,
         string action,
         Guid entityId,
         object? oldValues,
-        object? newValues,
-        string entityType = "User") =>
+        object? newValues) =>
         dbContext.AuditLogs.Add(new AuditLog
         {
             ActorUserId = actor.UserId,
             Action = action,
-            EntityType = entityType,
+            EntityType = "User",
             EntityId = entityId,
             OldValues = oldValues is null ? null : JsonSerializer.Serialize(oldValues),
             NewValues = newValues is null ? null : JsonSerializer.Serialize(newValues),
@@ -286,8 +212,10 @@ public sealed class UserService(
         user.DeletedAt
     };
 
-    private static IOrderedQueryable<User> ApplySort(IQueryable<User> query, string sortBy, bool descending) =>
-        (sortBy.ToLowerInvariant(), descending) switch
+    private static IOrderedQueryable<User> ApplySort(
+        IQueryable<User> query,
+        string sortBy,
+        bool descending) => (sortBy.ToLowerInvariant(), descending) switch
         {
             ("email", false) => query.OrderBy(user => user.Email).ThenBy(user => user.Id),
             ("email", true) => query.OrderByDescending(user => user.Email).ThenByDescending(user => user.Id),
@@ -299,10 +227,12 @@ public sealed class UserService(
             ("status", true) => query.OrderByDescending(user => user.Status).ThenByDescending(user => user.Id),
             ("createdat", false) => query.OrderBy(user => user.CreatedAt).ThenBy(user => user.Id),
             ("createdat", true) => query.OrderByDescending(user => user.CreatedAt).ThenByDescending(user => user.Id),
-            _ => throw new AppValidationException("Trường sắp xếp không hợp lệ.", new Dictionary<string, string[]>
-            {
-                ["sortBy"] = ["Chỉ hỗ trợ email, fullName, role, status hoặc createdAt."]
-            })
+            _ => throw new AppValidationException(
+                "Trường sắp xếp không hợp lệ.",
+                new Dictionary<string, string[]>
+                {
+                    ["sortBy"] = ["Chỉ hỗ trợ email, fullName, role, status hoặc createdAt."]
+                })
         };
 
     private static UserResponse Map(User user) =>
@@ -310,15 +240,4 @@ public sealed class UserService(
 
     private static DateTimeOffset ToUtcStart(DateOnly date) =>
         new(date.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc));
-
-    private static string? NormalizeOptional(string? value) =>
-        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
-
-    private static void EnsureText(string value, string field, string message)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            throw new AppValidationException(message, new Dictionary<string, string[]> { [field] = [message] });
-        }
-    }
 }

@@ -5,9 +5,9 @@
 ## Trạng thái gần nhất
 
 - Cập nhật: 2026-08-11.
-- Backend feature scope trong `plans/01-BASE-admin-portal.md` và attendance epic trong `plans/02-ATT-attendance.md` đã hoàn tất: Teacher profile/policy, StudentGroup/current roster, attendance Missing/Saved, full POST/PUT, historical recovery, audit/concurrency và migration.
-- Baseline xác minh gần nhất: solution build `0 warning / 0 error`; unit test `23/23`; integration test PostgreSQL 17 Testcontainers Release `15/15`; EF báo không có pending model changes.
-- Integration attendance gồm Missing GET không ghi, full first-save/PUT, immutable snapshot, stale version/snapshot, Teacher A/B scope/window, historical recovery, lifecycle conflict, audit không raw notes, concurrent first-save/cap 100 và rehearsal nâng DB có dữ liệu từ InitialCreate lên attendance migration.
+- Backend feature scope trong `plans/01-BASE-admin-portal.md`, `plans/02-ATT-attendance.md` và Teacher management epic `plans/03-TCH-teacher-management.md` đã hoàn tất. `/teachers` hiện là aggregate canonical cho account/profile, mã giáo viên, concurrency, policy và lifecycle.
+- Baseline xác minh gần nhất: solution build `0 warning / 0 error`; unit test `32/32`; integration test PostgreSQL 17 Testcontainers Release `20/20`; EF báo không có pending model changes.
+- Integration Teacher phủ accent/literal search + exact server pagination, create/update/nullable clear/duplicate, version/policy, group snapshot, password/status/delete session revoke, User boundary, audit privacy, concurrent mutation/create, fresh migration và rehearsal Initial -> Attendance -> Teacher management có dữ liệu cũ.
 - Không có blocker backend đã biết tại thời điểm snapshot. Trước mỗi task phải kiểm tra `git status`, `tasks.md` và source vì trạng thái này có thể đã thay đổi.
 
 ## Bản đồ code
@@ -16,8 +16,8 @@
 - `api/src/AdminPortal.Application`: thêm feature `Teachers`, `StudentGroups`, `Attendance`, business rules và machine-readable `ProblemCodes`; không phụ thuộc EF implementation.
 - `api/src/AdminPortal.Infrastructure`: Npgsql/EF Core, mapping/migration, password/JWT, setup transaction và DI.
 - `api/src/AdminPortal.Api`: controller, JWT/session validation, CSRF, CORS/rate limit, ProblemDetails, logging, OpenAPI và health.
-- `api/tests/AdminPortal.UnitTests`: authorization/validation rules.
-- `api/tests/AdminPortal.IntegrationTests`: `WebApplicationFactory` + PostgreSQL Testcontainers; setup flow ở `SetupFlowTests.cs`, các contract còn lại ở `AdminPortalApiTests.cs`.
+- `api/tests/AdminPortal.UnitTests`: authorization/validation rules và `VietnameseSearchNormalizerTests.cs`.
+- `api/tests/AdminPortal.IntegrationTests`: `WebApplicationFactory` + PostgreSQL Testcontainers; Teacher contract/race/lifecycle ở `TeacherManagementApiTests.cs`, upgrade rehearsal ở `MigrationUpgradeTests.cs`.
 - `api/tools/AdminPortal.Maintenance` và `api/scripts/maintenance/cleanup-retention.sql`: cleanup batch audit 90 ngày/session history 30 ngày.
 - Contract nền: `plans/01-BASE-admin-portal.md`; plan có thứ tự tại `plans/README.md`; hướng dẫn chạy/vận hành: `api/README.md`; sample HTTP: `api/requests.http`; tiến độ liên agent: `tasks.md`.
 
@@ -27,12 +27,14 @@
 - Setup anonymous: `GET /setup/status`, `POST /setup/super-admin`; POST chỉ thành công khi chưa từng có user, kể cả record soft-deleted.
 - Auth: `POST /auth/login`, `GET /auth/csrf`, `POST /auth/refresh`, `POST /auth/logout`, `GET /auth/me`.
 - Login/refresh trả access token, `expiresIn`, `csrfToken`, user. Access token giữ ở memory phía UI; refresh cookie là Secure/HttpOnly/SameSite=None; CSRF gửi qua `X-CSRF-TOKEN`.
-- Users và students dùng GET list/detail, POST create, `PUT` full replacement, DELETE soft-delete. User có thêm `PUT /users/{id}/password`.
-- Teacher management: GET list/detail và `PUT /teachers/{id}/attendance-policy`; policy 1–7 ngày. StudentGroup có CRUD, responsible-teacher endpoint; Student có endpoint group riêng và response/filter group.
+- `/users` list/detail/create/full PUT/delete chỉ quản lý role `Admin` và list chỉ dành cho SuperAdmin. Teacher qua User CRUD trả `TeacherMustBeManagedViaTeachers`; ngoại lệ duy nhất là `PUT /users/{userId}/password`, tiếp tục hỗ trợ Teacher.
+- Teacher management canonical: GET/POST list-create, GET/PUT/DELETE detail, và `PUT /teachers/{id}/attendance-policy`. Create tạo User+Teacher atomic; full PUT/policy nhận `expectedVersion`, DELETE nhận query `expectedVersion`; policy 1–7 ngày.
+- Teacher list filter `status/groupId/unassigned`, sort whitelist theo plan và search literal mã/tên/email/phone không dấu/case-insensitive tại .NET trên toàn candidate trước total/paging. Không dùng PostgreSQL `unaccent`; blank search giữ DB fast path.
+- Teacher response có `id/userId/teacherCode`, field account, policy, group count, timestamps và integer `version`; detail thêm nullable `note` và responsible group summaries. Group assignment chỉ qua StudentGroup endpoint.
 - Attendance: GET context/daily; POST sheet full roster; PUT sheet full replacement; Admin/SuperAdmin historical-recovery và ba candidate API. DTO/date/query chính xác nằm trong `plans/02-ATT-attendance.md` section 7.
 - Pagination mặc định page 1/pageSize 20, tối đa 100. User sort whitelist: `email`, `fullName`, `role`, `status`, `createdAt`. Student: `studentCode`, `fullName`, `nickName`, `dateOfBirth`, `gender`, `status`, `createdAt`.
 - `UserStatus`: `Active`, `Inactive`, `Locked`; `StudentStatus`: `Active`, `Inactive`; `Gender`: `Male`, `Female`, `Other` hoặc null.
-- Role rule: SuperAdmin quản lý Admin/Teacher; Admin chỉ Teacher; Teacher không quản trị. User list không trả SuperAdmin và User CRUD không quản lý SuperAdmin.
+- Role rule: SuperAdmin quản lý Admin qua `/users` và Teacher qua `/teachers`; Admin chỉ Teacher qua `/teachers`; Teacher không truy cập API quản trị. User list không trả SuperAdmin/Teacher.
 
 ## Bất biến security và persistence
 
@@ -41,10 +43,12 @@
 - Password policy: tối thiểu 12 ký tự, có chữ hoa, chữ thường, số và ký tự đặc biệt. Login lockout sau 5 lần sai trong 15 phút. Không tiết lộ lý do auth chi tiết cho client.
 - Setup dùng PostgreSQL transaction advisory lock `SetupService` và `IgnoreQueryFilters()` để chống race/mở lại setup sau soft delete.
 - User/Student dùng global soft-delete query filter. Unique normalized email và student code là partial unique index trên `deleted_at IS NULL`; student code có thể tái sử dụng sau delete.
+- Teacher row không hard-delete; `teacher_code` trim/uppercase/unique trên mọi Teacher row nên mã của Teacher đã xóa vẫn được giữ. Legacy profile được backfill `GV-MIG-{UUID}`. Full PUT/policy/delete tăng aggregate `version`; password và group assignment không tăng Teacher version.
+- Lock order Teacher -> User -> group UUID tăng dần. Rename fullName tăng snapshot version đúng một cho mọi group vẫn đang phụ trách trong cùng transaction; code/email/phone/note/policy không tăng group snapshot. StudentGroup assignment lock Teacher trước Group để không đảo lock order.
 - Mọi snapshot mutation lock group row (nhiều group theo UUID tăng dần) và tăng `snapshot_version`; create sheet cũng lock group. PUT sheet lock row và dùng `expectedVersion`; conflict trả `ProblemDetails.code` cùng version hiện tại khi có.
 - Missing daily chỉ là preview Present và không ghi DB. Saved sheet giữ identity snapshot độc lập dữ liệu hiện tại. Attendance records luôn persisted kể cả Present; không có DELETE sheet/record v1.
 - Ngày nghiệp vụ mặc định `Asia/Ho_Chi_Minh`; Teacher dùng policy riêng, Admin/SuperAdmin thao tác mọi ngày không tương lai. Recovery chỉ dành manager khi standard historical snapshot không khả dụng.
-- Audit không chứa password/token/secret. Request logger không log body. Cleanup chạy bên ngoài API, theo batch và an toàn khi chạy lại.
+- Teacher audit chỉ lưu IDs, teacherCode, status/presence flags, changed fields và version transition; không lưu raw fullName/email/phone/note/password. Request logger không log body. Cleanup chạy bên ngoài API, theo batch và an toàn khi chạy lại.
 - CORS chỉ dùng allow-list origin cụ thể với credentials, không wildcard. Cookie cross-site yêu cầu HTTPS cho cả API/UI.
 
 ## Những lỗi đã từng phát hiện — không tái tạo
@@ -54,7 +58,7 @@
 - Validation attribute trên positional request record phải dùng target `[param: ...]` với ASP.NET Core 10.
 - `AuthSession` cần query filter tương thích soft-delete navigation `User`; bỏ nó sẽ tạo warning required-navigation và có thể làm lệch semantics session.
 - Middleware request logging phải bọc exception handler đúng thứ tự để log status đã map (ví dụ setup conflict là 409, không phải 200).
-- Không sửa/xóa EF Designer hoặc `AdminPortalDbContextModelSnapshot.cs`. Migration hiện có: `20260811000000_InitialCreate` và EF-generated `20260811130802_AddAttendanceFoundation`; migration mới backfill profile cho user role Teacher, dùng `smallint` policy, `integer` snapshot/sheet version, partial roster index và không seed group/sheet.
+- Không sửa/xóa EF Designer hoặc `AdminPortalDbContextModelSnapshot.cs`. Migration hiện có: `20260811000000_InitialCreate`, `20260811130802_AddAttendanceFoundation`, `20260811150730_AddTeacherManagement`. Migration TCH thêm/backfill `teacher_code`, `note`, integer `version`, unique/check constraints; không thêm extension/search column.
 - EF tooling hiện cảnh báo required navigation trỏ tới entity có soft-delete query filter (`Teacher/User`, attendance `Student/User`). Đây là chủ ý: FK lịch sử vẫn non-null + RESTRICT; các query recovery/history dùng `IgnoreQueryFilters`. Pending-model check vẫn sạch.
 
 ## Build, test và migration nhanh

@@ -34,8 +34,10 @@ public static class DependencyInjection
                 .UseSnakeCaseNamingConvention();
         });
         services.AddScoped<IApplicationDbContext>(provider => provider.GetRequiredService<AdminPortalDbContext>());
+        services.AddScoped<IDatabaseExceptionClassifier, PostgresExceptionClassifier>();
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IUserService, UserService>();
+        services.AddScoped<UserAccountCoordinator>();
         services.AddScoped<IStudentService, StudentService>();
         services.AddScoped<ITeacherService, TeacherService>();
         services.AddScoped<IStudentGroupService, StudentGroupService>();
