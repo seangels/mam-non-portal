@@ -12,7 +12,7 @@ Last updated: 2026-08-11
 
 - Angular 15.2 NgModule application with strict TypeScript 4.9, RxJS 7.8, and DevExtreme 23.2.3. Do not assume standalone components or newer Angular APIs.
 - `ui/src/app/core/models/` defines API DTOs/enums and `ProblemDetails` mapping. `core/services/` owns the generic API client plus setup/auth/user/student state and clients. `core/interceptors/auth.interceptor.ts` owns bearer, CSRF, and refresh retry behavior.
-- `shared/` contains auth/setup forms and reusable shell components/services; `layouts/` contains responsive DevExtreme drawer/toolbars; `pages/` contains dashboard, profile, user/student/group management, and attendance.
+- `shared/` contains auth/setup forms and reusable shell components/services; `layouts/` contains responsive DevExtreme drawer/toolbars; `pages/` contains dashboard, profile, administrator-account, Teacher, Student/Group management, and attendance.
 - `AppModule` has an `APP_INITIALIZER`: check setup status first and restore the auth session only if setup is complete. Router uses hash URLs.
 - User/student pages use DevExtreme `CustomStore`, remote server paging/sorting, explicit filters, DevExtreme popup forms, confirmation dialogs, notifications, and mutation loading states.
 
@@ -28,6 +28,8 @@ Last updated: 2026-08-11
 - Server list limits: page starts at 1 and page size is at most 100. Keep sort field names within the backend whitelists documented in `ui/AGENTS.md` and the relevant numbered plan in `plans/`.
 - Attendance is a full-roster aggregate: Missing POST sends all current snapshot students plus `expectedSnapshotVersion`; Saved PUT sends all persisted snapshot students plus `expectedVersion`. Present is persisted, not inferred after save. UI keeps baseline/drafts in memory and never silently overwrites `409`.
 - Attendance dates remain DateOnly and follow server business date in `Asia/Ho_Chi_Minh`. Teacher only receives current responsible groups; Admin/SuperAdmin can select all groups and alone can run acknowledged historical recovery.
+- Teacher management uses `/teachers` as the canonical aggregate. List/detail combine User account fields with `teacherCode`, `note`, attendance policy, responsible-group summaries, timestamps and `version`; create/full PUT/delete/policy carry the TCH contract and optimistic concurrency. Teacher list search is always remote and trusts server `totalItems`; do not apply local accent filtering to paged rows.
+- `/users` is now `Tài khoản quản trị`: only SuperAdmin can open it and its UI always queries/creates/updates role `Admin`. Password change remains the only Teacher action routed through `/users/{userId}/password`.
 
 ## Implemented feature baseline
 
@@ -39,9 +41,11 @@ As implemented and verified on 2026-08-11:
 - Dashboard/profile plus remote user CRUD/password change and student CRUD screens, including validation, filters, sort, pagination, loading, confirm, notification, and key 401/403/409 behavior.
 - First-run SuperAdmin setup UI and guards are connected to the one-time setup API.
 - `/student-groups` gives Admin/SuperAdmin remote group CRUD/filter, responsible Teacher assignment, current roster add/move/remove with the 100-student cap, and Teacher attendance-edit policy 1–7 days.
+- `/teachers`, `/teachers/new`, `/teachers/:id`, and `/teachers/:id/edit` give Admin/SuperAdmin remote list/filter/paging, read-only detail/group summaries, atomic create, full versioned update, password change and versioned soft-delete. The form supports editable user-entered Teacher code, nullable clearing, dirty-route/beforeunload protection, double-submit prevention and conflict recovery without overwriting the draft.
+- Teacher group assignment and attendance policy remain exclusively in `/student-groups`. Policy PUT now sends `expectedVersion`; a conflict keeps the popup open and lets the manager load the latest Teacher version. Teacher detail only links to these controls.
 - `/#/attendance` is available to all roles. It implements role-aware context/group selection, Missing/Saved card list, accent-insensitive local search, full-roster POST/PUT, conditional status validation, dirty route/date/group/beforeunload guards, conflict/permission states, and Admin historical recovery using explicit group/Teacher/Student candidate pickers. For past dates, managers can open recovery from the page toolbar without selecting a current context group, so inactive/deleted historical groups remain reachable.
 - All portal labels/error copy use Vietnamese dictionaries and DevExtreme `vi` messages. Raw `ProblemDetails.title/detail` is not displayed; stable codes map to Vietnamese copy and trace ID remains available for support.
-- Focused Jasmine coverage currently consists of 21 specs, including DateOnly, Vietnamese search, attendance endpoint contract, full-roster save behavior, historical recovery entry, API error mapping, auth/setup state, and role navigation.
+- Focused Jasmine coverage currently consists of 36 specs, including DateOnly, Vietnamese attendance search, attendance endpoint/full-roster/recovery behavior, Teacher route/role/dashboard boundaries, remote paging mapping, canonical Teacher service endpoints, form request mapping, policy concurrency, administrator-account isolation, API error mapping, and auth/setup state.
 
 ## Environment and deployment handoff
 
@@ -71,13 +75,12 @@ npm --prefix ui run build -- --configuration iis
 
 ## Last verified baseline
 
-Fresh attendance verification on 2026-08-11:
+Fresh Teacher-management verification on 2026-08-11:
 
-- `npm --prefix ui run test:ci`: passed 21/21 in Chrome Headless 151. Dependency console emitted the existing DevExtreme W0019 license warning and Inferno development-mode warning; tests had no failures.
-- `npm --prefix ui run build`: passed AOT/production without Angular budget warning; 3.20 MB raw / 583.84 kB estimated transfer on the final source.
-- IIS AOT build passed without Angular budget warning; 3.20 MB raw / 583.73 kB estimated transfer. Generated main bundle contained `https://api-gv-portal.local/api/v1`.
-- Development builds also passed during ATT-FE-01 through ATT-FE-05. Generated `ui/dist/` is ignored and must be rebuilt in another clone.
-- Root rebuilt and verified the cross-stack package at `release/gv-portal-iis-20260811-132500.zip`; its durable hash and content audit are recorded in `.agents/shared/MEMORY.md`.
+- `npm --prefix ui run test:ci`: passed 36/36 in Chrome Headless 151. Dependency console emitted the existing DevExtreme W0019 license warning and Inferno development-mode warning; tests had no failures.
+- `npm --prefix ui run build -- --configuration development`: passed, 10.93 MB initial raw development output; final hash `8b065f3873e100ee`.
+- Per the TCH execution gate, no production build, IIS build/package, or deploy was run. Generated `ui/dist/` remains ignored and must be rebuilt when the production skill is explicitly invoked.
+- The prior ATT production/IIS package baseline remains historical evidence only; root-owned shared memory records its hash. It has not been rebuilt with TCH changes.
 
 ## Known pitfalls
 
@@ -89,6 +92,8 @@ Fresh attendance verification on 2026-08-11:
 - Keep date-only conversion local-calendar based. `toISOString()` can change a student's birthday for positive UTC offsets.
 - `environment.prod.ts` is valid only for a same-origin reverse-proxy layout; the current two-host IIS package requires `environment.iis.ts` and API CORS origin `https://gv-portal.local`.
 - Angular schematics skip tests by default. Add focused specs manually when behavior changes.
+- Teacher list search is server-side across the full candidate set. Reusing the local `includesVietnamese` helper on paged Teacher rows would produce incorrect pages and totals.
+- Teacher policy is still edited in `/student-groups`, not the Teacher form. Always carry the row `version` as `expectedVersion` and retain the conflict-reload behavior.
 - Karma loads DevExtreme components and currently prints W0019 when no local DevExtreme license key is installed; this is a licensing/setup warning rather than a test failure and must be resolved by the product owner before commercial deployment.
 - Avoid unplanned Angular/DevExtreme/CDK upgrades; the current dependency mix builds, while a partial upgrade can break the template and generated themes.
 

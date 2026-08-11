@@ -1,0 +1,71 @@
+<div class="content-block page-toolbar">
+  <div>
+    <dx-button text="Quay lại danh sách" icon="arrowleft" stylingMode="text"
+      (onClick)="router.navigate(['/teachers'])"></dx-button>
+    <h1 class="page-title">Chi tiết giáo viên</h1>
+    <p *ngIf="teacher" class="page-subtitle">{{ teacher.teacherCode }} · {{ teacher.fullName }}</p>
+  </div>
+  <div *ngIf="teacher" class="toolbar-actions" aria-label="Thao tác giáo viên">
+    <dx-button text="Đổi mật khẩu" icon="key" stylingMode="outlined" (onClick)="passwordVisible = true"></dx-button>
+    <dx-button text="Chỉnh sửa" icon="edit" type="default" (onClick)="edit()"></dx-button>
+    <dx-button text="Xóa" icon="trash" stylingMode="outlined" [disabled]="deleting" (onClick)="remove()"></dx-button>
+  </div>
+</div>
+
+<div *ngIf="loading" class="content-block state-panel" role="status">
+  <dx-load-indicator [visible]="true"></dx-load-indicator>
+  <span>Đang tải thông tin giáo viên...</span>
+</div>
+
+<div *ngIf="!loading && loadError" class="content-block state-panel error" role="alert">
+  <span>{{ loadError }}</span>
+  <dx-button text="Thử lại" icon="refresh" stylingMode="outlined" (onClick)="reload()"></dx-button>
+</div>
+
+<div *ngIf="!loading && teacher" class="content-block detail-grid">
+  <section class="dx-card detail-card" aria-labelledby="teacher-profile-heading">
+    <h2 id="teacher-profile-heading">Thông tin giáo viên</h2>
+    <dl>
+      <div><dt>Mã giáo viên</dt><dd>{{ teacher.teacherCode }}</dd></div>
+      <div><dt>Ghi chú</dt><dd class="note-value">{{ teacher.note || 'Chưa có ghi chú' }}</dd></div>
+      <div><dt>Phiên bản dữ liệu</dt><dd>{{ teacher.version }}</dd></div>
+      <div><dt>Cập nhật gần nhất</dt><dd>{{ teacher.updatedAt | date:'dd/MM/yyyy HH:mm' }}</dd></div>
+    </dl>
+  </section>
+
+  <section class="dx-card detail-card" aria-labelledby="teacher-account-heading">
+    <h2 id="teacher-account-heading">Tài khoản đăng nhập</h2>
+    <dl>
+      <div><dt>Họ và tên</dt><dd>{{ teacher.fullName }}</dd></div>
+      <div><dt>Email</dt><dd>{{ teacher.email }}</dd></div>
+      <div><dt>Số điện thoại</dt><dd>{{ teacher.phoneNumber || 'Chưa cập nhật' }}</dd></div>
+      <div><dt>Trạng thái tài khoản</dt><dd><span class="status-pill" [class.muted]="teacher.status !== 'Active'">{{ statusText(teacher.status) }}</span></dd></div>
+    </dl>
+  </section>
+
+  <section class="dx-card detail-card" aria-labelledby="teacher-policy-heading">
+    <div class="card-heading">
+      <h2 id="teacher-policy-heading">Chính sách điểm danh</h2>
+      <dx-button text="Mở trang chính sách" icon="clock" stylingMode="text" (onClick)="openGroups(true)"></dx-button>
+    </div>
+    <p>Giáo viên được sửa điểm danh trong <strong>{{ teacher.attendanceEditWindowDays }} ngày</strong>, tính cả hôm nay.</p>
+    <p class="helper-text">Chính sách chỉ được thay đổi tại trang Nhóm.</p>
+  </section>
+
+  <section class="dx-card detail-card groups-card" aria-labelledby="teacher-groups-heading">
+    <div class="card-heading">
+      <h2 id="teacher-groups-heading">Nhóm đang phụ trách ({{ teacher.responsibleGroupCount }})</h2>
+      <dx-button text="Mở trang Nhóm" icon="hierarchy" stylingMode="text" (onClick)="openGroups()"></dx-button>
+    </div>
+    <p *ngIf="teacher.responsibleGroups.length === 0" class="empty-text">Giáo viên chưa phụ trách nhóm nào.</p>
+    <div *ngIf="teacher.responsibleGroups.length > 0" class="group-list" role="list" aria-label="Nhóm giáo viên đang phụ trách">
+      <article *ngFor="let group of teacher.responsibleGroups" class="group-row" role="listitem">
+        <div><strong>{{ group.code }} · {{ group.name }}</strong><span>{{ group.studentCount }}/100 học sinh</span></div>
+        <span class="status-pill" [class.muted]="group.status !== 'Active'">{{ groupStatusText(group.status) }}</span>
+      </article>
+    </div>
+    <p class="helper-text">Việc phân công hoặc gỡ nhóm chỉ thực hiện tại trang Nhóm.</p>
+  </section>
+</div>
+
+<app-teacher-password-dialog *ngIf="teacher" [(visible)]="passwordVisible" [teacher]="teacher"></app-teacher-password-dialog>

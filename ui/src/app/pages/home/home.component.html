@@ -13,10 +13,10 @@
     <small>Xem và cập nhật tình trạng học sinh theo ngày</small>
   </a>
   <ng-container *ngIf="canManage">
-  <a class="dx-card dashboard-card" routerLink="/users">
-    <span class="dx-icon-group card-icon"></span>
-    <strong>Quản lý tài khoản</strong>
-    <small>Giáo viên{{ user?.role === 'SuperAdmin' ? ' và quản trị viên' : '' }}</small>
+  <a class="dx-card dashboard-card" routerLink="/teachers">
+    <span class="dx-icon-user card-icon"></span>
+    <strong>Quản lý giáo viên</strong>
+    <small>Hồ sơ, tài khoản và nhóm đang phụ trách</small>
   </a>
   <a class="dx-card dashboard-card" routerLink="/students">
     <span class="dx-icon-card card-icon"></span>
@@ -29,4 +29,9 @@
     <small>Phân nhóm học sinh và giáo viên phụ trách</small>
   </a>
   </ng-container>
+  <a *ngIf="isSuperAdmin" class="dx-card dashboard-card" routerLink="/users">
+    <span class="dx-icon-group card-icon"></span>
+    <strong>Tài khoản quản trị</strong>
+    <small>Quản lý tài khoản có vai trò Quản trị viên</small>
+  </a>
 </div>

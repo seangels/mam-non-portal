@@ -9,6 +9,7 @@
 .status-pill { display: inline-block; padding: 3px 8px; border-radius: 999px; background: #e8f7ef; color: #18794e; font-size: 12px; }
 .status-pill.muted { background: #f3f4f6; color: #596273; }
 .warning-text, .capacity-warning { color: #a34b00; font-weight: 600; }
+.policy-conflict { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 12px 0; padding: 12px; border: 1px solid #f2b8b5; border-radius: 8px; background: #fff1f0; color: #8a1c16; }
 .roster-dialog { display: flex; min-height: 0; height: 100%; flex-direction: column; gap: 12px; }
 .roster-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .roster-heading div { display: flex; flex-direction: column; gap: 3px; }
@@ -27,4 +28,5 @@
   .student-assignment dx-button { width: 100%; }
   .roster-row { align-items: flex-start; flex-direction: column; }
   .roster-row dx-button { width: 100%; }
+  .policy-conflict { align-items: stretch; flex-direction: column; }
 }

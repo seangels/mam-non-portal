@@ -62,7 +62,7 @@ export interface CreateUserRequest {
   email: string;
   fullName: string;
   phoneNumber?: string | null;
-  role: Exclude<UserRole, 'SuperAdmin'>;
+  role: 'Admin';
   status: UserStatus;
   password: string;
 }
@@ -146,20 +146,61 @@ export interface SetupSuperAdminResponse {
 
 export interface TeacherListQuery extends ListQuery {
   status?: UserStatus;
+  groupId?: string;
   unassigned?: boolean;
 }
 
 export interface Teacher {
   id: string;
   userId: string;
+  teacherCode: string;
   fullName: string;
+  email: string;
+  phoneNumber: string | null;
   status: UserStatus;
   attendanceEditWindowDays: number;
   responsibleGroupCount: number;
+  createdAt: string;
+  updatedAt: string;
+  version: number;
+}
+
+export interface TeacherGroupSummary {
+  id: string;
+  code: string;
+  name: string;
+  status: StudentGroupStatus;
+  studentCount: number;
+}
+
+export interface TeacherDetail extends Teacher {
+  note: string | null;
+  responsibleGroups: TeacherGroupSummary[];
+}
+
+export interface CreateTeacherRequest {
+  teacherCode: string;
+  fullName: string;
+  email: string;
+  phoneNumber: string | null;
+  status: UserStatus;
+  password: string;
+  note: string | null;
+}
+
+export interface UpdateTeacherRequest {
+  teacherCode: string;
+  fullName: string;
+  email: string;
+  phoneNumber: string | null;
+  status: UserStatus;
+  note: string | null;
+  expectedVersion: number;
 }
 
 export interface UpdateAttendancePolicyRequest {
   attendanceEditWindowDays: number;
+  expectedVersion: number;
 }
 
 export interface StudentGroupListQuery extends ListQuery {

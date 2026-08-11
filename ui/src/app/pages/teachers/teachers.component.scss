@@ -1,0 +1,15 @@
+:host { display: block; }
+.filter-card { padding: 0; overflow: hidden; }
+.filter-toggle { display: flex; width: 100%; min-height: 48px; align-items: center; justify-content: space-between; padding: 12px 18px; border: 0; background: transparent; color: inherit; font: inherit; font-weight: 600; text-align: left; cursor: pointer; }
+.filter-toggle:focus-visible { outline: 2px solid #337ab7; outline-offset: -3px; }
+.teacher-filters { padding: 0 18px 18px; align-items: center; }
+.contact-cell { display: flex; flex-direction: column; gap: 3px; }
+.contact-cell small { color: #667085; }
+.status-pill { display: inline-block; padding: 3px 8px; border-radius: 999px; background: #e8f7ef; color: #18794e; font-size: 12px; }
+.status-pill.muted { background: #f3f4f6; color: #596273; }
+.error-panel { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; border: 1px solid #f2b8b5; border-radius: 8px; background: #fff1f0; color: #8a1c16; }
+@media (max-width: 700px) {
+  .page-toolbar, .error-panel { align-items: stretch; flex-direction: column; }
+  .page-toolbar dx-button, .error-panel dx-button { width: 100%; }
+  .teacher-filters { align-items: stretch; }
+}

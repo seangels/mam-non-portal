@@ -172,6 +172,11 @@
   [showCloseButton]="true" [hideOnOutsideClick]="!saving">
   <form *dxTemplate="let _ of 'content'" (submit)="savePolicy($event)">
     <p>Giáo viên: <strong>{{ selectedTeacher?.fullName }}</strong></p>
+    <div *ngIf="policyConflict" class="policy-conflict" role="alert">
+      <span>{{ policyConflict }}</span>
+      <dx-button text="Tải dữ liệu mới nhất" icon="refresh" stylingMode="outlined"
+        (onClick)="reloadPolicyTeacher()"></dx-button>
+    </div>
     <dx-form [formData]="policyEditor" [disabled]="saving" labelLocation="top">
       <dxi-item dataField="attendanceEditWindowDays" editorType="dxNumberBox"
         [editorOptions]="{ min: 1, max: 7, showSpinButtons: true }">

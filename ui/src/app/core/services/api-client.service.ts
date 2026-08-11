@@ -29,8 +29,11 @@ export class ApiClient {
       .pipe(catchError(error => throwError(() => ApiError.from(error))));
   }
 
-  delete(path: string): Observable<void> {
-    return this.http.delete<void>(this.url(path), { withCredentials: true })
+  delete(path: string, query?: object): Observable<void> {
+    return this.http.delete<void>(this.url(path), {
+      params: this.toParams(query),
+      withCredentials: true
+    })
       .pipe(catchError(error => throwError(() => ApiError.from(error))));
   }
 

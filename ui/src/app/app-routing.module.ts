@@ -9,9 +9,13 @@ import { UsersComponent, UsersModule } from './pages/users/users.component';
 import { StudentsComponent, StudentsModule } from './pages/students/students.component';
 import { StudentGroupsComponent, StudentGroupsModule } from './pages/student-groups/student-groups.component';
 import { AttendanceComponent, AttendanceModule } from './pages/attendance/attendance.component';
+import { TeacherDetailComponent } from './pages/teachers/teacher-detail.component';
+import { TeacherFormComponent } from './pages/teachers/teacher-form.component';
+import { TeachersComponent } from './pages/teachers/teachers.component';
+import { TeachersModule } from './pages/teachers/teachers.module';
 import { PendingChangesGuard } from './core/guards/pending-changes.guard';
 
-const routes: Routes = [
+export const APP_ROUTES: Routes = [
   {
     path: 'setup',
     component: SetupFormComponent,
@@ -20,6 +24,32 @@ const routes: Routes = [
   {
     path: 'users',
     component: UsersComponent,
+    canActivate: [SetupCompletedGuard, AuthGuardService, RoleGuard],
+    data: { roles: ['SuperAdmin'] }
+  },
+  {
+    path: 'teachers',
+    component: TeachersComponent,
+    canActivate: [SetupCompletedGuard, AuthGuardService, RoleGuard],
+    data: { roles: ['SuperAdmin', 'Admin'] }
+  },
+  {
+    path: 'teachers/new',
+    component: TeacherFormComponent,
+    canActivate: [SetupCompletedGuard, AuthGuardService, RoleGuard],
+    canDeactivate: [PendingChangesGuard],
+    data: { roles: ['SuperAdmin', 'Admin'], mode: 'create' }
+  },
+  {
+    path: 'teachers/:id/edit',
+    component: TeacherFormComponent,
+    canActivate: [SetupCompletedGuard, AuthGuardService, RoleGuard],
+    canDeactivate: [PendingChangesGuard],
+    data: { roles: ['SuperAdmin', 'Admin'], mode: 'edit' }
+  },
+  {
+    path: 'teachers/:id',
+    component: TeacherDetailComponent,
     canActivate: [SetupCompletedGuard, AuthGuardService, RoleGuard],
     data: { roles: ['SuperAdmin', 'Admin'] }
   },
@@ -65,11 +95,12 @@ const routes: Routes = [
 
 @NgModule({
   imports: [
-    RouterModule.forRoot(routes, { useHash: true }),
+    RouterModule.forRoot(APP_ROUTES, { useHash: true }),
     UsersModule,
     StudentsModule,
     StudentGroupsModule,
     AttendanceModule,
+    TeachersModule,
     SetupFormModule
   ],
   providers: [AuthGuardService],

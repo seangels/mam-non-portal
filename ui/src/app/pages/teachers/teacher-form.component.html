@@ -1,0 +1,82 @@
+<div class="content-block page-toolbar">
+  <div>
+    <dx-button text="Quay lại" icon="arrowleft" stylingMode="text" (onClick)="cancel()"></dx-button>
+    <h1 class="page-title">{{ title }}</h1>
+    <p class="page-subtitle">{{ subtitle }}</p>
+  </div>
+</div>
+
+<div *ngIf="loading" class="content-block state-panel" role="status">
+  <dx-load-indicator [visible]="true"></dx-load-indicator>
+  <span>Đang tải thông tin giáo viên...</span>
+</div>
+
+<div *ngIf="!loading && loadError" class="content-block state-panel error" role="alert">
+  <span>{{ loadError }}</span>
+  <dx-button text="Thử lại" icon="refresh" stylingMode="outlined" (onClick)="reloadLatest()"></dx-button>
+</div>
+
+<div *ngIf="!loading && !loadError" class="content-block form-shell">
+  <div *ngIf="formError" class="form-error" role="alert" aria-live="assertive">
+    <span>{{ formError }}</span>
+    <dx-button *ngIf="conflict" text="Tải dữ liệu mới nhất" icon="refresh" stylingMode="outlined"
+      (onClick)="reloadLatest()"></dx-button>
+  </div>
+
+  <form class="dx-card teacher-form" (submit)="save($event)" aria-labelledby="teacher-form-heading">
+    <h2 id="teacher-form-heading">Thông tin giáo viên và tài khoản</h2>
+    <p class="helper-text">Các trường có dấu <span aria-hidden="true">*</span> là bắt buộc.</p>
+    <dx-form #form [formData]="editor" [disabled]="saving" labelLocation="top"
+      [colCountByScreen]="{ xs: 1, sm: 1, md: 2, lg: 2 }">
+      <dxi-item dataField="teacherCode" [editorOptions]="{ maxLength: 50, onFocusOut: normalizeCodeOnBlur }">
+        <dxo-label text="Mã giáo viên *"></dxo-label>
+        <dxi-validation-rule type="required" message="Vui lòng nhập mã giáo viên"></dxi-validation-rule>
+        <dxi-validation-rule type="stringLength" [max]="50" message="Mã giáo viên tối đa 50 ký tự"></dxi-validation-rule>
+      </dxi-item>
+      <dxi-item dataField="status" editorType="dxSelectBox"
+        [editorOptions]="{ items: statuses, valueExpr: 'value', displayExpr: 'text', searchEnabled: false }">
+        <dxo-label text="Trạng thái tài khoản *"></dxo-label>
+        <dxi-validation-rule type="required" message="Vui lòng chọn trạng thái tài khoản"></dxi-validation-rule>
+      </dxi-item>
+      <dxi-item dataField="fullName" [colSpan]="2" [editorOptions]="{ maxLength: 200 }">
+        <dxo-label text="Họ và tên *"></dxo-label>
+        <dxi-validation-rule type="required" message="Vui lòng nhập họ và tên"></dxi-validation-rule>
+        <dxi-validation-rule type="stringLength" [max]="200" message="Họ và tên tối đa 200 ký tự"></dxi-validation-rule>
+      </dxi-item>
+      <dxi-item dataField="email" editorType="dxTextBox" [editorOptions]="{ mode: 'email', maxLength: 255 }">
+        <dxo-label text="Email đăng nhập *"></dxo-label>
+        <dxi-validation-rule type="required" message="Vui lòng nhập email"></dxi-validation-rule>
+        <dxi-validation-rule type="email" message="Email không hợp lệ"></dxi-validation-rule>
+        <dxi-validation-rule type="stringLength" [max]="255" message="Email tối đa 255 ký tự"></dxi-validation-rule>
+      </dxi-item>
+      <dxi-item dataField="phoneNumber" [editorOptions]="{ maxLength: 30 }">
+        <dxo-label text="Số điện thoại"></dxo-label>
+        <dxi-validation-rule type="stringLength" [max]="30" message="Số điện thoại tối đa 30 ký tự"></dxi-validation-rule>
+      </dxi-item>
+      <dxi-item dataField="note" editorType="dxTextArea" [colSpan]="2"
+        [editorOptions]="{ maxLength: 2000, minHeight: 120, autoResizeEnabled: true }">
+        <dxo-label text="Ghi chú"></dxo-label>
+        <dxi-validation-rule type="stringLength" [max]="2000" message="Ghi chú tối đa 2.000 ký tự"></dxi-validation-rule>
+      </dxi-item>
+      <dxi-item *ngIf="isCreate" dataField="password" editorType="dxTextBox"
+        [editorOptions]="{ mode: 'password', maxLength: 128 }">
+        <dxo-label text="Mật khẩu *"></dxo-label>
+        <dxi-validation-rule type="required" message="Vui lòng nhập mật khẩu"></dxi-validation-rule>
+        <dxi-validation-rule type="pattern" [pattern]="passwordPattern" [message]="passwordRuleMessage"></dxi-validation-rule>
+      </dxi-item>
+      <dxi-item *ngIf="isCreate" dataField="confirmPassword" editorType="dxTextBox"
+        [editorOptions]="{ mode: 'password', maxLength: 128 }">
+        <dxo-label text="Xác nhận mật khẩu *"></dxo-label>
+        <dxi-validation-rule type="required" message="Vui lòng xác nhận mật khẩu"></dxi-validation-rule>
+      </dxi-item>
+    </dx-form>
+
+    <p *ngIf="!isCreate" class="helper-text">Đổi mật khẩu được thực hiện bằng hành động riêng tại trang chi tiết hoặc danh sách giáo viên.</p>
+    <div class="form-actions">
+      <span *ngIf="dirty" class="dirty-indicator" role="status">Có thay đổi chưa lưu</span>
+      <dx-button text="Hủy" stylingMode="outlined" [disabled]="saving" (onClick)="cancel()"></dx-button>
+      <dx-button [text]="isCreate ? 'Tạo giáo viên' : 'Lưu thay đổi'" type="default" [useSubmitBehavior]="true"
+        [disabled]="saving"></dx-button>
+    </div>
+  </form>
+</div>

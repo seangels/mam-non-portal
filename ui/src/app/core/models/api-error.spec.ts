@@ -35,4 +35,15 @@ describe('ApiError', () => {
     expect(result.currentVersion).toBe(4);
     expect(result.message).not.toContain('Do not expose');
   });
+
+  it('maps Teacher concurrency without exposing raw ProblemDetails text', () => {
+    const result = ApiError.from(new HttpErrorResponse({
+      status: 409,
+      error: { code: 'TeacherVersionConflict', currentVersion: 8, detail: 'Raw backend detail' }
+    }));
+
+    expect(result.message).toContain('giáo viên');
+    expect(result.currentVersion).toBe(8);
+    expect(result.message).not.toContain('Raw backend detail');
+  });
 });

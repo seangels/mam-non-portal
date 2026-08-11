@@ -1,5 +1,6 @@
 import { CommonModule } from '@angular/common';
-import { Component, NgModule, ViewChild } from '@angular/core';
+import { Component, NgModule, OnInit, ViewChild } from '@angular/core';
+import { ActivatedRoute } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
 import CustomStore from 'devextreme/data/custom_store';
@@ -40,7 +41,7 @@ interface GroupEditor {
   templateUrl: './student-groups.component.html',
   styleUrls: ['./student-groups.component.scss']
 })
-export class StudentGroupsComponent {
+export class StudentGroupsComponent implements OnInit {
   @ViewChild('groupsGrid') groupsGrid?: DxDataGridComponent;
   @ViewChild('teachersGrid') teachersGrid?: DxDataGridComponent;
 
@@ -90,7 +91,8 @@ export class StudentGroupsComponent {
 
   policyVisible = false;
   selectedTeacher: Teacher | null = null;
-  policyEditor = { attendanceEditWindowDays: 7 };
+  policyEditor = { attendanceEditWindowDays: 7, expectedVersion: 1 };
+  policyConflict = '';
 
   readonly groupDataSource = new CustomStore({
     key: 'id',
@@ -177,8 +179,16 @@ export class StudentGroupsComponent {
   constructor(
     private readonly groups: StudentGroupsService,
     private readonly teachers: TeachersService,
-    private readonly students: StudentsService
+    private readonly students: StudentsService,
+    private readonly route: ActivatedRoute
   ) {}
+
+  ngOnInit(): void {
+    if (this.route.snapshot.queryParamMap.get('tab') === 'policy') {
+      this.selectedTab = 1;
+      this.teacherSearch = this.route.snapshot.queryParamMap.get('search') ?? '';
+    }
+  }
 
   applyGroupFilters(): void {
     this.groupsGrid?.instance.pageIndex(0);
@@ -319,7 +329,11 @@ export class StudentGroupsComponent {
 
   openPolicy(teacher: Teacher): void {
     this.selectedTeacher = teacher;
-    this.policyEditor = { attendanceEditWindowDays: teacher.attendanceEditWindowDays };
+    this.policyConflict = '';
+    this.policyEditor = {
+      attendanceEditWindowDays: teacher.attendanceEditWindowDays,
+      expectedVersion: teacher.version
+    };
     this.policyVisible = true;
   }
 
@@ -330,14 +344,33 @@ export class StudentGroupsComponent {
     }
     this.saving = true;
     try {
-      await firstValueFrom(this.teachers.updateAttendancePolicy(this.selectedTeacher.id, this.policyEditor));
+      this.selectedTeacher = await firstValueFrom(this.teachers.updateAttendancePolicy(this.selectedTeacher.id, this.policyEditor));
       this.policyVisible = false;
       notify('Đã cập nhật thời hạn sửa điểm danh.', 'success', 1800);
       await this.teachersGrid?.instance.refresh();
     } catch (error) {
-      this.showError(error);
+      const apiError = ApiError.from(error);
+      this.policyConflict = apiError.code === 'TeacherVersionConflict' ? apiError.message : '';
+      this.notifyError(apiError);
     } finally {
       this.saving = false;
+    }
+  }
+
+  async reloadPolicyTeacher(): Promise<void> {
+    if (!this.selectedTeacher) {
+      return;
+    }
+    try {
+      const teacher = await firstValueFrom(this.teachers.get(this.selectedTeacher.id));
+      this.selectedTeacher = teacher;
+      this.policyEditor = {
+        attendanceEditWindowDays: teacher.attendanceEditWindowDays,
+        expectedVersion: teacher.version
+      };
+      this.policyConflict = '';
+    } catch (error) {
+      this.showError(error);
     }
   }
 

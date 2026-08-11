@@ -1,0 +1,70 @@
+<div class="content-block page-toolbar">
+  <div>
+    <h1 class="page-title">Quản lý giáo viên</h1>
+    <p class="page-subtitle">Quản lý hồ sơ giáo viên và tài khoản đăng nhập.</p>
+  </div>
+  <dx-button text="Thêm giáo viên" icon="plus" type="default" hint="Tạo hồ sơ giáo viên"
+    (onClick)="router.navigate(['/teachers/new'])"></dx-button>
+</div>
+
+<section class="content-block dx-card filter-card" aria-labelledby="teacher-filter-heading">
+  <button class="filter-toggle" type="button" (click)="filtersExpanded = !filtersExpanded"
+    [attr.aria-expanded]="filtersExpanded" aria-controls="teacher-filters">
+    <span id="teacher-filter-heading">Bộ lọc giáo viên</span>
+    <span aria-hidden="true">{{ filtersExpanded ? '−' : '+' }}</span>
+  </button>
+  <div *ngIf="filtersExpanded" id="teacher-filters" class="filters teacher-filters">
+    <dx-text-box [(value)]="search" valueChangeEvent="input" placeholder="Mã, tên, email, số điện thoại"
+      [showClearButton]="true" [inputAttr]="{ 'aria-label': 'Tìm giáo viên theo mã, tên, email hoặc số điện thoại' }"
+      (onValueChanged)="scheduleSearch()" (onEnterKey)="applyFilters()"></dx-text-box>
+    <dx-select-box [(value)]="statusFilter" [items]="statuses" valueExpr="value" displayExpr="text"
+      placeholder="Trạng thái tài khoản" [showClearButton]="true"
+      [inputAttr]="{ 'aria-label': 'Lọc theo trạng thái tài khoản' }"></dx-select-box>
+    <dx-select-box [(value)]="groupId" [dataSource]="groupDataSource" valueExpr="id" [displayExpr]="groupDisplay"
+      [searchEnabled]="true" searchMode="contains" placeholder="Nhóm đang phụ trách" [showClearButton]="true"
+      noDataText="Không có nhóm phù hợp" [inputAttr]="{ 'aria-label': 'Lọc theo nhóm đang phụ trách' }"
+      (onValueChanged)="onGroupChanged()"></dx-select-box>
+    <dx-check-box [(value)]="unassigned" text="Chưa phụ trách nhóm"
+      (onValueChanged)="onUnassignedChanged()"></dx-check-box>
+    <dx-button text="Lọc" icon="filter" type="default" hint="Áp dụng bộ lọc giáo viên"
+      (onClick)="applyFilters()"></dx-button>
+    <dx-button text="Đặt lại" icon="revert" stylingMode="outlined" hint="Xóa toàn bộ bộ lọc"
+      (onClick)="resetFilters()"></dx-button>
+  </div>
+</section>
+
+<div *ngIf="loadError" class="content-block error-panel" role="alert">
+  <span>{{ loadError }}</span>
+  <dx-button text="Thử lại" icon="refresh" stylingMode="outlined" (onClick)="retryLoad()"></dx-button>
+</div>
+
+<div class="content-block dx-card grid-card">
+  <dx-data-grid #grid [dataSource]="dataSource" [remoteOperations]="{ paging: true, sorting: true }"
+    [showBorders]="true" [columnAutoWidth]="true" [columnHidingEnabled]="true" [wordWrapEnabled]="true"
+    [rowAlternationEnabled]="true" [hoverStateEnabled]="true" noDataText="Không có giáo viên phù hợp">
+    <dxo-load-panel [enabled]="true" text="Đang tải giáo viên..."></dxo-load-panel>
+    <dxo-paging [pageSize]="20"></dxo-paging>
+    <dxo-pager [visible]="true" [showPageSizeSelector]="true" [allowedPageSizes]="[10, 20, 50, 100]"
+      [showInfo]="true"></dxo-pager>
+    <dxo-sorting mode="single"></dxo-sorting>
+
+    <dxi-column dataField="teacherCode" caption="Mã giáo viên" [width]="135"></dxi-column>
+    <dxi-column dataField="fullName" caption="Họ và tên" sortOrder="asc" [minWidth]="180"></dxi-column>
+    <dxi-column dataField="email" caption="Liên hệ" cellTemplate="contactCell" [minWidth]="220"></dxi-column>
+    <dxi-column dataField="status" caption="Trạng thái tài khoản" cellTemplate="statusCell" [width]="155"></dxi-column>
+    <dxi-column dataField="responsibleGroupCount" caption="Số nhóm" alignment="center" [width]="95"></dxi-column>
+    <dxi-column dataField="attendanceEditWindowDays" caption="Thời hạn sửa" cellTemplate="policyCell" [width]="125"></dxi-column>
+    <dxi-column type="buttons" caption="Thao tác" [width]="190" [buttons]="rowButtons" [fixed]="true" fixedPosition="right"></dxi-column>
+
+    <div *dxTemplate="let cell of 'contactCell'" class="contact-cell">
+      <span>{{ cell.data.email }}</span>
+      <small>{{ cell.data.phoneNumber || 'Chưa có số điện thoại' }}</small>
+    </div>
+    <div *dxTemplate="let cell of 'statusCell'" class="status-pill" [class.muted]="cell.value !== 'Active'">
+      {{ statusText(cell.value) }}
+    </div>
+    <div *dxTemplate="let cell of 'policyCell'">{{ cell.value }} ngày</div>
+  </dx-data-grid>
+</div>
+
+<app-teacher-password-dialog [(visible)]="passwordVisible" [teacher]="passwordTeacher"></app-teacher-password-dialog>

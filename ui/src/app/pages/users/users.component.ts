@@ -12,17 +12,15 @@ import { DxPopupModule } from 'devextreme-angular/ui/popup';
 import { DxSelectBoxModule } from 'devextreme-angular/ui/select-box';
 import { DxTextBoxModule } from 'devextreme-angular/ui/text-box';
 import { ApiError } from '../../core/models/api-error';
-import { CreateUserRequest, User, UserRole, UserStatus } from '../../core/models/api.models';
+import { CreateUserRequest, User, UserStatus } from '../../core/models/api.models';
 import { UsersService } from '../../core/services/users.service';
-import { AuthService } from '../../shared/services';
-import { ROLE_LABELS, USER_STATUS_LABELS } from '../../core/i18n/ui-labels';
+import { USER_STATUS_LABELS } from '../../core/i18n/ui-labels';
 
 interface UserEditor {
   id?: string;
   email: string;
   fullName: string;
   phoneNumber: string;
-  role: Exclude<UserRole, 'SuperAdmin'>;
   status: UserStatus;
   password?: string;
 }
@@ -37,10 +35,6 @@ export class UsersComponent {
 
   readonly passwordPattern = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{12,128}$/;
   readonly passwordRuleMessage = 'Mật khẩu phải dài 12–128 ký tự và có chữ hoa, chữ thường, số, ký tự đặc biệt.';
-  readonly roles = [
-    { value: 'Teacher', text: ROLE_LABELS.Teacher },
-    { value: 'Admin', text: ROLE_LABELS.Admin }
-  ];
   readonly userStatuses = [
     { value: 'Active', text: USER_STATUS_LABELS.Active },
     { value: 'Inactive', text: USER_STATUS_LABELS.Inactive },
@@ -53,7 +47,6 @@ export class UsersComponent {
   ];
 
   search = '';
-  roleFilter: UserRole | null = null;
   statusFilter: UserStatus | null = null;
   editorVisible = false;
   passwordVisible = false;
@@ -77,7 +70,7 @@ export class UsersComponent {
         page: Math.floor((loadOptions.skip ?? 0) / pageSize) + 1,
         pageSize,
         search: this.search.trim() || undefined,
-        role: this.roleFilter ?? undefined,
+        role: 'Admin',
         status: this.statusFilter ?? undefined,
         sortBy,
         sortOrder
@@ -86,15 +79,11 @@ export class UsersComponent {
     }
   });
 
-  get availableRoles() {
-    return this.auth.hasRole('SuperAdmin') ? this.roles : this.roles.filter(role => role.value === 'Teacher');
-  }
-
   get editorTitle(): string {
-    return this.isEditing ? 'Cập nhật tài khoản' : 'Thêm tài khoản';
+    return this.isEditing ? 'Cập nhật tài khoản quản trị' : 'Thêm quản trị viên';
   }
 
-  constructor(private readonly users: UsersService, public readonly auth: AuthService) {}
+  constructor(private readonly users: UsersService) {}
 
   applyFilters(): void {
     this.grid?.instance.pageIndex(0);
@@ -103,7 +92,6 @@ export class UsersComponent {
 
   resetFilters(): void {
     this.search = '';
-    this.roleFilter = null;
     this.statusFilter = null;
     this.applyFilters();
   }
@@ -121,7 +109,6 @@ export class UsersComponent {
       email: user.email,
       fullName: user.fullName,
       phoneNumber: user.phoneNumber ?? '',
-      role: user.role === 'Admin' ? 'Admin' : 'Teacher',
       status: user.status
     };
     this.editorVisible = true;
@@ -136,7 +123,7 @@ export class UsersComponent {
           email: this.editor.email.trim(),
           fullName: this.editor.fullName.trim(),
           phoneNumber: this.editor.phoneNumber.trim() || null,
-          role: this.editor.role,
+          role: 'Admin',
           status: this.editor.status
         }));
         notify('Đã cập nhật tài khoản.', 'success', 1800);
@@ -145,7 +132,7 @@ export class UsersComponent {
           email: this.editor.email.trim(),
           fullName: this.editor.fullName.trim(),
           phoneNumber: this.editor.phoneNumber.trim() || null,
-          role: this.editor.role,
+          role: 'Admin',
           status: this.editor.status,
           password: this.editor.password ?? ''
         };
@@ -209,12 +196,8 @@ export class UsersComponent {
     return this.userStatuses.find(item => item.value === status)?.text ?? status;
   }
 
-  roleText(role: UserRole): string {
-    return this.roles.find(item => item.value === role)?.text ?? role;
-  }
-
   private emptyEditor(): UserEditor {
-    return { email: '', fullName: '', phoneNumber: '', role: 'Teacher', status: 'Active', password: '' };
+    return { email: '', fullName: '', phoneNumber: '', status: 'Active', password: '' };
   }
 
   private rejectLoad(error: unknown): Promise<never> {

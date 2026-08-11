@@ -16,6 +16,10 @@ export class HomeComponent {
     return this.auth.hasRole('SuperAdmin', 'Admin');
   }
 
+  get isSuperAdmin(): boolean {
+    return this.auth.hasRole('SuperAdmin');
+  }
+
   get roleLabel(): string {
     return this.user ? ROLE_LABELS[this.user.role] : '';
   }

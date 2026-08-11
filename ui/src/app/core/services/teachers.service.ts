@@ -1,6 +1,15 @@
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
-import { PagedResponse, Teacher, TeacherListQuery, UpdateAttendancePolicyRequest } from '../models/api.models';
+import {
+  ChangeUserPasswordRequest,
+  CreateTeacherRequest,
+  PagedResponse,
+  Teacher,
+  TeacherDetail,
+  TeacherListQuery,
+  UpdateAttendancePolicyRequest,
+  UpdateTeacherRequest
+} from '../models/api.models';
 import { ApiClient } from './api-client.service';
 
 @Injectable({ providedIn: 'root' })
@@ -11,11 +20,27 @@ export class TeachersService {
     return this.api.get<PagedResponse<Teacher>>('teachers', query);
   }
 
-  get(id: string): Observable<Teacher> {
-    return this.api.get<Teacher>(`teachers/${id}`);
+  get(id: string): Observable<TeacherDetail> {
+    return this.api.get<TeacherDetail>(`teachers/${id}`);
   }
 
-  updateAttendancePolicy(id: string, request: UpdateAttendancePolicyRequest): Observable<Teacher> {
-    return this.api.put<Teacher>(`teachers/${id}/attendance-policy`, request);
+  create(request: CreateTeacherRequest): Observable<TeacherDetail> {
+    return this.api.post<TeacherDetail>('teachers', request);
+  }
+
+  update(id: string, request: UpdateTeacherRequest): Observable<TeacherDetail> {
+    return this.api.put<TeacherDetail>(`teachers/${id}`, request);
+  }
+
+  updateAttendancePolicy(id: string, request: UpdateAttendancePolicyRequest): Observable<TeacherDetail> {
+    return this.api.put<TeacherDetail>(`teachers/${id}/attendance-policy`, request);
+  }
+
+  changePassword(userId: string, request: ChangeUserPasswordRequest): Observable<void> {
+    return this.api.put<void>(`users/${userId}/password`, request);
+  }
+
+  delete(id: string, expectedVersion: number): Observable<void> {
+    return this.api.delete(`teachers/${id}`, { expectedVersion });
   }
 }
