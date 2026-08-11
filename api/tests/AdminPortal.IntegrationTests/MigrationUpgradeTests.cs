@@ -14,6 +14,7 @@ public sealed class MigrationUpgradeTests : IAsyncLifetime
     private const string AttendanceMigration = "20260811130802_AddAttendanceFoundation";
     private const string TeacherManagementMigration = "20260811150730_AddTeacherManagement";
     private const string ScheduleMigration = "20260811172348_AddStudentStudySchedule";
+    private const string AttendanceUiMigration = "20260811201427_AddAttendanceUnmarkedStatus";
     private readonly PostgreSqlContainer _postgres = new PostgreSqlBuilder()
         .WithImage("postgres:17-alpine")
         .WithDatabase("admin_portal_upgrade_tests")
@@ -88,6 +89,31 @@ public sealed class MigrationUpgradeTests : IAsyncLifetime
             UPDATE students SET group_id = {groupId} WHERE id = {studentId}
             """);
         await migrator.MigrateAsync(ScheduleMigration);
+        var sheetId = Guid.NewGuid();
+        var recordId = Guid.NewGuid();
+        var attendanceDate = new DateOnly(2026, 8, 10);
+        await dbContext.Database.ExecuteSqlInterpolatedAsync($"""
+            INSERT INTO attendance_sheets (
+                id, group_id, attendance_date, group_code_snapshot, group_name_snapshot,
+                responsible_teacher_id, responsible_teacher_name_snapshot, snapshot_source,
+                source_snapshot_version, recovery_reason, version, created_by_user_id,
+                updated_by_user_id, created_at, updated_at)
+            VALUES (
+                {sheetId}, {groupId}, {attendanceDate}, {"LEGACY-GROUP"}, {"Legacy Group"},
+                {profile.Id}, {"Legacy Teacher"}, {"CurrentSnapshot"}, {5}, NULL, {1},
+                {teacherUserId}, {teacherUserId}, {now}, {now})
+            """);
+        await dbContext.Database.ExecuteSqlInterpolatedAsync($"""
+            INSERT INTO attendance_records (
+                id, sheet_id, attendance_date, student_id, student_code_snapshot,
+                full_name_snapshot, nick_name_snapshot, status, half_day_part,
+                is_excused, duration_minutes, notes, updated_by_user_id, created_at, updated_at)
+            VALUES (
+                {recordId}, {sheetId}, {attendanceDate}, {studentId}, {"LEGACY-001"},
+                {"Legacy Student"}, {"Legacy"}, {"AbsentHalfDay"}, {"Morning"},
+                TRUE, NULL, {"legacy attendance note"}, {teacherUserId}, {now}, {now})
+            """);
+        await migrator.MigrateAsync(AttendanceUiMigration);
         dbContext.ChangeTracker.Clear();
 
         Assert.Equal(7, profile.AttendanceEditWindowDays);
@@ -114,6 +140,16 @@ public sealed class MigrationUpgradeTests : IAsyncLifetime
         Assert.Contains(AttendanceMigration, await dbContext.Database.GetAppliedMigrationsAsync());
         Assert.Contains(TeacherManagementMigration, await dbContext.Database.GetAppliedMigrationsAsync());
         Assert.Contains(ScheduleMigration, await dbContext.Database.GetAppliedMigrationsAsync());
+        Assert.Contains(AttendanceUiMigration, await dbContext.Database.GetAppliedMigrationsAsync());
+        var legacyRecord = await dbContext.AttendanceRecords.AsNoTracking().SingleAsync(x => x.Id == recordId);
+        Assert.Equal(AttendanceStatus.AbsentHalfDay, legacyRecord.Status);
+        Assert.Equal(HalfDayPart.Morning, legacyRecord.HalfDayPart);
+        Assert.Equal("legacy attendance note", legacyRecord.Notes);
+
+        var invalidUnmarked = await Assert.ThrowsAsync<PostgresException>(() =>
+            dbContext.Database.ExecuteSqlInterpolatedAsync(
+                $"UPDATE attendance_records SET status = {"Unmarked"} WHERE id = {recordId}"));
+        Assert.Equal(PostgresErrorCodes.CheckViolation, invalidUnmarked.SqlState);
 
         var invalidMask = await Assert.ThrowsAsync<PostgresException>(() =>
             dbContext.Database.ExecuteSqlInterpolatedAsync(

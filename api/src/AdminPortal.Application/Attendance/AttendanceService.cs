@@ -203,7 +203,8 @@ public sealed class AttendanceService(
         items.Count,
         items.Count(x => x.Status == AttendanceStatus.Present),
         items.Count(x => x.Status is AttendanceStatus.AbsentFullDay or AttendanceStatus.AbsentHalfDay),
-        items.Count(x => x.Status == AttendanceStatus.OneToOneHour));
+        items.Count(x => x.Status == AttendanceStatus.OneToOneHour),
+        items.Count(x => x.Status == AttendanceStatus.Unmarked));
 
     private IQueryable<Student> ScheduledRoster(Guid groupId, DateOnly attendanceDate)
     {
@@ -386,7 +387,11 @@ public sealed class AttendanceService(
             var item = byStudent[record.StudentId];
             var notes = NormalizeOptional(item.Notes);
             notesChanged |= !string.Equals(notes, record.Notes, StringComparison.Ordinal);
-            ApplyRecord(record, item, actor.UserId, now, notes);
+            var preservedLegacyHalfDayPart =
+                record.Status == AttendanceStatus.AbsentHalfDay && item.Status == AttendanceStatus.AbsentHalfDay
+                    ? record.HalfDayPart
+                    : null;
+            ApplyRecord(record, item, actor.UserId, now, notes, preservedLegacyHalfDayPart);
         }
         sheet.Version++;
         sheet.UpdatedByUserId = actor.UserId;
@@ -591,7 +596,7 @@ public sealed class AttendanceService(
             StudentFullNameSnapshot = student.FullName, StudentNickNameSnapshot = student.NickName,
             CreatedAt = now, UpdatedAt = now, UpdatedByUserId = actorUserId
         };
-        ApplyRecord(record, request, actorUserId, now, NormalizeOptional(request.Notes));
+        ApplyRecord(record, request, actorUserId, now, NormalizeOptional(request.Notes), null);
         return record;
     }
 
@@ -600,10 +605,11 @@ public sealed class AttendanceService(
         AttendanceRecordRequest request,
         Guid actorUserId,
         DateTimeOffset now,
-        string? notes)
+        string? notes,
+        HalfDayPart? halfDayPart)
     {
         record.Status = request.Status;
-        record.HalfDayPart = request.HalfDayPart;
+        record.HalfDayPart = halfDayPart;
         record.IsExcused = request.IsExcused;
         record.DurationMinutes = request.DurationMinutes;
         record.Notes = notes;
@@ -632,6 +638,7 @@ public sealed class AttendanceService(
         present = sheet.Records.Count(x => x.Status == AttendanceStatus.Present),
         absent = sheet.Records.Count(x => x.Status is AttendanceStatus.AbsentFullDay or AttendanceStatus.AbsentHalfDay),
         oneToOne = sheet.Records.Count(x => x.Status == AttendanceStatus.OneToOneHour),
+        unmarked = sheet.Records.Count(x => x.Status == AttendanceStatus.Unmarked),
         records = sheet.Records.Select(x => new
         {
             x.StudentId,

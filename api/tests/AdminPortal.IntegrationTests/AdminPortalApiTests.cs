@@ -9,6 +9,7 @@ using AdminPortal.Application.Students;
 using AdminPortal.Application.Teachers;
 using AdminPortal.Application.Users;
 using AdminPortal.Domain.Enums;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 
 namespace AdminPortal.IntegrationTests;
@@ -42,6 +43,22 @@ public sealed class AdminPortalApiTests(ApiFactory factory) : IClassFixture<ApiF
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", auth.AccessToken);
         var meResponse = await client.GetAsync("/api/v1/auth/me");
         Assert.Equal(HttpStatusCode.Unauthorized, meResponse.StatusCode);
+    }
+
+    [Fact]
+    public async Task DevelopmentOpenApiIncludesUnmarkedSummaryAndLegacyHalfDayPart()
+    {
+        using var developmentFactory = factory.WithWebHostBuilder(builder => builder.UseEnvironment("Development"));
+        using var client = developmentFactory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            BaseAddress = new Uri("https://localhost"),
+            AllowAutoRedirect = false
+        });
+
+        var document = await client.GetStringAsync("/openapi/v1.json");
+        Assert.Contains("Unmarked", document, StringComparison.Ordinal);
+        Assert.Contains("unmarked", document, StringComparison.Ordinal);
+        Assert.Contains("halfDayPart", document, StringComparison.Ordinal);
     }
 
     [Fact]

@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
 using AdminPortal.Application.Common;
@@ -9,6 +10,7 @@ using AdminPortal.Infrastructure;
 using AdminPortal.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.OpenApi;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -35,7 +37,18 @@ builder.Services.Configure<ApiBehaviorOptions>(options =>
         return new BadRequestObjectResult(problem);
     };
 });
-builder.Services.AddOpenApi();
+builder.Services.AddOpenApi(options => options.AddSchemaTransformer((schema, context, _) =>
+{
+    if (context.JsonTypeInfo.Type.IsEnum)
+    {
+        schema.Type = JsonSchemaType.String;
+        schema.Enum = Enum.GetNames(context.JsonTypeInfo.Type)
+            .Select(name => JsonValue.Create(name))
+            .ToList<JsonNode>();
+    }
+
+    return Task.CompletedTask;
+}));
 builder.Services.AddProblemDetails(options =>
 {
     options.CustomizeProblemDetails = context =>

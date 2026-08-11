@@ -13,8 +13,9 @@ public sealed class AttendanceRulesTests
     {
         new(Guid.NewGuid(), AttendanceStatus.Present, null, null, null, "ghi chú"),
         new(Guid.NewGuid(), AttendanceStatus.AbsentFullDay, null, true, null, null),
-        new(Guid.NewGuid(), AttendanceStatus.AbsentHalfDay, HalfDayPart.Morning, false, null, null),
-        new(Guid.NewGuid(), AttendanceStatus.OneToOneHour, null, null, 60, null)
+        new(Guid.NewGuid(), AttendanceStatus.AbsentHalfDay, null, false, null, null),
+        new(Guid.NewGuid(), AttendanceStatus.OneToOneHour, null, null, 60, null),
+        new(Guid.NewGuid(), AttendanceStatus.Unmarked, null, null, null, "chưa xác định")
     };
 
     [Theory]
@@ -26,7 +27,16 @@ public sealed class AttendanceRulesTests
     public void InvalidConditionalFieldsReturnCardPath()
     {
         var exception = Assert.Throws<AppValidationException>(() => AttendanceRules.ValidateRecords([
-            new AttendanceRecordRequest(Guid.NewGuid(), AttendanceStatus.AbsentHalfDay, null, true, null, null)
+            new AttendanceRecordRequest(Guid.NewGuid(), AttendanceStatus.AbsentHalfDay, HalfDayPart.Morning, true, null, null)
+        ]));
+        Assert.Contains("records[0].status", exception.Errors.Keys);
+    }
+
+    [Fact]
+    public void UnmarkedRejectsEveryConditionalField()
+    {
+        var exception = Assert.Throws<AppValidationException>(() => AttendanceRules.ValidateRecords([
+            new AttendanceRecordRequest(Guid.NewGuid(), AttendanceStatus.Unmarked, null, false, null, null)
         ]));
         Assert.Contains("records[0].status", exception.Errors.Keys);
     }

@@ -64,7 +64,7 @@ public sealed class AttendanceApiTests(ApiFactory factory) : IClassFixture<ApiFa
         {
             studentId = x.StudentId,
             status = "AbsentHalfDay",
-            halfDayPart = "Morning",
+            halfDayPart = (string?)null,
             isExcused = true,
             durationMinutes = (int?)null,
             notes = "Phụ huynh đã báo"
@@ -302,7 +302,19 @@ public sealed class AttendanceApiTests(ApiFactory factory) : IClassFixture<ApiFa
             groupId = group.Id,
             date = Iso(yesterday),
             responsibleTeacherId = teacher.Id,
-            records = new[] { PresentRecord(first), PresentRecord(second) },
+            records = new object[]
+            {
+                new
+                {
+                    studentId = first.Id, status = "AbsentHalfDay", halfDayPart = (string?)null,
+                    isExcused = true, durationMinutes = (int?)null, notes = (string?)null
+                },
+                new
+                {
+                    studentId = second.Id, status = "Unmarked", halfDayPart = (string?)null,
+                    isExcused = (bool?)null, durationMinutes = (int?)null, notes = "Chưa xác định"
+                }
+            },
             acknowledgeHistoricalSnapshot = true,
             recoveryReason = "Đối chiếu phiếu giấy"
         });
@@ -311,6 +323,8 @@ public sealed class AttendanceApiTests(ApiFactory factory) : IClassFixture<ApiFa
         Assert.Equal(AttendanceSnapshotSource.HistoricalRecovery, recovered.SnapshotSource);
         Assert.Null(recovered.SourceSnapshotVersion);
         Assert.Equal(2, recovered.Items.Count);
+        Assert.Equal(1, recovered.Summary.Absent);
+        Assert.Equal(1, recovered.Summary.Unmarked);
 
         var inactiveGroup = await CreateGroupAsync(client, $"I{marker}", teacher.Id);
         var beforeInactive = await GetDailyAsync(client, inactiveGroup.Id, today);
@@ -405,6 +419,125 @@ public sealed class AttendanceApiTests(ApiFactory factory) : IClassFixture<ApiFa
         Assert.Single(responses, x => x.StatusCode == HttpStatusCode.Conflict);
         Assert.Equal("AttendanceSheetAlreadyExists",
             await ProblemCodeAsync(responses.Single(x => x.StatusCode == HttpStatusCode.Conflict)));
+    }
+
+    [Fact]
+    public async Task UnmarkedAndHalfDayRoundTripWhileLegacyHalfDayPartIsPreservedUntilStatusChanges()
+    {
+        using var client = await CreateManagerClientAsync();
+        var marker = Guid.NewGuid().ToString("N")[..8];
+        var teacher = await CreateTeacherProfileAsync(client, $"AUI Teacher {marker}");
+        var group = await CreateGroupAsync(client, $"U{marker}", teacher.Id);
+        var student = await CreateStudentAsync(client, $"U{marker}", $"AUI Student {marker}");
+        student = await AssignStudentAsync(client, student, group.Id);
+        var serverDate = LocalToday();
+        var date = serverDate.DayOfWeek == DayOfWeek.Sunday ? serverDate.AddDays(-1) : serverDate;
+        if (date < serverDate) await BackdateGroupSnapshotAsync(group.Id);
+        var missing = await GetDailyAsync(client, group.Id, date);
+
+        const string privateNote = "AUI private attendance note";
+        var create = await client.PostAsJsonAsync("/api/v1/attendance/sheets", new
+        {
+            groupId = group.Id,
+            date = Iso(date),
+            expectedSnapshotVersion = missing.CurrentSnapshotVersion,
+            records = new[]
+            {
+                new
+                {
+                    studentId = student.Id, status = "Unmarked", halfDayPart = (string?)null,
+                    isExcused = (bool?)null, durationMinutes = (int?)null, notes = privateNote
+                }
+            }
+        });
+        Assert.Equal(HttpStatusCode.Created, create.StatusCode);
+        var unmarked = await ReadAsync<AttendanceDailyResponse>(create);
+        Assert.Equal(AttendanceStatus.Unmarked, Assert.Single(unmarked.Items).Status);
+        Assert.Equal(1, unmarked.Summary.RosterTotal);
+        Assert.Equal(0, unmarked.Summary.Present);
+        Assert.Equal(0, unmarked.Summary.Absent);
+        Assert.Equal(0, unmarked.Summary.OneToOne);
+        Assert.Equal(1, unmarked.Summary.Unmarked);
+
+        var invalidLegacyWrite = await client.PutAsJsonAsync($"/api/v1/attendance/sheets/{unmarked.SheetId}", new
+        {
+            expectedVersion = unmarked.SheetVersion,
+            records = new[]
+            {
+                new
+                {
+                    studentId = student.Id, status = "AbsentHalfDay", halfDayPart = "Morning",
+                    isExcused = true, durationMinutes = (int?)null, notes = privateNote
+                }
+            }
+        });
+        Assert.Equal(HttpStatusCode.BadRequest, invalidLegacyWrite.StatusCode);
+
+        var writeHalfDay = await client.PutAsJsonAsync($"/api/v1/attendance/sheets/{unmarked.SheetId}", new
+        {
+            expectedVersion = unmarked.SheetVersion,
+            records = new[]
+            {
+                new
+                {
+                    studentId = student.Id, status = "AbsentHalfDay", halfDayPart = (string?)null,
+                    isExcused = false, durationMinutes = (int?)null, notes = privateNote
+                }
+            }
+        });
+        writeHalfDay.EnsureSuccessStatusCode();
+        var halfDay = await ReadAsync<AttendanceDailyResponse>(writeHalfDay);
+        Assert.Null(Assert.Single(halfDay.Items).HalfDayPart);
+        Assert.Equal(1, halfDay.Summary.Absent);
+        Assert.Equal(0, halfDay.Summary.Unmarked);
+
+        await using (var legacyScope = factory.Services.CreateAsyncScope())
+        {
+            var dbContext = legacyScope.ServiceProvider.GetRequiredService<AdminPortalDbContext>();
+            var record = await dbContext.AttendanceRecords.SingleAsync(x => x.SheetId == halfDay.SheetId);
+            record.HalfDayPart = HalfDayPart.Morning;
+            await dbContext.SaveChangesAsync();
+        }
+
+        var preserveLegacy = await client.PutAsJsonAsync($"/api/v1/attendance/sheets/{halfDay.SheetId}", new
+        {
+            expectedVersion = halfDay.SheetVersion,
+            records = new[]
+            {
+                new
+                {
+                    studentId = student.Id, status = "AbsentHalfDay", halfDayPart = (string?)null,
+                    isExcused = true, durationMinutes = (int?)null, notes = privateNote
+                }
+            }
+        });
+        preserveLegacy.EnsureSuccessStatusCode();
+        var preserved = await ReadAsync<AttendanceDailyResponse>(preserveLegacy);
+        Assert.Equal(HalfDayPart.Morning, Assert.Single(preserved.Items).HalfDayPart);
+
+        var clearLegacy = await client.PutAsJsonAsync($"/api/v1/attendance/sheets/{halfDay.SheetId}", new
+        {
+            expectedVersion = preserved.SheetVersion,
+            records = new[]
+            {
+                new
+                {
+                    studentId = student.Id, status = "Unmarked", halfDayPart = (string?)null,
+                    isExcused = (bool?)null, durationMinutes = (int?)null, notes = privateNote
+                }
+            }
+        });
+        clearLegacy.EnsureSuccessStatusCode();
+        var cleared = await ReadAsync<AttendanceDailyResponse>(clearLegacy);
+        Assert.Null(Assert.Single(cleared.Items).HalfDayPart);
+        Assert.Equal(1, cleared.Summary.Unmarked);
+
+        await using var auditScope = factory.Services.CreateAsyncScope();
+        var auditDb = auditScope.ServiceProvider.GetRequiredService<AdminPortalDbContext>();
+        var auditValues = await auditDb.AuditLogs.AsNoTracking()
+            .Where(x => x.EntityId == halfDay.SheetId)
+            .Select(x => new { x.OldValues, x.NewValues }).ToListAsync();
+        Assert.DoesNotContain(privateNote, JsonSerializer.Serialize(auditValues), StringComparison.Ordinal);
     }
 
     [Fact]

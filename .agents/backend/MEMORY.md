@@ -5,9 +5,9 @@
 ## Trạng thái gần nhất
 
 - Cập nhật: 2026-08-12.
-- Backend feature scope trong `plans/01-BASE-admin-portal.md` đến `plans/04-SCH-student-groups-study-schedule.md` đã hoàn tất. Student có lịch học tuần operational, aggregate version và group command concurrency; attendance Missing dùng scheduled roster trong khi Saved snapshot bất biến.
-- Baseline xác minh gần nhất: solution Release build `0 warning / 0 error`; unit test `38/38`; integration test PostgreSQL 17 Testcontainers Release `24/24`; EF báo không có pending model changes.
-- Integration SCH phủ schedule CRUD/filter/canonical order/version/stale write, assign no-op/stale, group snapshot, audit privacy, scheduled defaults/empty day/Saved invariant, snapshot precedence, schedule-vs-first-save race, fresh constraints và rehearsal Initial -> Attendance -> Teacher -> Schedule có active + soft-deleted dữ liệu cũ.
+- Backend feature scope trong `plans/01-BASE-admin-portal.md` đến `plans/05-AUI-attendance-compact-cards.md` đã hoàn tất. Attendance hỗ trợ persisted `Unmarked`, summary riêng và semantics half-day mới mà không làm mất `halfDayPart` lịch sử.
+- Baseline xác minh gần nhất ở cấu hình mặc định/Debug: solution build `0 warning / 0 error`; unit test `40/40`; integration test PostgreSQL 17 Testcontainers `26/26`; EF báo không có pending model changes. Dev API process cũ đã được dừng có chủ đích để mở khóa Debug DLL và chưa được khởi động lại.
+- Integration AUI phủ JSON/OpenAPI `Unmarked`, summary, write/round-trip, DB constraint fresh, upgrade bảo toàn legacy Morning/Afternoon, full PUT preserve/clear theo status và audit không chứa attendance notes. Regression SCH/ATT/Teacher/Base vẫn nằm trong cùng full suite.
 - Không có blocker backend đã biết tại thời điểm snapshot. Trước mỗi task phải kiểm tra `git status`, `tasks.md` và source vì trạng thái này có thể đã thay đổi.
 
 ## Bản đồ code
@@ -32,6 +32,8 @@
 - Teacher list filter `status/groupId/unassigned`, sort whitelist theo plan và search literal mã/tên/email/phone không dấu/case-insensitive tại .NET trên toàn candidate trước total/paging. Không dùng PostgreSQL `unaccent`; blank search giữ DB fast path.
 - Teacher response có `id/userId/teacherCode`, field account, policy, group count, timestamps và integer `version`; detail thêm nullable `note` và responsible group summaries. Group assignment chỉ qua StudentGroup endpoint.
 - Attendance: GET context/daily; POST sheet full roster; PUT sheet full replacement; Admin/SuperAdmin historical-recovery và ba candidate API. DTO/date/query chính xác nằm trong `plans/02-ATT-attendance.md` section 7.
+- Attendance status có `Present|AbsentFullDay|AbsentHalfDay|OneToOneHour|Unmarked`; summary có `rosterTotal/present/absent/oneToOne/unmarked`. Missing vẫn mặc định FullDay thành Present và OneToOne thành OneToOneHour/60, không tự sinh Unmarked.
+- Mọi POST mới, kể cả historical recovery, yêu cầu `AbsentHalfDay.halfDayPart=null`, `isExcused` bắt buộc; API notes vẫn tối đa 2.000 ký tự. Saved full PUT giữ `halfDayPart` Morning/Afternoon đang lưu khi record vẫn là AbsentHalfDay, nhưng clear khi đổi status. Wire response và DB column vẫn giữ để đọc lịch sử.
 - Student response có `studySchedule { mode, weekdays }` và integer `version`. Mode là `OneToOne|FullDay`; weekday chỉ Monday–Saturday, response canonical. Create/full PUT bắt buộc schedule; full PUT/group/delete nhận `expectedVersion`; stale trả `StudentVersionConflict` + `currentVersion`.
 - Student list thêm `studyMode`, `studyWeekday`, sort `studyMode`. Group mutation canonical vẫn là `PUT /students/{id}/group`; DELETE dùng query `expectedVersion`.
 - Pagination mặc định page 1/pageSize 20, tối đa 100. User sort whitelist: `email`, `fullName`, `role`, `status`, `createdAt`. Student: `studentCode`, `fullName`, `nickName`, `dateOfBirth`, `gender`, `status`, `studyMode`, `createdAt`.
@@ -64,7 +66,7 @@
 - Không dùng `FOR UPDATE` cho Student row trong workflow SCH: Attendance create giữ Group rồi INSERT FK cần `KEY SHARE` Student; đồng thời schedule PUT giữ Student rồi chờ Group sẽ deadlock 40P01. `FOR NO KEY UPDATE` là lock đúng vì Student mutations không đổi PK/hard-delete và vẫn serialize concurrent Student writers.
 - `AuthSession` cần query filter tương thích soft-delete navigation `User`; bỏ nó sẽ tạo warning required-navigation và có thể làm lệch semantics session.
 - Middleware request logging phải bọc exception handler đúng thứ tự để log status đã map (ví dụ setup conflict là 409, không phải 200).
-- Không sửa/xóa EF Designer hoặc `AdminPortalDbContextModelSnapshot.cs`. Migration hiện có: `20260811000000_InitialCreate`, `20260811130802_AddAttendanceFoundation`, `20260811150730_AddTeacherManagement`, `20260811172348_AddStudentStudySchedule`. Migration SCH backfill schedule/version upgrade-safe, thêm check constraints và bump mỗi current group có active Student đúng một; mode/mask không giữ database default, version giữ default 1.
+- Không sửa/xóa EF Designer hoặc `AdminPortalDbContextModelSnapshot.cs`. Migration hiện có: `20260811000000_InitialCreate`, `20260811130802_AddAttendanceFoundation`, `20260811150730_AddTeacherManagement`, `20260811172348_AddStudentStudySchedule`, `20260811201427_AddAttendanceUnmarkedStatus`. Migration AUI chỉ thay check constraint, không drop column hay rewrite dữ liệu; constraint mới chấp nhận Unmarked với conditional fields null và giữ legacy half-day part.
 - EF tooling hiện cảnh báo required navigation trỏ tới entity có soft-delete query filter (`Teacher/User`, attendance `Student/User`). Đây là chủ ý: FK lịch sử vẫn non-null + RESTRICT; các query recovery/history dùng `IgnoreQueryFilters`. Pending-model check vẫn sạch.
 
 ## Build, test và migration nhanh

@@ -241,7 +241,7 @@ Content-Type: application/json
   "records": [
     {
       "studentId": "{{studentId}}",
-      "status": "Present",
+      "status": "Unmarked",
       "halfDayPart": null,
       "isExcused": null,
       "durationMinutes": null,
@@ -262,7 +262,7 @@ Content-Type: application/json
     {
       "studentId": "{{studentId}}",
       "status": "AbsentHalfDay",
-      "halfDayPart": "Morning",
+      "halfDayPart": null,
       "isExcused": true,
       "durationMinutes": null,
       "notes": "Gia đình đã báo"

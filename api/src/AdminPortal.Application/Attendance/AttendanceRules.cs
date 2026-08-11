@@ -21,8 +21,9 @@ public static class AttendanceRules
             {
                 AttendanceStatus.Present => item.HalfDayPart is not null || item.IsExcused is not null || item.DurationMinutes is not null,
                 AttendanceStatus.AbsentFullDay => item.HalfDayPart is not null || item.IsExcused is null || item.DurationMinutes is not null,
-                AttendanceStatus.AbsentHalfDay => item.HalfDayPart is null || item.IsExcused is null || item.DurationMinutes is not null,
+                AttendanceStatus.AbsentHalfDay => item.HalfDayPart is not null || item.IsExcused is null || item.DurationMinutes is not null,
                 AttendanceStatus.OneToOneHour => item.HalfDayPart is not null || item.IsExcused is not null || item.DurationMinutes != 60,
+                AttendanceStatus.Unmarked => item.HalfDayPart is not null || item.IsExcused is not null || item.DurationMinutes is not null,
                 _ => true
             };
             if (invalid) errors[$"records[{index}].status"] = ["Các trường điều kiện không khớp trạng thái điểm danh."];

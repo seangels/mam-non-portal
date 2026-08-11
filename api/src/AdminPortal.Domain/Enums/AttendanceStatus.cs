@@ -5,5 +5,6 @@ public enum AttendanceStatus
     Present,
     AbsentFullDay,
     AbsentHalfDay,
-    OneToOneHour
+    OneToOneHour,
+    Unmarked
 }

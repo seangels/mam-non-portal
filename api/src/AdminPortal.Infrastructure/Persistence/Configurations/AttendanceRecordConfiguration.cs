@@ -12,8 +12,9 @@ internal sealed class AttendanceRecordConfiguration : IEntityTypeConfiguration<A
             "ck_attendance_records_status_fields",
             "(status = 'Present' AND half_day_part IS NULL AND is_excused IS NULL AND duration_minutes IS NULL) OR " +
             "(status = 'AbsentFullDay' AND half_day_part IS NULL AND is_excused IS NOT NULL AND duration_minutes IS NULL) OR " +
-            "(status = 'AbsentHalfDay' AND half_day_part IS NOT NULL AND is_excused IS NOT NULL AND duration_minutes IS NULL) OR " +
-            "(status = 'OneToOneHour' AND half_day_part IS NULL AND is_excused IS NULL AND duration_minutes = 60)"));
+            "(status = 'AbsentHalfDay' AND (half_day_part IS NULL OR half_day_part IN ('Morning', 'Afternoon')) AND is_excused IS NOT NULL AND duration_minutes IS NULL) OR " +
+            "(status = 'OneToOneHour' AND half_day_part IS NULL AND is_excused IS NULL AND duration_minutes = 60) OR " +
+            "(status = 'Unmarked' AND half_day_part IS NULL AND is_excused IS NULL AND duration_minutes IS NULL)"));
         builder.HasKey(x => x.Id);
         builder.Property(x => x.StudentCodeSnapshot).HasMaxLength(50).IsRequired();
         builder.Property(x => x.StudentFullNameSnapshot).HasColumnName("full_name_snapshot").HasMaxLength(200).IsRequired();

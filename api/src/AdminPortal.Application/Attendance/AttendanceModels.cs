@@ -14,7 +14,12 @@ public sealed record AttendanceContextResponse(
 
 public sealed record AttendanceContextGroupResponse(Guid Id, string Code, string Name, int StudentCount);
 public sealed record AttendanceGroupResponse(Guid Id, string Code, string Name);
-public sealed record AttendanceSummaryResponse(int RosterTotal, int Present, int Absent, int OneToOne);
+public sealed record AttendanceSummaryResponse(
+    int RosterTotal,
+    int Present,
+    int Absent,
+    int OneToOne,
+    int Unmarked);
 
 public sealed record AttendanceItemResponse(
     Guid? EntryId,

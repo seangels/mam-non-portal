@@ -218,7 +218,8 @@ Các conflict/validation code ổn định: `TeacherNotFound`, `TeacherCodeAlrea
 - `GET /attendance/daily` không ghi database. Khi chưa có phiếu, roster chỉ gồm Student active thuộc group và có lịch trong weekday đó. `FullDay` mặc định `Present`; `OneToOne` mặc định `OneToOneHour`/60 phút. Chỉ `POST /attendance/sheets` mới xác nhận/lưu phiếu.
 - Nếu ngày đó không có Student có lịch, Missing trả items rỗng, `canCreate=false`, `readOnlyReason=NoScheduledStudents`; standard POST trả `409 NoScheduledStudents`. Historical recovery vẫn dùng roster explicit và không suy diễn lịch hiện tại.
 - POST lần đầu và PUT cập nhật đều nhận đúng full roster, tối đa 100 record. POST dùng `expectedSnapshotVersion`; PUT dùng `expectedVersion`. Conflict trả `ProblemDetails.code` ổn định như `SnapshotChanged` hoặc `SheetVersionConflict`.
-- Trạng thái hỗ trợ: `Present`, `AbsentFullDay`, `AbsentHalfDay`, `OneToOneHour`; các field `halfDayPart`, `isExcused`, `durationMinutes` phải đúng bảng điều kiện trong [`../plans/02-ATT-attendance.md`](../plans/02-ATT-attendance.md).
+- Trạng thái hỗ trợ: `Present`, `AbsentFullDay`, `AbsentHalfDay`, `OneToOneHour`, `Unmarked`. Summary trả riêng `unmarked`; Missing vẫn mặc định theo schedule và không tự sinh `Unmarked`.
+- Write mới `AbsentHalfDay` gửi `halfDayPart=null`, bắt buộc `isExcused`; `Unmarked` có toàn bộ conditional field null. Column/wire `halfDayPart` vẫn tồn tại để đọc dữ liệu Morning/Afternoon legacy. Full PUT giữ part legacy nếu record vẫn là `AbsentHalfDay`, nhưng clear khi đổi status. API notes tiếp tục tối đa 2.000 ký tự để round-trip dữ liệu cũ.
 - Phiếu đã lưu giữ snapshot code/name/nickname của group, Teacher và Student. Rename/move/soft-delete dữ liệu hiện tại không sửa phiếu cũ.
 - Historical recovery chỉ dành cho Admin/SuperAdmin khi không thể chứng minh current snapshot của ngày quá khứ; bắt buộc acknowledgment, reason, Teacher và danh sách Student rõ ràng.
 
@@ -227,6 +228,8 @@ Migration `AddAttendanceFoundation` tạo toàn bộ schema attendance, backfill
 Migration `AddTeacherManagement` bổ sung `teacher_code`, `note`, `version`, unique/check constraints và backfill mã legacy theo dạng `GV-MIG-{UUID}`. Migration không cài PostgreSQL `unaccent` và giữ nguyên User/Student/Teacher/attendance hiện có. Khi nâng cấp, apply tuần tự migration attendance rồi Teacher management bằng EF như bình thường.
 
 Migration `AddStudentStudySchedule` bổ sung `study_mode`, `study_weekday_mask`, Student `version` và check constraints. Upgrade backfill mọi Student, kể cả soft-deleted, thành `FullDay`/mask 63/version 1; mỗi group hiện tại có Student active được tăng snapshot đúng một lần. Phiếu Saved hiện có không bị rewrite.
+
+Migration `AddAttendanceUnmarkedStatus` chỉ thay check constraint của `attendance_records`: thêm persisted `Unmarked` và cho phép `AbsentHalfDay.half_day_part` null cho write mới. Migration không drop column và không rewrite record Morning/Afternoon legacy.
 
 Trước khi release nên chạy:
 
