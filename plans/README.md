@@ -8,7 +8,7 @@ Các file được đánh số theo thứ tự phụ thuộc và triển khai. M
 | 02 | `ATT` | [`02-ATT-attendance.md`](02-ATT-attendance.md) | Đã triển khai | `BASE` |
 | 03 | `TCH` | [`03-TCH-teacher-management.md`](03-TCH-teacher-management.md) | Đã triển khai | `BASE`, `ATT` |
 | 04 | `SCH` | [`04-SCH-student-groups-study-schedule.md`](04-SCH-student-groups-study-schedule.md) | Đã triển khai | `BASE`, `ATT` |
-| 05 | `AUI` | [`05-AUI-attendance-compact-cards.md`](05-AUI-attendance-compact-cards.md) | Đã chốt — sẵn sàng triển khai | `ATT`, `SCH` |
+| 05 | `AUI` | [`05-AUI-attendance-compact-cards.md`](05-AUI-attendance-compact-cards.md) | Đã triển khai | `ATT`, `SCH` |
 
 ## Quy ước đặt tên
 

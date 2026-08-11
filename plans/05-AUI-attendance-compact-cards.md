@@ -4,7 +4,7 @@
 
 - **Epic:** `AUI` — Attendance UI.
 - **Thứ tự:** `05`.
-- **Trạng thái:** `AUI-DEC-01`–`08` đã chốt; sẵn sàng triển khai, chưa thay đổi source.
+- **Trạng thái:** Đã triển khai và xác minh ngày 2026-08-12.
 - **Ngày lập:** 2026-08-12.
 - **Phạm vi:** .NET 10 REST API, PostgreSQL 17 và Angular 15/DevExtreme tại trang `/#/attendance`.
 - **Phụ thuộc:** [`02-ATT-attendance.md`](02-ATT-attendance.md) và [`04-SCH-student-groups-study-schedule.md`](04-SCH-student-groups-study-schedule.md).

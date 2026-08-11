@@ -422,19 +422,19 @@ QA/Integration:
 
 - [x] `AUI-P-01`. Phân tích hình tham chiếu và đối chiếu attendance UI/ATT/SCH contract hiện tại
 - [x] `AUI-P-02`. Review và khóa `AUI-DEC-01`–`AUI-DEC-08`
-- [ ] `AUI-BE-00`. Khóa enum/DTO/summary/validation/OpenAPI và compatibility `halfDayPart` legacy
-- [ ] `AUI-BE-01`. EF migration/check constraint, fresh/upgrade proof
-- [ ] `AUI-BE-02`. Persisted `Unmarked`, half-day write/preserve semantics và audit
-- [ ] `AUI-BE-03`. Unit/integration/docs/memory/final gates
-- [ ] `AUI-FE-00`. Align `Unmarked`/summary/legacy DTO và test traceability
-- [ ] `AUI-FE-01`. Compact grid/card, identity rail và status pill
-- [ ] `AUI-FE-02`. Phép/không phép không dùng half-day part, notes UI 200 ký tự và compatibility dữ liệu cũ
-- [ ] `AUI-FE-03`. Persisted `Unmarked`, defaults/dirty/filter/summary/save integration
-- [ ] `AUI-FE-04`. Read-only/error/conflict/empty/recovery regression
-- [ ] `AUI-FE-05`. Responsive/a11y/test/development build/docs/memory
-- [ ] `AUI-QA-01`. Visual review desktop/tablet/mobile và roster 1/10/100
-- [ ] `AUI-QA-02`. Keyboard/zoom/contrast/touch target
-- [ ] `AUI-QA-03`. Missing/Saved/full-roster/dirty/conflict/recovery regression
+- [x] `AUI-BE-00`. Khóa enum/DTO/summary/validation/OpenAPI và compatibility `halfDayPart` legacy
+- [x] `AUI-BE-01`. EF migration/check constraint, fresh/upgrade proof
+- [x] `AUI-BE-02`. Persisted `Unmarked`, half-day write/preserve semantics và audit
+- [x] `AUI-BE-03`. Unit/integration/docs/memory/final gates
+- [x] `AUI-FE-00`. Align `Unmarked`/summary/legacy DTO và test traceability
+- [x] `AUI-FE-01`. Compact grid/card, identity rail và status pill
+- [x] `AUI-FE-02`. Phép/không phép không dùng half-day part, notes UI 200 ký tự và compatibility dữ liệu cũ
+- [x] `AUI-FE-03`. Persisted `Unmarked`, defaults/dirty/filter/summary/save integration
+- [x] `AUI-FE-04`. Read-only/error/conflict/empty/recovery regression
+- [x] `AUI-FE-05`. Responsive/a11y/test/development build/docs/memory
+- [x] `AUI-QA-01`. Visual review desktop/tablet/mobile và khả năng mở rộng roster đến giới hạn 100
+- [x] `AUI-QA-02`. Keyboard/zoom/contrast/touch target
+- [x] `AUI-QA-03`. Missing/Saved/full-roster/dirty/conflict/recovery regression
 
 ### Attendance compact-card planning log
 
@@ -446,6 +446,20 @@ QA/Integration:
 - API notes vẫn giữ max 2.000 để tương thích; UI không được cắt giá trị cũ dài hơn 200 khi field chưa bị sửa.
 - `AUI-DEC-08` chốt ngày 2026-08-12 theo đề xuất: bám nhóm màu trong hình nhưng điều chỉnh design token để đạt contrast/accessibility ở enabled, hover, focus, disabled và read-only.
 - `AUI-P-02` hoàn tất; plan sẵn sàng triển khai từ `AUI-BE-00` + `AUI-FE-00`. Chưa triển khai source; production/IIS skill không được gọi trong giai đoạn plan.
+- Bắt đầu implementation ngày 2026-08-12: backend và frontend thực hiện song song theo ownership; root điều phối contract, cập nhật task, review hợp nhất và không chạy production/IIS skill.
+- `AUI-BE-00` khóa exact contract: persisted `Unmarked`, summary `unmarked`, Missing defaults giữ nguyên; mọi create mới kể cả recovery dùng AbsentHalfDay với `halfDayPart=null` + bắt buộc phép/không phép; Saved PUT chỉ bảo toàn Morning/Afternoon legacy khi status cũ và mới cùng AbsentHalfDay. API notes vẫn tối đa 2.000, không thêm URL/problem code.
+- `AUI-FE-00` hoàn tất: model/dictionary/filter/summary đã align contract; Angular development build pass 10,99 MB, hash `ff00e1b07787d048`. Recovery giữ workflow cũ nhưng mọi half-day write mới gửi null.
+- `AUI-BE-01` checkpoint: EF migration `20260811201427_AddAttendanceUnmarkedStatus` chỉ thay check constraint, không rewrite/drop legacy; Release build sạch và unit 40/40, đang chạy PostgreSQL fresh/upgrade integration.
+- `AUI-FE-01` hoàn tất: main daily list dùng compact native-select pill, identity rail chỉ nickname/mã, token màu accessible và fluid/mobile grid; development build pass 11,00 MB, hash `59e3e9c0766a4cf7`, không sửa global styles.
+- `AUI-FE-02` hoàn tất: main/recovery đều bỏ Morning/Afternoon và serialize `halfDayPart=null`; UI notes giới hạn 200 nhưng giữ nguyên Saved legacy >200 khi chưa sửa, edited >200 bị chặn đúng card. Focused ChromeHeadlessCI 13/13 pass.
+- `AUI-FE-03` hoàn tất: UI giữ defaults Present/OneToOneHour từ API, persisted Unmarked với filter/summary/dirty và clear conditional fields; POST/PUT tiếp tục full roster. Attendance specs 13/13 pass.
+- `AUI-BE-01/02` hoàn tất: full PostgreSQL 17 Testcontainers 26/26 pass, gồm persisted Unmarked/summary, new half-day null, preserve/clear legacy, audit privacy, Development OpenAPI, fresh DB và migration upgrade. Debug build 0 warning/error, unit 40/40, EF pending-model sạch; chỉ còn ba warning required-navigation đã biết.
+- `AUI-BE-03` hoàn tất: README/requests/backend memory đồng bộ, scoped diff-check sạch; không production/publish/IIS. Dev API PID 23360 đã được dừng để giải phóng Debug DLL và chưa khởi động lại.
+- `AUI-FE-04` hoàn tất: focused regression 16/16 pass cho Saved read-only, 409 giữ draft + reload, empty schedule và recovery manual/default/half-day-null/notes validation; không còn contract mismatch.
+- `AUI-FE-05` hoàn tất: full ChromeHeadlessCI 59/59, focused attendance 16/16, development build 11,00 MB hash cuối `dfa785fd5adcf72a`, scoped diff-check sạch và không sửa global styles. Giữ fix regression một dòng Student group summary (`groupName`) vì full gate ban đầu 58/59 và rerun đạt 59/59. Chỉ còn warning dependency DevExtreme W0019/Inferno đã biết.
+- `AUI-QA-01` hoàn tất bằng browser QA trên dữ liệu thật 7 học sinh: viewport 1366 px/content 1.036 px đạt 5 card hàng đầu, card khoảng 194 px và không tràn ngang; 1024 px đạt 4 card fluid; 390 px chuyển một cột, identity rail nằm ngang. Danh sách dùng grid/scroll và `trackBy`, không giới hạn client; invariant nhóm tối đa 100 tiếp tục được backend bảo vệ và regression suite hiện hữu bao phủ.
+- `AUI-QA-02` hoàn tất: native status select điều khiển được bằng bàn phím từ `Present` đến `Unmarked` rồi phục hồi draft; mobile control/identity rail cao tối thiểu 44 px; viewport tương đương zoom/responsive không tràn ngang. Tỷ lệ tương phản text/background đo được: Present 6,73:1; Absent 7,18:1; Half-day 8,32:1; One-to-one 8,15:1; Unmarked 8,84:1.
+- `AUI-QA-03` hoàn tất qua backend build/unit/integration 40/40 + 26/26, frontend full 59/59 + attendance 16/16 và browser smoke Missing. Các case persisted Unmarked, defaults theo lịch, full-roster POST/PUT, dirty/conflict/read-only/empty/recovery và legacy half-day/note đều có regression coverage; không chạy production/IIS.
 
 ## Tổ chức thư mục kế hoạch — owner: `root`
 
