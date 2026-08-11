@@ -174,3 +174,23 @@ Mỗi agent chỉ cập nhật section mình sở hữu sau từng mốc công v
 - A2/A3: hai subagent đã tạo `api/AGENTS.md`, `ui/AGENTS.md` cùng memory chuyên biệt cho kiến trúc, contract, lệnh kiểm tra, baseline và pitfalls của từng phần.
 - A5: đã thêm custom agent project-scoped `backend`/`frontend` trong `.codex/agents`, giới hạn tối đa hai subagent đồng thời trong `.codex/config.toml`, và review chéo ownership/auth/setup/IIS contract. Các thay đổi chỉ là agent config/tài liệu nên không chạy lại product build/test.
 - Kiểm tra bàn giao: cả 3 file TOML parse thành công; đủ root/nested `AGENTS.md`, shared/backend/frontend memory; secret-value scan không phát hiện credential hoặc private key trong bộ file agent.
+
+## Epic điểm danh `ATT` — owner: `root`
+
+- [x] `ATT-P-01`. Phân tích gap backend/frontend và yêu cầu nghiệp vụ
+- [x] `ATT-P-02`. Tạo plan cross-stack có mã từng đợt tại `api/attendance-plan.md`
+- [ ] `ATT-P-03`. Review/chốt `ATT-DEC-01` đến `ATT-DEC-09`
+- [ ] `ATT-01`. Nền tảng Teacher/Group/Assignment và UI quản trị
+- [ ] `ATT-02`. Vertical slice đọc điểm danh, filter và card list
+- [ ] `ATT-03`. Vertical slice ghi/clear attendance exception
+- [ ] `ATT-04`. UX, edge cases và hardening
+- [ ] `ATT-05`. Tài liệu, full regression và release IIS
+
+### Attendance planning log
+
+- `ATT-P-01`: xác nhận hiện trạng chưa có Teacher profile, Group, assignment hoặc attendance; Student CRUD/search hiện tại chưa scope theo giáo viên và chưa search không dấu.
+- `ATT-P-02`: plan chọn mô hình assignment có khoảng hiệu lực để tái dựng roster quá khứ khi `Present` không được lưu; hỗ trợ Teacher nhiều group nhưng không hard-limit 10 student.
+- REST draft dùng context + daily snapshot + batch save card dirty; `Present` clear exception, không insert row. Admin/SuperAdmin bắt buộc chọn một group; Teacher chỉ nhận group được assign theo ngày.
+- Review chéo backend/frontend đã chuẩn hóa contract theo ngày (`AbsentFullDay`/`AbsentHalfDay`), assignment interval nửa mở, atomic move/end-date endpoint, computed `Present`, version conflict, historical roster và read-only state. `ATT-P-03` chờ người dùng duyệt 9 quyết định nghiệp vụ.
+- Git workflow: người dùng cho phép chủ động tạo local commit theo từng milestone; không bao gồm push/merge/rebase/tag nếu chưa được yêu cầu riêng.
+- Chưa thay đổi source/schema/API/UI và chưa chạy build/test trong đợt lập plan này.

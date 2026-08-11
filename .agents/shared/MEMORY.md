@@ -40,6 +40,7 @@ Last updated: 2026-08-11
 ## Operational cautions
 
 - Do not store or copy secrets into source, memory, artifacts, or release notes. Secrets are inserted only on the target machine.
+- The user authorizes proactive local Git commits at cohesive verified milestones. This does not authorize push, merge, rebase, force operations, tags, or pull requests.
 - Docker Compose and a Windows PostgreSQL service can conflict on port 5432. Recheck the port owner before IIS deployment; `docker compose stop` preserves the Docker volume.
 - Do not reset PostgreSQL data to demonstrate first-run setup. Use a new empty database when a fresh setup test is required.
 - The IIS deployment has been prepared and packaged, but repository memory must not claim the target machine was deployed unless IIS/HTTPS/health were verified on that target.
@@ -47,5 +48,6 @@ Last updated: 2026-08-11
 ## Current handoff
 
 - Project custom agents are defined as `backend` and `frontend` under `.codex/agents/`; root and nested `AGENTS.md` files define their scope.
-- No product implementation task is active at the time of this update. Runtime subagent processes must be recreated in a new chat, then resume from these repository files.
+- Attendance epic `ATT` has a draft cross-stack plan at `api/attendance-plan.md`. Implementation has not started; review `ATT-DEC-01` through `ATT-DEC-09` before starting `ATT-01`.
+- Runtime subagent processes must be recreated in a new chat, then resume from these repository files.
 - Future backend/frontend agents should update their role memory and this file if they change a cross-stack contract or deployment behavior.

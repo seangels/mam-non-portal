@@ -20,6 +20,7 @@ Xây dựng RESTful API cho Admin Portal với các chức năng cơ bản:
 - CRUD user và student.
 - Soft delete.
 - Audit các thao tác quản trị quan trọng.
+- Kế hoạch mở rộng giáo viên, nhóm học sinh và điểm danh được đặc tả riêng tại [`attendance-plan.md`](attendance-plan.md); chưa được xem là đã triển khai chỉ vì có trong tài liệu.
 - OpenAPI/Swagger.
 - Health check, logging và xử lý lỗi thống nhất.
 - Unit test và integration test cho các luồng chính.
@@ -34,7 +35,7 @@ Xây dựng RESTful API cho Admin Portal với các chức năng cơ bản:
 - Import/export Excel.
 - Upload ảnh hoặc tài liệu học sinh.
 - Phân quyền chi tiết theo từng chức năng.
-- Quản lý lớp học, giáo viên, học phí hoặc điểm danh.
+- Quản lý học phí.
 
 Các chức năng ngoài phạm vi có thể bổ sung sau mà không cần thay đổi kiến trúc tổng thể.
 
@@ -701,3 +702,11 @@ Một tính năng được xem là hoàn thành khi:
 - Audit đăng nhập/đăng xuất và toàn bộ CRUD do admin thực hiện.
 - Với cập nhật/xóa, audit lưu các giá trị trước và sau cần thiết để truy vết; không lưu password, token hoặc secret.
 - Cleanup dữ liệu chạy theo batch và có thể chạy lại an toàn.
+
+## 19. Kế hoạch mở rộng điểm danh
+
+Feature điểm danh dùng mã epic `ATT` và được chia thành các đợt `ATT-00` đến `ATT-05`.
+
+- Plan cross-stack, schema, REST contract, authorization, UI card-list, test và các quyết định cần review: [`attendance-plan.md`](attendance-plan.md).
+- Trạng thái triển khai chi tiết được theo dõi trong `../tasks.md` theo đúng mã đợt.
+- Các mô tả “Student là resource độc lập” và “Teacher không gọi API quản trị” ở baseline vẫn đúng với CRUD cũ. Khi feature `ATT` được triển khai, Student liên kết nhóm qua bảng membership có lịch sử và Teacher chỉ được gọi API điểm danh đã scope theo assignment; Teacher vẫn không có quyền CRUD quản trị.

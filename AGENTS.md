@@ -47,6 +47,13 @@ Runtime subagent processes do not survive a new chat. Recreate the `backend` and
 - Run verification proportional to the change and record the result in the owning memory file.
 - Generated `artifacts/` and `release/` are ignored; rebuild and verify them rather than assuming they exist in another clone.
 
+## Git workflow authorization
+
+- The user authorizes the orchestrator to create local Git commits proactively after a cohesive, reviewed milestone.
+- Inspect status and diff first, stage exact in-scope paths, and use a concise commit message containing the relevant development code such as `ATT-BE-03`.
+- Do not include unrelated user/agent changes in a commit. Shared cross-stack commits are coordinated by the orchestrator.
+- This permission covers local commits only. Do not push, force-push, merge, rebase, amend published history, create tags, or open a pull request unless the user separately requests it.
+
 ## Default verification
 
 Backend:
