@@ -4,7 +4,7 @@
 
 - **Epic:** `TCH`
 - **Thứ tự:** `03`
-- **Trạng thái:** bản nháp để review; chưa triển khai cho đến khi chốt các quyết định `TCH-DEC-*` ở mục 16.
+- **Trạng thái:** `TCH-DEC-01`–`08`, `10`–`12` đã chốt; `TCH-DEC-09` đang chờ duyệt sau khi giải thích phương án search không dấu.
 - **Ngày lập:** 2026-08-11.
 - **Phạm vi:** .NET 10 REST API, PostgreSQL 17 và Angular/DevExtreme UI.
 - **Contract nền:** [`01-BASE-admin-portal.md`](01-BASE-admin-portal.md) và [`02-ATT-attendance.md`](02-ATT-attendance.md).
@@ -28,15 +28,15 @@ Production build, đóng gói và deploy IIS không nằm trong luồng mặc đ
 - Có mục `Giáo viên` riêng trên sidebar cho `Admin` và `SuperAdmin`.
 - Xem danh sách, tìm kiếm, lọc, phân trang, sắp xếp và xem chi tiết giáo viên.
 - Tạo, chỉnh sửa, đổi mật khẩu và soft-delete giáo viên qua một luồng rõ ràng.
-- Quản lý cùng lúc thông tin tài khoản và hồ sơ nghề nghiệp nhưng không lưu trùng dữ liệu giữa `users` và `teachers`.
+- Quản lý cùng lúc thông tin tài khoản và thông tin Teacher tối giản (mã, ghi chú, policy) nhưng không lưu trùng dữ liệu giữa `users` và `teachers`.
 - Xem các nhóm đang phụ trách; việc phân công/gỡ nhóm vẫn chỉ thực hiện tại màn hình `Nhóm`.
 - Giữ nguyên các invariant về authorization, session revoke, group snapshot và lịch sử điểm danh.
 - Toàn bộ nội dung người dùng nhìn thấy trên UI chỉ sử dụng tiếng Việt.
 
 ## 4. Ngoài phạm vi v1
 
-- Ảnh đại diện và upload tài liệu/hồ sơ.
-- CCCD/hộ chiếu, mã số thuế, BHXH, tài khoản ngân hàng, lương và dữ liệu sức khỏe.
+- Các field Teacher ngoài schema đã chốt, gồm ngày sinh, giới tính, địa chỉ, trình độ, chuyên môn, ngày vào làm và trạng thái nhân sự riêng.
+- Ảnh đại diện, upload tài liệu/hồ sơ, CCCD/hộ chiếu, mã số thuế, BHXH, tài khoản ngân hàng, lương và dữ liệu sức khỏe.
 - Hợp đồng lao động, chấm công nhân sự và tính lương.
 - Lịch sử công tác/phân công nhóm theo `effectiveFrom`/`effectiveTo`.
 - Import/export Excel.
@@ -61,22 +61,20 @@ Teacher API được phép project và cập nhật các field phù hợp qua m�
 
 ### 5.2. Dữ liệu thuộc `Teacher`
 
-Phạm vi v1 đề xuất:
+Schema Teacher v1 đã chốt chỉ gồm:
 
-| Field API | Kiểu | Bắt buộc | Quy tắc đề xuất |
+| Field API | Cột PostgreSQL | Kiểu | Quy tắc đã chốt |
 |---|---|---:|---|
-| `teacherCode` | string | Có | Server tự sinh, bất biến, unique toàn cục, không tái sử dụng |
-| `dateOfBirth` | `DateOnly?` | Không | Không lớn hơn ngày nghiệp vụ hiện tại |
-| `gender` | `Gender?` | Không | `Male`, `Female`, `Other` |
-| `address` | string? | Không | Trim, tối đa 500 ký tự |
-| `qualification` | string? | Không | Trình độ, trim, tối đa 200 ký tự |
-| `specialization` | string? | Không | Chuyên môn, trim, tối đa 200 ký tự |
-| `startDate` | `DateOnly?` | Không | Ngày vào làm; validation chờ `TCH-DEC-10` |
-| `note` | string? | Không | Trim, tối đa 2.000 ký tự |
-| `attendanceEditWindowDays` | integer | Có | Từ 1 đến 7, mặc định 7 |
-| `version` | integer | Có | Bắt đầu từ 1, tăng sau mỗi lần cập nhật aggregate |
+| `id` | `id` | uuid | Khóa chính, server sinh |
+| `userId` | `user_id` | uuid | Liên kết 1-1 tới User, unique, không đổi |
+| `teacherCode` | `teacher_code` | string | Người dùng tự nhập và được phép sửa; bắt buộc, unique trên giá trị hiện tại |
+| `note` | `note` | string? | Trim, tối đa 2.000 ký tự |
+| `attendanceEditWindowDays` | `attendance_edit_window_days` | smallint | Từ 1 đến 7, mặc định 7; chỉ sửa tại UI chính sách hiện có |
+| `version` | `version` | integer | Bắt đầu từ 1, tăng sau mỗi mutation Teacher aggregate |
+| `createdAt` | `created_at` | timestamptz | Server quản lý |
+| `updatedAt` | `updated_at` | timestamptz | Server quản lý |
 
-Không thêm `employmentStatus` trong v1. UI phải gọi `User.status` là **Trạng thái tài khoản** để không nhầm với trạng thái nhân sự. Nếu cần `Đang làm việc/Nghỉ phép/Đã nghỉ việc`, phải chốt thêm transition, tác động đến đăng nhập, session và nhóm phụ trách trước khi mở rộng schema.
+Không thêm ngày sinh, giới tính, địa chỉ, trình độ, chuyên môn, ngày vào làm hoặc `employmentStatus`. UI gọi `User.status` là **Trạng thái tài khoản** để không nhầm với trạng thái nhân sự.
 
 ### 5.3. Quan hệ nhóm
 
@@ -91,12 +89,6 @@ Mở rộng bảng `teachers`:
 
 ```text
 teacher_code                 varchar(50)  not null
-date_of_birth                date         null
-gender                       varchar(20)  null
-address                      varchar(500) null
-qualification                varchar(200) null
-specialization               varchar(200) null
-start_date                   date         null
 note                         varchar(2000) null
 version                      integer      not null default 1
 ```
@@ -113,13 +105,11 @@ updated_at
 
 Index và constraint:
 
-- Unique toàn cục trên `teacher_code`; Teacher profile lịch sử không bị xóa nên mã không tái sử dụng.
+- Unique toàn cục trên giá trị `teacher_code` hiện tại. Teacher profile không bị xóa nên mã hiện tại của Teacher đã soft-delete vẫn bị giữ; mã cũ có thể tái sử dụng sau khi một Teacher đổi sang mã mới.
 - Check `attendance_edit_window_days BETWEEN 1 AND 7`.
-- Check ngày sinh hợp lệ khi có giá trị.
-- Enum lưu dạng string theo convention hiện tại.
 - Không index mọi field; chỉ bổ sung index theo filter đã chứng minh cần thiết sau query-plan test.
 
-Mã giáo viên đề xuất dùng format `GV000001`, `GV000002`, ... và sinh bằng database sequence để an toàn khi có nhiều request đồng thời. Migration phải backfill mã cho Teacher profile hiện có trước khi chuyển column sang `NOT NULL`.
+Mã giáo viên do người dùng tự nhập và được phép sửa. API trim, normalize uppercase và kiểm tra non-empty/length/unique trong transaction; database unique constraint là lớp bảo vệ cuối khi có request đồng thời. Migration backfill Teacher profile hiện có bằng mã kỹ thuật deterministic `GV-MIG-{uuid-không-dấu-gạch}` trước khi chuyển column sang `NOT NULL`; Admin có thể sửa sang mã nghiệp vụ sau đó.
 
 ## 7. Authorization
 
@@ -152,13 +142,13 @@ DELETE /api/v1/teachers/{teacherId}?expectedVersion={version}
 PUT    /api/v1/users/{userId}/password
 ```
 
-Endpoint hiện có được giữ tạm để tương thích trong giai đoạn chuyển đổi:
+Endpoint chính sách hiện có tiếp tục là mutation surface duy nhất cho `attendanceEditWindowDays`:
 
 ```http
 PUT /api/v1/teachers/{teacherId}/attendance-policy
 ```
 
-UI mới cập nhật policy qua full Teacher `PUT`. Endpoint cũ phải dùng chung validation/concurrency/audit service và được đánh dấu deprecated trong OpenAPI sau khi trang policy cũ được gỡ.
+UI chính sách tiếp tục nằm tại trang `Nhóm`; không đưa field này vào form tạo/sửa Teacher. Request policy được mở rộng thêm `expectedVersion`, dùng chung Teacher aggregate concurrency/audit và tăng `version` đúng 1 khi thay đổi thành công.
 
 ### 8.2. List query
 
@@ -167,19 +157,16 @@ page=1
 pageSize=20
 search=
 status=Active|Inactive|Locked
-gender=Male|Female|Other
 groupId={uuid}
 unassigned=true|false
-startDateFrom=YYYY-MM-DD
-startDateTo=YYYY-MM-DD
-sortBy=teacherCode|fullName|email|status|startDate|attendanceEditWindowDays|responsibleGroupCount|createdAt|updatedAt
+sortBy=teacherCode|fullName|email|status|attendanceEditWindowDays|responsibleGroupCount|createdAt|updatedAt
 sortOrder=asc|desc
 ```
 
 Quy tắc:
 
 - `pageSize` từ 1 đến 100.
-- `search` tìm theo mã giáo viên, họ tên, email, số điện thoại và chuyên môn.
+- `search` tìm theo mã giáo viên, họ tên, email và số điện thoại. Cơ chế không dấu của họ tên chờ chốt tại `TCH-DEC-09`.
 - Nếu gửi đồng thời `groupId` và `unassigned=true`, trả `400 ValidationFailed`.
 - Sort dùng whitelist, không nhận biểu thức động; luôn thêm `id` làm tie-break để phân trang ổn định.
 - Response giữ contract chung `{ items, pagination }`.
@@ -195,8 +182,6 @@ TeacherListItemResponse {
   email: string
   phoneNumber: string | null
   status: UserStatus
-  gender: Gender | null
-  startDate: date | null
   attendanceEditWindowDays: integer
   responsibleGroupCount: integer
   createdAt: datetime
@@ -208,10 +193,6 @@ TeacherListItemResponse {
 ```text
 TeacherDetailResponse {
   ...TeacherListItemResponse
-  dateOfBirth: date | null
-  address: string | null
-  qualification: string | null
-  specialization: string | null
   note: string | null
   responsibleGroups: TeacherGroupSummaryResponse[]
 }
@@ -235,23 +216,18 @@ Không trả password hash, token, session, lockout detail hoặc dữ liệu au
 
 ```text
 CreateTeacherRequest {
+  teacherCode: string
   fullName: string
   email: string
   phoneNumber: string | null
   status: UserStatus
   password: string
-  dateOfBirth: date | null
-  gender: Gender | null
-  address: string | null
-  qualification: string | null
-  specialization: string | null
-  startDate: date | null
   note: string | null
-  attendanceEditWindowDays: integer
 }
 ```
 
-- `teacherCode` do server sinh và trả trong response.
+- `teacherCode` do người dùng nhập, server trim/normalize uppercase và kiểm tra unique.
+- `attendanceEditWindowDays` không nằm trong form tạo; Teacher mới dùng mặc định 7 và chỉnh sau tại UI chính sách hiện có.
 - Thành công trả `201 Created`, header `Location` và full `TeacherDetailResponse`.
 - Nếu User hoặc Teacher profile tạo lỗi, toàn bộ transaction rollback.
 - Chống double-submit tại server; duplicate email/code trả stable conflict code.
@@ -262,26 +238,30 @@ CreateTeacherRequest {
 
 ```text
 UpdateTeacherRequest {
+  teacherCode: string
   fullName: string
   email: string
   phoneNumber: string | null
   status: UserStatus
-  dateOfBirth: date | null
-  gender: Gender | null
-  address: string | null
-  qualification: string | null
-  specialization: string | null
-  startDate: date | null
   note: string | null
-  attendanceEditWindowDays: integer
   expectedVersion: integer
 }
 ```
 
-- Không cho sửa `teacherCode`, `userId`, `role`, `responsibleGroups`, timestamps.
+- Cho phép sửa `teacherCode`; mã mới phải qua normalize/format/unique check. Mã cũ không có bảng lịch sử riêng nên có thể được tái sử dụng sau khi đổi.
+- Không cho sửa `userId`, `role`, `responsibleGroups`, `attendanceEditWindowDays` hoặc timestamps qua full Teacher `PUT`.
 - Field nullable gửi `null` để xóa giá trị.
 - Thành công tăng `version` đúng 1 và trả full detail mới.
 - Stale update trả `409 TeacherVersionConflict` với `currentVersion`; không update một phần.
+
+Request riêng cho policy:
+
+```text
+UpdateAttendancePolicyRequest {
+  attendanceEditWindowDays: integer
+  expectedVersion: integer
+}
+```
 
 ### 8.6. Delete và đổi mật khẩu
 
@@ -300,22 +280,17 @@ Sau khi epic hoàn tất:
 - API User CRUD phải từ chối mutation đối với Teacher bằng code `TeacherMustBeManagedViaTeachers`, hoặc delegate vào cùng Teacher aggregate coordinator nếu cần tương thích ngắn hạn.
 - Không để User PUT cũ âm thầm cập nhật Teacher vì sẽ bypass `expectedVersion`, group snapshot và audit của Teacher.
 
-Quy tắc chuyển đổi chính xác cần chốt tại `TCH-DEC-03` trước khi sửa contract hiện hữu.
+Quy tắc chuyển đổi đã được chốt tại `TCH-DEC-03`; `TCH-00` phải khóa chi tiết response/code tương thích trước khi sửa contract hiện hữu.
 
 ## 9. Validation và chuẩn hóa
 
 | Field | Quy tắc |
 |---|---|
+| `teacherCode` | Bắt buộc, trim, normalize uppercase, tối đa 50, unique trên giá trị hiện tại; v1 không áp thêm regex để không loại các quy ước mã hợp lệ đang có |
 | `fullName` | Bắt buộc, trim, tối đa 200 |
 | `email` | Bắt buộc, email hợp lệ, tối đa 255, normalize theo User hiện tại |
 | `phoneNumber` | Nullable, trim, tối đa 30 |
 | `password` | 12–128 ký tự theo policy hiện tại |
-| `dateOfBirth` | Nullable, không phải `0001-01-01`, không lớn hơn ngày server |
-| `gender` | Nullable, enum hợp lệ |
-| `address` | Nullable, trim, tối đa 500 |
-| `qualification` | Nullable, trim, tối đa 200 |
-| `specialization` | Nullable, trim, tối đa 200 |
-| `startDate` | Nullable, không phải `0001-01-01`; ngày tương lai chờ quyết định |
 | `note` | Nullable, trim, tối đa 2.000 |
 | `attendanceEditWindowDays` | Integer từ 1 đến 7 |
 | `expectedVersion` | Integer lớn hơn 0 |
@@ -325,13 +300,13 @@ API trả `application/problem+json`, có `code`, `traceId`, `fieldErrors` khi p
 ## 10. Lifecycle, concurrency và attendance invariant
 
 - Một User role Teacher tương ứng đúng một Teacher profile; migration và command phải giữ invariant này.
-- Teacher profile không hard-delete và mã giáo viên không tái sử dụng.
+- Teacher profile không hard-delete; mã hiện tại của Teacher đã soft-delete tiếp tục chiếm unique key. Khi một Teacher active đổi mã, mã cũ được giải phóng vì v1 không có bảng lịch sử mã.
 - Lock/update theo thứ tự nhất quán: Teacher, User, sau đó các group liên quan theo `id` tăng dần.
 - Đổi `fullName` phải tăng `snapshotVersion` của tất cả nhóm đang phụ trách đúng một lần trong cùng transaction.
-- Đổi email, phone, policy hoặc các field hồ sơ khác không tăng group snapshot.
+- Đổi teacherCode, email, phone, note hoặc policy không tăng group snapshot.
 - Attendance sheet đã lưu không bị rewrite khi hồ sơ Teacher thay đổi.
 - Không snapshot `teacherCode` vào attendance v1; lịch sử tiếp tục dùng `responsibleTeacherId` và `responsibleTeacherNameSnapshot`.
-- `version` bảo vệ toàn bộ aggregate Teacher–User khỏi lost update. Endpoint policy tương thích cũng phải tăng cùng version.
+- `version` bảo vệ toàn bộ aggregate Teacher–User khỏi lost update. Endpoint policy hiện có cũng nhận `expectedVersion` và tăng cùng version.
 - Update status/password/delete áp dụng session revoke theo security contract hiện tại.
 
 ## 11. ProblemDetails codes
@@ -344,8 +319,6 @@ TeacherCodeAlreadyExists
 TeacherVersionConflict
 TeacherHasResponsibleGroups
 TeacherMustBeManagedViaTeachers
-InvalidTeacherDateOfBirth
-InvalidTeacherStartDate
 InvalidAttendanceEditWindow
 EmailAlreadyExists
 ValidationFailed
@@ -368,7 +341,7 @@ Quy tắc:
 
 - Ghi `teacherId`, `userId`, danh sách field thay đổi, version trước/sau và action result.
 - Có thể ghi transition enum như status cũ/mới.
-- Không ghi raw password, token, cookie, note, address, ngày sinh hoặc toàn bộ request body.
+- Không ghi raw password, token, cookie, note hoặc toàn bộ request body.
 - Password change tiếp tục dùng audit action của User hiện tại.
 - Giữ retention audit hiện tại; dữ liệu Teacher/attendance lịch sử không bị cleanup bởi maintenance job.
 
@@ -394,8 +367,8 @@ Quy tắc:
 - DevExtreme `CustomStore`, server paging/filter/sort.
 - Page size: 10/20/50/100, mặc định 20; đổi filter quay về trang 1.
 - Panel filter mặc định mở, cho collapse/expand.
-- Filter gồm search, trạng thái tài khoản, giới tính, nhóm và `Chưa phụ trách nhóm`.
-- Cột chính: mã, họ tên, email/số điện thoại, trạng thái, nhóm phụ trách, thời hạn sửa điểm danh, ngày vào làm và thao tác.
+- Filter gồm search, trạng thái tài khoản, nhóm và `Chưa phụ trách nhóm`.
+- Cột chính: mã, họ tên, email/số điện thoại, trạng thái, nhóm phụ trách, thời hạn sửa điểm danh và thao tác.
 - Click row mở detail; thao tác gồm `Xem`, `Chỉnh sửa`, `Đổi mật khẩu`, `Xóa`.
 - Desktop dùng grid; màn hình hẹp giữ cột định danh và đưa phần còn lại vào adaptive detail/card.
 
@@ -403,11 +376,10 @@ Quy tắc:
 
 Chia thành các card:
 
-1. Thông tin cá nhân.
-2. Thông tin nghề nghiệp.
-3. Tài khoản đăng nhập và trạng thái.
-4. Chính sách điểm danh.
-5. Nhóm đang phụ trách, chỉ đọc, có CTA sang trang `Nhóm`.
+1. Thông tin giáo viên: mã và ghi chú.
+2. Tài khoản đăng nhập và trạng thái.
+3. Chính sách điểm danh hiện tại, chỉ đọc và có CTA sang vị trí quản lý policy hiện có.
+4. Nhóm đang phụ trách, chỉ đọc, có CTA sang trang `Nhóm`.
 
 Có loading, empty, 403, 404, retry và trace reference bằng nội dung tiếng Việt.
 
@@ -416,14 +388,15 @@ Có loading, empty, 403, 404, retry và trace reference bằng nội dung tiến
 - Dùng trang riêng thay vì popup lớn để hỗ trợ form dài, responsive và dirty guard.
 - Form hai cột trên desktop, một cột trên mobile.
 - Create có mật khẩu/xác nhận mật khẩu; edit không hiển thị password.
-- Mã giáo viên hiển thị read-only; ở create ghi rõ mã sẽ được tạo sau khi lưu.
+- Mã giáo viên bắt buộc nhập khi tạo và được phép sửa; UI normalize uppercase, nhưng backend vẫn là nơi kiểm tra cuối.
+- Form Teacher không chứa `attendanceEditWindowDays`; policy tiếp tục được chỉnh tại UI hiện có trong trang `Nhóm`.
 - Full PUT gửi đủ field nullable và `expectedVersion`.
 - Có dirty route guard, `beforeunload`, chống double-submit và focus field lỗi đầu tiên.
 - Lỗi 409 giữ nguyên draft, hiển thị CTA tải dữ liệu mới; không tự ghi đè dữ liệu server.
 
-### 13.5. Dọn bề mặt quản trị cũ
+### 13.5. Giữ ranh giới các bề mặt quản trị
 
-- Bỏ tab `Chính sách giáo viên` khỏi trang `Nhóm`; thay bằng link đến `Giáo viên`.
+- Giữ nguyên tab/bề mặt `Chính sách giáo viên` tại trang `Nhóm`; không chuyển control này vào Teacher form.
 - Trang `Nhóm` vẫn là nơi duy nhất gán/gỡ Teacher và quản lý roster.
 - Trang User không còn là bề mặt quản lý Teacher sau khi chuyển đổi xong.
 
@@ -445,7 +418,7 @@ Có loading, empty, 403, 404, retry và trace reference bằng nội dung tiến
 
 ### `TCH-01` — Schema và read slice
 
-- `TCH-BE-01`: mở rộng entity/config, sequence mã, migration/backfill, index và version.
+- `TCH-BE-01`: mở rộng entity/config, migration/backfill mã, unique index và version.
 - `TCH-BE-02`: list/detail query, paging/filter/sort, projection User–Teacher–Group và authorization.
 - `TCH-FE-01`: models/service, navigation, route, list/filter/paging.
 - `TCH-FE-02`: detail read-only và danh sách nhóm phụ trách.
@@ -464,10 +437,10 @@ Có loading, empty, 403, 404, retry và trace reference bằng nội dung tiến
 - `TCH-FE-04`: password/delete flows; chuyển `/users` thành quản lý tài khoản Admin.
 - `TCH-QA-03`: role/status/password/delete/session và backward-contract regression.
 
-### `TCH-04` — Hợp nhất policy và UX nhóm
+### `TCH-04` — Giữ policy hiện tại và đồng bộ concurrency
 
-- `TCH-BE-06`: dùng chung version/audit cho attendance policy; deprecate endpoint cũ khi an toàn.
-- `TCH-FE-05`: đưa policy vào Teacher form, bỏ tab policy cũ, giữ group assignment read-only tại Teacher detail.
+- `TCH-BE-06`: bổ sung `expectedVersion` và dùng chung version/audit cho endpoint attendance policy hiện có.
+- `TCH-FE-05`: giữ policy ở trang `Nhóm`, đồng bộ version conflict và chỉ hiển thị policy read-only tại Teacher detail.
 - `TCH-QA-04`: policy biên 1/7, group assignment và attendance regression.
 
 ### `TCH-05` — Hardening
@@ -488,19 +461,20 @@ Có loading, empty, 403, 404, retry và trace reference bằng nội dung tiến
 
 ### Backend/unit và integration
 
-- Validation trim/length/date/enum/policy/version; full PUT clear nullable bằng `null`.
-- Sequence sinh mã unique khi request đồng thời; code cũ được backfill và không tái sử dụng.
+- Validation teacherCode/note/account/policy/version; full PUT clear `note` bằng `null`.
+- Người dùng nhập/sửa mã; normalize/unique constraint xử lý đúng duplicate khác casing và request đồng thời; code cũ được backfill không trùng.
 - Create User + Teacher atomic; duplicate email hoặc lỗi profile rollback toàn bộ.
 - List pagination/search/filter/sort có metadata đúng và tie-break ổn định.
 - `groupId + unassigned=true` trả 400; Teacher không truy cập manager APIs.
-- Update tăng version đúng 1; stale version trả 409 và rollback toàn bộ.
+- Full PUT và policy PUT tăng version đúng 1; stale/concurrent update trả 409 và rollback toàn bộ.
 - Đổi fullName tăng đúng một lần snapshot của mọi group đang phụ trách; field khác không tăng.
 - Concurrent rename và tạo phiếu điểm danh cho name/snapshot version nhất quán.
 - Xóa bị chặn khi còn group; xóa hợp lệ revoke session nhưng Teacher/history vẫn còn.
 - User CRUD không bypass Teacher coordinator sau khi chuyển đổi.
 - Response/OpenAPI không lộ password hash, token, session hoặc auth internals.
-- Audit đúng action và không chứa raw note/address/ngày sinh/password.
+- Audit đúng action và không chứa raw note/password.
 - Fresh PostgreSQL migration, upgrade từ attendance baseline và EF no pending model changes.
+- Nếu chốt DEC09: PostgreSQL integration chứng minh `Nguyễn/nguyen`, `Hoàng/hoang`, `Đặng/dang`, case-insensitive và `%`/`_` được coi là ký tự tìm kiếm thường.
 - Toàn bộ auth, group, student và attendance integration tests hiện tại vẫn pass.
 
 ### Frontend
@@ -508,34 +482,80 @@ Có loading, empty, 403, 404, retry và trace reference bằng nội dung tiến
 - Navigation/route cho Admin, SuperAdmin; Teacher bị từ chối.
 - `CustomStore` map page/pageSize/filter/sort đúng và reset trang khi đổi filter.
 - List/detail/loading/empty/403/404/network/retry.
-- Create/update full form, nullable clear, password confirm và double-submit guard.
+- Create/update full form, nhập và sửa teacherCode, nullable clear, password confirm và double-submit guard.
 - 409 giữ draft và có hành động tải bản server mới.
 - Password change dùng đúng `userId`; delete confirm và group-blocker copy tiếng Việt.
-- Group chỉ đọc tại Teacher detail; assignment vẫn qua trang `Nhóm`.
+- Group/policy chỉ đọc tại Teacher detail; assignment và chỉnh policy vẫn qua trang `Nhóm`.
 - Không hiển thị raw enum, code, `ProblemDetails.title/detail` hoặc copy tiếng Anh.
 - Keyboard, focus lỗi đầu tiên, screen reader, mobile một cột và adaptive grid.
 - Regression routes `/users`, `/student-groups`, `/attendance`, auth refresh và first-run setup.
 
-## 16. Quyết định cần review
+## 16. Quyết định nghiệp vụ
 
-Các giá trị dưới đây là **đề xuất**, chưa phải contract đã chốt:
-
-| Mã | Quyết định | Đề xuất |
+| Mã | Quyết định | Trạng thái |
 |---|---|---|
-| `TCH-DEC-01` | Bộ field hồ sơ v1 | Dùng bộ field tại mục 5.2; chưa có ảnh/CCCD/tài liệu |
-| `TCH-DEC-02` | Mã giáo viên | Server tự sinh `GV000001`, bắt buộc, bất biến, không tái sử dụng |
-| `TCH-DEC-03` | Bề mặt create/update/delete | `/teachers` là canonical và atomic; `/users` chỉ quản lý Admin sau chuyển đổi |
-| `TCH-DEC-04` | Trạng thái nhân sự riêng | Chưa thêm trong v1; chỉ hiển thị rõ `Trạng thái tài khoản` |
-| `TCH-DEC-05` | Phân công nhóm | Chỉ sửa tại trang/endpoint `student-groups`; Teacher detail chỉ đọc |
-| `TCH-DEC-06` | Chính sách điểm danh | Chuyển vào Teacher form; endpoint policy cũ giữ tạm rồi deprecate |
-| `TCH-DEC-07` | Teacher self-service | Không có trong v1 |
-| `TCH-DEC-08` | Dữ liệu nhạy cảm/upload | Ngoài phạm vi v1 |
-| `TCH-DEC-09` | Search tên không dấu | Hỗ trợ ở server; khóa giải pháp/index sau benchmark PostgreSQL |
-| `TCH-DEC-10` | Ngày vào làm tương lai | Đề xuất cho phép để nhập trước nhân sự sắp nhận việc |
-| `TCH-DEC-11` | Optimistic concurrency | Dùng `expectedVersion` trong full PUT; DELETE dùng query version |
-| `TCH-DEC-12` | Xóa Teacher | Soft-delete User, revoke session, giữ Teacher/mã/lịch sử vĩnh viễn |
+| `TCH-DEC-01` | Teacher chỉ có `id`, `userId`, `teacherCode`, `note`, `version`, `attendanceEditWindowDays`, `createdAt`, `updatedAt`; account field tiếp tục thuộc User | Đã chốt |
+| `TCH-DEC-02` | `teacherCode` do người dùng nhập và được phép sửa; bắt buộc, normalize uppercase, unique. Mã cũ có thể tái sử dụng sau khi đổi vì không có bảng lịch sử mã | Đã chốt |
+| `TCH-DEC-03` | `/teachers` là canonical và atomic; `/users` chỉ quản lý Admin sau chuyển đổi | Đã chốt |
+| `TCH-DEC-04` | Không làm trạng thái nhân sự riêng | Đã chốt |
+| `TCH-DEC-05` | Chỉ phân công nhóm tại trang/endpoint `student-groups`; Teacher detail chỉ đọc | Đã chốt |
+| `TCH-DEC-06` | Giữ UI và endpoint chính sách điểm danh tại vị trí hiện tại; không đưa policy vào Teacher form | Đã chốt |
+| `TCH-DEC-07` | Không làm Teacher self-service | Đã chốt |
+| `TCH-DEC-08` | Không làm dữ liệu nhạy cảm hoặc upload trong epic này | Đã chốt |
+| `TCH-DEC-09` | Có bắt buộc search họ tên không dấu ở server hay chỉ search có dấu/case-insensitive | Chờ duyệt |
+| `TCH-DEC-10` | Không làm ngày vào làm | Đã chốt |
+| `TCH-DEC-11` | Dùng `expectedVersion` trong full PUT/policy PUT; DELETE dùng query version | Đã chốt |
+| `TCH-DEC-12` | Soft-delete User, revoke session, giữ Teacher/mã hiện tại/lịch sử; chặn xóa khi còn nhóm | Đã chốt |
 
-Chỉ bắt đầu `TCH-00` sau khi người dùng duyệt hoặc điều chỉnh các quyết định trên.
+### 16.1. Giải thích `TCH-DEC-09` — search họ tên không dấu
+
+Vì danh sách Teacher phân trang tại server, search cũng phải thực hiện tại PostgreSQL. Frontend không thể tải một trang rồi tự bỏ dấu để lọc vì sẽ bỏ sót kết quả nằm ở trang khác.
+
+Ví dụ nếu database lưu `Nguyễn Thị Hoàng`:
+
+| Từ khóa | Search thông thường bằng `ILIKE` | Search không dấu |
+|---|---:|---:|
+| `hoàng` | Khớp | Khớp |
+| `Hoàng` | Khớp | Khớp |
+| `hoang` | Không khớp | Khớp |
+| `nguyen thi` | Không khớp | Khớp |
+
+Phương án khuyến nghị cho v1:
+
+1. Migration bật PostgreSQL extension `unaccent` bằng `CREATE EXTENSION IF NOT EXISTS unaccent`.
+2. Backend trim/lower từ khóa, coi `%`/`_` là ký tự thường thay vì wildcard và luôn truyền bằng parameter.
+3. EF Core/Npgsql dùng `EF.Functions.Unaccent(...)` để dịch thành hàm PostgreSQL `unaccent(...)`; họ tên không phân biệt dấu/hoa thường, mã/email không phân biệt hoa thường, số điện thoại được chuẩn hóa chữ số.
+4. Query áp dụng trên toàn bộ tập dữ liệu trước khi `COUNT`, sort và phân trang.
+5. Frontend chỉ debounce khoảng 300 ms rồi gửi `search` lên API; không lọc local bù cho server.
+
+Minh họa SQL, không phải câu query nối chuỗi trực tiếp:
+
+```sql
+WHERE unaccent(lower(u.full_name)) LIKE '%' || unaccent(lower(@search)) || '%'
+   OR lower(t.teacher_code) LIKE '%' || lower(@search) || '%'
+   OR lower(u.email) LIKE '%' || lower(@search) || '%'
+   OR regexp_replace(coalesce(u.phone_number, ''), '[^0-9]', '', 'g')
+      LIKE '%' || @search_digits || '%'
+```
+
+Trade-off:
+
+- Ưu điểm: đúng kỳ vọng nhập tiếng Việt không dấu, không thêm field vào bảng `teachers`, hoạt động đúng với server pagination.
+- Nhược điểm: `unaccent(lower(...)) LIKE '%text%'` không dùng được B-tree index thông thường và có thể scan nhiều row.
+- Với quy mô vài trăm đến vài nghìn giáo viên, phương án này đơn giản và đủ dùng; phải đo bằng `EXPLAIN ANALYZE` trong `TCH-QA-01`.
+- Nếu dữ liệu tăng lớn và query chậm, phase hardening mới đánh giá `pg_trgm`/GIN hoặc cấu trúc normalized riêng. Không tự bọc `unaccent` thành hàm `IMMUTABLE` chỉ để tạo functional index khi chưa đánh giá rủi ro dictionary/index stale.
+- Migration cần database role có quyền cài extension `unaccent`; quy trình PostgreSQL/IIS phải kiểm tra điều kiện này trước khi apply migration.
+- Integration test bắt buộc chứng minh các cặp tiếng Việt như `Nguyễn/nguyen`, `Hoàng/hoang`, `Đặng/dang`; không chỉ test ví dụ Latin có dấu.
+
+Tài liệu kỹ thuật tham chiếu:
+
+- [PostgreSQL 17 `unaccent`](https://www.postgresql.org/docs/17/unaccent.html).
+- [PostgreSQL 17 `pg_trgm`](https://www.postgresql.org/docs/17/pgtrgm.html).
+- [Npgsql EF Core translation cho `EF.Functions.Unaccent`](https://www.npgsql.org/efcore/mapping/full-text-search.html).
+
+Khuyến nghị chốt `TCH-DEC-09`: **có search không dấu ở server bằng `unaccent`**, chưa thêm search column/index phức tạp trong v1.
+
+Chỉ bắt đầu `TCH-00` sau khi người dùng chốt `TCH-DEC-09`.
 
 ## 17. Definition of Done
 
