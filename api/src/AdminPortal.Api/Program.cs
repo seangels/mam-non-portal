@@ -17,7 +17,8 @@ builder.Services.AddScoped<AdminPortal.Application.Common.Interfaces.ICurrentAct
 builder.Services.AddScoped<CsrfTokenValidator>();
 builder.Services.AddAdminPortalAuthentication();
 builder.Services.AddControllers()
-    .AddJsonOptions(options => options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
+    .AddJsonOptions(options => options.JsonSerializerOptions.Converters.Add(
+        new JsonStringEnumConverter(allowIntegerValues: false)));
 builder.Services.Configure<ApiBehaviorOptions>(options =>
 {
     options.InvalidModelStateResponseFactory = context =>

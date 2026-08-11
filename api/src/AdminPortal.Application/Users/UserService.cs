@@ -13,6 +13,7 @@ public sealed class UserService(
     IApplicationDbContext dbContext,
     IPasswordService passwordService,
     ICurrentActor currentActor,
+    IAttendancePersistence attendancePersistence,
     TimeProvider timeProvider) : IUserService
 {
     public async Task<PagedResponse<UserResponse>> ListAsync(UserListQuery query, CancellationToken cancellationToken)
@@ -106,6 +107,19 @@ public sealed class UserService(
         };
         user.PasswordHash = passwordService.Hash(user, request.Password);
         dbContext.Users.Add(user);
+        if (user.Role == UserRole.Teacher)
+        {
+            var teacher = new Teacher
+            {
+                Id = Guid.NewGuid(),
+                User = user,
+                UserId = user.Id,
+                CreatedAt = now,
+                UpdatedAt = now
+            };
+            dbContext.Teachers.Add(teacher);
+            AddAudit(actor, "TeacherProfile.Created", teacher.Id, null, new { teacher.UserId, teacher.AttendanceEditWindowDays }, "TeacherProfile");
+        }
         AddAudit(actor, "User.Created", user.Id, null, Snapshot(user));
         await dbContext.SaveChangesAsync(cancellationToken);
         return Map(user);
@@ -121,6 +135,7 @@ public sealed class UserService(
             throw new ForbiddenException("Không thể tự thay đổi tài khoản quản trị hiện tại.");
         }
 
+        await using var transaction = await attendancePersistence.BeginTransactionAsync(cancellationToken);
         var oldValues = Snapshot(user);
         EnsureText(request.Email, "email", "Email không được để trống.");
         EnsureText(request.FullName, "fullName", "Họ tên không được để trống.");
@@ -135,7 +150,21 @@ public sealed class UserService(
         if (request.Role != user.Role)
         {
             AuthorizationRules.EnsureCanManageUser(actor, request.Role);
+            if (user.Role == UserRole.Teacher && user.TeacherProfile is not null &&
+                await dbContext.StudentGroups.AnyAsync(x => x.ResponsibleTeacherId == user.TeacherProfile.Id, cancellationToken))
+            {
+                throw new ConflictException(
+                    "Không thể đổi vai trò khi giáo viên còn phụ trách nhóm.",
+                    ProblemCodes.TeacherHasResponsibleGroups);
+            }
         }
+
+        var nameChanged = !string.Equals(user.FullName, request.FullName.Trim(), StringComparison.Ordinal);
+        List<Guid> affectedGroupIds = user.TeacherProfile is null || !nameChanged
+            ? []
+            : await dbContext.StudentGroups.Where(x => x.ResponsibleTeacherId == user.TeacherProfile.Id)
+                .Select(x => x.Id).ToListAsync(cancellationToken);
+        await attendancePersistence.LockGroupsAsync(affectedGroupIds, cancellationToken);
 
         user.Email = request.Email.Trim();
         user.NormalizedEmail = normalizedEmail;
@@ -144,9 +173,34 @@ public sealed class UserService(
         user.Role = request.Role;
         user.Status = request.Status;
         user.UpdatedAt = timeProvider.GetUtcNow();
+        if (request.Role == UserRole.Teacher && user.TeacherProfile is null)
+        {
+            user.TeacherProfile = new Teacher
+            {
+                Id = Guid.NewGuid(),
+                UserId = user.Id,
+                User = user,
+                CreatedAt = user.UpdatedAt,
+                UpdatedAt = user.UpdatedAt
+            };
+            dbContext.Teachers.Add(user.TeacherProfile);
+            AddAudit(actor, "TeacherProfile.Created", user.TeacherProfile.Id, null,
+                new { user.TeacherProfile.UserId, user.TeacherProfile.AttendanceEditWindowDays }, "TeacherProfile");
+        }
+        if (affectedGroupIds.Count > 0)
+        {
+            var groups = await dbContext.StudentGroups.Where(x => affectedGroupIds.Contains(x.Id)).ToListAsync(cancellationToken);
+            foreach (var group in groups)
+            {
+                group.SnapshotVersion++;
+                group.SnapshotChangedAt = user.UpdatedAt;
+                group.UpdatedAt = user.UpdatedAt;
+            }
+        }
         if (revokeSessions) await RevokeSessionsAsync(user.Id, user.UpdatedAt, cancellationToken);
         AddAudit(actor, "User.Updated", user.Id, oldValues, Snapshot(user));
         await dbContext.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
         return Map(user);
     }
 
@@ -173,6 +227,13 @@ public sealed class UserService(
         {
             throw new ForbiddenException("Không thể tự xóa tài khoản hiện tại.");
         }
+        if (user.TeacherProfile is not null &&
+            await dbContext.StudentGroups.AnyAsync(x => x.ResponsibleTeacherId == user.TeacherProfile.Id, cancellationToken))
+        {
+            throw new ConflictException(
+                "Không thể xóa giáo viên đang phụ trách nhóm.",
+                ProblemCodes.TeacherHasResponsibleGroups);
+        }
 
         var now = timeProvider.GetUtcNow();
         var oldValues = Snapshot(user);
@@ -185,7 +246,8 @@ public sealed class UserService(
 
     private async Task<User> FindRequiredAsync(Guid id, bool tracked, CancellationToken cancellationToken)
     {
-        var query = tracked ? dbContext.Users.AsQueryable() : dbContext.Users.AsNoTracking();
+        var query = (tracked ? dbContext.Users.AsQueryable() : dbContext.Users.AsNoTracking())
+            .Include(x => x.TeacherProfile);
         return await query.SingleOrDefaultAsync(user => user.Id == id, cancellationToken)
             ?? throw new NotFoundException("Không tìm thấy tài khoản.");
     }
@@ -195,12 +257,18 @@ public sealed class UserService(
             .Where(session => session.UserId == userId && session.RevokedAt == null)
             .ExecuteUpdateAsync(setters => setters.SetProperty(session => session.RevokedAt, now), cancellationToken);
 
-    private void AddAudit(ActorContext actor, string action, Guid entityId, object? oldValues, object? newValues) =>
+    private void AddAudit(
+        ActorContext actor,
+        string action,
+        Guid entityId,
+        object? oldValues,
+        object? newValues,
+        string entityType = "User") =>
         dbContext.AuditLogs.Add(new AuditLog
         {
             ActorUserId = actor.UserId,
             Action = action,
-            EntityType = "User",
+            EntityType = entityType,
             EntityId = entityId,
             OldValues = oldValues is null ? null : JsonSerializer.Serialize(oldValues),
             NewValues = newValues is null ? null : JsonSerializer.Serialize(newValues),

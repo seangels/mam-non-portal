@@ -37,6 +37,14 @@ public sealed partial class ApiExceptionHandler(
             ? "Đã xảy ra lỗi không mong muốn."
             : exception.Message;
         problem.Type = $"https://httpstatuses.com/{status}";
+        if (exception is AppException appException)
+        {
+            if (appException.Code is not null) problem.Extensions["code"] = appException.Code;
+            foreach (var extension in appException.Extensions)
+            {
+                problem.Extensions[extension.Key] = extension.Value;
+            }
+        }
 
         httpContext.Response.StatusCode = status;
         return await problemDetailsService.TryWriteAsync(new ProblemDetailsContext

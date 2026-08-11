@@ -18,4 +18,5 @@ public sealed class User
     public DateTimeOffset UpdatedAt { get; set; }
     public DateTimeOffset? DeletedAt { get; set; }
     public ICollection<AuthSession> AuthSessions { get; } = [];
+    public Teacher? TeacherProfile { get; set; }
 }

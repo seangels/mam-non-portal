@@ -4,6 +4,7 @@ using AdminPortal.Application.Common.Exceptions;
 using AdminPortal.Application.Common.Interfaces;
 using AdminPortal.Application.Common.Models;
 using AdminPortal.Domain.Entities;
+using AdminPortal.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
 
 namespace AdminPortal.Application.Students;
@@ -11,6 +12,8 @@ namespace AdminPortal.Application.Students;
 public sealed class StudentService(
     IApplicationDbContext dbContext,
     ICurrentActor currentActor,
+    IAttendancePersistence attendancePersistence,
+    IBusinessDateProvider businessDateProvider,
     TimeProvider timeProvider) : IStudentService
 {
     public async Task<PagedResponse<StudentResponse>> ListAsync(StudentListQuery query, CancellationToken cancellationToken)
@@ -35,6 +38,16 @@ public sealed class StudentService(
         if (query.Gender is not null) students = students.Where(student => student.Gender == query.Gender);
         if (query.DateOfBirthFrom is not null) students = students.Where(student => student.DateOfBirth >= query.DateOfBirthFrom);
         if (query.DateOfBirthTo is not null) students = students.Where(student => student.DateOfBirth <= query.DateOfBirthTo);
+        if (query.GroupId is not null && query.Unassigned == true)
+        {
+            throw new AppValidationException("Bộ lọc nhóm không hợp lệ.", new Dictionary<string, string[]>
+            {
+                ["unassigned"] = ["Không thể dùng groupId cùng unassigned=true."]
+            });
+        }
+
+        if (query.GroupId is not null) students = students.Where(student => student.GroupId == query.GroupId);
+        if (query.Unassigned == true) students = students.Where(student => student.GroupId == null);
 
         var totalItems = await students.CountAsync(cancellationToken);
         var descending = query.SortOrder.Equals("desc", StringComparison.OrdinalIgnoreCase);
@@ -98,7 +111,10 @@ public sealed class StudentService(
     {
         var actor = currentActor.GetRequired();
         AuthorizationRules.EnsurePortalManager(actor);
+        await using var transaction = await attendancePersistence.BeginTransactionAsync(cancellationToken);
+        await attendancePersistence.LockStudentAsync(id, cancellationToken);
         var student = await FindRequiredAsync(id, true, cancellationToken);
+        if (student.GroupId is not null) await attendancePersistence.LockGroupsAsync([student.GroupId.Value], cancellationToken);
         var oldValues = Snapshot(student);
         ValidateRequired(request.StudentCode, "studentCode", "Mã học sinh không được để trống.");
         ValidateRequired(request.FullName, "fullName", "Họ tên không được để trống.");
@@ -111,6 +127,15 @@ public sealed class StudentService(
             throw new ConflictException("Mã học sinh đã được sử dụng.");
         }
 
+        if (student.GroupId is not null && request.Status != StudentStatus.Active)
+        {
+            throw new ConflictException("Không thể ngừng hoạt động học sinh đang thuộc nhóm.", ProblemCodes.StudentHasCurrentGroup);
+        }
+
+        var snapshotChanged = student.GroupId is not null &&
+            (code != student.StudentCode || request.FullName.Trim() != student.FullName ||
+             request.NickName.Trim() != student.NickName || request.Status != student.Status);
+
         student.StudentCode = code;
         student.FullName = request.FullName.Trim();
         student.NickName = request.NickName.Trim();
@@ -121,8 +146,16 @@ public sealed class StudentService(
         student.GuardianPhone = NormalizeOptional(request.GuardianPhone);
         student.Note = NormalizeOptional(request.Note);
         student.UpdatedAt = timeProvider.GetUtcNow();
+        if (snapshotChanged)
+        {
+            var group = await dbContext.StudentGroups.SingleAsync(x => x.Id == student.GroupId, cancellationToken);
+            group.SnapshotVersion++;
+            group.SnapshotChangedAt = student.UpdatedAt;
+            group.UpdatedAt = student.UpdatedAt;
+        }
         AddAudit(actor, "Student.Updated", student.Id, oldValues, Snapshot(student));
         await dbContext.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
         return Map(student);
     }
 
@@ -130,18 +163,92 @@ public sealed class StudentService(
     {
         var actor = currentActor.GetRequired();
         AuthorizationRules.EnsurePortalManager(actor);
+        await using var transaction = await attendancePersistence.BeginTransactionAsync(cancellationToken);
+        await attendancePersistence.LockStudentAsync(id, cancellationToken);
         var student = await FindRequiredAsync(id, true, cancellationToken);
+        if (student.GroupId is not null)
+            throw new ConflictException("Không thể xóa học sinh đang thuộc nhóm.", ProblemCodes.StudentHasCurrentGroup);
         var oldValues = Snapshot(student);
         var now = timeProvider.GetUtcNow();
         student.DeletedAt = now;
         student.UpdatedAt = now;
         AddAudit(actor, "Student.Deleted", student.Id, oldValues, null);
         await dbContext.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+    }
+
+    public async Task<StudentResponse> AssignGroupAsync(
+        Guid id,
+        AssignStudentGroupRequest request,
+        CancellationToken cancellationToken)
+    {
+        var actor = currentActor.GetRequired();
+        AuthorizationRules.EnsurePortalManager(actor);
+        await using var transaction = await attendancePersistence.BeginTransactionAsync(cancellationToken);
+        await attendancePersistence.LockStudentAsync(id, cancellationToken);
+        var student = await FindRequiredAsync(id, true, cancellationToken);
+        if (student.GroupId == request.GroupId)
+        {
+            await transaction.CommitAsync(cancellationToken);
+            return Map(student);
+        }
+        if (await dbContext.AttendanceRecords.AnyAsync(
+            x => x.StudentId == id && x.AttendanceDate == businessDateProvider.Today,
+            cancellationToken))
+        {
+            throw new ConflictException(
+                "Không thể đổi nhóm sau khi học sinh đã có điểm danh hôm nay.",
+                ProblemCodes.StudentAlreadyRecordedToday);
+        }
+        var groupIds = new[] { student.GroupId, request.GroupId }.Where(x => x is not null).Select(x => x!.Value);
+        await attendancePersistence.LockGroupsAsync(groupIds, cancellationToken);
+        StudentGroup? group = null;
+        if (request.GroupId is not null)
+        {
+            if (student.Status != StudentStatus.Active)
+                throw new ConflictException("Chỉ có thể phân nhóm học sinh đang hoạt động.", ProblemCodes.StudentInactive);
+            group = await dbContext.StudentGroups.SingleOrDefaultAsync(x => x.Id == request.GroupId, cancellationToken)
+                ?? throw new NotFoundException("Không tìm thấy nhóm học sinh.");
+            if (group.Status != GroupStatus.Active)
+                throw new ConflictException("Nhóm không hoạt động.", ProblemCodes.GroupInactive);
+            var activeCount = await dbContext.Students.CountAsync(
+                x => x.GroupId == group.Id && x.Status == StudentStatus.Active && x.Id != id,
+                cancellationToken);
+            if (student.Status == StudentStatus.Active && activeCount >= 100)
+                throw new ConflictException("Nhóm đã đủ tối đa 100 học sinh.", ProblemCodes.GroupCapacityExceeded);
+        }
+
+        var oldGroupId = student.GroupId;
+        var now = timeProvider.GetUtcNow();
+        student.GroupId = group?.Id;
+        student.Group = group;
+        student.GroupAssignedAt = group is null ? null : now;
+        student.GroupAssignedByUserId = group is null ? null : actor.UserId;
+        student.UpdatedAt = now;
+        var affectedGroups = await dbContext.StudentGroups
+            .Where(x => x.Id == oldGroupId || x.Id == student.GroupId)
+            .ToListAsync(cancellationToken);
+        foreach (var affected in affectedGroups)
+        {
+            affected.SnapshotVersion++;
+            affected.SnapshotChangedAt = now;
+            affected.UpdatedAt = now;
+        }
+        var action = oldGroupId is null
+            ? "Student.GroupAssigned"
+            : student.GroupId is null
+                ? "Student.GroupRemoved"
+                : "Student.GroupMoved";
+        AddAudit(actor, action, student.Id, new { GroupId = oldGroupId },
+            new { student.GroupId });
+        await dbContext.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        return Map(student);
     }
 
     private async Task<Student> FindRequiredAsync(Guid id, bool tracked, CancellationToken cancellationToken)
     {
-        var query = tracked ? dbContext.Students.AsQueryable() : dbContext.Students.AsNoTracking();
+        var query = (tracked ? dbContext.Students.AsQueryable() : dbContext.Students.AsNoTracking()).Include(x => x.Group);
         return await query.SingleOrDefaultAsync(student => student.Id == id, cancellationToken)
             ?? throw new NotFoundException("Không tìm thấy học sinh.");
     }
@@ -207,6 +314,9 @@ public sealed class StudentService(
         student.GuardianName,
         student.GuardianPhone,
         student.Note,
+        student.GroupId,
+        student.Group?.Code,
+        student.Group?.Name,
         student.CreatedAt,
         student.UpdatedAt);
 

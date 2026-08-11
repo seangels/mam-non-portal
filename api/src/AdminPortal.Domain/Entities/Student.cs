@@ -14,7 +14,13 @@ public sealed class Student
     public string? GuardianName { get; set; }
     public string? GuardianPhone { get; set; }
     public string? Note { get; set; }
+    public Guid? GroupId { get; set; }
+    public StudentGroup? Group { get; set; }
+    public DateTimeOffset? GroupAssignedAt { get; set; }
+    public Guid? GroupAssignedByUserId { get; set; }
+    public User? GroupAssignedByUser { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }
     public DateTimeOffset? DeletedAt { get; set; }
+    public ICollection<AttendanceRecord> AttendanceRecords { get; } = [];
 }

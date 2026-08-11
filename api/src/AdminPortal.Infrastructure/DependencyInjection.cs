@@ -8,6 +8,10 @@ using AdminPortal.Infrastructure.Security;
 using AdminPortal.Infrastructure.Setup;
 using AdminPortal.Application.Setup;
 using AdminPortal.Domain.Entities;
+using AdminPortal.Application.Teachers;
+using AdminPortal.Application.StudentGroups;
+using AdminPortal.Application.Attendance;
+using AdminPortal.Infrastructure.Attendance;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -33,6 +37,11 @@ public static class DependencyInjection
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IUserService, UserService>();
         services.AddScoped<IStudentService, StudentService>();
+        services.AddScoped<ITeacherService, TeacherService>();
+        services.AddScoped<IStudentGroupService, StudentGroupService>();
+        services.AddScoped<IAttendanceService, AttendanceService>();
+        services.AddScoped<IAttendancePersistence, AttendancePersistence>();
+        services.AddScoped<IBusinessDateProvider, BusinessDateProvider>();
         services.AddScoped<IPasswordService, PasswordService>();
         services.AddScoped<ITokenService, TokenService>();
         services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
@@ -47,6 +56,8 @@ public static class DependencyInjection
             .Validate(options => options.AccessTokenMinutes is > 0 and <= 60, "Jwt:AccessTokenMinutes must be between 1 and 60.")
             .Validate(options => options.RefreshTokenDays is > 0 and <= 90, "Jwt:RefreshTokenDays must be between 1 and 90.")
             .ValidateOnStart();
+        services.AddOptions<AttendanceOptions>()
+            .Bind(configuration.GetSection(AttendanceOptions.SectionName));
 
         return services;
     }

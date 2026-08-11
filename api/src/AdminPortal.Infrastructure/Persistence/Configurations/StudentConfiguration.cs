@@ -22,5 +22,12 @@ internal sealed class StudentConfiguration : IEntityTypeConfiguration<Student>
             .IsUnique()
             .HasFilter("deleted_at IS NULL");
         builder.HasIndex(x => new { x.Status, x.CreatedAt, x.Id });
+        builder.HasIndex(x => new { x.GroupId, x.Status, x.Id })
+            .HasFilter("deleted_at IS NULL");
+        builder.Property(x => x.GroupAssignedByUserId).HasColumnName("group_assigned_by");
+        builder.HasOne(x => x.Group).WithMany(x => x.Students)
+            .HasForeignKey(x => x.GroupId).OnDelete(DeleteBehavior.Restrict);
+        builder.HasOne(x => x.GroupAssignedByUser).WithMany()
+            .HasForeignKey(x => x.GroupAssignedByUserId).OnDelete(DeleteBehavior.Restrict);
     }
 }

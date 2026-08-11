@@ -12,6 +12,8 @@ public sealed class StudentListQuery
     public Gender? Gender { get; init; }
     public DateOnly? DateOfBirthFrom { get; init; }
     public DateOnly? DateOfBirthTo { get; init; }
+    public Guid? GroupId { get; init; }
+    public bool? Unassigned { get; init; }
     [MaxLength(30)] public string SortBy { get; init; } = "createdAt";
     [RegularExpression("(?i)^(asc|desc)$")] public string SortOrder { get; init; } = "desc";
 }
@@ -27,8 +29,13 @@ public sealed record StudentResponse(
     string? GuardianName,
     string? GuardianPhone,
     string? Note,
+    Guid? GroupId,
+    string? GroupCode,
+    string? GroupName,
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt);
+
+public sealed record AssignStudentGroupRequest(Guid? GroupId);
 
 public sealed record CreateStudentRequest(
     [param: Required, MaxLength(50)] string StudentCode,

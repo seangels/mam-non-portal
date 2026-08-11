@@ -11,6 +11,10 @@ public sealed class AdminPortalDbContext(DbContextOptions<AdminPortalDbContext> 
     public DbSet<Student> Students => Set<Student>();
     public DbSet<AuthSession> AuthSessions => Set<AuthSession>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+    public DbSet<Teacher> Teachers => Set<Teacher>();
+    public DbSet<StudentGroup> StudentGroups => Set<StudentGroup>();
+    public DbSet<AttendanceSheet> AttendanceSheets => Set<AttendanceSheet>();
+    public DbSet<AttendanceRecord> AttendanceRecords => Set<AttendanceRecord>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

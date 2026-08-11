@@ -239,6 +239,35 @@ PUT    /api/v1/student-groups/{groupId}/responsible-teacher
 PUT    /api/v1/students/{studentId}/group
 ```
 
+Contract quản trị đã khóa:
+
+```text
+TeacherResponse {
+  id, userId, fullName, status,
+  attendanceEditWindowDays, responsibleGroupCount
+}
+
+CreateStudentGroupRequest | UpdateStudentGroupRequest {
+  code, name, status
+}
+
+StudentGroupResponse {
+  id, code, name, status,
+  responsibleTeacherId, responsibleTeacherName,
+  studentCount, snapshotVersion, createdAt, updatedAt
+}
+
+StudentResponse mở rộng {
+  groupId, groupCode, groupName
+}
+```
+
+- `GroupStatus = Active | Inactive`, serialize JSON string. Các field JSON dùng camelCase; responsible Teacher/group fields nullable khi chưa phân công.
+- `GET /teachers` nhận `page`, `pageSize`, `search`, `status`, `unassigned`, `sortBy`, `sortOrder`; `unassigned=true` nghĩa là `responsibleGroupCount = 0`. Sort whitelist: `fullName`, `status`, `attendanceEditWindowDays`, `responsibleGroupCount`.
+- Group create/update là full form metadata `{ code, name, status }`, không nhận `responsibleTeacherId`; endpoint `/responsible-teacher` là nguồn mutation duy nhất cho phân công Teacher.
+- `GET /student-groups` nhận `page`, `pageSize`, `search`, `status`, `unassigned`, `sortBy`, `sortOrder`; `unassigned=true` nghĩa là chưa có responsible Teacher. Sort whitelist: `code`, `name`, `status`, `studentCount`, `snapshotVersion`, `createdAt`.
+- Student create/update không nhận `groupId`; `GET /students` bổ sung `groupId` và `unassigned`, còn `StudentResponse` bổ sung `groupId`, `groupCode`, `groupName`. Gửi đồng thời `groupId` và `unassigned=true` trả `400`; endpoint `/students/{id}/group` là nguồn mutation group duy nhất.
+
 - Responsible-teacher request nhận `{ "teacherId": "uuid-or-null" }`; một Teacher có thể phụ trách nhiều group.
 - Student-group request nhận `{ "groupId": "uuid-or-null" }`; move chạy atomically, kiểm tra group active/cap 100 và tăng `snapshot_version` group cũ/mới.
 - Không có effective date hoặc endpoint kết thúc lịch sử; mọi thay đổi có hiệu lực ngay và được audit.
@@ -451,7 +480,7 @@ GET /api/v1/attendance/historical-recovery/student-candidates?search={text}&page
 GET /api/v1/attendance/historical-recovery/teacher-candidates?search={text}&page=1&pageSize=20
 ```
 
-- Ba endpoint trả `{ items, pagination }`, search không dấu và có thể tìm cả record inactive/soft-delete/former role để đối chiếu phiếu giấy; không trả email đăng nhập, password, session hoặc dữ liệu authentication.
+- Ba endpoint trả `{ items, pagination }`, search không phân biệt hoa/thường và có thể tìm cả record inactive/soft-delete/former role để đối chiếu phiếu giấy; không trả email đăng nhập, password, session hoặc dữ liệu authentication. Yêu cầu search tiếng Việt không dấu của màn hình chính vẫn chạy local theo mục 8.
 - Group item gồm `id`, `code`, `name`, `status`, `isDeleted`; endpoint này là nguồn chọn group inactive/soft-delete chưa có Saved sheet, vốn không xuất hiện trong context thông thường.
 - Student item gồm `id`, `studentCode`, `fullName`, `nickName`, `status`, `isDeleted`, `currentGroupId`. Teacher item gồm `id`, `userId`, `fullName`, `status`, `isDeleted`, `isCurrentTeacherRole`.
 - Chỉ dùng cho recovery picker; không thay đổi semantics các list quản trị hiện hành và không tự suy diễn ai thuộc roster lịch sử.

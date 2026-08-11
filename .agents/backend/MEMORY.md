@@ -5,15 +5,15 @@
 ## Trạng thái gần nhất
 
 - Cập nhật: 2026-08-11.
-- Backend feature scope trong `api/plan.md` đã hoàn tất: setup SuperAdmin một lần, auth/session, phân quyền, User CRUD, Student CRUD, audit/retention, health/OpenAPI, Docker local, migration và maintenance.
-- Baseline xác minh gần nhất: solution build `0 warning / 0 error`; unit test `11/11`; integration test PostgreSQL Testcontainers `8/8`; EF báo không có pending model changes.
-- Integration suite gồm cả setup database rỗng, hai request setup đồng thời chỉ một thành công, login/auth/CSRF/revoke, phân quyền, User/Student CRUD, conflict, soft delete/reuse code và pagination/filter/sort.
+- Backend feature scope trong `api/plan.md` và attendance epic trong `api/attendance-plan.md` đã hoàn tất: Teacher profile/policy, StudentGroup/current roster, attendance Missing/Saved, full POST/PUT, historical recovery, audit/concurrency và migration.
+- Baseline xác minh gần nhất: solution build `0 warning / 0 error`; unit test `23/23`; integration test PostgreSQL 17 Testcontainers Release `15/15`; EF báo không có pending model changes.
+- Integration attendance gồm Missing GET không ghi, full first-save/PUT, immutable snapshot, stale version/snapshot, Teacher A/B scope/window, historical recovery, lifecycle conflict, audit không raw notes, concurrent first-save/cap 100 và rehearsal nâng DB có dữ liệu từ InitialCreate lên attendance migration.
 - Không có blocker backend đã biết tại thời điểm snapshot. Trước mỗi task phải kiểm tra `git status`, `tasks.md` và source vì trạng thái này có thể đã thay đổi.
 
 ## Bản đồ code
 
-- `api/src/AdminPortal.Domain`: `User`, `Student`, `AuthSession`, `AuditLog` và enum.
-- `api/src/AdminPortal.Application`: use case/DTO/rule/interface; service auth, users, students; không phụ thuộc EF implementation.
+- `api/src/AdminPortal.Domain`: thêm `Teacher`, `StudentGroup`, `AttendanceSheet`, `AttendanceRecord` và attendance/group enum.
+- `api/src/AdminPortal.Application`: thêm feature `Teachers`, `StudentGroups`, `Attendance`, business rules và machine-readable `ProblemCodes`; không phụ thuộc EF implementation.
 - `api/src/AdminPortal.Infrastructure`: Npgsql/EF Core, mapping/migration, password/JWT, setup transaction và DI.
 - `api/src/AdminPortal.Api`: controller, JWT/session validation, CSRF, CORS/rate limit, ProblemDetails, logging, OpenAPI và health.
 - `api/tests/AdminPortal.UnitTests`: authorization/validation rules.
@@ -28,6 +28,8 @@
 - Auth: `POST /auth/login`, `GET /auth/csrf`, `POST /auth/refresh`, `POST /auth/logout`, `GET /auth/me`.
 - Login/refresh trả access token, `expiresIn`, `csrfToken`, user. Access token giữ ở memory phía UI; refresh cookie là Secure/HttpOnly/SameSite=None; CSRF gửi qua `X-CSRF-TOKEN`.
 - Users và students dùng GET list/detail, POST create, `PUT` full replacement, DELETE soft-delete. User có thêm `PUT /users/{id}/password`.
+- Teacher management: GET list/detail và `PUT /teachers/{id}/attendance-policy`; policy 1–7 ngày. StudentGroup có CRUD, responsible-teacher endpoint; Student có endpoint group riêng và response/filter group.
+- Attendance: GET context/daily; POST sheet full roster; PUT sheet full replacement; Admin/SuperAdmin historical-recovery và ba candidate API. DTO/date/query chính xác nằm trong `api/attendance-plan.md` section 7.
 - Pagination mặc định page 1/pageSize 20, tối đa 100. User sort whitelist: `email`, `fullName`, `role`, `status`, `createdAt`. Student: `studentCode`, `fullName`, `nickName`, `dateOfBirth`, `gender`, `status`, `createdAt`.
 - `UserStatus`: `Active`, `Inactive`, `Locked`; `StudentStatus`: `Active`, `Inactive`; `Gender`: `Male`, `Female`, `Other` hoặc null.
 - Role rule: SuperAdmin quản lý Admin/Teacher; Admin chỉ Teacher; Teacher không quản trị. User list không trả SuperAdmin và User CRUD không quản lý SuperAdmin.
@@ -39,6 +41,9 @@
 - Password policy: tối thiểu 12 ký tự, có chữ hoa, chữ thường, số và ký tự đặc biệt. Login lockout sau 5 lần sai trong 15 phút. Không tiết lộ lý do auth chi tiết cho client.
 - Setup dùng PostgreSQL transaction advisory lock `SetupService` và `IgnoreQueryFilters()` để chống race/mở lại setup sau soft delete.
 - User/Student dùng global soft-delete query filter. Unique normalized email và student code là partial unique index trên `deleted_at IS NULL`; student code có thể tái sử dụng sau delete.
+- Mọi snapshot mutation lock group row (nhiều group theo UUID tăng dần) và tăng `snapshot_version`; create sheet cũng lock group. PUT sheet lock row và dùng `expectedVersion`; conflict trả `ProblemDetails.code` cùng version hiện tại khi có.
+- Missing daily chỉ là preview Present và không ghi DB. Saved sheet giữ identity snapshot độc lập dữ liệu hiện tại. Attendance records luôn persisted kể cả Present; không có DELETE sheet/record v1.
+- Ngày nghiệp vụ mặc định `Asia/Ho_Chi_Minh`; Teacher dùng policy riêng, Admin/SuperAdmin thao tác mọi ngày không tương lai. Recovery chỉ dành manager khi standard historical snapshot không khả dụng.
 - Audit không chứa password/token/secret. Request logger không log body. Cleanup chạy bên ngoài API, theo batch và an toàn khi chạy lại.
 - CORS chỉ dùng allow-list origin cụ thể với credentials, không wildcard. Cookie cross-site yêu cầu HTTPS cho cả API/UI.
 
@@ -49,7 +54,8 @@
 - Validation attribute trên positional request record phải dùng target `[param: ...]` với ASP.NET Core 10.
 - `AuthSession` cần query filter tương thích soft-delete navigation `User`; bỏ nó sẽ tạo warning required-navigation và có thể làm lệch semantics session.
 - Middleware request logging phải bọc exception handler đúng thứ tự để log status đã map (ví dụ setup conflict là 409, không phải 200).
-- Không sửa/xóa EF Designer hoặc `AdminPortalDbContextModelSnapshot.cs`. Baseline hiện có đúng một migration `20260811000000_InitialCreate`; model change cần migration mới và pending-model check.
+- Không sửa/xóa EF Designer hoặc `AdminPortalDbContextModelSnapshot.cs`. Migration hiện có: `20260811000000_InitialCreate` và EF-generated `20260811130802_AddAttendanceFoundation`; migration mới backfill profile cho user role Teacher, dùng `smallint` policy, `integer` snapshot/sheet version, partial roster index và không seed group/sheet.
+- EF tooling hiện cảnh báo required navigation trỏ tới entity có soft-delete query filter (`Teacher/User`, attendance `Student/User`). Đây là chủ ý: FK lịch sử vẫn non-null + RESTRICT; các query recovery/history dùng `IgnoreQueryFilters`. Pending-model check vẫn sạch.
 
 ## Build, test và migration nhanh
 

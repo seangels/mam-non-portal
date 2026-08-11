@@ -12,6 +12,9 @@ RESTful API quản trị user và student, xây dựng bằng .NET 10, ASP.NET C
 - Phân quyền `SuperAdmin`, `Admin`, `Teacher`.
 - User CRUD, đổi mật khẩu, soft delete, pagination/filter/sort.
 - Student CRUD, soft delete, pagination/filter/sort và tái sử dụng student code sau khi xóa.
+- Teacher profile và policy cửa sổ sửa điểm danh 1–7 ngày.
+- Student group, phân công giáo viên/học sinh hiện tại, giới hạn 100 học sinh và snapshot version.
+- Điểm danh theo ngày với trạng thái Missing/Saved, full-roster first-save/full PUT, immutable identity snapshot và historical recovery có kiểm soát.
 - Audit log, ProblemDetails, rate limit, lockout, OpenAPI và health checks.
 - Cleanup retention độc lập: audit 90 ngày, auth session 30 ngày.
 
@@ -67,6 +70,7 @@ Các cấu hình bắt buộc/quan trọng:
 | `Jwt__SigningKey` | Khóa ngẫu nhiên ít nhất 32 ký tự |
 | `Security__AllowedOrigins__0` | Origin đầy đủ của UI, không dùng wildcard |
 | `Database__MigrateOnStartup` | `true` nếu instance chịu trách nhiệm apply migration |
+| `Attendance__BusinessTimeZone` | Múi giờ ngày nghiệp vụ, mặc định `Asia/Ho_Chi_Minh` |
 
 ### Quản lý migration
 
@@ -142,6 +146,27 @@ POST   /api/v1/students
 GET    /api/v1/students/{id}
 PUT    /api/v1/students/{id}
 DELETE /api/v1/students/{id}
+PUT    /api/v1/students/{id}/group
+
+GET    /api/v1/teachers
+GET    /api/v1/teachers/{id}
+PUT    /api/v1/teachers/{id}/attendance-policy
+
+GET    /api/v1/student-groups
+POST   /api/v1/student-groups
+GET    /api/v1/student-groups/{id}
+PUT    /api/v1/student-groups/{id}
+DELETE /api/v1/student-groups/{id}
+PUT    /api/v1/student-groups/{id}/responsible-teacher
+
+GET    /api/v1/attendance/context
+GET    /api/v1/attendance/daily
+POST   /api/v1/attendance/sheets
+PUT    /api/v1/attendance/sheets/{sheetId}
+POST   /api/v1/attendance/sheets/historical-recovery
+GET    /api/v1/attendance/historical-recovery/group-candidates
+GET    /api/v1/attendance/historical-recovery/student-candidates
+GET    /api/v1/attendance/historical-recovery/teacher-candidates
 ```
 
 Hai setup endpoint không yêu cầu đăng nhập. POST được rate limit và chỉ hoạt động khi bảng `users` hoàn toàn rỗng, kể cả khi xét các bản ghi đã soft delete. Mật khẩu SuperAdmin phải đạt password policy chung: tối thiểu 12 ký tự, có chữ hoa, chữ thường, số và ký tự đặc biệt.
@@ -157,6 +182,23 @@ User sort: `email`, `fullName`, `role`, `status`, `createdAt`.
 Student sort: `studentCode`, `fullName`, `nickName`, `dateOfBirth`, `gender`, `status`, `createdAt`.
 
 Enum được gửi/nhận dưới dạng chuỗi. `StudentStatus` chỉ có `Active` và `Inactive`; `Gender` có `Male`, `Female`, `Other` hoặc `null`.
+
+### Contract điểm danh
+
+- Ngày nghiệp vụ dùng `Asia/Ho_Chi_Minh`; mọi role bị chặn mutation ngày tương lai. Teacher chỉ thao tác group đang phụ trách và trong policy riêng 1–7 ngày.
+- `GET /attendance/daily` không ghi database. Khi chưa có phiếu, API trả `sheetState=Missing` và preview toàn roster là `Present`; chỉ `POST /attendance/sheets` mới xác nhận/lưu phiếu.
+- POST lần đầu và PUT cập nhật đều nhận đúng full roster, tối đa 100 record. POST dùng `expectedSnapshotVersion`; PUT dùng `expectedVersion`. Conflict trả `ProblemDetails.code` ổn định như `SnapshotChanged` hoặc `SheetVersionConflict`.
+- Trạng thái hỗ trợ: `Present`, `AbsentFullDay`, `AbsentHalfDay`, `OneToOneHour`; các field `halfDayPart`, `isExcused`, `durationMinutes` phải đúng bảng điều kiện trong `attendance-plan.md`.
+- Phiếu đã lưu giữ snapshot code/name/nickname của group, Teacher và Student. Rename/move/soft-delete dữ liệu hiện tại không sửa phiếu cũ.
+- Historical recovery chỉ dành cho Admin/SuperAdmin khi không thể chứng minh current snapshot của ngày quá khứ; bắt buộc acknowledgment, reason, Teacher và danh sách Student rõ ràng.
+
+Migration `AddAttendanceFoundation` tạo toàn bộ schema attendance, backfill Teacher profile cho user role `Teacher` hiện có và để `group_id` của Student hiện tại là `null`. Không seed group hoặc attendance sheet. Trước khi release nên chạy:
+
+```powershell
+dotnet tool run dotnet-ef migrations has-pending-model-changes `
+  --project src/AdminPortal.Infrastructure `
+  --startup-project src/AdminPortal.Api
+```
 
 ## OpenAPI, lỗi và health check
 

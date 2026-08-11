@@ -9,6 +9,10 @@ public interface IApplicationDbContext
     DbSet<Student> Students { get; }
     DbSet<AuthSession> AuthSessions { get; }
     DbSet<AuditLog> AuditLogs { get; }
+    DbSet<Teacher> Teachers { get; }
+    DbSet<StudentGroup> StudentGroups { get; }
+    DbSet<AttendanceSheet> AttendanceSheets { get; }
+    DbSet<AttendanceRecord> AttendanceRecords { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

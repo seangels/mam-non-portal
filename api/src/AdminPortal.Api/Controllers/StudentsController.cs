@@ -40,6 +40,14 @@ public sealed class StudentsController(IStudentService studentService) : Control
         CancellationToken cancellationToken) =>
         Ok(await studentService.UpdateAsync(id, request, cancellationToken));
 
+    [HttpPut("{id:guid}/group")]
+    [ProducesResponseType<StudentResponse>(StatusCodes.Status200OK)]
+    public async Task<ActionResult<StudentResponse>> AssignGroup(
+        Guid id,
+        AssignStudentGroupRequest request,
+        CancellationToken cancellationToken) =>
+        Ok(await studentService.AssignGroupAsync(id, request, cancellationToken));
+
     [HttpDelete("{id:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
