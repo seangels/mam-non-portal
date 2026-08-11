@@ -275,13 +275,13 @@ QA/Integration:
 - [x] `TCH-P-01`. Rà soát hiện trạng User/Teacher/Group/Attendance và các bề mặt UI hiện có
 - [x] `TCH-P-02`. Lập kế hoạch cross-stack có mã từng đợt tại `plans/03-TCH-teacher-management.md`
 - [x] `TCH-P-03`. Đã review và chốt `TCH-DEC-01`–`TCH-DEC-12`
-- [ ] `TCH-00`. Khóa field ownership, REST/OpenAPI, wireflow và test traceability
-- [ ] `TCH-01`. Schema/migration/backfill, danh sách và chi tiết giáo viên
-- [ ] `TCH-02`. Atomic create, full update, validation và concurrency
-- [ ] `TCH-03`. Password, soft-delete, session và chuyển mutation khỏi User CRUD
-- [ ] `TCH-04`. Hợp nhất policy điểm danh và UX nhóm phụ trách
-- [ ] `TCH-05`. Audit/privacy, responsive, accessibility và hardening
-- [ ] `TCH-06`. Regression, tài liệu và bàn giao
+- [x] `TCH-00`. Khóa field ownership, REST/OpenAPI, wireflow và test traceability
+- [x] `TCH-01`. Schema/migration/backfill, danh sách và chi tiết giáo viên
+- [x] `TCH-02`. Atomic create, full update, validation và concurrency
+- [x] `TCH-03`. Password, soft-delete, session và chuyển mutation khỏi User CRUD
+- [x] `TCH-04`. Giữ policy điểm danh hiện tại và đồng bộ concurrency/UX nhóm
+- [x] `TCH-05`. Audit/privacy, responsive, accessibility và hardening
+- [x] `TCH-06`. Regression, tài liệu và bàn giao
 
 ### Teacher management planning log
 
@@ -294,6 +294,64 @@ QA/Integration:
 - Trước khi chốt `TCH-DEC-09`, plan đã mô tả cụ thể server-side search không dấu bằng PostgreSQL `unaccent`, tác động remote paging, quyền extension, benchmark và hướng `pg_trgm` nếu dữ liệu lớn.
 - `TCH-DEC-09` chốt lần đầu dùng PostgreSQL `unaccent`, sau đó được thay thế theo quyết định mới ngay dưới đây.
 - `TCH-DEC-09` cập nhật cuối (2026-08-11): vẫn bắt buộc search không dấu/case-insensitive tại server nhưng normalize/lọc ở tầng .NET API; không cài PostgreSQL extension. API lọc toàn bộ candidate trước khi tính `totalItems`/paging. Quy mô được xác nhận dưới 50 Teacher nên không cần guard/error riêng; vẫn có benchmark/log để phát hiện khi giả định này không còn đúng.
+
+### Teacher management implementation status
+
+Backend:
+
+- [x] `TCH-BE-00`. Khóa DTO/endpoint/authorization/ProblemDetails/OpenAPI contract
+- [x] `TCH-BE-01`. Entity/config/migration/backfill/unique/version
+- [x] `TCH-BE-02`. List/detail và API-layer search không dấu
+- [x] `TCH-BE-03`. Atomic create với mã tự nhập
+- [x] `TCH-BE-04`. Full PUT, shared User coordinator và concurrency
+- [x] `TCH-BE-05`. Password/delete/session/User CRUD boundary
+- [x] `TCH-BE-06`. Policy endpoint dùng expectedVersion chung
+- [x] `TCH-BE-07`. Audit/privacy/performance/OpenAPI hardening
+- [x] `TCH-BE-08`. Unit/integration/docs/final verification
+
+Frontend:
+
+- [x] `TCH-FE-00`. Khóa models/wireflow/route/permission/dictionary tiếng Việt
+- [x] `TCH-FE-01`. Navigation, list/filter/paging
+- [x] `TCH-FE-02`. Teacher detail và nhóm phụ trách read-only
+- [x] `TCH-FE-03`. Create/edit, mã tự nhập/sửa, validation và dirty guard
+- [x] `TCH-FE-04`. Password/delete và chuyển User UI về tài khoản Admin
+- [x] `TCH-FE-05`. Giữ policy tại trang Nhóm và đồng bộ version conflict
+- [x] `TCH-FE-06`. Responsive/accessibility/error/search hardening
+- [x] `TCH-FE-07`. Unit tests/docs/final verification
+
+QA/Integration:
+
+- [x] `TCH-QA-00`. Traceability contract/backend/frontend/test
+- [x] `TCH-QA-01`. Migration/read/search/paging
+- [x] `TCH-QA-02`. Create/update/code/concurrency/snapshot
+- [x] `TCH-QA-03`. Auth/password/delete/session/User boundary
+- [x] `TCH-QA-04`. Policy/group/attendance regression
+- [x] `TCH-QA-05`. Privacy/a11y/mobile/network/race/performance
+- [x] `TCH-QA-06`. Full development build/test, docs và final review
+
+### Teacher management implementation log
+
+- Bắt đầu `TCH-00` (2026-08-11): worktree sạch tại `a973259`; .NET SDK 10.0.302 và Node 20.11.0 sẵn sàng. Giao backend sở hữu `api/`, frontend sở hữu `ui/`; root điều phối contract/task/commit. Không chạy production skill.
+- `TCH-BE-00`: khóa `/teachers` CRUD canonical, DTO rút gọn đúng plan, Admin/SuperAdmin authorization và stable ProblemCodes. User CRUD cũ trả `409 TeacherMustBeManagedViaTeachers` khi mutation Teacher; password endpoint vẫn độc lập. Policy route hiện tại nhận thêm `expectedVersion`; search không dấu xử lý tại .NET trước total/paging và không dùng DB extension.
+- `TCH-FE-00`: exact backend contract đã align; thêm models/service cho list/detail/create/full PUT/delete/password/policy, group filters, version và dictionary lỗi tiếng Việt; khóa routes/guards/dirty wireflow. Angular development build đạt 10,93 MB, hash `0ce5d75b9be7434b`.
+- `TCH-00` hoàn tất: backend/frontend DTO, permission, error và route contract thống nhất; test matrix trong plan bao phủ migration/search/concurrency/lifecycle/UI. Chuyển vertical slice `TCH-01`.
+- `TCH-FE-01`: sidebar hiển thị `Giáo viên` cho Admin/SuperAdmin, `Tài khoản quản trị` chỉ SuperAdmin; Teacher list dùng CustomStore remote paging/sort/filter/search với server `totalItems`, debounce 300 ms, reset trang và adaptive grid. Development build tiếp tục đạt.
+- `TCH-FE-02`: detail có state loading/retry/403/404/network bằng tiếng Việt; profile/account/policy và nhóm phụ trách đều read-only, CTA dẫn sang trang Nhóm. Edit/password/delete dùng đúng `teacherId`/`userId`/`version`; không tạo mutation group/policy thứ hai.
+- `TCH-BE-01`: entity/config và EF migration `20260811150730_AddTeacherManagement` thêm editable `teacher_code` max 50/unique/uppercase check, nullable `note` max 2.000 và concurrency `version` >=1; backfill deterministic `GV-MIG-{UUID}` trước NOT NULL, không sequence/`unaccent`/search column. API build 0 warning/error; EF no pending model changes, chỉ còn warning query-filter lịch sử đã biết.
+- `TCH-BE-02`: list/detail project User–Teacher–Group đúng DTO, filter status/group/unassigned, whitelist 8 sort field + id tie-break. Blank search dùng DB paging; search có giá trị materialize candidate sau structured filter, normalize FormD/combining marks/`đ→d`/case/whitespace và phone digits trước exact total/paging. Telemetry không ghi term/PII; API build 0 warning/error.
+- `TCH-FE-03`: create/edit page riêng có teacherCode tự nhập/sửa và normalize uppercase, User fields + note, password/confirm chỉ khi tạo, nullable clear, full PUT `expectedVersion`, double-submit và dirty route/beforeunload guard. Validation focus field đầu; conflict 409 giữ draft và có CTA tải bản server.
+- `TCH-BE-03`: POST Teacher tạo atomic User role Teacher + profile version 1/policy 7; mã tự nhập normalize uppercase, note nullable, shared password policy, 201 + Location/detail. Duplicate email/code race map stable conflict và rollback toàn transaction; build sạch.
+- `TCH-BE-04`: full PUT dùng shared User coordinator và lock Teacher→User→groups sorted; stale trả 409/currentVersion. Code editable, phone/note null-clear, status revoke session; chỉ fullName tăng snapshot các group, toàn bộ update atomic và version +1; build sạch.
+- `TCH-BE-05`: DELETE dùng query `expectedVersion`, chặn khi còn group, soft-delete User/revoke sessions nhưng giữ Teacher/code/history và version +1. User list/create/update/delete chuyển sang Admin-account surface; mutation Teacher trả `TeacherMustBeManagedViaTeachers`, password Teacher vẫn độc lập; build sạch.
+- `TCH-BE-06`: policy route/UI giữ nguyên; body nhận policy + expectedVersion, dùng chung Teacher concurrency, tăng version +1 và trả full detail. Stale 409/currentVersion; range lỗi có `InvalidAttendanceEditWindow`; không tăng group snapshot.
+- `TCH-FE-04`: password dùng đúng `userId`; delete gửi query `expectedVersion` với confirm/copy soft-delete. `/users` chỉ SuperAdmin, cố định role Admin, bỏ mọi khả năng tạo/sửa Teacher và đổi nhãn `Tài khoản quản trị`.
+- `TCH-FE-05`: giữ tab policy và group assignment tại `/student-groups`; policy gửi row version, conflict 409 giữ popup và cho tải bản mới. Teacher detail chỉ đọc/deep-link sang policy. Development build đạt, hash `512a70a0ef434a52`.
+- `TCH-FE-06`: adaptive grid/mobile forms/cards, labels/ARIA, toàn bộ Teacher errors và 403/404/network/retry bằng tiếng Việt; không local accent filter, conflict giữ draft. ChromeHeadlessCI 34/34 pass (chỉ known DevExtreme W0019/Inferno dependency warning); development build pass hash `512a70a0ef434a52`. FE-07 đang audit docs/memory/final delta, không production build.
+- `TCH-FE-07`: hoàn tất docs/memory và bộ test frontend tăng lên 36/36 ChromeHeadlessCI; Angular development build pass 10,93 MB, hash `8b065f3873e100ee`. Diff-check phần `ui/` sạch; không chạy production/IIS/package/deploy.
+- `TCH-BE-07`: thêm test search không dấu/literal/exact paging, full PUT/policy/version/group snapshot, lifecycle/session/User boundary, race và validation. Audit Teacher chỉ giữ ID, mã nghiệp vụ, trạng thái/presence/version/changedFields; không lưu raw note, email, họ tên, điện thoại, password hoặc request body.
+- `TCH-BE-08`: solution build 0 warning/error; unit 32/32; PostgreSQL 17 Testcontainers Release 20/20, gồm fresh migration và nâng cấp `InitialCreate` → `AddAttendanceFoundation` → `AddTeacherManagement`; EF báo không có model change chưa migrate. README, `requests.http` và backend memory đã đồng bộ.
+- `TCH-QA-06`: TCH hoàn tất toàn bộ `TCH-00`–`TCH-06`; frontend development build + 36/36 test và backend gates đều xanh. `git diff --check` sạch; production/IIS build, package và deploy không được gọi trong epic này.
 
 ## Tổ chức thư mục kế hoạch — owner: `root`
 

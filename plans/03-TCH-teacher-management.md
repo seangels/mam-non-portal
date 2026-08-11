@@ -4,7 +4,7 @@
 
 - **Epic:** `TCH`
 - **Thứ tự:** `03`
-- **Trạng thái:** `TCH-DEC-01`–`12` đã chốt; sẵn sàng triển khai `TCH-00`.
+- **Trạng thái:** Đã triển khai và kiểm thử hoàn tất `TCH-00`–`TCH-06`.
 - **Ngày lập:** 2026-08-11.
 - **Phạm vi:** .NET 10 REST API, PostgreSQL 17 và Angular/DevExtreme UI.
 - **Contract nền:** [`01-BASE-admin-portal.md`](01-BASE-admin-portal.md) và [`02-ATT-attendance.md`](02-ATT-attendance.md).
@@ -428,7 +428,7 @@ Có loading, empty, 403, 404, retry và trace reference bằng nội dung tiến
 
 ### `TCH-02` — Create/update aggregate
 
-- `TCH-BE-03`: atomic create User + Teacher, generated code và rollback conflict.
+- `TCH-BE-03`: atomic create User + Teacher, mã do người dùng nhập và rollback conflict.
 - `TCH-BE-04`: full PUT, shared User coordinator, validation, version conflict và group snapshot.
 - `TCH-FE-03`: create/edit form, field mapping, validation và dirty guard.
 - `TCH-QA-02`: create/update/nullable clear/duplicate/concurrency/snapshot tests.

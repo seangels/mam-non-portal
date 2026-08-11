@@ -15,9 +15,11 @@ Last updated: 2026-08-11
 - Access tokens stay in UI memory. Refresh token is a host-only `HttpOnly`, `Secure`, `SameSite=None` cookie.
 - Login/refresh return `accessToken`, `expiresIn`, `csrfToken`, and `user`. UI sends `X-CSRF-TOKEN` for refresh/logout and uses credentials for cookie requests.
 - First-run setup endpoints: `GET /setup/status` and `POST /setup/super-admin`. UI routes to `/#/setup` only when no user record exists. Setup is one-time, rate-limited, and concurrency-protected by a PostgreSQL advisory transaction lock.
-- User and student update endpoints use full `PUT` replacement. Lists return `{ items, pagination }` and use server pagination/filter/sort.
+- User, student, and Teacher update endpoints use full `PUT` replacement. Lists return `{ items, pagination }` and use server pagination/filter/sort.
 - Roles: `SuperAdmin`, `Admin`, `Teacher`. User statuses: `Active`, `Inactive`, `Locked`. Student statuses: `Active`, `Inactive`.
 - Attendance uses current `StudentGroup` assignments (no `effective_from`/`effective_to`) and persisted full daily snapshots, including `Present`. Group snapshot version protects roster/identity; sheet version protects full PUT replacement. Only the current responsible Teacher may read/write their groups; Admin/SuperAdmin also have audited historical recovery.
+- Teacher management is canonical at `/teachers` for Admin/SuperAdmin. `Teacher` stores editable user-entered `teacherCode`, nullable `note`, aggregate `version`, attendance policy and timestamps; account fields remain in `User`. Full PUT, policy PUT and DELETE use `expectedVersion`. Group assignment/policy UI remain under `student-groups`; User CRUD only manages Admin accounts, while Teacher password changes still use `/users/{userId}/password`.
+- Teacher list search is accent/case-insensitive literal substring search in the .NET API after structured DB filters and before exact total/paging. Do not install PostgreSQL `unaccent` or add search schema for v1; the confirmed scale is below 50 Teachers.
 
 ## Deployment decision
 
@@ -35,10 +37,10 @@ Last updated: 2026-08-11
 ## Last verified baseline
 
 - Backend build: 0 warnings/errors.
-- Backend unit tests: 23/23 passed.
-- Backend PostgreSQL 17/Testcontainers integration tests in Release: 15/15 passed, including an automated migration upgrade rehearsal with legacy Teacher/Student data.
-- EF Core reports no pending model changes. The attendance migration is `20260811130802_AddAttendanceFoundation`.
-- Frontend production/IIS AOT builds passed; frontend ChromeHeadlessCI tests: 21/21 passed.
+- Backend unit tests: 32/32 passed.
+- Backend PostgreSQL 17/Testcontainers integration tests in Release: 20/20 passed, including fresh startup and automated `InitialCreate` → attendance → Teacher-management upgrade rehearsal.
+- EF Core reports no pending model changes. The latest migration is `20260811150730_AddTeacherManagement`.
+- Frontend development build passed for the TCH source and ChromeHeadlessCI tests: 36/36. Production/IIS AOT was intentionally not rerun during TCH; the last explicit production verification remains the earlier ATT/deployment baseline.
 - PowerShell 5.1 parser passed for IIS scripts. Build/PrepareOnly and package checksum/content verification passed.
 - The last generated package in the current workspace was `release/gv-portal-iis-20260811-132500.zip` (6,935,733 bytes) with SHA-256 `389E4D5CD4510A377AF41C83A20BA7C7C68C41543B8ED85647D04DFADD07C523`. It contains 103 entries, the expected API/UI HTTPS bundle, and no source/PDB/Development config/secret file. Rebuild rather than assuming this ignored file exists elsewhere.
 
@@ -54,6 +56,6 @@ Last updated: 2026-08-11
 
 - Project custom agents are defined as `backend` and `frontend` under `.codex/agents/`; root and nested `AGENTS.md` files define their scope.
 - Attendance epic `ATT` at `plans/02-ATT-attendance.md` is implemented and verified. Storage uses full daily `attendance_sheets` + `attendance_records`, including persisted `Present`; Missing is not attendance. Current group/student assignment has no `effective_from/effective_to`; saved sheets snapshot group, responsible Teacher and Student fields. Group `snapshotVersion` protects all snapshot inputs and historical creation. Sheet provenance is `CurrentSnapshot` or `HistoricalRecovery`; recovery has no source version, persists its reason beyond the 90-day audit window, and is restricted to an acknowledged Admin/SuperAdmin flow with historical candidate lookup. Teacher edit window is 1–7 days per profile; groups max at 100 with 8–10 cards/viewport and scrolling. Attendance data is retained; change audit remains 90 days. All user-visible and accessibility UI text is Vietnamese-only; English API identifiers/error codes are mapped centrally and never rendered raw.
-- Teacher management epic `TCH` plan at `plans/03-TCH-teacher-management.md` is fully locked (`TCH-DEC-01`–`12`) and ready for `TCH-00`; no product implementation has started. Teacher only adds editable user-entered `teacherCode`, nullable `note`, and aggregate `version` to the existing identity/policy/timestamps; account fields stay in User; `/teachers` is canonical; group assignment and attendance policy stay in `student-groups`; no HR fields/self-service/upload/start date; soft-delete/history and `expectedVersion` remain. Accent/case-insensitive search runs in the .NET API over all structured-filter candidates before total/paging; do not install PostgreSQL `unaccent` or add search schema/index in v1. Product scale is confirmed below 50 Teachers, so no hard guard/error is needed; keep candidate-count/duration telemetry and revisit if scale changes.
+- Teacher management epic `TCH` at `plans/03-TCH-teacher-management.md` is implemented and verified. Teacher only adds editable user-entered `teacherCode`, nullable `note`, and aggregate `version` to the existing identity/policy/timestamps; account fields stay in User; `/teachers` is canonical; group assignment and attendance policy stay in `student-groups`; no HR fields/self-service/upload/start date. Soft-delete keeps Teacher/code/history and revokes User sessions; full PUT/policy/delete share optimistic versioning. Accent/case-insensitive search runs in the .NET API over all structured-filter candidates before exact total/paging; no PostgreSQL `unaccent` or search schema/index is used. Product scale is confirmed below 50 Teachers; candidate-count/duration telemetry remains the signal to revisit this approach.
 - Runtime subagent processes must be recreated in a new chat, then resume from these repository files.
 - Future backend/frontend agents should update their role memory and this file if they change a cross-stack contract or deployment behavior.
