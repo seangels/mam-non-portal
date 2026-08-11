@@ -4,8 +4,8 @@
 
 - **Epic:** `SCH`
 - **Thứ tự:** `04`
-- **Trạng thái:** Bản đề xuất đang review, chưa triển khai; chờ khóa `SCH-DEC-01`–`SCH-DEC-08`.
-- **Ngày lập:** 2026-08-11.
+- **Trạng thái:** Đã triển khai và xác minh `SCH-00`–`SCH-05` ngày 2026-08-12.
+- **Ngày lập:** 2026-08-11; bắt đầu triển khai 2026-08-12.
 - **Phạm vi:** .NET 10 REST API, PostgreSQL 17 và Angular 15/DevExtreme.
 - **Contract nền:** [`01-BASE-admin-portal.md`](01-BASE-admin-portal.md), [`02-ATT-attendance.md`](02-ATT-attendance.md) và [`03-TCH-teacher-management.md`](03-TCH-teacher-management.md).
 
@@ -499,7 +499,7 @@ Contract thay đổi có chủ đích:
 - Cập nhật docs, tasks và agent memory.
 - Production/IIS chỉ chạy khi gọi skill riêng.
 
-## 14. Các quyết định cần khóa
+## 14. Các quyết định đã khóa
 
 | Mã | Quyết định | Đề xuất |
 |---|---|---|
@@ -512,7 +512,7 @@ Contract thay đổi có chủ đích:
 | `SCH-DEC-07` | Chủ nhật hoặc ngày không có scheduled Student | Không cho tạo empty sheet; trả `NoScheduledStudents` |
 | `SCH-DEC-08` | Phân nhóm lúc create hay action riêng? | Action riêng dùng endpoint `/students/{id}/group`; giữ một mutation surface |
 
-Không bắt đầu `SCH-00` cho đến khi tám quyết định trên được user xác nhận hoặc điều chỉnh.
+Ngày 2026-08-12, yêu cầu `Thực thi plan SCH` được xác nhận là chấp thuận cả tám phương án trên. Mọi deviation trong lúc triển khai phải được ghi rõ và xin lại quyết định nếu làm thay đổi nghiệp vụ.
 
 ## 15. Definition of Done
 

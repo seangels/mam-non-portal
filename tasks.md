@@ -366,13 +366,13 @@ QA/Integration:
 
 - [x] `SCH-P-01`. Rà hiện trạng Student/Group/Attendance API và UI
 - [x] `SCH-P-02`. Tạo plan cross-stack có mã đợt tại `plans/04-SCH-student-groups-study-schedule.md`
-- [~] `SCH-P-03`. Review và khóa `SCH-DEC-01`–`SCH-DEC-08`
-- [ ] `SCH-00`. Khóa schema/REST/wireflow/attendance semantics/test traceability
-- [ ] `SCH-01`. Migration, Student schedule CRUD và optimistic concurrency
-- [ ] `SCH-02`. Phân/chuyển/gỡ nhóm tại trang Học sinh
-- [ ] `SCH-03`. Tích hợp scheduled roster vào attendance
-- [ ] `SCH-04`. Audit, responsive/accessibility và hardening
-- [ ] `SCH-05`. Full regression, tài liệu và bàn giao
+- [x] `SCH-P-03`. Review và khóa `SCH-DEC-01`–`SCH-DEC-08`
+- [x] `SCH-00`. Khóa schema/REST/wireflow/attendance semantics/test traceability
+- [x] `SCH-01`. Migration, Student schedule CRUD và optimistic concurrency
+- [x] `SCH-02`. Phân/chuyển/gỡ nhóm tại trang Học sinh
+- [x] `SCH-03`. Tích hợp scheduled roster vào attendance
+- [x] `SCH-04`. Audit, responsive/accessibility và hardening
+- [x] `SCH-05`. Full regression, tài liệu và bàn giao
 
 ### Student schedule planning log
 
@@ -381,7 +381,42 @@ QA/Integration:
 - Phương án nghiệp vụ đề xuất: schedule lọc roster theo ngày; FullDay mặc định `Present`, OneToOne mặc định `OneToOneHour`; mode chỉ đặt default, không khóa status; Saved sheet bất biến. Thay đổi schedule của Student trong group tăng group snapshot.
 - UI đề xuất thêm group/schedule columns và filters, popup phân/chuyển/gỡ nhóm, section lịch học với mode và sáu checkbox tiếng Việt; cả Student page và Group page dùng cùng endpoint/version.
 - Review chéo backend/frontend đã bổ sung semantics exact cho `NoScheduledStudents`, count Missing/Saved, historical recovery, Student concurrency/no-op, migration bump mỗi group một lần, race schedule-vs-first-save, nested validation và UX group picker/attendance tiếng Việt.
-- Chưa triển khai source. Chờ user khóa `SCH-DEC-01`–`08`; production/IIS skill không được gọi trong giai đoạn plan.
+- `SCH-P-03` hoàn tất (2026-08-12): yêu cầu `Thực thi plan SCH` được hiểu là chấp thuận `SCH-DEC-01`–`08` theo đề xuất. Backend/frontend bắt đầu song song từ commit sạch `361961c`; production/IIS skill không được gọi.
+- `SCH-00` hoàn tất (2026-08-12): backend và frontend đã khóa cùng contract nested `studySchedule`, Student `version/expectedVersion`, group command versioned, `NoScheduledStudents` và enum JSON string; Angular development build checkpoint pass.
+- `SCH-BE-01/02` checkpoint: Release build 0 warning/error; EF migration `20260811172348_AddStudentStudySchedule` backfill `FullDay` + mask Thứ Hai–Thứ Bảy + version 1, không tạo DB extension/cột search; CRUD/filter/version và audit privacy đã triển khai.
+- `SCH-FE-01/02` checkpoint: Student grid dùng remote filter/paging/server total; form lịch học đủ 6 ngày, nested validation, dirty guard và conflict recovery; Angular development build pass.
+- `SCH-BE-04` checkpoint: scheduled roster/default/empty/Saved/recovery semantics đã triển khai; race test phát hiện deadlock thật giữa Student `FOR UPDATE` và AttendanceRecord FK `KEY SHARE`, đã sửa Student lock thành `FOR NO KEY UPDATE`. Full PostgreSQL integration Release sau sửa pass 24/24.
+- Frontend final checkpoint: ChromeHeadlessCI 50/50 và development build pass; không chạy production/IIS/package/deploy.
+- `SCH-05` hoàn tất (2026-08-12): backend Release build 0 warning/error, unit 38/38, PostgreSQL 17 integration 24/24, EF no pending model changes; frontend test 50/50 và development build pass. README/memory/plan đã đồng bộ; production/IIS vẫn chưa được gọi.
+
+### Student schedule implementation status
+
+Backend:
+
+- [x] `SCH-BE-00`. Khóa enum/schema/DTO/ProblemDetails/OpenAPI contract
+- [x] `SCH-BE-01`. Student schedule/version migration và upgrade backfill
+- [x] `SCH-BE-02`. Student CRUD/list/filter/concurrency/audit privacy
+- [x] `SCH-BE-03`. Group command/delete expectedVersion và lifecycle regression
+- [x] `SCH-BE-04`. Scheduled attendance roster/default/empty/recovery integration
+- [x] `SCH-BE-05`. Unit/integration/EF/docs/memory/final verification
+
+Frontend:
+
+- [x] `SCH-FE-00`. Khóa explicit DTO/service/error/wireflow contract
+- [x] `SCH-FE-01`. Student list group/schedule filters và summary
+- [x] `SCH-FE-02`. Schedule create/edit form và validation
+- [x] `SCH-FE-03`. Assign/move/unassign group popup dùng version
+- [x] `SCH-FE-04`. Attendance scheduled roster/empty/recovery UX
+- [x] `SCH-FE-05`. Responsive/a11y/tests/docs/memory/final verification
+
+QA/Integration:
+
+- [x] `SCH-QA-00`. Traceability quyết định → API → UI → test
+- [x] `SCH-QA-01`. Fresh/upgrade migration, backfill và DB constraints
+- [x] `SCH-QA-02`. Student CRUD/filter/version/group race
+- [x] `SCH-QA-03`. Scheduled attendance/default/empty/snapshot/recovery race
+- [x] `SCH-QA-04`. Vietnamese/responsive/a11y/error/network regression
+- [x] `SCH-QA-05`. Full development build/test, docs và final review
 
 ## Tổ chức thư mục kế hoạch — owner: `root`
 
