@@ -1,6 +1,6 @@
 # Mầm Non Admin UI
 
-Admin portal xây bằng Angular 15 và DevExtreme 23.2. Ứng dụng hỗ trợ đăng nhập, quản lý tài khoản quản trị, giáo viên, nhóm/học sinh và điểm danh theo contract nền tại [`../plans/01-BASE-admin-portal.md`](../plans/01-BASE-admin-portal.md), plan [`../plans/02-ATT-attendance.md`](../plans/02-ATT-attendance.md) và [`../plans/03-TCH-teacher-management.md`](../plans/03-TCH-teacher-management.md). Danh mục và thứ tự các kế hoạch nằm tại [`../plans/README.md`](../plans/README.md).
+Admin portal xây bằng Angular 15 và DevExtreme 23.2. Ứng dụng hỗ trợ đăng nhập, quản lý tài khoản quản trị, giáo viên, nhóm/học sinh và điểm danh theo contract nền tại [`../plans/01-BASE-admin-portal.md`](../plans/01-BASE-admin-portal.md), plan [`../plans/02-ATT-attendance.md`](../plans/02-ATT-attendance.md), [`../plans/03-TCH-teacher-management.md`](../plans/03-TCH-teacher-management.md) và [`../plans/04-SCH-student-groups-study-schedule.md`](../plans/04-SCH-student-groups-study-schedule.md). Danh mục và thứ tự các kế hoạch nằm tại [`../plans/README.md`](../plans/README.md).
 
 ## Yêu cầu
 
@@ -86,6 +86,14 @@ Các grid quản trị dùng server-side pagination/filter/sort. `pageSize` tố
 - Lần lưu đầu dùng POST với toàn bộ roster và snapshot version. Phiếu đã lưu dùng full PUT với sheet version; xung đột `409` không ghi đè âm thầm.
 - Trạng thái hỗ trợ có mặt, vắng nguyên buổi, vắng nửa buổi và học riêng một giờ. Đổi ngày/nhóm/route khi có thay đổi sẽ hỏi xác nhận; đóng hoặc tải lại tab cũng được trình duyệt cảnh báo.
 - Khôi phục lịch sử chỉ dành cho Admin/SuperAdmin khi snapshot chuẩn không còn khả dụng. Người dùng phải chọn thủ công nhóm, giáo viên, 1–100 học sinh, nhập lý do và xác nhận cảnh báo.
+
+## Lịch học và phân nhóm học sinh
+
+- Trang `/#/students` hiển thị nhóm hiện tại và lịch học hằng tuần, đồng thời hỗ trợ lọc từ API theo nhóm, trạng thái chưa phân nhóm, hình thức và ngày học.
+- Mỗi học sinh có một hình thức `Học cả ngày` hoặc `Học 1-1` và từ một đến sáu ngày học Thứ Hai–Thứ Bảy. Create/full PUT luôn gửi schedule; cập nhật, phân nhóm và xóa dùng `expectedVersion` để không ghi đè dữ liệu cũ.
+- Phân/chuyển/gỡ nhóm tại trang Học sinh và roster trang Nhóm cùng gọi `PUT /students/{id}/group`. Nhóm đủ 100 học sinh không thể chọn; thay đổi nhóm có hiệu lực ngay.
+- Danh sách điểm danh `Missing` do API lọc theo lịch của ngày nghiệp vụ. `FullDay` được gợi ý `Có mặt`, `OneToOne` được gợi ý `Học 1-1 (1 giờ)`; UI giữ nguyên default từ API và không tự tính lại.
+- Ngày không có học sinh có lịch là trạng thái chỉ xem `NoScheduledStudents` và không hiện nút lưu. Phiếu `Saved` cùng historical recovery vẫn giữ snapshot/manual roster, không bị lịch hiện tại lọc lại.
 
 ## Deploy IIS local HTTPS
 

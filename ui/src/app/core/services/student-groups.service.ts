@@ -2,7 +2,6 @@ import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import {
   AssignResponsibleTeacherRequest,
-  AssignStudentGroupRequest,
   PagedResponse,
   SaveStudentGroupRequest,
   StudentGroup,
@@ -36,9 +35,5 @@ export class StudentGroupsService {
 
   assignTeacher(groupId: string, request: AssignResponsibleTeacherRequest): Observable<StudentGroup> {
     return this.api.put<StudentGroup>(`student-groups/${groupId}/responsible-teacher`, request);
-  }
-
-  assignStudent(studentId: string, request: AssignStudentGroupRequest): Observable<void> {
-    return this.api.put<void>(`students/${studentId}/group`, request);
   }
 }

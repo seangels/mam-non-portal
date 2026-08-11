@@ -4,6 +4,8 @@ import {
   HalfDayPart,
   SheetState,
   SnapshotSource,
+  StudyMode,
+  StudyWeekday,
   StudentStatus,
   UserRole,
   UserStatus
@@ -30,6 +32,29 @@ export const GENDER_LABELS: Record<Gender, string> = {
   Male: 'Nam',
   Female: 'Nữ',
   Other: 'Khác'
+};
+
+export const STUDY_MODE_LABELS: Record<StudyMode, string> = {
+  OneToOne: 'Học 1-1',
+  FullDay: 'Học cả ngày'
+};
+
+export const STUDY_WEEKDAY_LABELS: Record<StudyWeekday, string> = {
+  Monday: 'Thứ Hai',
+  Tuesday: 'Thứ Ba',
+  Wednesday: 'Thứ Tư',
+  Thursday: 'Thứ Năm',
+  Friday: 'Thứ Sáu',
+  Saturday: 'Thứ Bảy'
+};
+
+export const STUDY_WEEKDAY_SHORT_LABELS: Record<StudyWeekday, string> = {
+  Monday: 'T2',
+  Tuesday: 'T3',
+  Wednesday: 'T4',
+  Thursday: 'T5',
+  Friday: 'T6',
+  Saturday: 'T7'
 };
 
 export const ATTENDANCE_STATUS_LABELS: Record<AttendanceStatus, string> = {
@@ -61,6 +86,7 @@ export const READ_ONLY_REASON_LABELS: Record<string, string> = {
   GroupInactive: 'Nhóm hiện không hoạt động.',
   ResponsibleTeacherRequired: 'Nhóm chưa có giáo viên phụ trách.',
   NotResponsibleTeacher: 'Bạn không còn phụ trách nhóm này.',
+  NoScheduledStudents: 'Không có học sinh có lịch học trong ngày này.',
   ReadOnly: 'Phiếu hiện chỉ có thể xem.'
 };
 
@@ -79,6 +105,9 @@ export const API_ERROR_CODE_LABELS: Record<string, string> = {
   TeacherHasResponsibleGroups: 'Cần gỡ giáo viên khỏi các nhóm đang phụ trách trước khi xóa.',
   StudentHasCurrentGroup: 'Cần gỡ học sinh khỏi nhóm trước khi ngừng hoạt động hoặc xóa.',
   StudentInactive: 'Chỉ có thể phân nhóm học sinh đang hoạt động.',
+  StudentNotFound: 'Không tìm thấy học sinh hoặc hồ sơ đã bị xóa.',
+  StudentVersionConflict: 'Thông tin học sinh đã được người khác cập nhật. Vui lòng tải dữ liệu mới nhất.',
+  NoScheduledStudents: 'Không có học sinh có lịch học trong ngày này.',
   GroupHasResponsibleTeacher: 'Cần gỡ giáo viên phụ trách trước khi xóa nhóm.',
   GroupHasStudents: 'Cần gỡ toàn bộ học sinh trước khi xóa nhóm.',
   TeacherNotFound: 'Không tìm thấy giáo viên hoặc hồ sơ đã bị xóa.',

@@ -2,6 +2,8 @@ export type UserRole = 'SuperAdmin' | 'Admin' | 'Teacher';
 export type UserStatus = 'Active' | 'Inactive' | 'Locked';
 export type StudentStatus = 'Active' | 'Inactive';
 export type Gender = 'Male' | 'Female' | 'Other';
+export type StudyMode = 'OneToOne' | 'FullDay';
+export type StudyWeekday = 'Monday' | 'Tuesday' | 'Wednesday' | 'Thursday' | 'Friday' | 'Saturday';
 export type SortOrder = 'asc' | 'desc';
 export type StudentGroupStatus = 'Active' | 'Inactive';
 export type AttendanceStatus = 'Present' | 'AbsentFullDay' | 'AbsentHalfDay' | 'OneToOneHour';
@@ -80,6 +82,13 @@ export interface StudentListQuery extends ListQuery {
   dateOfBirthTo?: string;
   groupId?: string;
   unassigned?: boolean;
+  studyMode?: StudyMode;
+  studyWeekday?: StudyWeekday;
+}
+
+export interface StudySchedule {
+  mode: StudyMode;
+  weekdays: StudyWeekday[];
 }
 
 export interface Student {
@@ -96,12 +105,28 @@ export interface Student {
   groupId?: string | null;
   groupCode?: string | null;
   groupName?: string | null;
+  studySchedule: StudySchedule;
   createdAt: string;
   updatedAt: string;
+  version: number;
 }
 
-export type CreateStudentRequest = Omit<Student, 'id' | 'createdAt' | 'updatedAt'>;
-export type UpdateStudentRequest = CreateStudentRequest;
+export interface CreateStudentRequest {
+  studentCode: string;
+  fullName: string;
+  nickName: string;
+  dateOfBirth: string;
+  gender: Gender | null;
+  status: StudentStatus;
+  guardianName: string | null;
+  guardianPhone: string | null;
+  note: string | null;
+  studySchedule: StudySchedule;
+}
+
+export interface UpdateStudentRequest extends CreateStudentRequest {
+  expectedVersion: number;
+}
 
 export interface CurrentUser {
   id: string;
@@ -233,6 +258,7 @@ export interface AssignResponsibleTeacherRequest {
 
 export interface AssignStudentGroupRequest {
   groupId: string | null;
+  expectedVersion: number;
 }
 
 export interface AttendanceContextGroup {

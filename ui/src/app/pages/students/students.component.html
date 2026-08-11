@@ -1,63 +1,220 @@
 <div class="content-block page-toolbar">
   <div>
     <h1 class="page-title">Quản lý học sinh</h1>
-    <p class="page-subtitle">Tra cứu và cập nhật hồ sơ học sinh.</p>
+    <p class="page-subtitle">Tra cứu hồ sơ, lịch học và nhóm hiện tại của học sinh.</p>
   </div>
-  <dx-button text="Thêm học sinh" icon="plus" type="default" (onClick)="openCreate()"></dx-button>
+  <dx-button text="Thêm học sinh" icon="plus" type="default" hint="Tạo hồ sơ học sinh"
+    (onClick)="openCreate()"></dx-button>
 </div>
 
 <div class="content-block dx-card grid-card">
-  <div class="filters">
-    <dx-text-box [(value)]="search" placeholder="Mã, tên, người giám hộ" [showClearButton]="true" (onEnterKey)="applyFilters()"></dx-text-box>
-    <dx-select-box [(value)]="statusFilter" [items]="statuses" valueExpr="value" displayExpr="text" placeholder="Trạng thái" [showClearButton]="true"></dx-select-box>
-    <dx-select-box [(value)]="genderFilter" [items]="genders" valueExpr="value" displayExpr="text" placeholder="Giới tính" [showClearButton]="true"></dx-select-box>
-    <dx-date-box [(value)]="dateOfBirthFrom" type="date" displayFormat="dd/MM/yyyy" placeholder="Sinh từ ngày" [showClearButton]="true"></dx-date-box>
-    <dx-date-box [(value)]="dateOfBirthTo" type="date" displayFormat="dd/MM/yyyy" placeholder="Sinh đến ngày" [showClearButton]="true"></dx-date-box>
-    <dx-button text="Lọc" icon="filter" type="default" (onClick)="applyFilters()"></dx-button>
-    <dx-button text="Đặt lại" icon="revert" stylingMode="outlined" (onClick)="resetFilters()"></dx-button>
-  </div>
+  <section class="filters" aria-label="Bộ lọc học sinh">
+    <dx-text-box [(value)]="search" placeholder="Mã, tên, người giám hộ" [showClearButton]="true"
+      [inputAttr]="{ 'aria-label': 'Tìm học sinh' }" (onEnterKey)="applyFilters()"></dx-text-box>
+    <dx-select-box [(value)]="statusFilter" [items]="statuses" valueExpr="value" displayExpr="text"
+      placeholder="Trạng thái" [showClearButton]="true"
+      [inputAttr]="{ 'aria-label': 'Lọc trạng thái học sinh' }"></dx-select-box>
+    <dx-select-box [(value)]="genderFilter" [items]="genders" valueExpr="value" displayExpr="text"
+      placeholder="Giới tính" [showClearButton]="true"
+      [inputAttr]="{ 'aria-label': 'Lọc giới tính' }"></dx-select-box>
+    <dx-select-box [value]="groupIdFilter" [dataSource]="activeGroupDataSource" valueExpr="id"
+      [displayExpr]="groupDisplay" [searchEnabled]="true" [showClearButton]="true"
+      placeholder="Nhóm hiện tại" noDataText="Không có nhóm phù hợp"
+      [inputAttr]="{ 'aria-label': 'Lọc theo nhóm hiện tại' }"
+      (onValueChanged)="onGroupFilterChanged($event.value)"></dx-select-box>
+    <dx-check-box [value]="unassignedFilter" text="Chưa phân nhóm"
+      [elementAttr]="{ 'aria-label': 'Chỉ hiện học sinh chưa phân nhóm' }"
+      (onValueChanged)="onUnassignedChanged($event.value)"></dx-check-box>
+    <dx-select-box [(value)]="studyModeFilter" [items]="studyModes" valueExpr="value" displayExpr="text"
+      placeholder="Hình thức học" [showClearButton]="true"
+      [inputAttr]="{ 'aria-label': 'Lọc theo hình thức học' }"></dx-select-box>
+    <dx-select-box [(value)]="studyWeekdayFilter" [items]="weekdays" valueExpr="value" displayExpr="text"
+      placeholder="Ngày học" [showClearButton]="true"
+      [inputAttr]="{ 'aria-label': 'Lọc theo ngày học' }"></dx-select-box>
+    <dx-date-box [(value)]="dateOfBirthFrom" type="date" displayFormat="dd/MM/yyyy" placeholder="Sinh từ ngày"
+      [showClearButton]="true" [inputAttr]="{ 'aria-label': 'Ngày sinh từ' }"></dx-date-box>
+    <dx-date-box [(value)]="dateOfBirthTo" type="date" displayFormat="dd/MM/yyyy" placeholder="Sinh đến ngày"
+      [showClearButton]="true" [inputAttr]="{ 'aria-label': 'Ngày sinh đến' }"></dx-date-box>
+    <dx-button text="Lọc" icon="filter" type="default" hint="Áp dụng bộ lọc học sinh"
+      (onClick)="applyFilters()"></dx-button>
+    <dx-button text="Đặt lại" icon="revert" stylingMode="outlined" hint="Xóa toàn bộ bộ lọc"
+      (onClick)="resetFilters()"></dx-button>
+  </section>
 
   <dx-data-grid
     [dataSource]="dataSource"
     [remoteOperations]="{ paging: true, sorting: true }"
     [showBorders]="true"
     [columnAutoWidth]="true"
+    [columnHidingEnabled]="true"
+    [wordWrapEnabled]="true"
     [rowAlternationEnabled]="true"
     [hoverStateEnabled]="true"
     noDataText="Không có học sinh phù hợp">
-    <dxo-load-panel [enabled]="true"></dxo-load-panel>
+    <dxo-load-panel [enabled]="true" text="Đang tải học sinh..."></dxo-load-panel>
     <dxo-paging [pageSize]="20"></dxo-paging>
-    <dxo-pager [visible]="true" [showPageSizeSelector]="true" [allowedPageSizes]="[10, 20, 50, 100]" [showInfo]="true"></dxo-pager>
+    <dxo-pager [visible]="true" [showPageSizeSelector]="true" [allowedPageSizes]="[10, 20, 50, 100]"
+      [showInfo]="true"></dxo-pager>
     <dxo-sorting mode="single"></dxo-sorting>
 
-    <dxi-column dataField="studentCode" caption="Mã học sinh" sortOrder="asc"></dxi-column>
-    <dxi-column dataField="fullName" caption="Họ và tên"></dxi-column>
-    <dxi-column dataField="nickName" caption="Tên gọi"></dxi-column>
-    <dxi-column dataField="dateOfBirth" caption="Ngày sinh" dataType="date" format="dd/MM/yyyy"></dxi-column>
-    <dxi-column dataField="gender" caption="Giới tính" cellTemplate="genderCell"></dxi-column>
-    <dxi-column dataField="status" caption="Trạng thái" cellTemplate="statusCell"></dxi-column>
-    <dxi-column dataField="guardianName" caption="Người giám hộ" [allowSorting]="false"></dxi-column>
-    <dxi-column dataField="guardianPhone" caption="SĐT giám hộ" [allowSorting]="false"></dxi-column>
-    <dxi-column type="buttons" caption="Thao tác" [width]="95" [buttons]="rowButtons"></dxi-column>
+    <dxi-column dataField="studentCode" caption="Mã học sinh" sortOrder="asc" [hidingPriority]="10"></dxi-column>
+    <dxi-column dataField="fullName" caption="Họ và tên" [hidingPriority]="11"></dxi-column>
+    <dxi-column dataField="nickName" caption="Tên gọi" [hidingPriority]="4"></dxi-column>
+    <dxi-column caption="Nhóm hiện tại" cellTemplate="groupCell" [allowSorting]="false"
+      [hidingPriority]="9"></dxi-column>
+    <dxi-column dataField="studySchedule.mode" caption="Lịch học" cellTemplate="scheduleCell"
+      [hidingPriority]="8"></dxi-column>
+    <dxi-column dataField="dateOfBirth" caption="Ngày sinh" dataType="date" format="dd/MM/yyyy"
+      [hidingPriority]="3"></dxi-column>
+    <dxi-column dataField="gender" caption="Giới tính" cellTemplate="genderCell"
+      [hidingPriority]="2"></dxi-column>
+    <dxi-column dataField="status" caption="Trạng thái" cellTemplate="statusCell"
+      [hidingPriority]="7"></dxi-column>
+    <dxi-column dataField="guardianName" caption="Người giám hộ" [allowSorting]="false"
+      [hidingPriority]="1"></dxi-column>
+    <dxi-column dataField="guardianPhone" caption="SĐT giám hộ" [allowSorting]="false"
+      [hidingPriority]="0"></dxi-column>
+    <dxi-column type="buttons" caption="Thao tác" [width]="135" [buttons]="rowButtons"
+      [hidingPriority]="12"></dxi-column>
 
     <div *dxTemplate="let cell of 'genderCell'">{{ genderText(cell.value) }}</div>
-    <div *dxTemplate="let cell of 'statusCell'" class="status" [class.inactive]="cell.value !== 'Active'">{{ statusText(cell.value) }}</div>
+    <div *dxTemplate="let cell of 'statusCell'" class="status" [class.inactive]="cell.value !== 'Active'">
+      {{ statusText(cell.value) }}
+    </div>
+    <div *dxTemplate="let cell of 'groupCell'" [class.unassigned]="!cell.data.groupId">
+      {{ groupText(cell.data) }}
+    </div>
+    <div *dxTemplate="let cell of 'scheduleCell'" class="schedule-summary">
+      {{ scheduleText(cell.data) }}
+    </div>
   </dx-data-grid>
 </div>
 
-<dx-popup [(visible)]="editorVisible" [title]="editorTitle" [width]="720" [height]="'auto'" [showCloseButton]="true" [hideOnOutsideClick]="!saving">
-  <form *dxTemplate="let _ of 'content'" (submit)="save($event)">
-    <dx-form [formData]="editor" [disabled]="saving" labelLocation="top" [colCount]="2">
-      <dxi-item dataField="studentCode"><dxo-label text="Mã học sinh"></dxo-label><dxi-validation-rule type="required" message="Vui lòng nhập mã học sinh"></dxi-validation-rule><dxi-validation-rule type="stringLength" [max]="50" message="Tối đa 50 ký tự"></dxi-validation-rule></dxi-item>
-      <dxi-item dataField="status" editorType="dxSelectBox" [editorOptions]="{ items: statuses, valueExpr: 'value', displayExpr: 'text' }"><dxo-label text="Trạng thái"></dxo-label><dxi-validation-rule type="required"></dxi-validation-rule></dxi-item>
-      <dxi-item dataField="fullName"><dxo-label text="Họ và tên"></dxo-label><dxi-validation-rule type="required" message="Vui lòng nhập họ tên"></dxi-validation-rule><dxi-validation-rule type="stringLength" [max]="200" message="Tối đa 200 ký tự"></dxi-validation-rule></dxi-item>
-      <dxi-item dataField="nickName"><dxo-label text="Tên thường gọi"></dxo-label><dxi-validation-rule type="required" message="Vui lòng nhập tên thường gọi"></dxi-validation-rule><dxi-validation-rule type="stringLength" [max]="200" message="Tối đa 200 ký tự"></dxi-validation-rule></dxi-item>
-      <dxi-item dataField="dateOfBirth" editorType="dxDateBox" [editorOptions]="{ type: 'date', displayFormat: 'dd/MM/yyyy', max: today }"><dxo-label text="Ngày sinh"></dxo-label><dxi-validation-rule type="required" message="Vui lòng nhập ngày sinh"></dxi-validation-rule></dxi-item>
-      <dxi-item dataField="gender" editorType="dxSelectBox" [editorOptions]="{ items: genders, valueExpr: 'value', displayExpr: 'text', showClearButton: true }"><dxo-label text="Giới tính"></dxo-label></dxi-item>
-      <dxi-item dataField="guardianName"><dxo-label text="Người giám hộ"></dxo-label><dxi-validation-rule type="stringLength" [max]="200" message="Tối đa 200 ký tự"></dxi-validation-rule></dxi-item>
-      <dxi-item dataField="guardianPhone"><dxo-label text="SĐT người giám hộ"></dxo-label><dxi-validation-rule type="stringLength" [max]="30" message="Tối đa 30 ký tự"></dxi-validation-rule></dxi-item>
-      <dxi-item dataField="note" editorType="dxTextArea" [colSpan]="2" [editorOptions]="{ height: 90, maxLength: 2000 }"><dxo-label text="Ghi chú"></dxo-label></dxi-item>
-      <dxi-item itemType="button" [colSpan]="2" horizontalAlignment="right"><dxo-button-options [text]="isEditing ? 'Lưu thay đổi' : 'Thêm học sinh'" type="default" [useSubmitBehavior]="true" [disabled]="saving"></dxo-button-options></dxi-item>
+<dx-popup [(visible)]="editorVisible" [title]="editorTitle" [width]="760" [maxWidth]="'96vw'"
+  [height]="'auto'" [maxHeight]="'94vh'" [showCloseButton]="!saving" [dragEnabled]="false"
+  [hideOnOutsideClick]="!saving" (onHiding)="onEditorHiding($event)">
+  <form *dxTemplate="let _ of 'content'" class="student-form" (submit)="save($event)">
+    <div *ngIf="editorConflict" class="form-message conflict" role="alert">
+      <span>{{ editorConflict }}</span>
+      <dx-button text="Tải bản mới nhất" icon="refresh" stylingMode="outlined" [disabled]="saving"
+        (onClick)="reloadEditor()"></dx-button>
+    </div>
+    <div *ngIf="editorError && !editorConflict" class="form-message error" role="alert">{{ editorError }}</div>
+    <div *ngIf="editor.groupId" class="form-message info">
+      Nhóm hiện tại: <strong>{{ editor.groupName }}</strong>. Cần gỡ khỏi nhóm trước khi ngừng học hoặc xóa.
+    </div>
+
+    <dx-form [formData]="editor" [disabled]="saving" labelLocation="top" [colCount]="2"
+      [colCountByScreen]="{ xs: 1, sm: 1, md: 2, lg: 2 }">
+      <dxi-item dataField="studentCode"><dxo-label text="Mã học sinh"></dxo-label>
+        <dxi-validation-rule type="required" message="Vui lòng nhập mã học sinh"></dxi-validation-rule>
+        <dxi-validation-rule type="stringLength" [max]="50" message="Mã học sinh tối đa 50 ký tự"></dxi-validation-rule>
+      </dxi-item>
+      <dxi-item dataField="status" editorType="dxSelectBox"
+        [editorOptions]="{ items: statuses, valueExpr: 'value', displayExpr: 'text' }">
+        <dxo-label text="Trạng thái"></dxo-label>
+        <dxi-validation-rule type="required" message="Vui lòng chọn trạng thái"></dxi-validation-rule>
+      </dxi-item>
+      <dxi-item dataField="fullName"><dxo-label text="Họ và tên"></dxo-label>
+        <dxi-validation-rule type="required" message="Vui lòng nhập họ tên"></dxi-validation-rule>
+        <dxi-validation-rule type="stringLength" [max]="200" message="Họ tên tối đa 200 ký tự"></dxi-validation-rule>
+      </dxi-item>
+      <dxi-item dataField="nickName"><dxo-label text="Tên thường gọi"></dxo-label>
+        <dxi-validation-rule type="required" message="Vui lòng nhập tên thường gọi"></dxi-validation-rule>
+        <dxi-validation-rule type="stringLength" [max]="200" message="Tên thường gọi tối đa 200 ký tự"></dxi-validation-rule>
+      </dxi-item>
+      <dxi-item dataField="dateOfBirth" editorType="dxDateBox"
+        [editorOptions]="{ type: 'date', displayFormat: 'dd/MM/yyyy', max: today }">
+        <dxo-label text="Ngày sinh"></dxo-label>
+        <dxi-validation-rule type="required" message="Vui lòng nhập ngày sinh"></dxi-validation-rule>
+      </dxi-item>
+      <dxi-item dataField="gender" editorType="dxSelectBox"
+        [editorOptions]="{ items: genders, valueExpr: 'value', displayExpr: 'text', showClearButton: true }">
+        <dxo-label text="Giới tính"></dxo-label>
+      </dxi-item>
+      <dxi-item dataField="guardianName"><dxo-label text="Người giám hộ"></dxo-label>
+        <dxi-validation-rule type="stringLength" [max]="200" message="Người giám hộ tối đa 200 ký tự"></dxi-validation-rule>
+      </dxi-item>
+      <dxi-item dataField="guardianPhone"><dxo-label text="SĐT người giám hộ"></dxo-label>
+        <dxi-validation-rule type="stringLength" [max]="30" message="Số điện thoại tối đa 30 ký tự"></dxi-validation-rule>
+      </dxi-item>
+      <dxi-item dataField="note" editorType="dxTextArea" [colSpan]="2"
+        [editorOptions]="{ height: 90, maxLength: 2000 }"><dxo-label text="Ghi chú"></dxo-label></dxi-item>
     </dx-form>
+
+    <section class="schedule-editor" aria-labelledby="schedule-heading">
+      <h2 id="schedule-heading">Lịch học hằng tuần</h2>
+      <p>Chọn hình thức và các ngày học cố định từ Thứ Hai đến Thứ Bảy.</p>
+      <fieldset class="mode-options" [disabled]="saving" [class.invalid]="scheduleModeError">
+        <legend>Hình thức học</legend>
+        <label *ngFor="let mode of studyModes">
+          <input type="radio" name="study-mode" [value]="mode.value" [(ngModel)]="editor.studyMode" />
+          <span>{{ mode.text }}</span>
+        </label>
+      </fieldset>
+      <p *ngIf="scheduleModeError" class="validation" role="alert">{{ scheduleModeError }}</p>
+
+      <fieldset #weekdayFieldset class="weekday-options" [disabled]="saving"
+        [class.invalid]="scheduleWeekdaysError" tabindex="-1">
+        <legend>Ngày học trong tuần</legend>
+        <label *ngFor="let weekday of weekdays">
+          <input type="checkbox" [checked]="isWeekdaySelected(weekday.value)"
+            (change)="toggleWeekday(weekday.value, $any($event.target).checked)" />
+          <span>{{ weekday.text }}</span>
+        </label>
+      </fieldset>
+      <p *ngIf="scheduleWeekdaysError" class="validation" role="alert">{{ scheduleWeekdaysError }}</p>
+    </section>
+
+    <div class="popup-actions">
+      <dx-button text="Hủy" stylingMode="outlined" [disabled]="saving" (onClick)="closeEditor()"></dx-button>
+      <dx-button [text]="isEditing ? 'Lưu thay đổi' : 'Thêm học sinh'" type="default"
+        [useSubmitBehavior]="true" [disabled]="saving"></dx-button>
+    </div>
   </form>
+</dx-popup>
+
+<dx-popup [(visible)]="groupAssignmentVisible" [title]="assignmentTitle" [width]="600" [maxWidth]="'96vw'"
+  [height]="'auto'" [showCloseButton]="!assignmentSaving" [hideOnOutsideClick]="!assignmentSaving"
+  [dragEnabled]="false">
+  <div *dxTemplate="let _ of 'content'" class="assignment-dialog">
+    <div class="student-identity">
+      <strong>{{ assignmentStudent?.fullName }}</strong>
+      <span>{{ assignmentStudent?.studentCode }}</span>
+    </div>
+    <p>Nhóm hiện tại: <strong>{{ assignmentStudent?.groupName || 'Chưa phân nhóm' }}</strong></p>
+    <div *ngIf="assignmentConflict" class="form-message conflict" role="alert">
+      <span>{{ assignmentConflict }}</span>
+      <dx-button text="Tải dữ liệu mới nhất" icon="refresh" stylingMode="outlined"
+        [disabled]="assignmentSaving" (onClick)="reloadAssignmentStudent()"></dx-button>
+    </div>
+    <p *ngIf="assignmentError && !assignmentConflict" class="form-message error" role="alert">
+      {{ assignmentError }}
+    </p>
+
+    <ng-container *ngIf="assignmentStudent?.status === 'Active'; else inactiveAssignment">
+      <label class="field-label">
+        <span>Nhóm mới</span>
+        <dx-select-box #assignmentGroupPicker [(value)]="assignmentGroupId" [dataSource]="assignmentGroupDataSource" valueExpr="id"
+          [displayExpr]="groupDisplay" [searchEnabled]="true"
+          [showClearButton]="true" [disabled]="assignmentSaving" placeholder="Chọn nhóm"
+          noDataText="Không có nhóm phù hợp" [inputAttr]="{ 'aria-label': 'Nhóm mới của học sinh' }">
+        </dx-select-box>
+      </label>
+      <p class="helper-text">Nhóm đủ 100 học sinh và nhóm hiện tại không thể chọn lại. Để trống để gỡ khỏi nhóm.</p>
+    </ng-container>
+    <ng-template #inactiveAssignment>
+      <p class="form-message info">Học sinh đã ngừng học; chỉ có thể gỡ khỏi nhóm hiện tại.</p>
+      <dx-button *ngIf="assignmentStudent?.groupId" text="Chọn gỡ khỏi nhóm" icon="remove"
+        stylingMode="outlined" [disabled]="assignmentSaving" (onClick)="assignmentGroupId = null"></dx-button>
+    </ng-template>
+
+    <p class="assignment-warning">Thay đổi nhóm có hiệu lực ngay và có thể làm thay đổi phiếu điểm danh chưa lưu.</p>
+    <div class="popup-actions">
+      <dx-button text="Hủy" stylingMode="outlined" [disabled]="assignmentSaving"
+        (onClick)="groupAssignmentVisible = false"></dx-button>
+      <dx-button [text]="assignmentGroupId ? 'Lưu nhóm' : 'Gỡ khỏi nhóm'" type="default"
+        [disabled]="assignmentSaving || !assignmentChanged" (onClick)="saveGroupAssignment()"></dx-button>
+    </div>
+  </div>
 </dx-popup>

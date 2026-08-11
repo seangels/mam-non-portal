@@ -49,7 +49,7 @@
       <dx-select-box
         [items]="context?.groups || []"
         valueExpr="id"
-        displayExpr="name"
+        [displayExpr]="contextGroupText"
         [value]="selectedGroupId"
         [searchEnabled]="true"
         searchExpr="name"
@@ -62,7 +62,7 @@
     <div class="single-group" *ngIf="!showGroupSelector && selectedGroup">
       <span>Nhóm được phân công</span>
       <strong>{{ selectedGroup.name }}</strong>
-      <small>{{ selectedGroup.code }} · {{ selectedGroup.studentCount }} học sinh</small>
+      <small>{{ selectedGroup.code }} · {{ selectedGroup.studentCount }} học sinh có lịch</small>
     </div>
     <label *ngIf="daily">
       <span>Tìm học sinh</span>
@@ -142,9 +142,9 @@
     </dx-button>
   </section>
 
-  <div class="content-block message warning" *ngIf="daily.sheetState === 'Missing'" role="status">
+  <div class="content-block message warning" *ngIf="daily.sheetState === 'Missing' && !noScheduledStudents" role="status">
     <strong>Chưa lưu điểm danh.</strong>
-    <span>Các học sinh đang được hiển thị mặc định là “Có mặt”. Hãy bấm “Lưu lần đầu” kể cả khi không có học sinh vắng.</span>
+    <span>Trạng thái được gợi ý theo lịch học của từng học sinh. Hãy kiểm tra và bấm “Lưu phiếu” để xác nhận.</span>
   </div>
 
   <div class="content-block message" *ngIf="!canModify && readOnlyText">
@@ -232,7 +232,7 @@
     </article>
 
     <div class="message" *ngIf="filteredDrafts.length === 0">
-      <strong>{{ drafts.length ? 'Không có học sinh phù hợp bộ lọc.' : 'Nhóm chưa có học sinh.' }}</strong>
+      <strong>{{ drafts.length ? 'Không có học sinh phù hợp bộ lọc.' : noScheduledStudents ? 'Không có học sinh có lịch học trong ngày này.' : 'Nhóm chưa có học sinh.' }}</strong>
       <button *ngIf="drafts.length" type="button" class="link-button" (click)="clearFilters()">Xóa bộ lọc</button>
     </div>
   </div>

@@ -1,4 +1,40 @@
 :host { display: block; }
+.filters { align-items: center; }
+.filters dx-check-box { padding: 8px 2px; }
 .status { display: inline-block; padding: 3px 8px; border-radius: 999px; background: #e8f7ef; color: #18794e; font-size: 12px; }
 .status.inactive { background: #f3f4f6; color: #596273; }
-@media (max-width: 640px) { .page-toolbar { align-items: flex-start; flex-direction: column; } }
+.unassigned { color: #a34b00; font-weight: 600; }
+.schedule-summary { min-width: 150px; white-space: normal; }
+.student-form { padding: 0 3px 8px; }
+.form-message { margin: 0 0 12px; padding: 11px 12px; border-left: 4px solid #667085; border-radius: 4px; }
+.form-message.error, .form-message.conflict { border-color: #d92d20; background: #fff5f5; color: #7a271a; }
+.form-message.conflict { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.form-message.info { border-color: #337ab7; background: #eff8ff; color: #18496b; }
+.schedule-editor { margin-top: 12px; padding: 16px; border: 1px solid #d0d5dd; border-radius: 8px; }
+.schedule-editor h2 { margin: 0; font-size: 18px; }
+.schedule-editor > p:not(.validation) { margin: 5px 0 14px; color: #667085; }
+fieldset { min-width: 0; margin: 0; padding: 0; border: 0; }
+legend { margin-bottom: 8px; color: #344054; font-weight: 600; }
+.mode-options, .weekday-options { display: flex; flex-wrap: wrap; gap: 9px; }
+.mode-options label, .weekday-options label { display: flex; align-items: center; min-height: 44px; gap: 7px; padding: 7px 12px; border: 1px solid #d0d5dd; border-radius: 7px; cursor: pointer; }
+.mode-options input, .weekday-options input { width: 18px; height: 18px; margin: 0; accent-color: #337ab7; }
+.weekday-options { margin-top: 15px; }
+.mode-options.invalid, .weekday-options.invalid { padding: 8px; outline: 2px solid #fda29b; border-radius: 6px; }
+.weekday-options:focus { outline: 2px solid #84adff; outline-offset: 3px; }
+.validation { margin: 7px 0 0; color: #b42318; font-size: 13px; }
+.popup-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
+.assignment-dialog { padding: 0 3px 8px; }
+.student-identity { display: flex; flex-direction: column; padding: 11px 12px; border-radius: 7px; background: #f5f7fa; }
+.student-identity span, .helper-text { color: #667085; }
+.field-label { display: block; margin-top: 14px; }
+.field-label > span { display: block; margin-bottom: 6px; font-weight: 600; }
+.helper-text { margin: 7px 0 0; font-size: 13px; }
+.assignment-warning { margin: 14px 0 0; padding: 10px 12px; border-left: 4px solid #d97706; background: #fffbeb; color: #7a4d00; }
+
+@media (max-width: 700px) {
+  .page-toolbar { align-items: flex-start; flex-direction: column; }
+  .filters > * { width: 100%; }
+  .mode-options label, .weekday-options label { flex: 1 1 44%; }
+  .form-message.conflict, .popup-actions { align-items: stretch; flex-direction: column; }
+  .popup-actions dx-button { width: 100%; }
+}

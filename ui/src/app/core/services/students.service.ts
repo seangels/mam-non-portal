@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import {
+  AssignStudentGroupRequest,
   CreateStudentRequest,
   PagedResponse,
   Student,
@@ -29,7 +30,11 @@ export class StudentsService {
     return this.api.put<Student>(`students/${id}`, request);
   }
 
-  delete(id: string): Observable<void> {
-    return this.api.delete(`students/${id}`);
+  assignGroup(id: string, request: AssignStudentGroupRequest): Observable<Student> {
+    return this.api.put<Student>(`students/${id}/group`, request);
+  }
+
+  delete(id: string, expectedVersion: number): Observable<void> {
+    return this.api.delete(`students/${id}`, { expectedVersion });
   }
 }

@@ -62,6 +62,9 @@ export class AttendanceComponent implements OnInit, PendingChangesAware {
   ];
   readonly sheetStateLabels = SHEET_STATE_LABELS;
   readonly snapshotSourceLabels = SNAPSHOT_SOURCE_LABELS;
+  readonly contextGroupText = (group: AttendanceContextGroup | null): string => group
+    ? `${group.name} · ${group.studentCount} học sinh có lịch`
+    : '';
   readonly recoveryGroupText = (item: RecoveryGroupCandidate | null): string => item
     ? `${item.code} · ${item.name}${item.isDeleted ? ' · Đã xóa' : item.status === 'Inactive' ? ' · Ngừng hoạt động' : ''}`
     : '';
@@ -193,6 +196,10 @@ export class AttendanceComponent implements OnInit, PendingChangesAware {
 
   get readOnlyText(): string {
     return readOnlyReasonLabel(this.daily?.readOnlyReason ?? this.context?.readOnlyReason ?? null);
+  }
+
+  get noScheduledStudents(): boolean {
+    return this.daily?.sheetState === 'Missing' && this.daily.readOnlyReason === 'NoScheduledStudents';
   }
 
   get recoveryReady(): boolean {

@@ -136,6 +136,12 @@
       <span *ngIf="groupIsFull" class="capacity-warning">Nhóm đã đủ 100 học sinh</span>
     </div>
 
+    <div *ngIf="rosterConflict" class="policy-conflict" role="alert">
+      <span>{{ rosterConflict }}</span>
+      <dx-button text="Tải danh sách mới nhất" icon="refresh" stylingMode="outlined"
+        [disabled]="saving" (onClick)="reloadRosterConflict()"></dx-button>
+    </div>
+
     <div class="student-assignment">
       <dx-select-box [(value)]="selectedStudentId" [dataSource]="studentPicker" valueExpr="id"
         [displayExpr]="studentDisplay" [searchEnabled]="true" searchMode="contains" [minSearchLength]="1"

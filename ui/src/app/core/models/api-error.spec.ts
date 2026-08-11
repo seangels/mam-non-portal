@@ -46,4 +46,20 @@ describe('ApiError', () => {
     expect(result.currentVersion).toBe(8);
     expect(result.message).not.toContain('Raw backend detail');
   });
+
+  it('maps Student schedule and concurrency states without exposing raw text', () => {
+    const conflict = ApiError.from(new HttpErrorResponse({
+      status: 409,
+      error: { code: 'StudentVersionConflict', currentVersion: 9, detail: 'Raw backend detail' }
+    }));
+    const emptyRoster = ApiError.from(new HttpErrorResponse({
+      status: 409,
+      error: { code: 'NoScheduledStudents', detail: 'Raw backend detail' }
+    }));
+
+    expect(conflict.message).toContain('học sinh');
+    expect(conflict.currentVersion).toBe(9);
+    expect(conflict.message).not.toContain('Raw backend detail');
+    expect(emptyRoster.message).toBe('Không có học sinh có lịch học trong ngày này.');
+  });
 });

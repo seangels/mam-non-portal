@@ -1,6 +1,6 @@
 # Frontend role memory
 
-Last updated: 2026-08-11
+Last updated: 2026-08-12
 
 ## Resume here
 
@@ -30,6 +30,8 @@ Last updated: 2026-08-11
 - Attendance dates remain DateOnly and follow server business date in `Asia/Ho_Chi_Minh`. Teacher only receives current responsible groups; Admin/SuperAdmin can select all groups and alone can run acknowledged historical recovery.
 - Teacher management uses `/teachers` as the canonical aggregate. List/detail combine User account fields with `teacherCode`, `note`, attendance policy, responsible-group summaries, timestamps and `version`; create/full PUT/delete/policy carry the TCH contract and optimistic concurrency. Teacher list search is always remote and trusts server `totalItems`; do not apply local accent filtering to paged rows.
 - `/users` is now `Tài khoản quản trị`: only SuperAdmin can open it and its UI always queries/creates/updates role `Admin`. Password change remains the only Teacher action routed through `/users/{userId}/password`.
+- Student schedule contract adds `StudyMode = OneToOne|FullDay`, canonical Monday–Saturday weekdays and aggregate `version`. Student create/full PUT always sends `studySchedule`; update/group/delete use `expectedVersion`. `StudentsService.assignGroup` is the only frontend client for `PUT /students/{id}/group` and is shared by Student and Group pages.
+- Scheduled attendance is operational: Missing roster/defaults come only from the backend for the selected business date; UI must not derive or filter them again. `NoScheduledStudents` is a Daily GET read-only reason and a standard POST error code. Saved sheets and historical recovery remain independent of the current schedule; recovery continues as a manual roster with `Present` defaults.
 
 ## Implemented feature baseline
 
@@ -45,6 +47,8 @@ As implemented and verified on 2026-08-11:
 - Teacher group assignment and attendance policy remain exclusively in `/student-groups`. Policy PUT now sends `expectedVersion`; a conflict keeps the popup open and lets the manager load the latest Teacher version. Teacher detail only links to these controls.
 - `/#/attendance` is available to all roles. It implements role-aware context/group selection, Missing/Saved card list, accent-insensitive local search, full-roster POST/PUT, conditional status validation, dirty route/date/group/beforeunload guards, conflict/permission states, and Admin historical recovery using explicit group/Teacher/Student candidate pickers. For past dates, managers can open recovery from the page toolbar without selecting a current context group, so inactive/deleted historical groups remain reachable.
 - All portal labels/error copy use Vietnamese dictionaries and DevExtreme `vi` messages. Raw `ProblemDetails.title/detail` is not displayed; stable codes map to Vietnamese copy and trace ID remains available for support.
+- `/#/students` now has remote group/unassigned/study-mode/weekday filters, adaptive group/schedule columns, a versioned assign/move/unassign popup and a responsive schedule editor with exactly six Vietnamese weekday checkboxes. Group roster uses the same versioned Student command and exposes conflict reload; schedule/nested validation conflicts keep the Student draft.
+- Attendance context displays the date-specific scheduled count. Missing copy no longer claims every row defaults to Present; an empty scheduled roster is read-only and has no save action. Saved rendering and manual historical recovery are unchanged.
 - Focused Jasmine coverage currently consists of 36 specs, including DateOnly, Vietnamese attendance search, attendance endpoint/full-roster/recovery behavior, Teacher route/role/dashboard boundaries, remote paging mapping, canonical Teacher service endpoints, form request mapping, policy concurrency, administrator-account isolation, API error mapping, and auth/setup state.
 
 ## Environment and deployment handoff
@@ -75,11 +79,11 @@ npm --prefix ui run build -- --configuration iis
 
 ## Last verified baseline
 
-Fresh Teacher-management verification on 2026-08-11:
+Fresh Student schedule/group verification on 2026-08-12:
 
-- `npm --prefix ui run test:ci`: passed 36/36 in Chrome Headless 151. Dependency console emitted the existing DevExtreme W0019 license warning and Inferno development-mode warning; tests had no failures.
-- `npm --prefix ui run build -- --configuration development`: passed, 10.93 MB initial raw development output; final hash `8b065f3873e100ee`.
-- Per the TCH execution gate, no production build, IIS build/package, or deploy was run. Generated `ui/dist/` remains ignored and must be rebuilt when the production skill is explicitly invoked.
+- `npm --prefix ui run test:ci`: passed 50/50 in Chrome Headless 151. Dependency console emitted the existing DevExtreme W0019 license warning and Inferno development-mode warning; tests had no failures.
+- `npm --prefix ui run build -- --configuration development` with `NG_BUILD_MAX_WORKERS=1`: passed, 10.99 MB initial raw development output; final hash `3ee6073d72d35e2a`.
+- Per the SCH execution gate, no production build, IIS build/package, or deploy was run. Generated `ui/dist/` remains ignored and must be rebuilt when the production skill is explicitly invoked.
 - The prior ATT production/IIS package baseline remains historical evidence only; root-owned shared memory records its hash. It has not been rebuilt with TCH changes.
 
 ## Known pitfalls
@@ -94,6 +98,8 @@ Fresh Teacher-management verification on 2026-08-11:
 - Angular schematics skip tests by default. Add focused specs manually when behavior changes.
 - Teacher list search is server-side across the full candidate set. Reusing the local `includesVietnamese` helper on paged Teacher rows would produce incorrect pages and totals.
 - Teacher policy is still edited in `/student-groups`, not the Teacher form. Always carry the row `version` as `expectedVersion` and retain the conflict-reload behavior.
+- Keep Student request DTOs explicit; deriving them with `Omit<Student,...>` can leak group/version/response fields. Never call the Student group endpoint from `StudentGroupsService`; both management pages use `StudentsService.assignGroup` and must refresh the returned version.
+- `StudyMode.OneToOne` is schedule metadata while `AttendanceStatus.OneToOneHour` is the persisted 60-minute status. Missing defaults come from the API; Saved and recovery records must never be re-filtered against the current schedule.
 - Karma loads DevExtreme components and currently prints W0019 when no local DevExtreme license key is installed; this is a licensing/setup warning rather than a test failure and must be resolved by the product owner before commercial deployment.
 - Avoid unplanned Angular/DevExtreme/CDK upgrades; the current dependency mix builds, while a partial upgrade can break the template and generated themes.
 

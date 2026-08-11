@@ -88,6 +88,7 @@ export class StudentGroupsComponent implements OnInit {
   rosterSearch = '';
   roster: Student[] = [];
   selectedStudentId: string | null = null;
+  rosterConflict = '';
 
   policyVisible = false;
   selectedTeacher: Teacher | null = null;
@@ -278,6 +279,7 @@ export class StudentGroupsComponent implements OnInit {
     this.selectedGroup = group;
     this.rosterSearch = '';
     this.selectedStudentId = null;
+    this.rosterConflict = '';
     this.rosterVisible = true;
     await this.loadRoster();
   }
@@ -298,13 +300,17 @@ export class StudentGroupsComponent implements OnInit {
     }
 
     this.saving = true;
+    this.rosterConflict = '';
     try {
-      await firstValueFrom(this.groups.assignStudent(student.id, { groupId: this.selectedGroup.id }));
+      await firstValueFrom(this.students.assignGroup(student.id, {
+        groupId: this.selectedGroup.id,
+        expectedVersion: student.version
+      }));
       this.selectedStudentId = null;
       notify('Đã phân nhóm học sinh.', 'success', 1800);
       await this.reloadRosterAndGroups();
     } catch (error) {
-      this.showError(error);
+      this.handleRosterError(error);
     } finally {
       this.saving = false;
     }
@@ -316,12 +322,16 @@ export class StudentGroupsComponent implements OnInit {
       return;
     }
     this.saving = true;
+    this.rosterConflict = '';
     try {
-      await firstValueFrom(this.groups.assignStudent(student.id, { groupId: null }));
+      await firstValueFrom(this.students.assignGroup(student.id, {
+        groupId: null,
+        expectedVersion: student.version
+      }));
       notify('Đã gỡ học sinh khỏi nhóm.', 'success', 1800);
       await this.reloadRosterAndGroups();
     } catch (error) {
-      this.showError(error);
+      this.handleRosterError(error);
     } finally {
       this.saving = false;
     }
@@ -382,6 +392,11 @@ export class StudentGroupsComponent implements OnInit {
     return USER_STATUS_LABELS[status];
   }
 
+  async reloadRosterConflict(): Promise<void> {
+    this.rosterConflict = '';
+    await this.reloadRosterAndGroups();
+  }
+
   private async loadRoster(): Promise<void> {
     if (!this.selectedGroup) {
       return;
@@ -431,6 +446,14 @@ export class StudentGroupsComponent implements OnInit {
 
   private showError(error: unknown): void {
     this.notifyError(ApiError.from(error));
+  }
+
+  private handleRosterError(error: unknown): void {
+    const apiError = ApiError.from(error);
+    if (apiError.code === 'StudentVersionConflict') {
+      this.rosterConflict = apiError.message;
+    }
+    this.notifyError(apiError);
   }
 
   private notifyError(error: ApiError): void {

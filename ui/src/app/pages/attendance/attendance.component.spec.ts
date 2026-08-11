@@ -97,6 +97,34 @@ describe('AttendanceComponent editor', () => {
     expect(component.recoveryVisible).toBeTrue();
     expect(component.recoveryGroupId).toBeNull();
   });
+
+  it('treats an empty scheduled roster as a read-only state without a save action', () => {
+    const value = daily('Missing');
+    value.items = [];
+    value.summary = { rosterTotal: 0, present: 0, absent: 0, oneToOne: 0 };
+    value.canCreate = false;
+    value.readOnlyReason = 'NoScheduledStudents';
+
+    applyDaily(component, value);
+
+    expect(component.noScheduledStudents).toBeTrue();
+    expect(component.canModify).toBeFalse();
+    expect(component.saveDisabled).toBeTrue();
+    expect(component.readOnlyText).toContain('Không có học sinh có lịch học');
+  });
+
+  it('keeps historical recovery manual and defaults a selected candidate to Present', () => {
+    (component as any).studentCandidates.set('student-old', {
+      id: 'student-old', studentCode: 'HS-CU', fullName: 'Học sinh cũ', nickName: '',
+      status: 'Inactive', isDeleted: true, currentGroupId: null
+    });
+
+    component.onRecoveryStudentsChanged({ value: ['student-old'] });
+
+    expect(component.recoveryDrafts.length).toBe(1);
+    expect(component.recoveryDrafts[0].status).toBe('Present');
+    expect(component.recoveryDrafts[0].durationMinutes).toBeNull();
+  });
 });
 
 function applyDaily(component: AttendanceComponent, value: DailyAttendance): void {
