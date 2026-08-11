@@ -1,13 +1,15 @@
-# Kế hoạch UI điểm danh dạng card nhỏ gọn
+# Kế hoạch điểm danh dạng card nhỏ gọn
 
 ## 1. Thông tin kế hoạch
 
 - **Epic:** `AUI` — Attendance UI.
 - **Thứ tự:** `05`.
-- **Trạng thái:** Bản đề xuất đang chờ review; chưa triển khai source.
+- **Trạng thái:** `AUI-DEC-01`–`03` đã chốt; đang chờ review `AUI-DEC-04`–`08`, chưa triển khai source.
 - **Ngày lập:** 2026-08-12.
-- **Phạm vi chính:** Angular 15/DevExtreme tại trang `/#/attendance`.
+- **Phạm vi:** .NET 10 REST API, PostgreSQL 17 và Angular 15/DevExtreme tại trang `/#/attendance`.
 - **Phụ thuộc:** [`02-ATT-attendance.md`](02-ATT-attendance.md) và [`04-SCH-student-groups-study-schedule.md`](04-SCH-student-groups-study-schedule.md).
+
+Về thứ tự áp dụng contract, plan `AUI` này mở rộng `ATT`/`SCH` và ghi đè đúng hai điểm: thêm persisted status `Unmarked`, đồng thời bỏ yêu cầu `Morning/Afternoon` đối với các thao tác `AbsentHalfDay` mới. Mọi quy tắc khác của `ATT`/`SCH` vẫn giữ nguyên.
 
 Mẫu hình người dùng cung cấp là định hướng trực quan: card thấp, xếp nhiều cột, tên/mã học sinh ở thanh dọc, trạng thái dạng pill có mũi tên, field phụ chỉ xuất hiện khi cần và vùng ghi chú nằm ngay trong card.
 
@@ -17,9 +19,10 @@ Production build, IIS package và deploy không thuộc plan này; chỉ chạy 
 
 1. Hiển thị khoảng 8–10 học sinh trong một viewport desktop thông thường; nhóm lớn tiếp tục cuộn dọc đến tối đa 100 học sinh.
 2. Giảm chiều cao mỗi card và số thao tác chuột so với cụm radio hiện tại.
-3. Giữ nguyên đầy đủ nghiệp vụ `Present`, `AbsentFullDay`, `AbsentHalfDay`, `OneToOneHour`, phép/không phép, buổi sáng/chiều, ghi chú và full-roster save.
-4. Không làm mất draft khi tìm kiếm/lọc; không phá dirty guard, conflict recovery, read-only, Saved snapshot hoặc historical recovery.
-5. Toàn bộ text hiển thị bằng tiếng Việt và vẫn dùng được bằng bàn phím/screen reader.
+3. Bổ sung persisted status `Unmarked` (`Chưa điểm danh`); giữ mặc định theo lịch học và cho phép người dùng chủ động đổi một học sinh về `Chưa điểm danh`.
+4. Bỏ yêu cầu sáng/chiều khỏi `AbsentHalfDay`; phép/không phép vẫn là dữ liệu có cấu trúc, chi tiết buổi nghỉ nếu cần được nhập trong ghi chú.
+5. Không làm mất draft khi tìm kiếm/lọc; không phá dirty guard, conflict recovery, read-only, Saved snapshot hoặc historical recovery.
+6. Toàn bộ text hiển thị bằng tiếng Việt và vẫn dùng được bằng bàn phím/screen reader.
 
 ## 3. Phạm vi và ngoài phạm vi
 
@@ -30,11 +33,14 @@ Production build, IIS package và deploy không thuộc plan này; chỉ chạy 
 - Thanh định danh dọc chứa tên thường gọi và mã học sinh.
 - Grid responsive, cuộn dọc, dirty/invalid/read-only/loading states.
 - Sửa giới hạn UI ghi chú từ 200 lên đúng contract API 2.000 ký tự.
+- Mở rộng `AttendanceStatus` với `Unmarked`, summary với `unmarked` và DB check constraint tương ứng.
+- Đổi validation/write semantics của `AbsentHalfDay`: `halfDayPart` không còn bắt buộc cho bản ghi mới; `isExcused` vẫn bắt buộc.
+- Migration tương thích dữ liệu cũ, giữ `half_day_part` nullable để không xóa thông tin lịch sử đã lưu.
 - Focused unit tests và kiểm tra trực quan ở các viewport mục tiêu.
 
 ### 3.2 Ngoài phạm vi
 
-- Không đổi REST endpoint, DTO, database, enum `AttendanceStatus`, migration hoặc authorization.
+- Không đổi URL REST, full-roster, authorization, snapshot/version hoặc retention semantics.
 - Không autosave, batch API mới, virtual-scroll ở đợt đầu hoặc kéo-thả card.
 - Không redesign popup `Khôi phục lịch sử`; chỉ chạy regression để bảo đảm luồng này giữ nguyên.
 - Không thay đổi filter panel, summary, toolbar, conflict banner và sticky save ngoài các copy/spacing cần thiết để đồng bộ layout.
@@ -42,9 +48,9 @@ Production build, IIS package và deploy không thuộc plan này; chỉ chạy 
 
 ## 4. Hiện trạng cần giữ
 
-- Missing lấy roster và trạng thái gợi ý từ backend theo lịch học: `FullDay → Present`, `OneToOne → OneToOneHour/60 phút`.
-- Missing POST và Saved PUT đều gửi toàn bộ roster; `Unmarked/Chưa điểm danh` không phải giá trị hợp lệ của API.
-- `AbsentHalfDay` bắt buộc `halfDayPart = Morning|Afternoon` và `isExcused` boolean.
+- Missing lấy roster và trạng thái mặc định từ backend theo lịch học: `FullDay → Present`, `OneToOne → OneToOneHour/60 phút`; không mặc định `Unmarked`.
+- Missing POST và Saved PUT đều gửi toàn bộ roster; sau plan này `Unmarked` là persisted `AttendanceStatus` hợp lệ và chỉ xuất hiện khi người dùng chủ động chọn.
+- `AbsentHalfDay` không dùng `halfDayPart` cho bản ghi mới, vẫn bắt buộc `isExcused`; chi tiết sáng/chiều nếu có nằm trong `notes`.
 - `AbsentFullDay` bắt buộc `isExcused`; `Present` và `OneToOneHour` không có các field nghỉ.
 - `notes` áp dụng cho mọi status, nullable và tối đa 2.000 ký tự.
 - Saved hiển thị snapshot đã lưu, không suy diễn lại từ schedule hiện tại.
@@ -98,7 +104,7 @@ Với roster lớn:
 | `AbsentFullDay` | `Nghỉ` | `Nghỉ cả ngày` | Đỏ nhạt/đỏ đậm |
 | `AbsentHalfDay` | `Nghỉ 1/2` | `Nghỉ một nửa ngày` | Cam nhạt/cam đậm |
 | `OneToOneHour` | `1-1` | `Học một kèm một, 60 phút` | Xanh lá nhạt |
-| UI-only nếu được duyệt | `Chưa điểm danh` | `Chưa chọn trạng thái điểm danh` | Xám |
+| `Unmarked` | `Chưa điểm danh` | `Chưa điểm danh` | Xám |
 
 Màu chỉ hỗ trợ nhận biết; text đầy đủ luôn tồn tại. Contrast phải đạt WCAG AA và focus ring không bị màu pill che khuất.
 
@@ -108,11 +114,11 @@ Màu chỉ hỗ trợ nhận biết; text đầy đủ luôn tồn tại. Contra
 |---|---|---|
 | Có mặt | Không hiện | clear `halfDayPart/isExcused/durationMinutes`; giữ notes |
 | Nghỉ cả ngày | `Có phép` / `Không phép` | `isExcused=true|false` |
-| Nghỉ 1/2 | Một select gộp 4 lựa chọn | `Sáng/Chiều × Có phép/Không phép` map ngược về `halfDayPart + isExcused` |
+| Nghỉ 1/2 | `Có phép` / `Không phép` | `halfDayPart=null`, `isExcused=true|false`; sáng/chiều nếu cần ghi trong notes |
 | 1-1 | Chip nhỏ `60 phút`, không cần select | `durationMinutes=60` |
-| Chưa điểm danh | Không hiện | không bao giờ serialize/gửi API |
+| Chưa điểm danh | Không hiện | persisted `status=Unmarked`; mọi conditional field null, notes vẫn được phép |
 
-Select gộp của nghỉ 1/2 chỉ là lớp trình bày; DTO và `toRecord()` vẫn gửi hai field độc lập đúng ATT contract.
+`AbsentHalfDay` và `AbsentFullDay` có cùng control phép/không phép. Điểm khác nhau chỉ là status; UI không hỏi buổi sáng/chiều.
 
 ### 7.3 Ghi chú
 
@@ -121,51 +127,70 @@ Select gộp của nghỉ 1/2 chỉ là lớp trình bày; DTO và `toRecord()` 
 - Ghi chú không bị clear khi đổi status, đúng contract hiện tại.
 - Lỗi notes được hiển thị ngay trong card và focus đúng textarea/card đầu tiên có lỗi.
 
-## 8. “Chưa điểm danh” và mô hình draft
+## 8. Persisted status “Chưa điểm danh”
 
-`Chưa điểm danh` trong hình không tồn tại trong `AttendanceStatus`. Tuyệt đối không gửi chuỗi này lên API và không thêm enum/database chỉ để phục vụ layout.
+`AUI-DEC-01` đã chốt `Chưa điểm danh` là trạng thái nghiệp vụ được lưu thật, không phải review state tạm. Wire enum dùng tên `Unmarked` và nhãn UI luôn là `Chưa điểm danh`.
 
-Phương án khuyến nghị để bám hình mà vẫn giữ contract:
+Semantics:
 
-1. Chỉ dùng `Chưa điểm danh` như review state trong UI của phiếu `Missing`.
-2. Mỗi draft giữ riêng:
+1. Backend Missing vẫn mặc định theo schedule:
+   - Student `FullDay` hoặc mode khác `OneToOne` → `Present`.
+   - Student `OneToOne` → `OneToOneHour`, 60 phút.
+2. Không có học sinh nào tự động thành `Unmarked` khi vừa tải phiếu.
+3. Người dùng chủ động chọn `Chưa điểm danh` trên một hoặc nhiều card khi chưa thể kết luận trạng thái thực tế.
+4. `Unmarked` được phép trong POST/PUT full roster và được persisted như mọi status khác.
+5. Saved sheet đọc lại đúng `Unmarked`; người có quyền sửa có thể đổi nó thành trạng thái khác ở lần PUT sau.
+6. `Unmarked` có `halfDayPart=null`, `isExcused=null`, `durationMinutes=null`; notes vẫn nullable/tối đa 2.000 ký tự.
+7. `Unmarked` không được tính là Có mặt, Vắng hoặc 1-1; summary trả thêm count riêng `unmarked` để tổng các nhóm bằng `rosterTotal`.
 
-```ts
-reviewState: 'Unmarked' | 'Reviewed';
-suggestedStatus: AttendanceStatus;
+Ví dụ Missing của hai học sinh:
+
+```text
+Bé An · FullDay   → Có mặt (mặc định)
+Bé Vy · OneToOne → 1-1 (mặc định)
 ```
 
-3. Backend status gợi ý được giữ trong `suggestedStatus`; Saved luôn là `Reviewed`.
-4. Save bị khóa khi còn card `Unmarked`; validation mở filter và focus card đầu tiên chưa chọn.
-5. Có action cấp danh sách `Dùng trạng thái gợi ý cho tất cả` để xác nhận nhanh roster lớn. Action này chỉ sửa draft, không autosave.
-6. `toRecord()` chỉ nhận draft đã `Reviewed`, do đó full-roster API không thể nhận status không hợp lệ.
-7. Dirty/navigation guard tính cả thay đổi `reviewState`, kể cả khi người dùng xác nhận đúng status gợi ý.
+Nếu giáo viên chưa xác định được Bé An, họ đổi pill của Bé An thành `Chưa điểm danh`; lần lưu đầu sẽ persisted `Unmarked` cho Bé An và `OneToOneHour` cho Bé Vy.
 
-Đây là thay đổi workflow so với hiện tại, nơi Missing có thể lưu ngay toàn bộ trạng thái gợi ý dù `dirty=0`; cần user khóa `AUI-DEC-01` trước implementation.
+Không cần `reviewState`, `suggestedStatus`, bulk apply hoặc rule chặn save vì còn `Unmarked`. Dirty guard tiếp tục so sánh bản ghi API thực tế như hiện tại.
 
-Nếu không duyệt workflow này, card vẫn dùng layout/pill giống hình nhưng không có lựa chọn `Chưa điểm danh`; Missing tiếp tục hiển thị ngay status gợi ý và cho phép lưu lần đầu với `dirty=0`.
+## 9. Contract, migration, validation và save flow
 
-## 9. State, validation và save flow
+Contract thay đổi có chủ đích:
 
-- Giữ API DTO `AttendanceStatus` nguyên vẹn; tạo UI view model riêng, không mở rộng DTO bằng giá trị giả.
-- Chuyển status phải clear/set conditional fields đúng rule hiện tại.
-- Combined half-day option có helper pure để encode/decode; không rải string parsing trong template.
+- Backend/frontend thêm `AttendanceStatus.Unmarked`.
+- `AttendanceSummaryResponse` và `AttendanceSummary` frontend thêm `unmarked: int`.
+- `AttendanceRecordRequest.halfDayPart` tạm giữ nullable để tương thích wire/history nhưng được đánh dấu legacy; request mới từ UI luôn gửi null.
+- `AttendanceItemResponse.halfDayPart` tạm giữ để đọc dữ liệu lịch sử cũ; UI card mới không yêu cầu hoặc chỉnh field này.
+- Validation status-fields mới:
+  - `Present`: mọi conditional field null.
+  - `AbsentFullDay`: `isExcused` bắt buộc; `halfDayPart/durationMinutes` null.
+  - `AbsentHalfDay`: `isExcused` bắt buộc; `durationMinutes` null; `halfDayPart` null cho write mới.
+  - `OneToOneHour`: chỉ `durationMinutes=60`.
+  - `Unmarked`: mọi conditional field null.
+- DB check constraint phải thêm nhánh `Unmarked`. Để giữ record lịch sử, nhánh `AbsentHalfDay` ở DB cho phép `half_day_part` null hoặc giá trị legacy; application command luôn ghi null cho request mới.
+- Không drop column `half_day_part` và không rewrite dữ liệu Saved cũ trong migration này. Khi update một sheet có record legacy không đổi status, service phải bảo toàn `halfDayPart` cũ; khi người dùng đổi status của record đó, value được clear.
+
+Save flow:
+
+- Chuyển status phải clear/set conditional fields đúng rule mới và giữ notes.
 - Invalid state đặt border/indicator rõ trên card; filter đang ẩn card lỗi phải được reset trước khi focus.
 - Missing save gửi full roster + `expectedSnapshotVersion`; Saved save gửi full roster + sheet `expectedVersion` như hiện tại.
-- Missing first-save vẫn enabled khi `dirty=0` nếu phương án không dùng `Unmarked`; nếu dùng `Unmarked`, chỉ enabled sau khi toàn roster được review/bulk-apply.
-- Save success dùng response làm source of truth, reset baseline/review state và giữ vị trí scroll hợp lý.
-- 409 giữ mọi draft/review state, hiển thị CTA tải bản mới nhất; 403 reload context theo behavior hiện tại.
+- Missing first-save vẫn enabled khi `dirty=0`, vì status ban đầu luôn là default hợp lệ từ backend.
+- `Unmarked` là status hợp lệ nên không chặn save; nó chỉ xuất hiện khi người dùng chọn và được tính là dirty nếu khác baseline.
+- Save success dùng response làm source of truth, reset baseline và giữ vị trí scroll hợp lý.
+- 409 giữ mọi draft, hiển thị CTA tải bản mới nhất; 403 reload context theo behavior hiện tại.
 - Read-only Saved dùng cùng card nhưng select/textarea disabled; không hiển thị affordance khiến người dùng nghĩ có thể sửa.
 
 ## 10. Filter, summary và trạng thái trang
 
 - Giữ panel filter collapse/expand mặc định mở.
 - Search không dấu trên mã, họ tên, nickname như hiện tại.
-- Status filter dùng local card state; nếu `Unmarked` được duyệt thì thêm lựa chọn `Chưa điểm danh` nhưng không đưa vào API enum/model chung.
+- Status filter thêm persisted status `Unmarked`, hiển thị nhãn `Chưa điểm danh`.
 - Summary vẫn tính trên toàn roster, không chỉ card đang lọc.
-- Nếu `Unmarked` được duyệt, thêm ô `Chưa điểm danh` hoặc thay copy tổng hợp để tổng các nhóm trạng thái không gây hiểu nhầm.
+- Summary thêm ô/count `Chưa điểm danh`; `rosterTotal = present + absent + oneToOne + unmarked`.
 - `NoScheduledStudents`, loading, error, conflict và empty-filter states giữ copy tiếng Việt hiện tại.
-- Sticky action giữ số thay đổi/chưa review, không che hàng card cuối.
+- Sticky action giữ số thay đổi chưa lưu, không che hàng card cuối.
 
 ## 11. Accessibility và tương tác
 
@@ -179,13 +204,23 @@ Nếu không duyệt workflow này, card vẫn dùng layout/pill giống hình n
 
 ## 12. File dự kiến thay đổi
 
-Frontend chính:
+Backend:
+
+- `api/src/AdminPortal.Domain/Enums/AttendanceStatus.cs`
+- `api/src/AdminPortal.Application/Attendance/AttendanceModels.cs`
+- `api/src/AdminPortal.Application/Attendance/AttendanceRules.cs`
+- `api/src/AdminPortal.Application/Attendance/AttendanceService.cs`
+- `api/src/AdminPortal.Infrastructure/Persistence/Configurations/AttendanceRecordConfiguration.cs`
+- EF migration + model snapshot được sinh bằng CLI.
+- Unit/integration tests attendance và migration upgrade.
+
+Frontend:
 
 - `ui/src/app/pages/attendance/attendance.component.html`
 - `ui/src/app/pages/attendance/attendance.component.scss`
 - `ui/src/app/pages/attendance/attendance.component.ts`
 - `ui/src/app/pages/attendance/attendance.component.spec.ts`
-- Có thể thêm helper/view-model nhỏ cạnh attendance component nếu combined half-day/review state làm component khó đọc.
+- Có thể thêm helper/view-model nhỏ cạnh attendance component nếu status mapping làm component khó đọc.
 
 Tài liệu/handoff:
 
@@ -194,7 +229,7 @@ Tài liệu/handoff:
 - `tasks.md`
 - `plans/README.md`
 
-Không dự kiến sửa `api/`, migration, DTO dùng chung hoặc global `styles.scss`.
+Không dự kiến đổi endpoint URL, auth, Student schedule contract hoặc global `styles.scss`.
 
 ## 13. Mã đợt triển khai
 
@@ -203,12 +238,19 @@ Không dự kiến sửa `api/`, migration, DTO dùng chung hoặc global `style
 - `AUI-P-01`: phân tích mẫu hình và current attendance UI.
 - `AUI-P-02`: khóa semantics `Chưa điểm danh`, card fields, breakpoints và acceptance criteria.
 
+### Backend
+
+- `AUI-BE-00`: khóa enum/DTO/summary/validation/OpenAPI contract và legacy `halfDayPart` compatibility.
+- `AUI-BE-01`: domain/config/EF migration/check constraint, fresh + upgrade proof.
+- `AUI-BE-02`: service defaults, persisted Unmarked, half-day write/preserve semantics và audit.
+- `AUI-BE-03`: unit/integration/OpenAPI/README/requests/memory/final gates.
+
 ### Frontend
 
-- `AUI-FE-00`: khóa local view model/helper và test traceability; xác nhận không đổi API.
+- `AUI-FE-00`: align `Unmarked`, summary và nullable legacy `halfDayPart` contract; khóa test traceability.
 - `AUI-FE-01`: dựng compact card/grid/identity rail/status color tokens.
-- `AUI-FE-02`: status pill, permission và combined half-day mapping; notes 2.000 ký tự.
-- `AUI-FE-03`: `Unmarked`/bulk suggested flow nếu được duyệt; dirty/filter/summary/save integration.
+- `AUI-FE-02`: status pill, permission mapping không dùng half-day part; notes 2.000 ký tự.
+- `AUI-FE-03`: persisted `Unmarked`, defaults/dirty/filter/summary/save integration.
 - `AUI-FE-04`: read-only, loading/error/conflict/empty và recovery regression.
 - `AUI-FE-05`: responsive, accessibility, focused tests, development build, docs/memory.
 
@@ -224,14 +266,26 @@ Không dự kiến sửa `api/`, migration, DTO dùng chung hoặc global `style
 
 - Mọi API status map đúng nhãn/màu; không lộ enum tiếng Anh.
 - Status change clear/set đúng conditional fields và giữ notes.
-- Bốn lựa chọn nghỉ 1/2 encode/decode chính xác Morning/Afternoon + phép/không phép.
+- `AbsentHalfDay` và `AbsentFullDay` đều bắt buộc phép/không phép; UI không hiển thị Morning/Afternoon và luôn gửi `halfDayPart=null` cho write mới.
+- Missing mặc định `Present` cho Student không phải OneToOne và `OneToOneHour` cho Student OneToOne; không tự mặc định `Unmarked`.
+- Người dùng chọn `Unmarked` được POST/PUT round-trip; mọi conditional field null và notes được giữ.
 - `OneToOneHour` luôn serialize 60 phút.
 - Notes nhận đến 2.000 ký tự; 2.001 bị chặn/map lỗi đúng card.
 - Filter/search không làm mất draft; summary tính toàn roster.
 - Invalid card bị ẩn được reveal và focus.
-- Missing first-save và Saved dirty-only save giữ đúng contract theo quyết định `Unmarked`.
-- Nếu có `Unmarked`: không serialize được; save bị chặn; bulk suggestion review toàn roster; dirty guard tính review state.
+- Missing first-save `dirty=0` vẫn gửi full roster default; Saved chỉ enable save khi dirty.
+- Summary/filter/count `Unmarked` chính xác và full-roster request vẫn đủ mọi Student.
 - Saved/read-only không phát mutation; recovery vẫn manual và default Present.
+
+### Backend/integration
+
+- JSON enum nhận/trả `Unmarked`; OpenAPI và ProblemDetails không lộ giá trị không hợp lệ.
+- DB check constraint chấp nhận `Unmarked` chỉ khi conditional fields null.
+- Bản ghi AbsentHalfDay mới có `half_day_part=null`, `is_excused` bắt buộc.
+- Upgrade giữ nguyên record legacy có Morning/Afternoon; migration không drop/rewrite dữ liệu lịch sử.
+- Full PUT không đổi status của record AbsentHalfDay legacy phải bảo toàn `halfDayPart`; đổi status thì clear.
+- Summary GET/POST/PUT/recovery trả `unmarked` đúng và tổng category bằng roster total.
+- Full attendance regression, fresh migration, upgrade migration và EF pending-model pass.
 
 ### Visual/responsive
 
@@ -253,7 +307,8 @@ Không dự kiến sửa `api/`, migration, DTO dùng chung hoặc global `style
 
 - Card chính bám cấu trúc hình tham chiếu và đạt mật độ mục tiêu mà không mất trường nghiệp vụ.
 - Tất cả text UI tiếng Việt; màu không phải tín hiệu duy nhất.
-- Không có `Unmarked` trong request hoặc API DTO.
+- `Unmarked` là persisted API/DB status, không phải UI-only state; Missing default vẫn chỉ `Present` hoặc `OneToOneHour` theo schedule.
+- `AbsentHalfDay` mới không dùng `halfDayPart`; dữ liệu legacy được bảo toàn và notes là nơi người dùng ghi chi tiết buổi nếu cần.
 - Full-roster, version/snapshot, dirty guard, Saved và recovery semantics không regression.
 - Notes UI khớp giới hạn API 2.000 ký tự.
 - ChromeHeadlessCI và Angular development build pass; chỉ chạy production/IIS khi skill được gọi rõ.
@@ -263,13 +318,13 @@ Không dự kiến sửa `api/`, migration, DTO dùng chung hoặc global `style
 
 | Mã | Quyết định | Đề xuất |
 |---|---|---|
-| `AUI-DEC-01` | `Chưa điểm danh` có phải trạng thái review UI-only và chặn save? | Có; không thêm API enum, thêm bulk `Dùng trạng thái gợi ý cho tất cả` |
-| `AUI-DEC-02` | Missing ban đầu hiển thị toàn bộ `Chưa điểm danh` hay hiển thị status backend gợi ý? | Để bám hình: `Chưa điểm danh`, nhưng giữ gợi ý trong draft và cho bulk apply |
-| `AUI-DEC-03` | Nghỉ 1/2 dùng một select gộp buổi + phép? | Có; 4 lựa chọn, map về hai field API hiện hữu |
+| `AUI-DEC-01` | Semantics `Chưa điểm danh` | **Đã chốt:** persisted `AttendanceStatus.Unmarked`; được phép POST/PUT/Saved, không phải review state tạm |
+| `AUI-DEC-02` | Default Missing | **Đã chốt:** Student không phải OneToOne mặc định `Present`; OneToOne mặc định `OneToOneHour`; `Unmarked` chỉ do người dùng chủ động chọn |
+| `AUI-DEC-03` | Có dùng `halfDayPart` không? | **Đã chốt:** không dùng cho write/UI mới; `AbsentHalfDay` chỉ chọn phép/không phép, chi tiết ghi notes; giữ dữ liệu DB legacy an toàn |
 | `AUI-DEC-04` | Thanh dọc hiển thị thông tin nào? | `nickname · studentCode`; fullName qua tooltip + accessible text |
 | `AUI-DEC-05` | Redesign áp dụng cho recovery? | Không trong v1; chỉ main daily list |
 | `AUI-DEC-06` | Giới hạn notes trên UI | Sửa từ 200 lên đúng API 2.000 ký tự |
 | `AUI-DEC-07` | Mật độ desktop | Fluid grid, mục tiêu 5 card/hàng ở 1366 px; không hard-code khi thiếu chỗ |
 | `AUI-DEC-08` | Màu status | Bám nhóm màu trong hình nhưng điều chỉnh token để đạt contrast/accessibility |
 
-Không bắt đầu `AUI-FE-00` cho đến khi `AUI-DEC-01` và `AUI-DEC-02` được xác nhận, vì hai quyết định này thay đổi trực tiếp first-save workflow. Các quyết định còn lại có thể dùng đề xuất mặc định nếu người dùng không điều chỉnh.
+`AUI-DEC-01`–`03` đã được người dùng xác nhận ngày 2026-08-12. Do plan nay có contract/schema delta, implementation phải bắt đầu bằng `AUI-BE-00` và `AUI-FE-00` khóa cùng wire contract; không được triển khai frontend riêng rồi gửi enum giả. `AUI-DEC-04`–`08` tiếp tục dùng đề xuất trong bảng nếu người dùng không điều chỉnh.

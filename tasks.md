@@ -422,10 +422,14 @@ QA/Integration:
 
 - [x] `AUI-P-01`. Phân tích hình tham chiếu và đối chiếu attendance UI/ATT/SCH contract hiện tại
 - [~] `AUI-P-02`. Review và khóa `AUI-DEC-01`–`AUI-DEC-08`
-- [ ] `AUI-FE-00`. Khóa local view model/helper và test traceability, không đổi API
+- [ ] `AUI-BE-00`. Khóa enum/DTO/summary/validation/OpenAPI và compatibility `halfDayPart` legacy
+- [ ] `AUI-BE-01`. EF migration/check constraint, fresh/upgrade proof
+- [ ] `AUI-BE-02`. Persisted `Unmarked`, half-day write/preserve semantics và audit
+- [ ] `AUI-BE-03`. Unit/integration/docs/memory/final gates
+- [ ] `AUI-FE-00`. Align `Unmarked`/summary/legacy DTO và test traceability
 - [ ] `AUI-FE-01`. Compact grid/card, identity rail và status pill
-- [ ] `AUI-FE-02`. Conditional mapping, notes 2.000 ký tự và validation
-- [ ] `AUI-FE-03`. `Chưa điểm danh`/bulk suggestion/dirty/filter/summary theo quyết định đã khóa
+- [ ] `AUI-FE-02`. Phép/không phép không dùng half-day part, notes 2.000 ký tự và validation
+- [ ] `AUI-FE-03`. Persisted `Unmarked`, defaults/dirty/filter/summary/save integration
 - [ ] `AUI-FE-04`. Read-only/error/conflict/empty/recovery regression
 - [ ] `AUI-FE-05`. Responsive/a11y/test/development build/docs/memory
 - [ ] `AUI-QA-01`. Visual review desktop/tablet/mobile và roster 1/10/100
@@ -435,9 +439,10 @@ QA/Integration:
 ### Attendance compact-card planning log
 
 - `AUI-P-01` (2026-08-12): mẫu yêu cầu card khoảng 220–260 px, tên/mã ở thanh dọc, status/conditional dạng pill và textarea ghi chú; mục tiêu 5 card/hàng ở desktop 1366 px, nhiều hơn cuộn dọc.
-- Contract hiện tại không có `Chưa điểm danh`; plan `plans/05-AUI-attendance-compact-cards.md` đề xuất giữ nó ở UI review state, không gửi API, chặn save đến khi toàn roster được review và có bulk dùng status backend gợi ý.
-- Plan không đổi backend/schema/DTO; redesign chỉ main daily list, giữ Saved/recovery/full-roster/version semantics. Đồng thời phát hiện UI đang giới hạn notes 200 trong khi ATT/API cho phép 2.000 ký tự; đưa việc sửa vào scope.
-- Chưa triển khai source. Cần khóa tối thiểu `AUI-DEC-01` và `AUI-DEC-02`; production/IIS skill không được gọi trong giai đoạn plan.
+- `AUI-DEC-01`–`03` chốt ngày 2026-08-12: `Unmarked/Chưa điểm danh` là persisted status do user chủ động chọn; Missing vẫn mặc định Present hoặc OneToOneHour theo schedule; AbsentHalfDay không dùng Morning/Afternoon, chỉ giữ phép/không phép và ghi chi tiết trong notes.
+- Plan vì vậy có backend contract/migration delta: thêm enum + summary count + DB check, giữ `half_day_part` nullable cho legacy và không rewrite dữ liệu Saved cũ. UI đang giới hạn notes 200 trong khi ATT/API cho phép 2.000 ký tự; việc sửa vẫn trong scope.
+- `AUI` ghi đè riêng quy tắc `ATT` cũ bắt buộc Morning/Afternoon; các contract full-roster, version/snapshot, quyền và recovery còn lại giữ nguyên.
+- Chưa triển khai source. `AUI-DEC-04`–`08` đang chờ review; production/IIS skill không được gọi trong giai đoạn plan.
 
 ## Tổ chức thư mục kế hoạch — owner: `root`
 
