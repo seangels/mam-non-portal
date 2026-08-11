@@ -255,3 +255,17 @@ QA/Integration:
 - Verification tài liệu: Markdown code fences cân bằng, `git diff --check` đạt và scan không còn contract cũ `rosterVersion`/`HistoricalRosterUnavailable`/exception-only ngoài dòng log mô tả thiết kế đã bị thay thế. Không chạy product build/test vì đợt này chỉ thay đổi plan/memory/task tracking.
 - Git workflow: người dùng cho phép chủ động tạo local commit theo từng milestone; không bao gồm push/merge/rebase/tag nếu chưa được yêu cầu riêng.
 - Epic `ATT` đã được triển khai đầy đủ trên source/schema/API/UI, kiểm tra regression và đóng gói IIS; chưa push hoặc triển khai lên máy IIS đích.
+
+## Skill production/IIS — owner: `root`
+
+- [x] `PROD-SKILL-01`. Tạo project skill `$gv-portal-production` bằng skill initializer chuẩn
+- [x] `PROD-SKILL-02`. Tách ba mode `build`, `verify`, `deploy` và khóa implicit invocation
+- [x] `PROD-SKILL-03`. Chuyển production/IIS ra khỏi default verification trong `AGENTS.md`
+- [x] `PROD-SKILL-04`. Validate cấu trúc/frontmatter/UI metadata của skill
+
+### Production skill log
+
+- Skill nằm tại `.codex/skills/gv-portal-production`; `agents/openai.yaml` đặt `policy.allow_implicit_invocation: false`.
+- Chỉ khi người dùng gọi `$gv-portal-production` mới chạy production build/package/verify/deploy. Không truyền mode thì mặc định `build`, không thay đổi IIS; chỉ `deploy` rõ ràng mới cho phép sửa IIS, hosts, certificate, `C:\inetpub` và apply migration trên database đích.
+- Workflow `build` chạy backend/frontend release gates, tạo ZIP và kiểm tra checksum/nội dung. Workflow `verify` chỉ đọc package hiện có. Workflow `deploy` yêu cầu package đã verify, backup database/artifact, SecureString secrets và kiểm tra HTTPS/IIS sau deploy.
+- `quick_validate.py` của skill-creator đạt `Skill is valid`; chỉ cài tạm PyYAML qua `uv` để chạy validator. Không chạy production build, không tạo package mới và không deploy trong đợt tách skill này.

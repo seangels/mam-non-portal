@@ -21,6 +21,8 @@ Last updated: 2026-08-11
 
 ## Deployment decision
 
+- Production build/package/deploy is gated by the project skill `$gv-portal-production` at `.codex/skills/gv-portal-production`. Its `allow_implicit_invocation` is `false`; ordinary implementation or test work must use development verification and must not create a package or mutate IIS automatically.
+- The skill has distinct `build`, `verify`, and `deploy` modes. No mode defaults to non-deploying `build`; only explicit `deploy` authorizes target IIS/hosts/certificate/`C:\inetpub`/database changes.
 - Build happens on the source/build machine. The IIS target machine receives a ZIP containing publish artifacts and deploy documentation, not source code.
 - IIS local HTTPS hostnames are `api-gv-portal.local` and `gv-portal.local`, both on port 443 with SNI.
 - IIS physical paths are `C:\inetpub\api-gv-portal.local` and `C:\inetpub\gv-portal.local`.
@@ -28,6 +30,7 @@ Last updated: 2026-08-11
 - The target needs IIS, the .NET 10 Hosting Bundle, PostgreSQL 17, and elevated Windows PowerShell 5.1. It does not need source, .NET SDK, Node, or npm.
 - The deploy script creates/trusts a local SAN certificate by default, updates hosts entries, configures separate app pools, injects Production settings into deployed API `web.config`, and exposes HTTPS only.
 - Generated `artifacts/` and `release/` are ignored and may not exist in a new clone/session.
+- Do not run production build/package/deploy as a finalization habit. Require explicit invocation of `$gv-portal-production`; then follow its mode boundary and evidence checklist.
 
 ## Last verified baseline
 

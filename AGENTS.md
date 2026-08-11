@@ -54,6 +54,13 @@ Runtime subagent processes do not survive a new chat. Recreate the `backend` and
 - Do not include unrelated user/agent changes in a commit. Shared cross-stack commits are coordinated by the orchestrator.
 - This permission covers local commits only. Do not push, force-push, merge, rebase, amend published history, create tags, or open a pull request unless the user separately requests it.
 
+## Production build and deployment gate
+
+- Production build, IIS package creation, package verification, and deployment are opt-in operations owned by the project skill `.codex/skills/gv-portal-production`.
+- Run them only when the user explicitly invokes `$gv-portal-production`. The skill disables implicit invocation; completing normal implementation, tests, review, or a milestone is not permission to run it.
+- An invocation without a mode means non-deploying `build`. Only an explicit `deploy` request authorizes changes to IIS, hosts, certificate stores, `C:\inetpub`, or the target database.
+- Outside that skill, do not run `npm --prefix ui run build` with the default production configuration, `deploy/iis/build-iis-package.ps1`, `deploy/iis/deploy-iis.ps1`, or `dotnet publish` for release packaging.
+
 ## Default verification
 
 Backend:
@@ -64,9 +71,7 @@ Backend:
 
 Frontend:
 
-    npm --prefix ui run build
+    npm --prefix ui run build -- --configuration development
     npm --prefix ui run test:ci
 
-IIS package from a source machine:
-
-    powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\deploy\iis\build-iis-package.ps1
+Production/IIS verification is intentionally excluded from the default gate. Invoke `$gv-portal-production` when it is required.

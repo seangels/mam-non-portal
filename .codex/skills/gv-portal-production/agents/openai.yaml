@@ -1,0 +1,6 @@
+interface:
+  display_name: "GV Portal Production"
+  short_description: "Build and deploy IIS production on demand"
+  default_prompt: "Use $gv-portal-production to build a verified IIS production package without deploying it."
+policy:
+  allow_implicit_invocation: false
