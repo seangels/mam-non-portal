@@ -51,10 +51,10 @@ public sealed class StudentService(
 
         var totalItems = await students.CountAsync(cancellationToken);
         var descending = query.SortOrder.Equals("desc", StringComparison.OrdinalIgnoreCase);
-        var items = await ApplySort(students, query.SortBy, descending)
+        var page = ApplySort(students, query.SortBy, descending)
             .Skip((query.Page - 1) * query.PageSize)
-            .Take(query.PageSize)
-            .Select(student => Map(student))
+            .Take(query.PageSize);
+        var items = await Project(page)
             .ToListAsync(cancellationToken);
         return new PagedResponse<StudentResponse>(
             items,
@@ -319,6 +319,24 @@ public sealed class StudentService(
         student.Group?.Name,
         student.CreatedAt,
         student.UpdatedAt);
+
+    private static IQueryable<StudentResponse> Project(IQueryable<Student> query) =>
+        query.Select(student => new StudentResponse(
+            student.Id,
+            student.StudentCode,
+            student.FullName,
+            student.NickName,
+            student.DateOfBirth,
+            student.Gender,
+            student.Status,
+            student.GuardianName,
+            student.GuardianPhone,
+            student.Note,
+            student.GroupId,
+            student.Group == null ? null : student.Group.Code,
+            student.Group == null ? null : student.Group.Name,
+            student.CreatedAt,
+            student.UpdatedAt));
 
     private static string NormalizeCode(string code) => code.Trim().ToUpperInvariant();
     private static string? NormalizeOptional(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();

@@ -182,6 +182,48 @@ public sealed class AttendanceApiTests(ApiFactory factory) : IClassFixture<ApiFa
     }
 
     [Fact]
+    public async Task GroupAndStudentListProjectAssignedNavigationData()
+    {
+        using var client = await CreateManagerClientAsync();
+        var marker = Guid.NewGuid().ToString("N")[..8];
+        var teacherName = $"Projection Teacher {marker}";
+        var teacher = await CreateTeacherProfileAsync(client, teacherName);
+        var group = await CreateGroupAsync(client, $"Q{marker}", teacher.Id);
+        Assert.Equal(teacher.Id, group.ResponsibleTeacherId);
+        Assert.Equal(teacherName, group.ResponsibleTeacherName);
+        Assert.Equal(0, group.StudentCount);
+
+        var student = await CreateStudentAsync(client, $"Q{marker}", $"Projection Student {marker}");
+        student = await AssignStudentAsync(client, student.Id, group.Id);
+
+        var listResponse = await client.GetAsync(
+            "/api/v1/student-groups?page=1&pageSize=20&sortBy=status&sortOrder=asc");
+        listResponse.EnsureSuccessStatusCode();
+        var groups = await ReadAsync<PagedResponse<StudentGroupResponse>>(listResponse);
+        var listed = Assert.Single(groups.Items, item => item.Id == group.Id);
+        Assert.Equal(teacher.Id, listed.ResponsibleTeacherId);
+        Assert.Equal(teacherName, listed.ResponsibleTeacherName);
+        Assert.Equal(1, listed.StudentCount);
+
+        var detailResponse = await client.GetAsync($"/api/v1/student-groups/{group.Id}");
+        detailResponse.EnsureSuccessStatusCode();
+        var detail = await ReadAsync<StudentGroupResponse>(detailResponse);
+        Assert.Equal(teacher.Id, detail.ResponsibleTeacherId);
+        Assert.Equal(teacherName, detail.ResponsibleTeacherName);
+        Assert.Equal(1, detail.StudentCount);
+
+        var studentListResponse = await client.GetAsync(
+            $"/api/v1/students?page=1&pageSize=20&groupId={group.Id}&sortBy=status&sortOrder=asc");
+        studentListResponse.EnsureSuccessStatusCode();
+        var students = await ReadAsync<PagedResponse<StudentResponse>>(studentListResponse);
+        var listedStudent = Assert.Single(students.Items);
+        Assert.Equal(student.Id, listedStudent.Id);
+        Assert.Equal(group.Id, listedStudent.GroupId);
+        Assert.Equal(group.Code, listedStudent.GroupCode);
+        Assert.Equal(group.Name, listedStudent.GroupName);
+    }
+
+    [Fact]
     public async Task StaleSnapshotAndHistoricalRecoveryUseStableProblemCodesAndProvenance()
     {
         using var client = await CreateManagerClientAsync();

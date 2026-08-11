@@ -353,6 +353,15 @@ QA/Integration:
 - `TCH-BE-08`: solution build 0 warning/error; unit 32/32; PostgreSQL 17 Testcontainers Release 20/20, gồm fresh migration và nâng cấp `InitialCreate` → `AddAttendanceFoundation` → `AddTeacherManagement`; EF báo không có model change chưa migrate. README, `requests.http` và backend memory đã đồng bộ.
 - `TCH-QA-06`: TCH hoàn tất toàn bộ `TCH-00`–`TCH-06`; frontend development build + 36/36 test và backend gates đều xanh. `git diff --check` sạch; production/IIS build, package và deploy không được gọi trong epic này.
 
+### Teacher/group projection hotfix
+
+- [x] `TCH-HF-01`. Sửa `responsibleTeacherName` bị `null` trên list/detail StudentGroup đã phân công
+- [x] `TCH-HF-02`. Rà cùng lỗi projection của group fields trên Student list và bổ sung regression test
+- [x] `TCH-HF-03`. Build/test backend, cập nhật memory và commit hotfix
+
+- Điều tra ban đầu (2026-08-11): `StudentGroupService` dùng `.Select(x => Map(x))`; EF chỉ materialize entity cho client-side top-level mapping nên navigation `ResponsibleTeacher.User` và collection `Students` không được đưa vào SQL projection. Hệ quả có thể đồng thời làm `responsibleTeacherName=null` và `studentCount=0` dù FK đã tồn tại.
+- Hotfix chuyển StudentGroup list/detail sang EF-translatable projection để lấy đúng tên giáo viên và số học sinh active; đồng thời sửa Student list trả đúng `groupCode/groupName`. Regression PostgreSQL riêng 1/1 và full integration Release 21/21 pass; solution Release build 0 warning/error.
+
 ## Tổ chức thư mục kế hoạch — owner: `root`
 
 - [x] `PLAN-ORG-01`. Chuyển toàn bộ plan ra thư mục root `plans/`

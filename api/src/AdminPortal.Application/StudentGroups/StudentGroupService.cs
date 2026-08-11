@@ -32,10 +32,10 @@ public sealed class StudentGroupService(
         if (query.Unassigned == true) groups = groups.Where(x => x.ResponsibleTeacherId == null);
         var total = await groups.CountAsync(cancellationToken);
         var descending = query.SortOrder.Equals("desc", StringComparison.OrdinalIgnoreCase);
-        var items = await ApplySort(groups, query.SortBy, descending)
+        var page = ApplySort(groups, query.SortBy, descending)
             .Skip((query.Page - 1) * query.PageSize)
-            .Take(query.PageSize)
-            .Select(x => Map(x))
+            .Take(query.PageSize);
+        var items = await Project(page)
             .ToListAsync(cancellationToken);
         return new PagedResponse<StudentGroupResponse>(items,
             new PaginationMetadata(query.Page, query.PageSize, total, (int)Math.Ceiling(total / (double)query.PageSize)));
@@ -44,8 +44,8 @@ public sealed class StudentGroupService(
     public async Task<StudentGroupResponse> GetAsync(Guid id, CancellationToken cancellationToken)
     {
         AuthorizationRules.EnsurePortalManager(currentActor.GetRequired());
-        return await dbContext.StudentGroups.AsNoTracking().Where(x => x.Id == id)
-            .Select(x => Map(x)).SingleOrDefaultAsync(cancellationToken)
+        return await Project(dbContext.StudentGroups.AsNoTracking().Where(x => x.Id == id))
+            .SingleOrDefaultAsync(cancellationToken)
             ?? throw new NotFoundException("Không tìm thấy nhóm học sinh.");
     }
 
@@ -187,11 +187,18 @@ public sealed class StudentGroupService(
         group.SnapshotVersion, group.DeletedAt
     };
 
-    private static StudentGroupResponse Map(StudentGroup x) => new(
-        x.Id, x.Code, x.Name, x.Status, x.ResponsibleTeacherId,
-        x.ResponsibleTeacher == null ? null : x.ResponsibleTeacher.User.FullName,
-        x.Students.Count(student => student.Status == StudentStatus.Active),
-        x.SnapshotVersion, x.CreatedAt, x.UpdatedAt);
+    private static IQueryable<StudentGroupResponse> Project(IQueryable<StudentGroup> query) =>
+        query.Select(x => new StudentGroupResponse(
+            x.Id,
+            x.Code,
+            x.Name,
+            x.Status,
+            x.ResponsibleTeacherId,
+            x.ResponsibleTeacher == null ? null : x.ResponsibleTeacher.User.FullName,
+            x.Students.Count(student => student.Status == StudentStatus.Active),
+            x.SnapshotVersion,
+            x.CreatedAt,
+            x.UpdatedAt));
 
     private static IOrderedQueryable<StudentGroup> ApplySort(
         IQueryable<StudentGroup> query, string sortBy, bool descending) =>

@@ -6,8 +6,8 @@
 
 - Cập nhật: 2026-08-11.
 - Backend feature scope trong `plans/01-BASE-admin-portal.md`, `plans/02-ATT-attendance.md` và Teacher management epic `plans/03-TCH-teacher-management.md` đã hoàn tất. `/teachers` hiện là aggregate canonical cho account/profile, mã giáo viên, concurrency, policy và lifecycle.
-- Baseline xác minh gần nhất: solution build `0 warning / 0 error`; unit test `32/32`; integration test PostgreSQL 17 Testcontainers Release `20/20`; EF báo không có pending model changes.
-- Integration Teacher phủ accent/literal search + exact server pagination, create/update/nullable clear/duplicate, version/policy, group snapshot, password/status/delete session revoke, User boundary, audit privacy, concurrent mutation/create, fresh migration và rehearsal Initial -> Attendance -> Teacher management có dữ liệu cũ.
+- Baseline xác minh gần nhất: solution Release build `0 warning / 0 error`; unit test `32/32`; integration test PostgreSQL 17 Testcontainers Release `21/21`; EF báo không có pending model changes.
+- Integration Teacher phủ accent/literal search + exact server pagination, create/update/nullable clear/duplicate, version/policy, group snapshot, password/status/delete session revoke, User boundary, audit privacy, concurrent mutation/create, fresh migration và rehearsal Initial -> Attendance -> Teacher management có dữ liệu cũ. Regression group/student còn xác minh StudentGroup list/get trả responsible Teacher name + active student count và Student list trả group code/name.
 - Không có blocker backend đã biết tại thời điểm snapshot. Trước mỗi task phải kiểm tra `git status`, `tasks.md` và source vì trạng thái này có thể đã thay đổi.
 
 ## Bản đồ code
@@ -56,6 +56,7 @@
 - `AddDbContext` phải resolve `IConfiguration` lazily trong factory; nếu đọc connection string khi registration, integration test override sẽ bị bỏ qua.
 - JWT bearer phải configure qua DI/`IOptions<JwtOptions>` lazily; capture option rỗng sớm từng gây `IDX10703` trong test.
 - Validation attribute trên positional request record phải dùng target `[param: ...]` với ASP.NET Core 10.
+- Không dùng `.Select(x => Map(x))` khi `Map` đọc navigation. EF chỉ cho client evaluation ở top-level projection nên navigation không được đưa vào SQL, từng làm `StudentGroup.responsibleTeacherName/studentCount` và Student list `groupCode/groupName` bị null/0. Dùng inline/IQueryable projection để EF translate join/count.
 - `AuthSession` cần query filter tương thích soft-delete navigation `User`; bỏ nó sẽ tạo warning required-navigation và có thể làm lệch semantics session.
 - Middleware request logging phải bọc exception handler đúng thứ tự để log status đã map (ví dụ setup conflict là 409, không phải 200).
 - Không sửa/xóa EF Designer hoặc `AdminPortalDbContextModelSnapshot.cs`. Migration hiện có: `20260811000000_InitialCreate`, `20260811130802_AddAttendanceFoundation`, `20260811150730_AddTeacherManagement`. Migration TCH thêm/backfill `teacher_code`, `note`, integer `version`, unique/check constraints; không thêm extension/search column.
