@@ -428,7 +428,7 @@ QA/Integration:
 - [ ] `AUI-BE-03`. Unit/integration/docs/memory/final gates
 - [ ] `AUI-FE-00`. Align `Unmarked`/summary/legacy DTO và test traceability
 - [ ] `AUI-FE-01`. Compact grid/card, identity rail và status pill
-- [ ] `AUI-FE-02`. Phép/không phép không dùng half-day part, notes 2.000 ký tự và validation
+- [ ] `AUI-FE-02`. Phép/không phép không dùng half-day part, notes UI 200 ký tự và compatibility dữ liệu cũ
 - [ ] `AUI-FE-03`. Persisted `Unmarked`, defaults/dirty/filter/summary/save integration
 - [ ] `AUI-FE-04`. Read-only/error/conflict/empty/recovery regression
 - [ ] `AUI-FE-05`. Responsive/a11y/test/development build/docs/memory
@@ -440,9 +440,11 @@ QA/Integration:
 
 - `AUI-P-01` (2026-08-12): mẫu yêu cầu card khoảng 220–260 px, tên/mã ở thanh dọc, status/conditional dạng pill và textarea ghi chú; mục tiêu 5 card/hàng ở desktop 1366 px, nhiều hơn cuộn dọc.
 - `AUI-DEC-01`–`03` chốt ngày 2026-08-12: `Unmarked/Chưa điểm danh` là persisted status do user chủ động chọn; Missing vẫn mặc định Present hoặc OneToOneHour theo schedule; AbsentHalfDay không dùng Morning/Afternoon, chỉ giữ phép/không phép và ghi chi tiết trong notes.
-- Plan vì vậy có backend contract/migration delta: thêm enum + summary count + DB check, giữ `half_day_part` nullable cho legacy và không rewrite dữ liệu Saved cũ. UI đang giới hạn notes 200 trong khi ATT/API cho phép 2.000 ký tự; việc sửa vẫn trong scope.
+- Plan vì vậy có backend contract/migration delta: thêm enum + summary count + DB check, giữ `half_day_part` nullable cho legacy và không rewrite dữ liệu Saved cũ.
 - `AUI` ghi đè riêng quy tắc `ATT` cũ bắt buộc Morning/Afternoon; các contract full-roster, version/snapshot, quyền và recovery còn lại giữ nguyên.
-- Chưa triển khai source. `AUI-DEC-04`–`08` đang chờ review; production/IIS skill không được gọi trong giai đoạn plan.
+- `AUI-DEC-04`–`07` chốt ngày 2026-08-12: card chỉ hiển thị `nickname · studentCode`; redesign không áp dụng historical recovery trong v1; notes UI tối đa 200 ký tự; grid fluid hướng tới 5 card/hàng tại 1366 px.
+- API notes vẫn giữ max 2.000 để tương thích; UI không được cắt giá trị cũ dài hơn 200 khi field chưa bị sửa.
+- Chưa triển khai source. Chỉ còn `AUI-DEC-08` đang chờ review; production/IIS skill không được gọi trong giai đoạn plan.
 
 ## Tổ chức thư mục kế hoạch — owner: `root`
 

@@ -4,7 +4,7 @@
 
 - **Epic:** `AUI` — Attendance UI.
 - **Thứ tự:** `05`.
-- **Trạng thái:** `AUI-DEC-01`–`03` đã chốt; đang chờ review `AUI-DEC-04`–`08`, chưa triển khai source.
+- **Trạng thái:** `AUI-DEC-01`–`07` đã chốt; đang chờ review `AUI-DEC-08`, chưa triển khai source.
 - **Ngày lập:** 2026-08-12.
 - **Phạm vi:** .NET 10 REST API, PostgreSQL 17 và Angular 15/DevExtreme tại trang `/#/attendance`.
 - **Phụ thuộc:** [`02-ATT-attendance.md`](02-ATT-attendance.md) và [`04-SCH-student-groups-study-schedule.md`](04-SCH-student-groups-study-schedule.md).
@@ -30,9 +30,9 @@ Production build, IIS package và deploy không thuộc plan này; chỉ chạy 
 
 - Redesign danh sách card điểm danh hằng ngày ở trạng thái `Missing` và `Saved`.
 - Status/conditional controls dạng compact select/pill.
-- Thanh định danh dọc chứa tên thường gọi và mã học sinh.
+- Thanh định danh dọc chỉ chứa `nickname · studentCode`.
 - Grid responsive, cuộn dọc, dirty/invalid/read-only/loading states.
-- Sửa giới hạn UI ghi chú từ 200 lên đúng contract API 2.000 ký tự.
+- Giữ giới hạn nhập ghi chú trên UI là 200 ký tự; API vẫn giữ giới hạn 2.000 ký tự để tương thích.
 - Mở rộng `AttendanceStatus` với `Unmarked`, summary với `unmarked` và DB check constraint tương ứng.
 - Đổi validation/write semantics của `AbsentHalfDay`: `halfDayPart` không còn bắt buộc cho bản ghi mới; `isExcused` vẫn bắt buộc.
 - Migration tương thích dữ liệu cũ, giữ `half_day_part` nullable để không xóa thông tin lịch sử đã lưu.
@@ -52,7 +52,7 @@ Production build, IIS package và deploy không thuộc plan này; chỉ chạy 
 - Missing POST và Saved PUT đều gửi toàn bộ roster; sau plan này `Unmarked` là persisted `AttendanceStatus` hợp lệ và chỉ xuất hiện khi người dùng chủ động chọn.
 - `AbsentHalfDay` không dùng `halfDayPart` cho bản ghi mới, vẫn bắt buộc `isExcused`; chi tiết sáng/chiều nếu có nằm trong `notes`.
 - `AbsentFullDay` bắt buộc `isExcused`; `Present` và `OneToOneHour` không có các field nghỉ.
-- `notes` áp dụng cho mọi status, nullable và tối đa 2.000 ký tự.
+- `notes` áp dụng cho mọi status; API vẫn nullable/tối đa 2.000 ký tự nhưng UI chỉ cho người dùng nhập mới hoặc sửa tối đa 200 ký tự.
 - Saved hiển thị snapshot đã lưu, không suy diễn lại từ schedule hiện tại.
 - Search/filter chỉ ẩn card; baseline/draft đầy đủ vẫn nằm trong bộ nhớ và save vẫn gửi full roster.
 - 403/409 giữ semantics hiện tại; không âm thầm tải đè draft.
@@ -71,10 +71,10 @@ Production build, IIS package và deploy không thuộc plan này; chỉ chạy 
 ```
 
 - Thanh định danh rộng khoảng 40–48 px, nền trung tính, border phải rõ nhẹ.
-- Desktop dùng `writing-mode: vertical-rl` kết hợp hướng chữ phù hợp mẫu; DOM và accessible name vẫn theo thứ tự `Tên thường gọi, mã học sinh, họ tên đầy đủ`.
+- Desktop dùng `writing-mode: vertical-rl` kết hợp hướng chữ phù hợp mẫu; DOM và accessible name chỉ theo thứ tự `nickname, studentCode`.
 - Phần nội dung có một status pill, tối đa một hàng conditional compact và textarea ghi chú.
 - Card mục tiêu rộng 220–260 px, cao khoảng 145–175 px tùy trạng thái; card có lỗi được phép cao hơn thay vì che lỗi.
-- Full name hiển thị qua tooltip/title và text chỉ dành cho screen reader; trên mobile thanh định danh chuyển thành header ngang để tránh tên dọc quá dài.
+- Không đưa `fullName` vào card, tooltip hoặc accessible name. Trên mobile thanh định danh chuyển thành header ngang để tránh nickname/mã dọc quá dài.
 
 ## 6. Grid và responsive
 
@@ -123,7 +123,8 @@ Màu chỉ hỗ trợ nhận biết; text đầy đủ luôn tồn tại. Contra
 ### 7.3 Ghi chú
 
 - Textarea hai dòng, tự giãn tối đa một ngưỡng nhỏ rồi cuộn nội bộ.
-- `maxlength=2000`, counter `x/2.000` có thể chỉ hiện khi focus hoặc gần giới hạn để giữ card gọn.
+- `maxlength=200`, counter `x/200` có thể chỉ hiện khi focus hoặc gần giới hạn để giữ card gọn.
+- Nếu API trả về dữ liệu lịch sử dài hơn 200 ký tự, UI không được tự cắt mất nội dung: giá trị chưa bị người dùng sửa vẫn được round-trip nguyên vẹn trong full-roster PUT; ngay khi người dùng sửa field đó, validation yêu cầu tối đa 200 ký tự.
 - Ghi chú không bị clear khi đổi status, đúng contract hiện tại.
 - Lỗi notes được hiển thị ngay trong card và focus đúng textarea/card đầu tiên có lỗi.
 
@@ -140,7 +141,7 @@ Semantics:
 3. Người dùng chủ động chọn `Chưa điểm danh` trên một hoặc nhiều card khi chưa thể kết luận trạng thái thực tế.
 4. `Unmarked` được phép trong POST/PUT full roster và được persisted như mọi status khác.
 5. Saved sheet đọc lại đúng `Unmarked`; người có quyền sửa có thể đổi nó thành trạng thái khác ở lần PUT sau.
-6. `Unmarked` có `halfDayPart=null`, `isExcused=null`, `durationMinutes=null`; notes vẫn nullable/tối đa 2.000 ký tự.
+6. `Unmarked` có `halfDayPart=null`, `isExcused=null`, `durationMinutes=null`; notes vẫn nullable, giới hạn UI 200 ký tự và giới hạn API 2.000 ký tự.
 7. `Unmarked` không được tính là Có mặt, Vắng hoặc 1-1; summary trả thêm count riêng `unmarked` để tổng các nhóm bằng `rosterTotal`.
 
 Ví dụ Missing của hai học sinh:
@@ -194,12 +195,12 @@ Save flow:
 
 ## 11. Accessibility và tương tác
 
-- Mỗi card có accessible name gồm họ tên đầy đủ, nickname và mã học sinh; không bắt screen reader đọc chữ theo chiều dọc.
+- Mỗi card có accessible name chỉ gồm nickname và mã học sinh; không bắt screen reader đọc chữ theo chiều dọc.
 - Status/conditional select có label riêng cho từng học sinh; không dùng placeholder làm label.
 - Keyboard tab order: status → field phụ → ghi chú, sau đó sang card tiếp theo.
 - Focus ring rõ; invalid card có message text, không chỉ border đỏ.
 - Touch target tối thiểu 44 px trên mobile; desktop compact vẫn bảo đảm select có thể thao tác ổn định ở zoom 200%.
-- Tooltip không chứa thông tin duy nhất; full name phải có accessible text dù bị rút gọn trực quan.
+- Nickname/mã bị rút gọn trực quan phải có accessible text đầy đủ; không bổ sung `fullName` ngoài quyết định `AUI-DEC-04`.
 - Kiểm tra contrast cho năm nhóm màu ở enabled, hover, focus, disabled và read-only.
 
 ## 12. File dự kiến thay đổi
@@ -249,7 +250,7 @@ Không dự kiến đổi endpoint URL, auth, Student schedule contract hoặc g
 
 - `AUI-FE-00`: align `Unmarked`, summary và nullable legacy `halfDayPart` contract; khóa test traceability.
 - `AUI-FE-01`: dựng compact card/grid/identity rail/status color tokens.
-- `AUI-FE-02`: status pill, permission mapping không dùng half-day part; notes 2.000 ký tự.
+- `AUI-FE-02`: status pill, permission mapping không dùng half-day part; notes tối đa 200 ký tự trên UI và bảo toàn giá trị API legacy dài hơn khi chưa sửa.
 - `AUI-FE-03`: persisted `Unmarked`, defaults/dirty/filter/summary/save integration.
 - `AUI-FE-04`: read-only, loading/error/conflict/empty và recovery regression.
 - `AUI-FE-05`: responsive, accessibility, focused tests, development build, docs/memory.
@@ -270,7 +271,7 @@ Không dự kiến đổi endpoint URL, auth, Student schedule contract hoặc g
 - Missing mặc định `Present` cho Student không phải OneToOne và `OneToOneHour` cho Student OneToOne; không tự mặc định `Unmarked`.
 - Người dùng chọn `Unmarked` được POST/PUT round-trip; mọi conditional field null và notes được giữ.
 - `OneToOneHour` luôn serialize 60 phút.
-- Notes nhận đến 2.000 ký tự; 2.001 bị chặn/map lỗi đúng card.
+- Notes người dùng nhập/sửa nhận đến 200 ký tự; 201 bị chặn đúng card. Giá trị lịch sử từ API dài hơn 200 không bị cắt và được giữ nguyên nếu field chưa sửa.
 - Filter/search không làm mất draft; summary tính toàn roster.
 - Invalid card bị ẩn được reveal và focus.
 - Missing first-save `dirty=0` vẫn gửi full roster default; Saved chỉ enable save khi dirty.
@@ -290,7 +291,7 @@ Không dự kiến đổi endpoint URL, auth, Student schedule contract hoặc g
 ### Visual/responsive
 
 - 1366 px đạt mục tiêu khoảng 5 card/hàng và 8–10 card/viewport khi phần header ở trạng thái bình thường.
-- Không tràn chữ với nickname/mã dài; full name vẫn truy cập được.
+- Không tràn chữ với nickname/mã dài; accessible name đọc đủ đúng hai thông tin này.
 - Conditional row và validation có thể làm card cao hơn mà không đè card kế bên.
 - Mobile dùng identity ngang, một card/hàng, action sticky không che textarea cuối.
 - Roster 1, 10 và 100 học sinh đều cuộn/trackBy ổn định.
@@ -310,7 +311,7 @@ Không dự kiến đổi endpoint URL, auth, Student schedule contract hoặc g
 - `Unmarked` là persisted API/DB status, không phải UI-only state; Missing default vẫn chỉ `Present` hoặc `OneToOneHour` theo schedule.
 - `AbsentHalfDay` mới không dùng `halfDayPart`; dữ liệu legacy được bảo toàn và notes là nơi người dùng ghi chi tiết buổi nếu cần.
 - Full-roster, version/snapshot, dirty guard, Saved và recovery semantics không regression.
-- Notes UI khớp giới hạn API 2.000 ký tự.
+- Notes UI giới hạn 200 ký tự theo quyết định sản phẩm; API tiếp tục giữ giới hạn 2.000 ký tự để tương thích và UI không cắt dữ liệu cũ.
 - ChromeHeadlessCI và Angular development build pass; chỉ chạy production/IIS khi skill được gọi rõ.
 - `git diff --check` sạch; README, task log và frontend memory được cập nhật khi implementation hoàn tất.
 
@@ -321,10 +322,10 @@ Không dự kiến đổi endpoint URL, auth, Student schedule contract hoặc g
 | `AUI-DEC-01` | Semantics `Chưa điểm danh` | **Đã chốt:** persisted `AttendanceStatus.Unmarked`; được phép POST/PUT/Saved, không phải review state tạm |
 | `AUI-DEC-02` | Default Missing | **Đã chốt:** Student không phải OneToOne mặc định `Present`; OneToOne mặc định `OneToOneHour`; `Unmarked` chỉ do người dùng chủ động chọn |
 | `AUI-DEC-03` | Có dùng `halfDayPart` không? | **Đã chốt:** không dùng cho write/UI mới; `AbsentHalfDay` chỉ chọn phép/không phép, chi tiết ghi notes; giữ dữ liệu DB legacy an toàn |
-| `AUI-DEC-04` | Thanh dọc hiển thị thông tin nào? | `nickname · studentCode`; fullName qua tooltip + accessible text |
-| `AUI-DEC-05` | Redesign áp dụng cho recovery? | Không trong v1; chỉ main daily list |
-| `AUI-DEC-06` | Giới hạn notes trên UI | Sửa từ 200 lên đúng API 2.000 ký tự |
-| `AUI-DEC-07` | Mật độ desktop | Fluid grid, mục tiêu 5 card/hàng ở 1366 px; không hard-code khi thiếu chỗ |
+| `AUI-DEC-04` | Thanh dọc hiển thị thông tin nào? | **Đã chốt:** chỉ `nickname · studentCode`; không thêm fullName vào card/tooltip/accessibility text |
+| `AUI-DEC-05` | Redesign áp dụng cho recovery? | **Đã chốt:** không trong v1; chỉ main daily list |
+| `AUI-DEC-06` | Giới hạn notes trên UI | **Đã chốt:** tối đa 200 ký tự trên UI; API giữ 2.000 để tương thích, không cắt dữ liệu cũ chưa sửa |
+| `AUI-DEC-07` | Mật độ desktop | **Đã chốt:** fluid grid, mục tiêu 5 card/hàng ở 1366 px; không hard-code khi thiếu chỗ |
 | `AUI-DEC-08` | Màu status | Bám nhóm màu trong hình nhưng điều chỉnh token để đạt contrast/accessibility |
 
-`AUI-DEC-01`–`03` đã được người dùng xác nhận ngày 2026-08-12. Do plan nay có contract/schema delta, implementation phải bắt đầu bằng `AUI-BE-00` và `AUI-FE-00` khóa cùng wire contract; không được triển khai frontend riêng rồi gửi enum giả. `AUI-DEC-04`–`08` tiếp tục dùng đề xuất trong bảng nếu người dùng không điều chỉnh.
+`AUI-DEC-01`–`07` đã được người dùng xác nhận ngày 2026-08-12. Do plan nay có contract/schema delta, implementation phải bắt đầu bằng `AUI-BE-00` và `AUI-FE-00` khóa cùng wire contract; không được triển khai frontend riêng rồi gửi enum giả. Chỉ còn `AUI-DEC-08` chờ xác nhận.
