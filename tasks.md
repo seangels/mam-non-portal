@@ -292,7 +292,8 @@ QA/Integration:
 - Đợt này chỉ thay đổi tài liệu plan/tracking/memory; không sửa source sản phẩm và không chạy build, package hoặc deploy production.
 - Cập nhật quyết định (2026-08-11): Teacher chỉ thêm `teacher_code`, `note`, `version` trên schema hiện có; mã do người dùng nhập và được phép sửa; `/teachers` là mutation surface canonical; group assignment và policy vẫn ở trang `Nhóm`; không làm field nhân sự, self-service, upload hoặc ngày vào làm; giữ optimistic concurrency và soft-delete/history.
 - Trước khi chốt `TCH-DEC-09`, plan đã mô tả cụ thể server-side search không dấu bằng PostgreSQL `unaccent`, tác động remote paging, quyền extension, benchmark và hướng `pg_trgm` nếu dữ liệu lớn.
-- `TCH-DEC-09` đã chốt (2026-08-11): bắt buộc search họ tên không dấu/case-insensitive tại server bằng PostgreSQL `unaccent`; không thêm search column/index phức tạp trong v1, benchmark trước khi cân nhắc `pg_trgm`.
+- `TCH-DEC-09` chốt lần đầu dùng PostgreSQL `unaccent`, sau đó được thay thế theo quyết định mới ngay dưới đây.
+- `TCH-DEC-09` cập nhật cuối (2026-08-11): vẫn bắt buộc search không dấu/case-insensitive tại server nhưng normalize/lọc ở tầng .NET API; không cài PostgreSQL extension. API lọc toàn bộ candidate trước khi tính `totalItems`/paging. Quy mô được xác nhận dưới 50 Teacher nên không cần guard/error riêng; vẫn có benchmark/log để phát hiện khi giả định này không còn đúng.
 
 ## Tổ chức thư mục kế hoạch — owner: `root`
 

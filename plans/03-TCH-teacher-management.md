@@ -166,9 +166,11 @@ sortOrder=asc|desc
 Quy tắc:
 
 - `pageSize` từ 1 đến 100.
-- `search` tìm theo mã giáo viên, họ tên, email và số điện thoại; họ tên bắt buộc không phân biệt dấu/hoa thường tại server theo `TCH-DEC-09`.
+- `search` tìm theo mã giáo viên, họ tên, email và số điện thoại; bắt buộc không phân biệt dấu/hoa thường và tạm xử lý tại tầng .NET API theo `TCH-DEC-09`.
+- `search` được trim; blank/whitespace được coi như không filter. Đây là literal substring search, không phải fuzzy/typo search.
 - Nếu gửi đồng thời `groupId` và `unassigned=true`, trả `400 ValidationFailed`.
 - Sort dùng whitelist, không nhận biểu thức động; luôn thêm `id` làm tie-break để phân trang ổn định.
+- `pagination.totalItems` là số row sau authorization, structured filters và search nhưng trước `Skip/Take`; không được DB paginate rồi mới lọc trong memory.
 - Response giữ contract chung `{ items, pagination }`.
 
 ### 8.3. Response models
@@ -419,7 +421,7 @@ Có loading, empty, 403, 404, retry và trace reference bằng nội dung tiến
 ### `TCH-01` — Schema và read slice
 
 - `TCH-BE-01`: mở rộng entity/config, migration/backfill mã, unique index và version.
-- `TCH-BE-02`: list/detail query, paging/filter/sort, projection User–Teacher–Group và authorization.
+- `TCH-BE-02`: list/detail query, paging/filter/sort, projection User–Teacher–Group, authorization và API-layer accent normalization không dùng DB extension.
 - `TCH-FE-01`: models/service, navigation, route, list/filter/paging.
 - `TCH-FE-02`: detail read-only và danh sách nhóm phụ trách.
 - `TCH-QA-01`: fresh migration, upgrade rehearsal và list/detail contract tests.
@@ -474,7 +476,9 @@ Có loading, empty, 403, 404, retry và trace reference bằng nội dung tiến
 - Response/OpenAPI không lộ password hash, token, session hoặc auth internals.
 - Audit đúng action và không chứa raw note/password.
 - Fresh PostgreSQL migration, upgrade từ attendance baseline và EF no pending model changes.
-- Nếu chốt DEC09: PostgreSQL integration chứng minh `Nguyễn/nguyen`, `Hoàng/hoang`, `Đặng/dang`, case-insensitive và `%`/`_` được coi là ký tự tìm kiếm thường.
+- API unit/integration chứng minh `Nguyễn/nguyen`, `Hoàng/hoang`, `Đặng/dang`, case-insensitive, `%`/`_` literal và `totalItems`/paging vẫn chính xác khi match nằm ngoài trang đầu.
+- Dataset đại diện dưới 50 Teacher vẫn trả đúng kết quả/metadata; thêm case 100/500 để phát hiện regression hiệu năng rõ ràng nhưng không dùng timing cứng làm CI gate.
+- Blank search dùng fast DB paging; page vượt `totalPages` trả items rỗng nhưng metadata vẫn đúng.
 - Toàn bộ auth, group, student và attendance integration tests hiện tại vẫn pass.
 
 ### Frontend
@@ -502,14 +506,14 @@ Có loading, empty, 403, 404, retry và trace reference bằng nội dung tiến
 | `TCH-DEC-06` | Giữ UI và endpoint chính sách điểm danh tại vị trí hiện tại; không đưa policy vào Teacher form | Đã chốt |
 | `TCH-DEC-07` | Không làm Teacher self-service | Đã chốt |
 | `TCH-DEC-08` | Không làm dữ liệu nhạy cảm hoặc upload trong epic này | Đã chốt |
-| `TCH-DEC-09` | Bắt buộc search họ tên không dấu/case-insensitive tại server bằng PostgreSQL `unaccent` | Đã chốt |
+| `TCH-DEC-09` | Bắt buộc search không dấu/case-insensitive tại server; normalize/lọc tại .NET API, không cài DB extension; quy mô thực tế dưới 50 Teacher | Đã chốt |
 | `TCH-DEC-10` | Không làm ngày vào làm | Đã chốt |
 | `TCH-DEC-11` | Dùng `expectedVersion` trong full PUT/policy PUT; DELETE dùng query version | Đã chốt |
 | `TCH-DEC-12` | Soft-delete User, revoke session, giữ Teacher/mã hiện tại/lịch sử; chặn xóa khi còn nhóm | Đã chốt |
 
 ### 16.1. Giải thích `TCH-DEC-09` — search họ tên không dấu
 
-Vì danh sách Teacher phân trang tại server, search cũng phải thực hiện tại PostgreSQL. Frontend không thể tải một trang rồi tự bỏ dấu để lọc vì sẽ bỏ sót kết quả nằm ở trang khác.
+Vì danh sách Teacher phân trang tại server, search phải do API xử lý trên toàn bộ tập ứng viên trước khi phân trang. Frontend không thể tải một trang rồi tự bỏ dấu để lọc vì sẽ bỏ sót kết quả nằm ở trang khác và làm sai `totalItems`.
 
 Ví dụ nếu database lưu `Nguyễn Thị Hoàng`:
 
@@ -520,40 +524,44 @@ Ví dụ nếu database lưu `Nguyễn Thị Hoàng`:
 | `hoang` | Không khớp | Khớp |
 | `nguyen thi` | Không khớp | Khớp |
 
-Phương án khuyến nghị cho v1:
+Phương án tạm thời đã chốt cho v1:
 
-1. Migration bật PostgreSQL extension `unaccent` bằng `CREATE EXTENSION IF NOT EXISTS unaccent`.
-2. Backend trim/lower từ khóa, coi `%`/`_` là ký tự thường thay vì wildcard và luôn truyền bằng parameter.
-3. EF Core/Npgsql dùng `EF.Functions.Unaccent(...)` để dịch thành hàm PostgreSQL `unaccent(...)`; họ tên không phân biệt dấu/hoa thường, mã/email không phân biệt hoa thường, số điện thoại được chuẩn hóa chữ số.
-4. Query áp dụng trên toàn bộ tập dữ liệu trước khi `COUNT`, sort và phân trang.
-5. Frontend chỉ debounce khoảng 300 ms rồi gửi `search` lên API; không lọc local bù cho server.
+1. PostgreSQL vẫn áp dụng authorization scope và các filter có cấu trúc như `status`, `groupId`, `unassigned`; chưa `Skip/Take`.
+2. PostgreSQL áp dụng sort whitelist và `id` tie-break trước khi materialize; tập con sau search giữ nguyên thứ tự ổn định này.
+3. API project toàn bộ candidate sau structured filters bằng `AsNoTracking`: các field list response và sort key cần thiết; không tải entity graph, `note` hoặc dữ liệu nhạy cảm.
+4. API materialize một lần rồi normalize chuỗi trong .NET:
+   - Unicode Form D và loại `NonSpacingMark`.
+   - Map riêng `đ/Đ` thành `d/D`.
+   - Chuyển lowercase invariant, trim và gộp khoảng trắng.
+   - Điện thoại chỉ giữ chữ số.
+5. Dùng literal substring `Contains` trên giá trị đã normalize; `%` và `_` chỉ là ký tự thường, không phải wildcard. Chỉ so phone khi từ khóa có ít nhất một chữ số để tránh chuỗi rỗng khớp mọi row.
+6. Sau khi lọc mới tính `totalItems`/`totalPages`, rồi `Skip/Take` trên danh sách đã có stable order để lấy đúng trang.
+7. Frontend debounce khoảng 300 ms, trim từ khóa, gửi blank thành không filter, reset về trang đầu và bỏ qua stale response; không lọc local bù cho API.
+8. Khi không có `search`, API dùng fast path `COUNT`/sort/paging hoàn toàn tại PostgreSQL, không materialize toàn bộ candidate.
 
-Minh họa SQL, không phải câu query nối chuỗi trực tiếp:
+Luồng xử lý:
 
-```sql
-WHERE unaccent(lower(u.full_name)) LIKE '%' || unaccent(lower(@search)) || '%'
-   OR lower(t.teacher_code) LIKE '%' || lower(@search) || '%'
-   OR lower(u.email) LIKE '%' || lower(@search) || '%'
-   OR regexp_replace(coalesce(u.phone_number, ''), '[^0-9]', '', 'g')
-      LIKE '%' || @search_digits || '%'
+```text
+DB authorization/filter có cấu trúc + stable sort
+  -> project toàn bộ candidate tối thiểu
+  -> API normalize + search không dấu
+  -> totalItems
+  -> Skip/Take
+  -> { items, pagination }
 ```
 
 Trade-off:
 
-- Ưu điểm: đúng kỳ vọng nhập tiếng Việt không dấu, không thêm field vào bảng `teachers`, hoạt động đúng với server pagination.
-- Nhược điểm: `unaccent(lower(...)) LIKE '%text%'` không dùng được B-tree index thông thường và có thể scan nhiều row.
-- Với quy mô vài trăm đến vài nghìn giáo viên, phương án này đơn giản và đủ dùng; phải đo bằng `EXPLAIN ANALYZE` trong `TCH-QA-01`.
-- Nếu dữ liệu tăng lớn và query chậm, phase hardening mới đánh giá `pg_trgm`/GIN hoặc cấu trúc normalized riêng. Không tự bọc `unaccent` thành hàm `IMMUTABLE` chỉ để tạo functional index khi chưa đánh giá rủi ro dictionary/index stale.
-- Migration cần database role có quyền cài extension `unaccent`; quy trình PostgreSQL/IIS phải kiểm tra điều kiện này trước khi apply migration.
-- Integration test bắt buộc chứng minh các cặp tiếng Việt như `Nguyễn/nguyen`, `Hoàng/hoang`, `Đặng/dang`; không chỉ test ví dụ Latin có dấu.
+- Ưu điểm: không cần extension/quyền cài đặt PostgreSQL, không thêm field/index vào schema Teacher và vẫn trả phân trang chính xác.
+- Nhược điểm: mỗi request có `search` phải đọc toàn bộ tập candidate sau filter vào memory; chi phí CPU/RAM tăng tuyến tính theo số giáo viên.
+- Request không có `search` vẫn dùng `COUNT`, sort và paging hoàn toàn tại database như bình thường.
+- Quy mô nghiệp vụ đã xác nhận dưới 50 Teacher nên chi phí materialize/normalize rất nhỏ và không cần hard guard/error riêng.
+- `TCH-QA-01` kiểm tra dataset 50 Teacher và safety case 100/500, ghi query duration/allocation khi benchmark; không dùng wall-clock cứng làm CI gate.
+- API log structured candidate count và thời gian search, không log từ khóa thô nếu có thể chứa dữ liệu cá nhân.
+- Nếu quy mô tương lai tăng đáng kể, tạo phase tối ưu riêng để chuyển sang normalized storage hoặc database search; không cài `unaccent` trong v1 này.
+- Unit/integration test bắt buộc chứng minh `Nguyễn/nguyen`, `Hoàng/hoang`, `Đặng/dang`, Unicode composed/decomposed, nhiều khoảng trắng, case-insensitive, phone có/không có digit và ký tự `%`/`_` literal.
 
-Tài liệu kỹ thuật tham chiếu:
-
-- [PostgreSQL 17 `unaccent`](https://www.postgresql.org/docs/17/unaccent.html).
-- [PostgreSQL 17 `pg_trgm`](https://www.postgresql.org/docs/17/pgtrgm.html).
-- [Npgsql EF Core translation cho `EF.Functions.Unaccent`](https://www.npgsql.org/efcore/mapping/full-text-search.html).
-
-`TCH-DEC-09` đã chốt: **bắt buộc search không dấu ở server bằng `unaccent`**, chưa thêm search column/index phức tạp trong v1.
+`TCH-DEC-09` đã chốt: **bắt buộc search không dấu ở server nhưng tạm xử lý trong tầng .NET API; không cài PostgreSQL `unaccent`**.
 
 Plan đã đủ quyết định để bắt đầu `TCH-00`.
 
