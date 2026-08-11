@@ -1,6 +1,7 @@
 import { Component } from '@angular/core';
 import { CurrentUser } from '../../core/models/api.models';
 import { AuthService } from '../../shared/services';
+import { ROLE_LABELS } from '../../core/i18n/ui-labels';
 
 @Component({
   templateUrl: 'home.component.html',
@@ -16,8 +17,7 @@ export class HomeComponent {
   }
 
   get roleLabel(): string {
-    const labels = { SuperAdmin: 'Quản trị cấp cao', Admin: 'Quản trị viên', Teacher: 'Giáo viên' };
-    return this.user ? labels[this.user.role] : '';
+    return this.user ? ROLE_LABELS[this.user.role] : '';
   }
 
   constructor(private readonly auth: AuthService) {}

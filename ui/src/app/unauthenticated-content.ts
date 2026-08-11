@@ -33,7 +33,7 @@ export class UnauthenticatedContentComponent {
 
   get description() {
     return this.router.url.split('/')[1] === 'setup'
-      ? 'Tạo tài khoản SuperAdmin đầu tiên để bắt đầu sử dụng.'
+      ? 'Tạo tài khoản siêu quản trị viên đầu tiên để bắt đầu sử dụng.'
       : 'Sử dụng tài khoản đã được quản trị viên cấp.';
   }
 }

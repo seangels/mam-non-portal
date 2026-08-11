@@ -3,6 +3,11 @@ export type UserStatus = 'Active' | 'Inactive' | 'Locked';
 export type StudentStatus = 'Active' | 'Inactive';
 export type Gender = 'Male' | 'Female' | 'Other';
 export type SortOrder = 'asc' | 'desc';
+export type StudentGroupStatus = 'Active' | 'Inactive';
+export type AttendanceStatus = 'Present' | 'AbsentFullDay' | 'AbsentHalfDay' | 'OneToOneHour';
+export type HalfDayPart = 'Morning' | 'Afternoon';
+export type SheetState = 'Missing' | 'Saved';
+export type SnapshotSource = 'CurrentSnapshot' | 'HistoricalRecovery';
 
 export interface Pagination {
   page: number;
@@ -23,6 +28,8 @@ export interface ProblemDetails {
   detail?: string;
   traceId?: string;
   errors?: Record<string, string[]>;
+  code?: string;
+  currentVersion?: number;
 }
 
 export interface ListQuery {
@@ -71,6 +78,8 @@ export interface StudentListQuery extends ListQuery {
   gender?: Gender;
   dateOfBirthFrom?: string;
   dateOfBirthTo?: string;
+  groupId?: string;
+  unassigned?: boolean;
 }
 
 export interface Student {
@@ -84,6 +93,9 @@ export interface Student {
   guardianName?: string | null;
   guardianPhone?: string | null;
   note?: string | null;
+  groupId?: string | null;
+  groupCode?: string | null;
+  groupName?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -130,4 +142,178 @@ export interface SetupSuperAdminResponse {
   id: string;
   email: string;
   fullName: string;
+}
+
+export interface TeacherListQuery extends ListQuery {
+  status?: UserStatus;
+  unassigned?: boolean;
+}
+
+export interface Teacher {
+  id: string;
+  userId: string;
+  fullName: string;
+  status: UserStatus;
+  attendanceEditWindowDays: number;
+  responsibleGroupCount: number;
+}
+
+export interface UpdateAttendancePolicyRequest {
+  attendanceEditWindowDays: number;
+}
+
+export interface StudentGroupListQuery extends ListQuery {
+  status?: StudentGroupStatus;
+  unassigned?: boolean;
+}
+
+export interface StudentGroup {
+  id: string;
+  code: string;
+  name: string;
+  status: StudentGroupStatus;
+  responsibleTeacherId?: string | null;
+  responsibleTeacherName?: string | null;
+  studentCount: number;
+  snapshotVersion: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SaveStudentGroupRequest {
+  code: string;
+  name: string;
+  status: StudentGroupStatus;
+}
+
+export interface AssignResponsibleTeacherRequest {
+  teacherId: string | null;
+}
+
+export interface AssignStudentGroupRequest {
+  groupId: string | null;
+}
+
+export interface AttendanceContextGroup {
+  id: string;
+  code: string;
+  name: string;
+  studentCount: number;
+}
+
+export interface AttendanceContext {
+  date: string;
+  serverDate: string;
+  groups: AttendanceContextGroup[];
+  attendanceEditWindowDays: number | null;
+  canEdit: boolean;
+  readOnlyReason: string | null;
+}
+
+export interface AttendanceGroupSnapshot {
+  id: string;
+  code: string;
+  name: string;
+}
+
+export interface AttendanceSummary {
+  rosterTotal: number;
+  present: number;
+  absent: number;
+  oneToOne: number;
+}
+
+export interface AttendanceEntry {
+  entryId: string | null;
+  studentId: string;
+  studentCode: string;
+  fullName: string;
+  nickName: string;
+  status: AttendanceStatus;
+  halfDayPart: HalfDayPart | null;
+  isExcused: boolean | null;
+  durationMinutes: number | null;
+  notes: string | null;
+  updatedAt: string | null;
+}
+
+export interface DailyAttendance {
+  date: string;
+  serverDate: string;
+  group: AttendanceGroupSnapshot;
+  sheetState: SheetState;
+  sheetId: string | null;
+  sheetVersion: number | null;
+  snapshotSource: SnapshotSource | null;
+  currentSnapshotVersion: number | null;
+  sourceSnapshotVersion: number | null;
+  canCreate: boolean;
+  canEdit: boolean;
+  canRecover: boolean;
+  readOnlyReason: string | null;
+  summary: AttendanceSummary;
+  items: AttendanceEntry[];
+}
+
+export interface SaveAttendanceRecord {
+  studentId: string;
+  status: AttendanceStatus;
+  halfDayPart: HalfDayPart | null;
+  isExcused: boolean | null;
+  durationMinutes: number | null;
+  notes: string | null;
+}
+
+export interface CreateAttendanceSheetRequest {
+  groupId: string;
+  date: string;
+  expectedSnapshotVersion: number;
+  records: SaveAttendanceRecord[];
+}
+
+export interface UpdateAttendanceSheetRequest {
+  expectedVersion: number;
+  records: SaveAttendanceRecord[];
+}
+
+export interface CandidateListQuery {
+  search?: string;
+  page: number;
+  pageSize: number;
+}
+
+export interface RecoveryGroupCandidate {
+  id: string;
+  code: string;
+  name: string;
+  status: StudentGroupStatus;
+  isDeleted: boolean;
+}
+
+export interface RecoveryStudentCandidate {
+  id: string;
+  studentCode: string;
+  fullName: string;
+  nickName: string;
+  status: StudentStatus;
+  isDeleted: boolean;
+  currentGroupId: string | null;
+}
+
+export interface RecoveryTeacherCandidate {
+  id: string;
+  userId: string;
+  fullName: string;
+  status: UserStatus;
+  isDeleted: boolean;
+  isCurrentTeacherRole: boolean;
+}
+
+export interface HistoricalRecoveryRequest {
+  groupId: string;
+  date: string;
+  responsibleTeacherId: string;
+  records: SaveAttendanceRecord[];
+  acknowledgeHistoricalSnapshot: true;
+  recoveryReason: string;
 }

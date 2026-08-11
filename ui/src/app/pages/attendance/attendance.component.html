@@ -1,0 +1,346 @@
+<div class="page-toolbar content-block attendance-heading">
+  <div>
+    <h1 class="page-title">Điểm danh</h1>
+    <p class="page-subtitle">Theo dõi tình trạng có mặt của học sinh theo ngày và nhóm.</p>
+  </div>
+  <div class="heading-actions">
+    <dx-button
+      *ngIf="canStartHistoricalRecovery"
+      text="Khôi phục lịch sử"
+      hint="Khôi phục phiếu cho nhóm lịch sử không còn trong danh sách hiện tại"
+      icon="revert"
+      stylingMode="outlined"
+      (onClick)="openRecovery()">
+    </dx-button>
+    <dx-button text="Tải lại" icon="refresh" stylingMode="outlined" (onClick)="reload()"></dx-button>
+  </div>
+</div>
+
+<section class="content-block dx-card attendance-shell" aria-labelledby="attendance-filters-title">
+  <div class="filter-heading">
+    <div>
+      <h2 id="attendance-filters-title">Ngày và nhóm điểm danh</h2>
+      <small *ngIf="context">Ngày làm việc của hệ thống: {{ formatDate(context.serverDate) }}</small>
+    </div>
+    <dx-button
+      [text]="filtersExpanded ? 'Thu gọn bộ lọc' : 'Mở bộ lọc'"
+      [hint]="filtersExpanded ? 'Thu gọn bộ lọc điểm danh' : 'Mở bộ lọc điểm danh'"
+      [icon]="filtersExpanded ? 'chevronup' : 'chevrondown'"
+      stylingMode="text"
+      [elementAttr]="{ 'aria-expanded': filtersExpanded, 'aria-controls': 'attendance-filter-panel' }"
+      (onClick)="toggleFilters()">
+    </dx-button>
+  </div>
+
+  <div id="attendance-filter-panel" class="attendance-filters" *ngIf="filtersExpanded">
+    <label>
+      <span>Ngày điểm danh</span>
+      <dx-date-box
+        type="date"
+        displayFormat="dd/MM/yyyy"
+        [value]="date"
+        [max]="maxDate"
+        [inputAttr]="{ 'aria-label': 'Ngày điểm danh' }"
+        (onValueChanged)="changeDate($event)">
+      </dx-date-box>
+    </label>
+    <label *ngIf="showGroupSelector">
+      <span>Nhóm học sinh <b aria-hidden="true">*</b></span>
+      <dx-select-box
+        [items]="context?.groups || []"
+        valueExpr="id"
+        displayExpr="name"
+        [value]="selectedGroupId"
+        [searchEnabled]="true"
+        searchExpr="name"
+        placeholder="Chọn nhóm"
+        noDataText="Không có nhóm phù hợp"
+        [inputAttr]="{ 'aria-label': 'Nhóm học sinh' }"
+        (onValueChanged)="changeGroup($event)">
+      </dx-select-box>
+    </label>
+    <div class="single-group" *ngIf="!showGroupSelector && selectedGroup">
+      <span>Nhóm được phân công</span>
+      <strong>{{ selectedGroup.name }}</strong>
+      <small>{{ selectedGroup.code }} · {{ selectedGroup.studentCount }} học sinh</small>
+    </div>
+    <label *ngIf="daily">
+      <span>Tìm học sinh</span>
+      <dx-text-box
+        [(ngModel)]="search"
+        mode="search"
+        placeholder="Mã, họ tên hoặc tên gọi"
+        [inputAttr]="{ 'aria-label': 'Tìm học sinh' }"
+        (onValueChanged)="onSearchChanged($event.value)">
+      </dx-text-box>
+    </label>
+    <label *ngIf="daily">
+      <span>Trạng thái</span>
+      <dx-select-box
+        [items]="statusOptions"
+        valueExpr="value"
+        displayExpr="text"
+        [(ngModel)]="statusFilter"
+        [showClearButton]="true"
+        placeholder="Tất cả trạng thái"
+        [inputAttr]="{ 'aria-label': 'Lọc theo trạng thái' }"
+        (onValueChanged)="onStatusFilterChanged($event.value)">
+      </dx-select-box>
+    </label>
+    <dx-button *ngIf="daily" text="Xóa bộ lọc" stylingMode="text" (onClick)="clearFilters()"></dx-button>
+  </div>
+</section>
+
+<div class="content-block state-panel" *ngIf="contextLoading || dailyLoading" role="status" aria-live="polite">
+  <dx-load-indicator></dx-load-indicator>
+  <span>Đang tải dữ liệu điểm danh…</span>
+</div>
+
+<div class="content-block dx-card message error" *ngIf="errorMessage && !contextLoading && !dailyLoading" role="alert">
+  <strong>{{ errorTitle }}</strong>
+  <span>{{ errorMessage }}</span>
+  <small *ngIf="traceId">Mã theo dõi: {{ traceId }}</small>
+  <div class="message-actions">
+    <dx-button text="Thử lại" icon="refresh" stylingMode="outlined" (onClick)="reload()"></dx-button>
+    <dx-button
+      *ngIf="recoveryAvailable"
+      text="Khôi phục danh sách lịch sử"
+      icon="revert"
+      type="default"
+      (onClick)="openRecovery()">
+    </dx-button>
+  </div>
+</div>
+
+<div class="content-block dx-card message" *ngIf="!contextLoading && context && context.groups.length === 0">
+  <strong>Chưa có nhóm để điểm danh.</strong>
+  <span *ngIf="isTeacher">Bạn chưa được phân công phụ trách nhóm học sinh nào.</span>
+  <span *ngIf="isAdministrator">Hãy tạo nhóm, thêm học sinh và phân công giáo viên trước khi điểm danh.</span>
+</div>
+
+<div class="content-block dx-card message" *ngIf="!contextLoading && context && context.groups.length > 0 && !selectedGroupId">
+  <strong>Chọn nhóm học sinh để xem điểm danh.</strong>
+  <span>Dữ liệu được tải theo ngày và nhóm đã chọn.</span>
+</div>
+
+<ng-container *ngIf="daily && !dailyLoading">
+  <section class="content-block sheet-header" aria-labelledby="sheet-title">
+    <div>
+      <h2 id="sheet-title">{{ daily.group.name }} · {{ formatDate(daily.date) }}</h2>
+      <div class="sheet-badges">
+        <span class="badge" [class.missing]="daily.sheetState === 'Missing'">{{ sheetStateLabels[daily.sheetState] }}</span>
+        <span class="badge" *ngIf="daily.snapshotSource">{{ snapshotSourceLabels[daily.snapshotSource] }}</span>
+        <span class="badge readonly" *ngIf="!canModify">Chỉ xem</span>
+      </div>
+    </div>
+    <dx-button
+      *ngIf="daily.canRecover && isAdministrator"
+      text="Khôi phục lịch sử"
+      icon="revert"
+      stylingMode="outlined"
+      (onClick)="openRecovery()">
+    </dx-button>
+  </section>
+
+  <div class="content-block message warning" *ngIf="daily.sheetState === 'Missing'" role="status">
+    <strong>Chưa lưu điểm danh.</strong>
+    <span>Các học sinh đang được hiển thị mặc định là “Có mặt”. Hãy bấm “Lưu lần đầu” kể cả khi không có học sinh vắng.</span>
+  </div>
+
+  <div class="content-block message" *ngIf="!canModify && readOnlyText">
+    <strong>Phiếu chỉ có thể xem.</strong>
+    <span>{{ readOnlyText }}</span>
+  </div>
+
+  <div class="content-block message error" *ngIf="conflictMessage" role="alert">
+    <strong>Dữ liệu đã thay đổi.</strong>
+    <span>{{ conflictMessage }}</span>
+    <dx-button text="Tải bản mới nhất" icon="refresh" stylingMode="outlined" (onClick)="reload()"></dx-button>
+  </div>
+
+  <div class="content-block summary-grid" aria-label="Tổng hợp toàn bộ nhóm">
+    <div><span>Tổng số</span><strong>{{ summary.total }}</strong></div>
+    <div><span>Có mặt</span><strong>{{ summary.present }}</strong></div>
+    <div><span>Vắng</span><strong>{{ summary.absent }}</strong></div>
+    <div><span>Học riêng 1 giờ</span><strong>{{ summary.oneToOne }}</strong></div>
+  </div>
+
+  <p class="content-block filter-result" aria-live="polite">
+    Hiển thị {{ filteredDrafts.length }}/{{ drafts.length }} học sinh
+    <span *ngIf="dirtyCount">· {{ dirtyCount }} thay đổi chưa lưu</span>
+  </p>
+
+  <div class="content-block attendance-list" role="list" aria-label="Danh sách điểm danh">
+    <article
+      #studentCard
+      class="dx-card student-card"
+      *ngFor="let item of filteredDrafts; trackBy: trackStudent"
+      [class.dirty]="isDirty(item)"
+      [class.invalid]="item.invalidMessage"
+      tabindex="-1"
+      role="listitem">
+      <header>
+        <div>
+          <h3>{{ item.fullName }} <small *ngIf="item.nickName">({{ item.nickName }})</small></h3>
+          <span>{{ item.studentCode }}</span>
+        </div>
+        <span class="changed" *ngIf="isDirty(item)">Đã thay đổi</span>
+      </header>
+
+      <fieldset class="status-choice" [disabled]="!canModify">
+        <legend>Trạng thái của {{ item.fullName }}</legend>
+        <label *ngFor="let option of statusOptions">
+          <input
+            type="radio"
+            [name]="'status-' + item.studentId"
+            [value]="option.value"
+            [checked]="item.status === option.value"
+            (change)="onStatusChange(item, option.value)" />
+          <span><i [class]="'dx-icon-' + option.icon" aria-hidden="true"></i> {{ option.text }}</span>
+        </label>
+      </fieldset>
+
+      <div class="conditional-fields" *ngIf="item.status === 'AbsentHalfDay'">
+        <fieldset [disabled]="!canModify">
+          <legend>Buổi nghỉ</legend>
+          <label *ngFor="let option of halfDayOptions">
+            <input type="radio" [name]="'half-' + item.studentId" [value]="option.value" [(ngModel)]="item.halfDayPart" />
+            <span>{{ option.text }}</span>
+          </label>
+        </fieldset>
+      </div>
+
+      <fieldset class="conditional-fields" *ngIf="item.status === 'AbsentFullDay' || item.status === 'AbsentHalfDay'" [disabled]="!canModify">
+        <legend>Lý do nghỉ</legend>
+        <label><input type="radio" [name]="'excused-' + item.studentId" [value]="true" [(ngModel)]="item.isExcused" /> <span>Có phép</span></label>
+        <label><input type="radio" [name]="'excused-' + item.studentId" [value]="false" [(ngModel)]="item.isExcused" /> <span>Không phép</span></label>
+      </fieldset>
+
+      <div class="duration" *ngIf="item.status === 'OneToOneHour'">Thời lượng cố định: <strong>60 phút</strong></div>
+
+      <label class="notes-field">
+        <span>Ghi chú <small>({{ (item.notes || '').length }}/2.000)</small></span>
+        <textarea
+          [(ngModel)]="item.notes"
+          maxlength="2000"
+          rows="2"
+          [disabled]="!canModify"
+          [attr.aria-label]="'Ghi chú cho ' + item.fullName">
+        </textarea>
+      </label>
+      <p class="validation" *ngIf="item.invalidMessage" role="alert">{{ item.invalidMessage }}</p>
+    </article>
+
+    <div class="message" *ngIf="filteredDrafts.length === 0">
+      <strong>{{ drafts.length ? 'Không có học sinh phù hợp bộ lọc.' : 'Nhóm chưa có học sinh.' }}</strong>
+      <button *ngIf="drafts.length" type="button" class="link-button" (click)="clearFilters()">Xóa bộ lọc</button>
+    </div>
+  </div>
+
+  <div class="content-block sticky-actions" *ngIf="canModify">
+    <span aria-live="polite">
+      <strong>{{ dirtyCount }}</strong> thay đổi chưa lưu
+      <small *ngIf="daily.sheetState === 'Missing'">Lần lưu đầu sẽ gửi toàn bộ {{ drafts.length }} học sinh.</small>
+    </span>
+    <dx-button
+      [text]="saveButtonText"
+      icon="save"
+      type="default"
+      [disabled]="saveDisabled"
+      (onClick)="save()">
+    </dx-button>
+  </div>
+</ng-container>
+
+<dx-popup
+  [(visible)]="recoveryVisible"
+  title="Khôi phục danh sách điểm danh lịch sử"
+  [width]="860"
+  [maxWidth]="'96vw'"
+  [height]="'90vh'"
+  [showCloseButton]="true"
+  [dragEnabled]="false">
+  <div *dxTemplate="let data of 'content'" class="recovery-content">
+    <div class="message warning">
+      <strong>Thao tác đặc biệt dành cho quản trị viên.</strong>
+      <span>Chỉ dùng khi không còn ảnh chụp danh sách của ngày đã chọn. Mọi lựa chọn dưới đây sẽ tạo một ảnh chụp lịch sử mới.</span>
+    </div>
+    <div class="recovery-fields">
+      <label>
+        <span>Nhóm lịch sử <b aria-hidden="true">*</b></span>
+        <dx-select-box
+          [dataSource]="recoveryGroupDataSource"
+          valueExpr="id"
+          [displayExpr]="recoveryGroupText"
+          [(ngModel)]="recoveryGroupId"
+          [searchEnabled]="true"
+          placeholder="Chọn nhóm"
+          noDataText="Không có nhóm phù hợp"
+          [inputAttr]="{ 'aria-label': 'Nhóm lịch sử bắt buộc' }">
+        </dx-select-box>
+      </label>
+      <label>
+        <span>Giáo viên phụ trách lịch sử <b aria-hidden="true">*</b></span>
+        <dx-select-box
+          [dataSource]="recoveryTeacherDataSource"
+          valueExpr="id"
+          [displayExpr]="recoveryTeacherText"
+          [(ngModel)]="recoveryTeacherId"
+          [searchEnabled]="true"
+          placeholder="Chọn giáo viên"
+          noDataText="Không có giáo viên phù hợp"
+          [inputAttr]="{ 'aria-label': 'Giáo viên phụ trách lịch sử bắt buộc' }">
+        </dx-select-box>
+      </label>
+      <label class="wide">
+        <span>Học sinh trong danh sách lịch sử <b aria-hidden="true">*</b></span>
+        <dx-tag-box
+          [dataSource]="recoveryStudentDataSource"
+          valueExpr="id"
+          [displayExpr]="recoveryStudentText"
+          [value]="recoveryStudentIds"
+          [searchEnabled]="true"
+          [showSelectionControls]="true"
+          [hideSelectedItems]="true"
+          placeholder="Tìm và chọn học sinh"
+          noDataText="Không có học sinh phù hợp"
+          [inputAttr]="{ 'aria-label': 'Danh sách học sinh lịch sử bắt buộc' }"
+          (onValueChanged)="onRecoveryStudentsChanged($event)">
+        </dx-tag-box>
+        <small>Đã chọn {{ recoveryDrafts.length }}/100 học sinh.</small>
+      </label>
+    </div>
+
+    <div class="recovery-list" *ngIf="recoveryDrafts.length" role="list" aria-label="Trạng thái học sinh lịch sử">
+      <article *ngFor="let item of recoveryDrafts; trackBy: trackStudent" role="listitem">
+        <strong>{{ item.fullName }}</strong><small>{{ item.studentCode }}</small>
+        <select [(ngModel)]="item.status" (ngModelChange)="onRecoveryStatusChange(item, $event)" [attr.aria-label]="'Trạng thái của ' + item.fullName">
+          <option *ngFor="let option of statusOptions" [ngValue]="option.value">{{ option.text }}</option>
+        </select>
+        <select *ngIf="item.status === 'AbsentHalfDay'" [(ngModel)]="item.halfDayPart" [attr.aria-label]="'Buổi nghỉ của ' + item.fullName">
+          <option *ngFor="let option of halfDayOptions" [ngValue]="option.value">{{ option.text }}</option>
+        </select>
+        <select *ngIf="item.status === 'AbsentFullDay' || item.status === 'AbsentHalfDay'" [(ngModel)]="item.isExcused" [attr.aria-label]="'Lý do nghỉ của ' + item.fullName">
+          <option [ngValue]="true">Có phép</option>
+          <option [ngValue]="false">Không phép</option>
+        </select>
+        <input [(ngModel)]="item.notes" maxlength="2000" [attr.aria-label]="'Ghi chú cho ' + item.fullName" placeholder="Ghi chú" />
+        <span class="validation" *ngIf="item.invalidMessage">{{ item.invalidMessage }}</span>
+      </article>
+    </div>
+
+    <label class="recovery-reason">
+      <span>Lý do khôi phục <b aria-hidden="true">*</b> <small>({{ recoveryReason.length }}/500)</small></span>
+      <textarea [(ngModel)]="recoveryReason" maxlength="500" rows="3" aria-label="Lý do khôi phục bắt buộc"></textarea>
+    </label>
+    <label class="acknowledge">
+      <input type="checkbox" [(ngModel)]="recoveryAcknowledged" />
+      <span>Tôi xác nhận danh sách trên phản ánh đúng nhóm, giáo viên và học sinh tại ngày {{ formatDate(date) }}.</span>
+    </label>
+    <p class="validation" *ngIf="recoveryError" role="alert">{{ recoveryError }}</p>
+    <div class="form-actions">
+      <dx-button text="Hủy" stylingMode="outlined" (onClick)="recoveryVisible = false"></dx-button>
+      <dx-button text="Khôi phục và lưu" icon="save" type="default" [disabled]="!recoveryReady || recoverySaving" (onClick)="saveRecovery()"></dx-button>
+    </div>
+  </div>
+</dx-popup>

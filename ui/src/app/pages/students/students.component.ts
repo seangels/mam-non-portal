@@ -15,6 +15,8 @@ import { DxTextBoxModule } from 'devextreme-angular/ui/text-box';
 import { ApiError } from '../../core/models/api-error';
 import { CreateStudentRequest, Gender, Student, StudentStatus } from '../../core/models/api.models';
 import { StudentsService } from '../../core/services/students.service';
+import { GENDER_LABELS, STUDENT_STATUS_LABELS } from '../../core/i18n/ui-labels';
+import { fromDateOnly, toDateOnly } from '../../core/utils/date-only';
 
 interface StudentEditor {
   id?: string;
@@ -38,13 +40,13 @@ export class StudentsComponent {
   @ViewChild(DxDataGridComponent) grid?: DxDataGridComponent;
 
   readonly genders = [
-    { value: 'Male', text: 'Nam' },
-    { value: 'Female', text: 'Nữ' },
-    { value: 'Other', text: 'Khác' }
+    { value: 'Male', text: GENDER_LABELS.Male },
+    { value: 'Female', text: GENDER_LABELS.Female },
+    { value: 'Other', text: GENDER_LABELS.Other }
   ];
   readonly statuses = [
-    { value: 'Active', text: 'Đang học' },
-    { value: 'Inactive', text: 'Ngừng học' }
+    { value: 'Active', text: STUDENT_STATUS_LABELS.Active },
+    { value: 'Inactive', text: STUDENT_STATUS_LABELS.Inactive }
   ];
   readonly rowButtons = [
     { hint: 'Chỉnh sửa', icon: 'edit', onClick: (event: any) => this.openEdit(event.row.data as Student) },
@@ -79,8 +81,8 @@ export class StudentsComponent {
         search: this.search.trim() || undefined,
         gender: this.genderFilter ?? undefined,
         status: this.statusFilter ?? undefined,
-        dateOfBirthFrom: this.toDateOnly(this.dateOfBirthFrom),
-        dateOfBirthTo: this.toDateOnly(this.dateOfBirthTo),
+        dateOfBirthFrom: toDateOnly(this.dateOfBirthFrom),
+        dateOfBirthTo: toDateOnly(this.dateOfBirthTo),
         sortBy,
         sortOrder
       })).then(response => ({ data: response.items, totalCount: response.pagination.totalItems }))
@@ -125,7 +127,7 @@ export class StudentsComponent {
       studentCode: student.studentCode,
       fullName: student.fullName,
       nickName: student.nickName,
-      dateOfBirth: this.fromDateOnly(student.dateOfBirth),
+      dateOfBirth: fromDateOnly(student.dateOfBirth),
       gender: student.gender ?? null,
       status: student.status,
       guardianName: student.guardianName ?? '',
@@ -137,7 +139,7 @@ export class StudentsComponent {
 
   async save(event: Event): Promise<void> {
     event.preventDefault();
-    const dateOfBirth = this.toDateOnly(this.editor.dateOfBirth);
+    const dateOfBirth = toDateOnly(this.editor.dateOfBirth);
     if (!dateOfBirth) {
       notify('Vui lòng nhập ngày sinh.', 'error', 2200);
       return;
@@ -210,25 +212,6 @@ export class StudentsComponent {
     };
   }
 
-  private toDateOnly(value: Date | string | number | null): string | undefined {
-    if (!value) {
-      return undefined;
-    }
-    const date = value instanceof Date ? value : new Date(value);
-    if (Number.isNaN(date.getTime())) {
-      return undefined;
-    }
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  }
-
-  private fromDateOnly(value: string): Date {
-    const [year, month, day] = value.split('-').map(Number);
-    return new Date(year, month - 1, day);
-  }
-
   private rejectLoad(error: unknown): Promise<never> {
     const apiError = ApiError.from(error);
     notify(apiError.message, 'error', 2500);
@@ -237,8 +220,7 @@ export class StudentsComponent {
 
   private showError(error: unknown): void {
     const apiError = ApiError.from(error);
-    const firstFieldError = Object.values(apiError.fieldErrors)[0]?.[0];
-    notify(firstFieldError || apiError.message, 'error', 2800);
+    notify(apiError.message, 'error', 2800);
   }
 }
 

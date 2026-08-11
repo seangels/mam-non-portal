@@ -6,7 +6,13 @@
   <span class="role-badge">{{ roleLabel }}</span>
 </div>
 
-<div class="content-block dashboard-grid" *ngIf="canManage; else teacherMessage">
+<div class="content-block dashboard-grid">
+  <a class="dx-card dashboard-card" routerLink="/attendance">
+    <span class="dx-icon-check card-icon"></span>
+    <strong>Điểm danh</strong>
+    <small>Xem và cập nhật tình trạng học sinh theo ngày</small>
+  </a>
+  <ng-container *ngIf="canManage">
   <a class="dx-card dashboard-card" routerLink="/users">
     <span class="dx-icon-group card-icon"></span>
     <strong>Quản lý tài khoản</strong>
@@ -17,10 +23,10 @@
     <strong>Quản lý học sinh</strong>
     <small>Hồ sơ, trạng thái và người giám hộ</small>
   </a>
+  <a class="dx-card dashboard-card" routerLink="/student-groups">
+    <span class="dx-icon-hierarchy card-icon"></span>
+    <strong>Quản lý nhóm</strong>
+    <small>Phân nhóm học sinh và giáo viên phụ trách</small>
+  </a>
+  </ng-container>
 </div>
-
-<ng-template #teacherMessage>
-  <div class="content-block dx-card responsive-paddings empty-state">
-    Tài khoản giáo viên chưa có chức năng quản trị trong phiên bản này.
-  </div>
-</ng-template>

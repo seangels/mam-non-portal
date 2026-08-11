@@ -1,12 +1,15 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { ProblemDetails } from './api.models';
+import { apiErrorCodeLabel } from '../i18n/ui-labels';
 
 export class ApiError extends Error {
   constructor(
     message: string,
     public readonly status: number,
     public readonly fieldErrors: Record<string, string[]> = {},
-    public readonly traceId?: string
+    public readonly traceId?: string,
+    public readonly code?: string,
+    public readonly currentVersion?: number
   ) {
     super(message);
     this.name = 'ApiError';
@@ -30,13 +33,17 @@ export class ApiError extends Error {
           ? 'Bạn không có quyền thực hiện thao tác này.'
           : error.status === 409
             ? 'Dữ liệu đã tồn tại hoặc đang có xung đột.'
-            : 'Yêu cầu không thể thực hiện.';
+            : error.status === 404
+              ? 'Không tìm thấy dữ liệu yêu cầu.'
+              : 'Yêu cầu không thể thực hiện.';
 
     return new ApiError(
-      problem.detail || problem.title || fallback,
+      apiErrorCodeLabel(problem.code) || fallback,
       error.status,
       problem.errors || {},
-      problem.traceId
+      problem.traceId,
+      problem.code,
+      problem.currentVersion
     );
   }
 }

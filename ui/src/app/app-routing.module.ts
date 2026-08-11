@@ -7,6 +7,9 @@ import { HomeComponent } from './pages/home/home.component';
 import { ProfileComponent } from './pages/profile/profile.component';
 import { UsersComponent, UsersModule } from './pages/users/users.component';
 import { StudentsComponent, StudentsModule } from './pages/students/students.component';
+import { StudentGroupsComponent, StudentGroupsModule } from './pages/student-groups/student-groups.component';
+import { AttendanceComponent, AttendanceModule } from './pages/attendance/attendance.component';
+import { PendingChangesGuard } from './core/guards/pending-changes.guard';
 
 const routes: Routes = [
   {
@@ -21,10 +24,23 @@ const routes: Routes = [
     data: { roles: ['SuperAdmin', 'Admin'] }
   },
   {
+    path: 'student-groups',
+    component: StudentGroupsComponent,
+    canActivate: [SetupCompletedGuard, AuthGuardService, RoleGuard],
+    data: { roles: ['SuperAdmin', 'Admin'] }
+  },
+  {
     path: 'students',
     component: StudentsComponent,
     canActivate: [SetupCompletedGuard, AuthGuardService, RoleGuard],
     data: { roles: ['SuperAdmin', 'Admin'] }
+  },
+  {
+    path: 'attendance',
+    component: AttendanceComponent,
+    canActivate: [SetupCompletedGuard, AuthGuardService, RoleGuard],
+    canDeactivate: [PendingChangesGuard],
+    data: { roles: ['SuperAdmin', 'Admin', 'Teacher'] }
   },
   {
     path: 'profile',
@@ -48,7 +64,14 @@ const routes: Routes = [
 ];
 
 @NgModule({
-  imports: [RouterModule.forRoot(routes, { useHash: true }), UsersModule, StudentsModule, SetupFormModule],
+  imports: [
+    RouterModule.forRoot(routes, { useHash: true }),
+    UsersModule,
+    StudentsModule,
+    StudentGroupsModule,
+    AttendanceModule,
+    SetupFormModule
+  ],
   providers: [AuthGuardService],
   exports: [RouterModule],
   declarations: [

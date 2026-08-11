@@ -49,7 +49,7 @@
       <dxi-item dataField="phoneNumber"><dxo-label text="Số điện thoại"></dxo-label><dxi-validation-rule type="stringLength" [max]="30" message="Tối đa 30 ký tự"></dxi-validation-rule></dxi-item>
       <dxi-item dataField="role" editorType="dxSelectBox" [editorOptions]="{ items: availableRoles, valueExpr: 'value', displayExpr: 'text', searchEnabled: false }"><dxo-label text="Vai trò"></dxo-label><dxi-validation-rule type="required"></dxi-validation-rule></dxi-item>
       <dxi-item dataField="status" editorType="dxSelectBox" [editorOptions]="{ items: userStatuses, valueExpr: 'value', displayExpr: 'text' }"><dxo-label text="Trạng thái"></dxo-label><dxi-validation-rule type="required"></dxi-validation-rule></dxi-item>
-      <dxi-item *ngIf="!isEditing" dataField="password" editorType="dxTextBox" [colSpan]="2" [editorOptions]="{ mode: 'password' }"><dxo-label text="Mật khẩu"></dxo-label><dxi-validation-rule type="required" message="Vui lòng nhập mật khẩu"></dxi-validation-rule><dxi-validation-rule type="stringLength" [min]="8" [max]="100" message="Mật khẩu từ 8 đến 100 ký tự"></dxi-validation-rule></dxi-item>
+      <dxi-item *ngIf="!isEditing" dataField="password" editorType="dxTextBox" [colSpan]="2" [editorOptions]="{ mode: 'password' }"><dxo-label text="Mật khẩu"></dxo-label><dxi-validation-rule type="required" message="Vui lòng nhập mật khẩu"></dxi-validation-rule><dxi-validation-rule type="pattern" [pattern]="passwordPattern" [message]="passwordRuleMessage"></dxi-validation-rule></dxi-item>
       <dxi-item itemType="button" [colSpan]="2" horizontalAlignment="right"><dxo-button-options [text]="isEditing ? 'Lưu thay đổi' : 'Tạo tài khoản'" type="default" [useSubmitBehavior]="true" [disabled]="saving"></dxo-button-options></dxi-item>
     </dx-form>
   </form>
@@ -58,7 +58,7 @@
 <dx-popup [(visible)]="passwordVisible" title="Đổi mật khẩu" [width]="460" [height]="'auto'" [showCloseButton]="true" [hideOnOutsideClick]="!saving">
   <form *dxTemplate="let _ of 'content'" (submit)="changePassword($event)">
     <dx-form [formData]="passwordEditor" [disabled]="saving" labelLocation="top">
-      <dxi-item dataField="password" editorType="dxTextBox" [editorOptions]="{ mode: 'password' }"><dxo-label text="Mật khẩu mới"></dxo-label><dxi-validation-rule type="required"></dxi-validation-rule><dxi-validation-rule type="stringLength" [min]="8" [max]="100" message="Mật khẩu từ 8 đến 100 ký tự"></dxi-validation-rule></dxi-item>
+      <dxi-item dataField="password" editorType="dxTextBox" [editorOptions]="{ mode: 'password' }"><dxo-label text="Mật khẩu mới"></dxo-label><dxi-validation-rule type="required" message="Vui lòng nhập mật khẩu mới"></dxi-validation-rule><dxi-validation-rule type="pattern" [pattern]="passwordPattern" [message]="passwordRuleMessage"></dxi-validation-rule></dxi-item>
       <dxi-item dataField="confirmPassword" editorType="dxTextBox" [editorOptions]="{ mode: 'password' }"><dxo-label text="Xác nhận mật khẩu"></dxo-label><dxi-validation-rule type="required"></dxi-validation-rule></dxi-item>
       <dxi-item itemType="button" horizontalAlignment="right"><dxo-button-options text="Đổi mật khẩu" type="default" [useSubmitBehavior]="true" [disabled]="saving"></dxo-button-options></dxi-item>
     </dx-form>

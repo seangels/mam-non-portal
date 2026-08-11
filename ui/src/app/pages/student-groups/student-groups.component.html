@@ -1,0 +1,186 @@
+<div class="content-block page-toolbar">
+  <div>
+    <h1 class="page-title">Quản lý nhóm và phân công</h1>
+    <p class="page-subtitle">Thiết lập giáo viên phụ trách, danh sách học sinh và thời hạn sửa điểm danh.</p>
+  </div>
+  <dx-button *ngIf="selectedTab === 0" text="Thêm nhóm" icon="plus" type="default"
+    hint="Tạo nhóm học sinh" (onClick)="openGroupCreate()"></dx-button>
+</div>
+
+<div class="content-block dx-card management-card">
+  <dx-tabs [items]="tabs" [(selectedIndex)]="selectedTab" aria-label="Khu vực quản lý nhóm và giáo viên"></dx-tabs>
+
+  <section *ngIf="selectedTab === 0" aria-labelledby="groups-heading">
+    <h2 id="groups-heading" class="visually-hidden">Danh sách nhóm học sinh</h2>
+    <div class="filters management-filters">
+      <dx-text-box [(value)]="groupSearch" placeholder="Mã hoặc tên nhóm" [showClearButton]="true"
+        (onEnterKey)="applyGroupFilters()"></dx-text-box>
+      <dx-select-box [(value)]="groupStatus" [items]="groupStatuses" valueExpr="value" displayExpr="text"
+        placeholder="Trạng thái nhóm" [showClearButton]="true"></dx-select-box>
+      <dx-check-box [(value)]="groupsWithoutTeacher" text="Chưa có giáo viên"></dx-check-box>
+      <dx-button text="Lọc" icon="filter" type="default" hint="Áp dụng bộ lọc nhóm"
+        (onClick)="applyGroupFilters()"></dx-button>
+    </div>
+
+    <dx-data-grid #groupsGrid [dataSource]="groupDataSource" [remoteOperations]="{ paging: true, sorting: true }"
+      [showBorders]="true" [columnAutoWidth]="true" [rowAlternationEnabled]="true"
+      noDataText="Không có nhóm phù hợp">
+      <dxo-load-panel [enabled]="true" text="Đang tải nhóm..."></dxo-load-panel>
+      <dxo-paging [pageSize]="20"></dxo-paging>
+      <dxo-pager [visible]="true" [showPageSizeSelector]="true" [allowedPageSizes]="[10, 20, 50, 100]"
+        [showInfo]="true"></dxo-pager>
+      <dxo-sorting mode="single"></dxo-sorting>
+      <dxi-column dataField="code" caption="Mã nhóm" sortOrder="asc"></dxi-column>
+      <dxi-column dataField="name" caption="Tên nhóm"></dxi-column>
+      <dxi-column dataField="status" caption="Trạng thái" cellTemplate="groupStatus"></dxi-column>
+      <dxi-column dataField="responsibleTeacherName" caption="Giáo viên phụ trách" [allowSorting]="false"
+        cellTemplate="teacherName"></dxi-column>
+      <dxi-column dataField="studentCount" caption="Sĩ số" [allowSorting]="false" alignment="center"
+        cellTemplate="studentCount"></dxi-column>
+      <dxi-column type="buttons" caption="Thao tác" [width]="190" [buttons]="groupButtons"></dxi-column>
+      <div *dxTemplate="let cell of 'groupStatus'" class="status-pill" [class.muted]="cell.value !== 'Active'">
+        {{ groupStatusText(cell.value) }}
+      </div>
+      <div *dxTemplate="let cell of 'teacherName'" [class.warning-text]="!cell.value">
+        {{ cell.value || 'Chưa phân công' }}
+      </div>
+      <div *dxTemplate="let cell of 'studentCount'">
+        <strong>{{ cell.value }}</strong>/100
+      </div>
+    </dx-data-grid>
+  </section>
+
+  <section *ngIf="selectedTab === 1" aria-labelledby="teachers-heading">
+    <h2 id="teachers-heading" class="section-title">Thời hạn sửa điểm danh của giáo viên</h2>
+    <p class="section-description">Thời hạn tính cả hôm nay và có thể cấu hình từ 1 đến 7 ngày cho từng giáo viên.</p>
+    <div class="filters management-filters">
+      <dx-text-box [(value)]="teacherSearch" placeholder="Tên giáo viên" [showClearButton]="true"
+        (onEnterKey)="applyTeacherFilters()"></dx-text-box>
+      <dx-select-box [(value)]="teacherStatus" [items]="teacherStatuses" valueExpr="value" displayExpr="text"
+        placeholder="Trạng thái tài khoản" [showClearButton]="true"></dx-select-box>
+      <dx-check-box [(value)]="teachersWithoutGroup" text="Chưa phụ trách nhóm"></dx-check-box>
+      <dx-button text="Lọc" icon="filter" type="default" hint="Áp dụng bộ lọc giáo viên"
+        (onClick)="applyTeacherFilters()"></dx-button>
+    </div>
+
+    <dx-data-grid #teachersGrid [dataSource]="teacherDataSource" [remoteOperations]="{ paging: true, sorting: true }"
+      [showBorders]="true" [columnAutoWidth]="true" [rowAlternationEnabled]="true"
+      noDataText="Không có giáo viên phù hợp">
+      <dxo-load-panel [enabled]="true" text="Đang tải giáo viên..."></dxo-load-panel>
+      <dxo-paging [pageSize]="20"></dxo-paging>
+      <dxo-pager [visible]="true" [showPageSizeSelector]="true" [allowedPageSizes]="[10, 20, 50, 100]"
+        [showInfo]="true"></dxo-pager>
+      <dxo-sorting mode="single"></dxo-sorting>
+      <dxi-column dataField="fullName" caption="Họ và tên" sortOrder="asc"></dxi-column>
+      <dxi-column dataField="status" caption="Trạng thái" cellTemplate="teacherStatus"></dxi-column>
+      <dxi-column dataField="responsibleGroupCount" caption="Số nhóm phụ trách" [allowSorting]="false"
+        alignment="center"></dxi-column>
+      <dxi-column dataField="attendanceEditWindowDays" caption="Thời hạn sửa" [allowSorting]="false"
+        cellTemplate="windowDays"></dxi-column>
+      <dxi-column type="buttons" caption="Thao tác" [width]="90" [buttons]="teacherButtons"></dxi-column>
+      <div *dxTemplate="let cell of 'teacherStatus'">{{ teacherStatusText(cell.value) }}</div>
+      <div *dxTemplate="let cell of 'windowDays'">{{ cell.value }} ngày</div>
+    </dx-data-grid>
+  </section>
+</div>
+
+<dx-popup [(visible)]="groupEditorVisible" [title]="groupEditorTitle" [width]="560" [height]="'auto'"
+  [showCloseButton]="true" [hideOnOutsideClick]="!saving">
+  <form *dxTemplate="let _ of 'content'" (submit)="saveGroup($event)">
+    <dx-form [formData]="groupEditor" [disabled]="saving" labelLocation="top">
+      <dxi-item dataField="code"><dxo-label text="Mã nhóm"></dxo-label>
+        <dxi-validation-rule type="required" message="Vui lòng nhập mã nhóm"></dxi-validation-rule>
+        <dxi-validation-rule type="stringLength" [max]="50" message="Mã nhóm tối đa 50 ký tự"></dxi-validation-rule>
+      </dxi-item>
+      <dxi-item dataField="name"><dxo-label text="Tên nhóm"></dxo-label>
+        <dxi-validation-rule type="required" message="Vui lòng nhập tên nhóm"></dxi-validation-rule>
+        <dxi-validation-rule type="stringLength" [max]="200" message="Tên nhóm tối đa 200 ký tự"></dxi-validation-rule>
+      </dxi-item>
+      <dxi-item dataField="status" editorType="dxSelectBox"
+        [editorOptions]="{ items: groupStatuses, valueExpr: 'value', displayExpr: 'text' }">
+        <dxo-label text="Trạng thái"></dxo-label><dxi-validation-rule type="required"></dxi-validation-rule>
+      </dxi-item>
+      <dxi-item itemType="button" horizontalAlignment="right"><dxo-button-options
+        [text]="isEditingGroup ? 'Lưu thay đổi' : 'Tạo nhóm'" type="default" [useSubmitBehavior]="true"
+        [disabled]="saving"></dxo-button-options></dxi-item>
+    </dx-form>
+  </form>
+</dx-popup>
+
+<dx-popup [(visible)]="assignmentVisible" title="Phân công giáo viên" [width]="560" [height]="'auto'"
+  [showCloseButton]="true" [hideOnOutsideClick]="!saving">
+  <div *dxTemplate="let _ of 'content'">
+    <p>Nhóm: <strong>{{ selectedGroup?.name }}</strong></p>
+    <label class="field-label" for="teacher-picker">Giáo viên phụ trách</label>
+    <dx-select-box id="teacher-picker" [(value)]="selectedTeacherId" [dataSource]="teacherPicker"
+      valueExpr="id" [displayExpr]="teacherDisplay" [searchEnabled]="true" searchMode="contains"
+      placeholder="Chọn giáo viên" [showClearButton]="true" [disabled]="saving"
+      noDataText="Không có giáo viên phù hợp"></dx-select-box>
+    <p class="helper-text">Có thể để trống để gỡ phân công hiện tại. Một giáo viên có thể phụ trách nhiều nhóm.</p>
+    <div class="popup-actions">
+      <dx-button text="Hủy" stylingMode="outlined" (onClick)="assignmentVisible = false"></dx-button>
+      <dx-button text="Lưu phân công" type="default" [disabled]="saving"
+        (onClick)="saveTeacherAssignment()"></dx-button>
+    </div>
+  </div>
+</dx-popup>
+
+<dx-popup [(visible)]="rosterVisible" title="Quản lý học sinh trong nhóm" [width]="820" [height]="'85vh'"
+  [showCloseButton]="true" [hideOnOutsideClick]="!saving">
+  <div *dxTemplate="let _ of 'content'" class="roster-dialog">
+    <div class="roster-heading">
+      <div>
+        <strong>{{ selectedGroup?.name }}</strong>
+        <span>{{ selectedGroup?.studentCount || 0 }}/100 học sinh</span>
+      </div>
+      <span *ngIf="groupIsFull" class="capacity-warning">Nhóm đã đủ 100 học sinh</span>
+    </div>
+
+    <div class="student-assignment">
+      <dx-select-box [(value)]="selectedStudentId" [dataSource]="studentPicker" valueExpr="id"
+        [displayExpr]="studentDisplay" [searchEnabled]="true" searchMode="contains" [minSearchLength]="1"
+        placeholder="Tìm học sinh để gán hoặc chuyển nhóm" [disabled]="saving || groupIsFull"
+        noDataText="Không có học sinh phù hợp"></dx-select-box>
+      <dx-button text="Thêm vào nhóm" icon="plus" type="default"
+        [disabled]="saving || groupIsFull || !selectedStudentId" (onClick)="assignStudent()"></dx-button>
+    </div>
+    <p class="helper-text">Có thể chọn học sinh chưa phân nhóm hoặc chuyển từ nhóm khác. Việc chuyển có hiệu lực ngay.</p>
+
+    <dx-text-box [(value)]="rosterSearch" placeholder="Tìm trong nhóm theo tên, mã hoặc tên gọi"
+      [showClearButton]="true"></dx-text-box>
+
+    <div *ngIf="rosterLoading" class="loading-state" role="status">
+      <dx-load-indicator [visible]="true"></dx-load-indicator><span>Đang tải danh sách học sinh...</span>
+    </div>
+    <div *ngIf="!rosterLoading && filteredRoster.length === 0" class="empty-panel">
+      {{ roster.length === 0 ? 'Nhóm chưa có học sinh.' : 'Không có học sinh phù hợp từ khóa.' }}
+    </div>
+    <div *ngIf="!rosterLoading" class="roster-list" role="list" aria-label="Học sinh hiện tại trong nhóm">
+      <div *ngFor="let student of filteredRoster" class="roster-row" role="listitem">
+        <div>
+          <strong>{{ student.fullName }}</strong>
+          <span>{{ student.studentCode }} · {{ student.nickName }} · {{ studentStatusLabels[student.status] }}</span>
+        </div>
+        <dx-button text="Gỡ khỏi nhóm" icon="remove" stylingMode="outlined" [disabled]="saving"
+          [hint]="'Gỡ ' + student.fullName + ' khỏi nhóm'" (onClick)="unassignStudent(student)"></dx-button>
+      </div>
+    </div>
+  </div>
+</dx-popup>
+
+<dx-popup [(visible)]="policyVisible" title="Thời hạn sửa điểm danh" [width]="480" [height]="'auto'"
+  [showCloseButton]="true" [hideOnOutsideClick]="!saving">
+  <form *dxTemplate="let _ of 'content'" (submit)="savePolicy($event)">
+    <p>Giáo viên: <strong>{{ selectedTeacher?.fullName }}</strong></p>
+    <dx-form [formData]="policyEditor" [disabled]="saving" labelLocation="top">
+      <dxi-item dataField="attendanceEditWindowDays" editorType="dxNumberBox"
+        [editorOptions]="{ min: 1, max: 7, showSpinButtons: true }">
+        <dxo-label text="Số ngày được phép sửa (tính cả hôm nay)"></dxo-label>
+        <dxi-validation-rule type="required" message="Vui lòng nhập số ngày"></dxi-validation-rule>
+        <dxi-validation-rule type="range" [min]="1" [max]="7" message="Giá trị phải từ 1 đến 7 ngày"></dxi-validation-rule>
+      </dxi-item>
+      <dxi-item itemType="button" horizontalAlignment="right"><dxo-button-options text="Lưu chính sách"
+        type="default" [useSubmitBehavior]="true" [disabled]="saving"></dxo-button-options></dxi-item>
+    </dx-form>
+  </form>
+</dx-popup>

@@ -1,6 +1,6 @@
 # Mầm Non Admin UI
 
-Admin portal xây bằng Angular 15 và DevExtreme 23.2. Ứng dụng hỗ trợ đăng nhập, quản lý tài khoản và quản lý học sinh theo contract tại [`../api/plan.md`](../api/plan.md).
+Admin portal xây bằng Angular 15 và DevExtreme 23.2. Ứng dụng hỗ trợ đăng nhập, quản lý tài khoản, nhóm/học sinh và điểm danh theo contract tại [`../api/plan.md`](../api/plan.md) cùng [`../api/attendance-plan.md`](../api/attendance-plan.md).
 
 ## Yêu cầu
 
@@ -28,9 +28,10 @@ Khi khởi động, UI kiểm tra `GET /api/v1/setup/status`. Nếu database ch�
 ```bash
 npm run build
 npm run test:ci
+npm run build -- --configuration iis
 ```
 
-`test:ci` dùng Chrome headless với cấu hình phù hợp CI/container. Build production được xuất vào `dist/DevExtreme-app`.
+`test:ci` dùng Chrome headless với cấu hình phù hợp CI/container. Build production được xuất vào `dist/DevExtreme-app`. Configuration `iis` phải được dùng cho gói IIS hai host để bundle gọi đúng `https://api-gv-portal.local/api/v1`.
 
 ## Authentication và CSRF
 
@@ -42,9 +43,9 @@ npm run test:ci
 
 ## Phân quyền UI
 
-- `SuperAdmin`: quản lý tài khoản Admin/Teacher và học sinh.
-- `Admin`: quản lý tài khoản Teacher và học sinh.
-- `Teacher`: chỉ xem trang tổng quan và thông tin tài khoản trong phiên bản hiện tại.
+- `SuperAdmin`: quản lý tài khoản Admin/Teacher, nhóm/học sinh, chính sách điểm danh và mọi nhóm điểm danh.
+- `Admin`: quản lý tài khoản Teacher, nhóm/học sinh, chính sách điểm danh và mọi nhóm điểm danh.
+- `Teacher`: điểm danh các nhóm đang được phân công trong thời hạn chỉnh sửa được cấu hình.
 
 API vẫn là nơi quyết định quyền cuối cùng; ẩn menu và route guard chỉ giúp trải nghiệm người dùng.
 
@@ -58,11 +59,22 @@ src/app/
 │   └── services/           # API client, setup/auth state, user/student client
 ├── pages/
 │   ├── users/              # Remote grid và CRUD tài khoản
-│   └── students/           # Remote grid và CRUD học sinh
+│   ├── students/           # Remote grid và CRUD học sinh
+│   ├── student-groups/     # Nhóm, roster, giáo viên phụ trách và policy
+│   └── attendance/         # Context, card editor, full save và recovery
 └── shared/                 # Layout, setup, login và dịch vụ dùng chung
 ```
 
 Hai grid dùng server-side pagination/filter/sort. `pageSize` tối đa 100 và payload ngày sinh dùng định dạng `YYYY-MM-DD`.
+
+## Điểm danh
+
+- Route `/#/attendance` dành cho cả ba role; ngày dùng lịch nghiệp vụ `Asia/Ho_Chi_Minh` và payload `YYYY-MM-DD`.
+- Admin/SuperAdmin chọn một nhóm bất kỳ. Teacher chỉ thấy nhóm đang phụ trách; một nhóm được tự chọn, nhiều nhóm dùng bộ chọn và chưa có nhóm hiển thị hướng dẫn riêng.
+- Danh sách tối đa 100 học sinh được tải một lần rồi tìm kiếm không dấu/lọc cục bộ để không làm mất bản nháp. Phiếu `Missing` chỉ là bản xem trước và vẫn phải bấm **Lưu phiếu** dù mọi học sinh đều có mặt.
+- Lần lưu đầu dùng POST với toàn bộ roster và snapshot version. Phiếu đã lưu dùng full PUT với sheet version; xung đột `409` không ghi đè âm thầm.
+- Trạng thái hỗ trợ có mặt, vắng nguyên buổi, vắng nửa buổi và học riêng một giờ. Đổi ngày/nhóm/route khi có thay đổi sẽ hỏi xác nhận; đóng hoặc tải lại tab cũng được trình duyệt cảnh báo.
+- Khôi phục lịch sử chỉ dành cho Admin/SuperAdmin khi snapshot chuẩn không còn khả dụng. Người dùng phải chọn thủ công nhóm, giáo viên, 1–100 học sinh, nhập lý do và xác nhận cảnh báo.
 
 ## Deploy IIS local HTTPS
 

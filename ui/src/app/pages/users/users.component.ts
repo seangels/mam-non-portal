@@ -15,6 +15,7 @@ import { ApiError } from '../../core/models/api-error';
 import { CreateUserRequest, User, UserRole, UserStatus } from '../../core/models/api.models';
 import { UsersService } from '../../core/services/users.service';
 import { AuthService } from '../../shared/services';
+import { ROLE_LABELS, USER_STATUS_LABELS } from '../../core/i18n/ui-labels';
 
 interface UserEditor {
   id?: string;
@@ -34,14 +35,16 @@ interface UserEditor {
 export class UsersComponent {
   @ViewChild(DxDataGridComponent) grid?: DxDataGridComponent;
 
+  readonly passwordPattern = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{12,128}$/;
+  readonly passwordRuleMessage = 'Mật khẩu phải dài 12–128 ký tự và có chữ hoa, chữ thường, số, ký tự đặc biệt.';
   readonly roles = [
-    { value: 'Teacher', text: 'Giáo viên' },
-    { value: 'Admin', text: 'Quản trị viên' }
+    { value: 'Teacher', text: ROLE_LABELS.Teacher },
+    { value: 'Admin', text: ROLE_LABELS.Admin }
   ];
   readonly userStatuses = [
-    { value: 'Active', text: 'Hoạt động' },
-    { value: 'Inactive', text: 'Ngừng hoạt động' },
-    { value: 'Locked', text: 'Đã khóa' }
+    { value: 'Active', text: USER_STATUS_LABELS.Active },
+    { value: 'Inactive', text: USER_STATUS_LABELS.Inactive },
+    { value: 'Locked', text: USER_STATUS_LABELS.Locked }
   ];
   readonly rowButtons = [
     { hint: 'Chỉnh sửa', icon: 'edit', onClick: (event: any) => this.openEdit(event.row.data as User) },
@@ -222,8 +225,7 @@ export class UsersComponent {
 
   private showError(error: unknown): void {
     const apiError = ApiError.from(error);
-    const firstFieldError = Object.values(apiError.fieldErrors)[0]?.[0];
-    notify(firstFieldError || apiError.message, 'error', 2800);
+    notify(apiError.message, 'error', 2800);
   }
 }
 

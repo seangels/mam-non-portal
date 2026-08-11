@@ -23,7 +23,7 @@ Before changing frontend code:
 - Angular 15.2, TypeScript 4.9 in strict mode, RxJS 7.8, and DevExtreme/DevExtreme Angular 23.2.3.
 - This is an NgModule application, not a standalone-component application. `AppModule` registers `HttpClientModule`, the auth interceptor, and an `APP_INITIALIZER`.
 - Startup order is security-sensitive: `SetupService.loadStatus()` runs first; session restore runs only when setup is complete. If setup status fails, keep the retryable setup error state rather than bypassing initialization.
-- Routing uses `useHash: true`. Main routes are `/setup`, `/login-form`, `/home`, `/profile`, `/users`, and `/students`.
+- Routing uses `useHash: true`. Main routes are `/setup`, `/login-form`, `/home`, `/profile`, `/users`, `/students`, `/student-groups`, and `/attendance`.
 - `src/app/core/` contains API DTOs/errors, API clients, auth/setup state, and the interceptor. `shared/` contains reusable UI/auth/layout pieces. `pages/` contains feature screens. `layouts/` contains responsive DevExtreme shells.
 - Keep the existing small feature-module pattern. The user/student page module currently lives beside its component in the component TypeScript file.
 
@@ -37,7 +37,7 @@ Before changing frontend code:
 - The interceptor sends `Authorization: Bearer ...`, adds `X-CSRF-TOKEN` to non-GET/non-HEAD requests when available, and coalesces concurrent 401s into one refresh request. Keep auth/setup endpoints out of the automatic 401 retry loop.
 - Refresh failure clears all in-memory auth state and returns the user to login. Logout must clear local state even if the bearer token has expired.
 - First-run setup uses `GET setup/status` and `POST setup/super-admin`. Setup creates exactly one initial `SuperAdmin`, does not sign the user in, and routes to login afterward. A `409` means another request already initialized the system.
-- UI guards/menu visibility are only user-experience controls. The API remains the authorization authority. `SuperAdmin` manages Admin/Teacher and students; `Admin` manages Teacher and students; `Teacher` has dashboard/profile only.
+- UI guards/menu visibility are only user-experience controls. The API remains the authorization authority. `SuperAdmin` manages Admin/Teacher, groups and students; `Admin` manages Teacher, groups and students; all three roles can open attendance, while Teacher data remains scoped to current responsible groups.
 
 ## Feature and data rules
 
@@ -47,6 +47,8 @@ Before changing frontend code:
 - Date-only values use `YYYY-MM-DD`. Preserve local calendar dates and avoid UTC conversion that can shift the day.
 - Keep DTO enums aligned with the API: roles `SuperAdmin|Admin|Teacher`; user status `Active|Inactive|Locked`; student status `Active|Inactive`; gender `Male|Female|Other`.
 - Preserve `ProblemDetails` field errors, status, and trace ID. Keep useful handling for connection errors and 401/403/409 responses.
+- Attendance uses a full-roster contract: Missing POST sends every current snapshot student with `expectedSnapshotVersion`; Saved PUT sends every persisted snapshot student with `expectedVersion`. Do not autosave or treat a Missing Present preview as persisted data.
+- Attendance search is local accent-insensitive search over the authorized roster. Keep baseline and draft state independent of filtering, preserve DateOnly values, guard dirty route/date/group changes, and never silently overwrite a `409` conflict.
 - Continue using DevExtreme validation, disabled/loading states, confirmation dialogs, and notifications for mutations. Server validation and authorization remain mandatory even when the UI validates first.
 - Angular schematics currently default to `skipTests`; add or update focused Jasmine tests manually for changed logic, especially auth/setup, routing/roles, API mapping, and data conversion.
 
@@ -87,4 +89,3 @@ For normal frontend code changes, at minimum run the production build and `test:
 - Update shared memory through the root role when auth/API/deployment behavior changes across stacks. Detailed chronological activity belongs in `../tasks.md`, not in role memory.
 - Replace stale current-state facts instead of appending chat transcripts. Explicitly distinguish a historical baseline from tests run in the current session.
 - Never put passwords, credential-bearing connection strings, JWT keys, access/refresh/CSRF tokens, cookies, private keys, personal data, `.env` contents, or deployed secret values in source, logs, tests, screenshots, or memory.
-

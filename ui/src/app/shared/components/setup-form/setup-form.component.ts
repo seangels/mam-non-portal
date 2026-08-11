@@ -61,7 +61,7 @@ export class SetupFormComponent {
         fullName: this.formData.fullName.trim(),
         password: this.formData.password
       });
-      notify('Đã khởi tạo SuperAdmin. Vui lòng đăng nhập.', 'success', 2500);
+      notify('Đã khởi tạo siêu quản trị viên. Vui lòng đăng nhập.', 'success', 2500);
       await this.router.navigate(['/login-form']);
     } catch (error) {
       const apiError = ApiError.from(error);
@@ -70,8 +70,7 @@ export class SetupFormComponent {
         notify('Hệ thống đã được khởi tạo.', 'info', 2000);
         await this.router.navigate(['/login-form']);
       } else {
-        const fieldMessage = Object.values(apiError.fieldErrors).flat()[0];
-        notify(fieldMessage || apiError.message, 'error', 3000);
+        notify(apiError.message, 'error', 3000);
       }
     } finally {
       this.loading = false;
