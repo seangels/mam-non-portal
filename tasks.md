@@ -362,6 +362,27 @@ QA/Integration:
 - Điều tra ban đầu (2026-08-11): `StudentGroupService` dùng `.Select(x => Map(x))`; EF chỉ materialize entity cho client-side top-level mapping nên navigation `ResponsibleTeacher.User` và collection `Students` không được đưa vào SQL projection. Hệ quả có thể đồng thời làm `responsibleTeacherName=null` và `studentCount=0` dù FK đã tồn tại.
 - Hotfix chuyển StudentGroup list/detail sang EF-translatable projection để lấy đúng tên giáo viên và số học sinh active; đồng thời sửa Student list trả đúng `groupCode/groupName`. Regression PostgreSQL riêng 1/1 và full integration Release 21/21 pass; solution Release build 0 warning/error.
 
+## Epic phân nhóm và lịch học học sinh `SCH` — owner: `root`
+
+- [x] `SCH-P-01`. Rà hiện trạng Student/Group/Attendance API và UI
+- [x] `SCH-P-02`. Tạo plan cross-stack có mã đợt tại `plans/04-SCH-student-groups-study-schedule.md`
+- [~] `SCH-P-03`. Review và khóa `SCH-DEC-01`–`SCH-DEC-08`
+- [ ] `SCH-00`. Khóa schema/REST/wireflow/attendance semantics/test traceability
+- [ ] `SCH-01`. Migration, Student schedule CRUD và optimistic concurrency
+- [ ] `SCH-02`. Phân/chuyển/gỡ nhóm tại trang Học sinh
+- [ ] `SCH-03`. Tích hợp scheduled roster vào attendance
+- [ ] `SCH-04`. Audit, responsive/accessibility và hardening
+- [ ] `SCH-05`. Full regression, tài liệu và bàn giao
+
+### Student schedule planning log
+
+- `SCH-P-01` (2026-08-11): API đã có nguồn mutation duy nhất `PUT /students/{id}/group`, group cap 100 và snapshot lock; Student UI chưa expose group filter/action. Attendance Missing hiện lấy toàn bộ Student active trong group và chưa biết lịch theo weekday.
+- `SCH-P-02`: đề xuất Student có `StudyMode = FullDay|OneToOne`, lịch Thứ Hai–Thứ Bảy và aggregate version. Weekday được lưu bằng bit mask nội bộ nhưng API chỉ expose enum array canonical; group vẫn là command riêng.
+- Phương án nghiệp vụ đề xuất: schedule lọc roster theo ngày; FullDay mặc định `Present`, OneToOne mặc định `OneToOneHour`; mode chỉ đặt default, không khóa status; Saved sheet bất biến. Thay đổi schedule của Student trong group tăng group snapshot.
+- UI đề xuất thêm group/schedule columns và filters, popup phân/chuyển/gỡ nhóm, section lịch học với mode và sáu checkbox tiếng Việt; cả Student page và Group page dùng cùng endpoint/version.
+- Review chéo backend/frontend đã bổ sung semantics exact cho `NoScheduledStudents`, count Missing/Saved, historical recovery, Student concurrency/no-op, migration bump mỗi group một lần, race schedule-vs-first-save, nested validation và UX group picker/attendance tiếng Việt.
+- Chưa triển khai source. Chờ user khóa `SCH-DEC-01`–`08`; production/IIS skill không được gọi trong giai đoạn plan.
+
 ## Tổ chức thư mục kế hoạch — owner: `root`
 
 - [x] `PLAN-ORG-01`. Chuyển toàn bộ plan ra thư mục root `plans/`

@@ -7,6 +7,7 @@ Các file được đánh số theo thứ tự phụ thuộc và triển khai. M
 | 01 | `BASE` | [`01-BASE-admin-portal.md`](01-BASE-admin-portal.md) | Đã triển khai | Không |
 | 02 | `ATT` | [`02-ATT-attendance.md`](02-ATT-attendance.md) | Đã triển khai | `BASE` |
 | 03 | `TCH` | [`03-TCH-teacher-management.md`](03-TCH-teacher-management.md) | Đã triển khai | `BASE`, `ATT` |
+| 04 | `SCH` | [`04-SCH-student-groups-study-schedule.md`](04-SCH-student-groups-study-schedule.md) | Đang review quyết định | `BASE`, `ATT` |
 
 ## Quy ước đặt tên
 
