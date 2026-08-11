@@ -269,3 +269,24 @@ QA/Integration:
 - Chỉ khi người dùng gọi `$gv-portal-production` mới chạy production build/package/verify/deploy. Không truyền mode thì mặc định `build`, không thay đổi IIS; chỉ `deploy` rõ ràng mới cho phép sửa IIS, hosts, certificate, `C:\inetpub` và apply migration trên database đích.
 - Workflow `build` chạy backend/frontend release gates, tạo ZIP và kiểm tra checksum/nội dung. Workflow `verify` chỉ đọc package hiện có. Workflow `deploy` yêu cầu package đã verify, backup database/artifact, SecureString secrets và kiểm tra HTTPS/IIS sau deploy.
 - `quick_validate.py` của skill-creator đạt `Skill is valid`; chỉ cài tạm PyYAML qua `uv` để chạy validator. Không chạy production build, không tạo package mới và không deploy trong đợt tách skill này.
+
+## Epic quản lý thông tin giáo viên `TCH` — owner: `root`
+
+- [x] `TCH-P-01`. Rà soát hiện trạng User/Teacher/Group/Attendance và các bề mặt UI hiện có
+- [x] `TCH-P-02`. Lập kế hoạch cross-stack có mã từng đợt tại `api/teacher-management-plan.md`
+- [ ] `TCH-P-03`. Review và chốt `TCH-DEC-01`–`TCH-DEC-12`
+- [ ] `TCH-00`. Khóa field ownership, REST/OpenAPI, wireflow và test traceability
+- [ ] `TCH-01`. Schema/migration/backfill, danh sách và chi tiết giáo viên
+- [ ] `TCH-02`. Atomic create, full update, validation và concurrency
+- [ ] `TCH-03`. Password, soft-delete, session và chuyển mutation khỏi User CRUD
+- [ ] `TCH-04`. Hợp nhất policy điểm danh và UX nhóm phụ trách
+- [ ] `TCH-05`. Audit/privacy, responsive, accessibility và hardening
+- [ ] `TCH-06`. Regression, tài liệu và bàn giao
+
+### Teacher management planning log
+
+- `TCH-P-01`: backend/frontend rà soát read-only và xác nhận hiện trạng có ba bề mặt rời nhau: account Teacher tại `/users`, policy Teacher trong `/student-groups`, còn `/teachers` mới chỉ có list/detail/policy API.
+- `TCH-P-02`: plan đề xuất `User` tiếp tục là nguồn sự thật cho account; `Teacher` chỉ lưu mã và hồ sơ nghề nghiệp. `/teachers` trở thành aggregate API canonical, group assignment vẫn chỉ qua `student-groups` và lịch sử attendance không bị rewrite.
+- Plan đề xuất sidebar/route `Giáo viên`, danh sách remote paging/filter/sort, detail, create/edit page, password/delete flow, toàn bộ UI tiếng Việt và optimistic concurrency bằng `expectedVersion`.
+- Có 12 quyết định cần người dùng review, gồm bộ field, mã tự sinh, chuyển mutation khỏi User CRUD, trạng thái nhân sự, search không dấu, ngày vào làm tương lai và soft-delete/history.
+- Đợt này chỉ thay đổi tài liệu plan/tracking/memory; không sửa source sản phẩm và không chạy build, package hoặc deploy production.

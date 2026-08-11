@@ -20,7 +20,8 @@ Xây dựng RESTful API cho Admin Portal với các chức năng cơ bản:
 - CRUD user và student.
 - Soft delete.
 - Audit các thao tác quản trị quan trọng.
-- Kế hoạch mở rộng giáo viên, nhóm học sinh và điểm danh được đặc tả riêng tại [`attendance-plan.md`](attendance-plan.md); chưa được xem là đã triển khai chỉ vì có trong tài liệu.
+- Kế hoạch nhóm học sinh và điểm danh được đặc tả riêng tại [`attendance-plan.md`](attendance-plan.md).
+- Kế hoạch quản lý thông tin giáo viên được đặc tả riêng tại [`teacher-management-plan.md`](teacher-management-plan.md); các quyết định `TCH-DEC-*` phải được chốt trước khi triển khai.
 - OpenAPI/Swagger.
 - Health check, logging và xử lý lỗi thống nhất.
 - Unit test và integration test cho các luồng chính.
