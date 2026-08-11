@@ -1,5 +1,5 @@
 html, body { background: #f4f7fb; }
-.page-title { margin: 0; font-size: 25px; font-weight: 600; }
+.page-title { margin: 0; font-size: 25px !important; font-weight: 600;  }
 .page-subtitle { margin: 6px 0 0; color: #6b7280; }
 .page-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 16px; }
 .filters { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; }
