@@ -15,30 +15,13 @@ label > span, .single-group > span, .notes-field > span, .recovery-reason > span
 .badge.missing { background: #fff0c2; color: #7a4d00; }
 .badge.readonly { background: #eaecf0; color: #344054; }
 .filter-result { color: #667085; font-size: 13px; }
-.attendance-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; max-height: min(88vh, 1050px); overflow-y: auto; padding-right: 6px; scroll-behavior: smooth; }
-.student-card { padding: 16px; border: 1px solid transparent; }
-.student-card.dirty { border-color: #84adff; }
-.student-card.invalid { border-color: #f04438; }
-.student-card header { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
-.student-card h3 { margin: 0; font-size: 17px; }
-.student-card h3 small, .student-card header span { color: #667085; font-size: 12px; font-weight: 400; }
-.student-card .changed { color: #175cd3; font-weight: 600; }
-fieldset { min-width: 0; margin: 0; padding: 0; border: 0; }
-legend { margin-bottom: 7px; color: #475467; font-size: 12px; font-weight: 600; }
-.status-choice, .conditional-fields { display: flex; flex-wrap: wrap; gap: 8px; }
-.status-choice label, .conditional-fields label { display: flex; align-items: center; min-height: 42px; gap: 5px; padding: 7px 10px; border: 1px solid #d0d5dd; border-radius: 6px; cursor: pointer; }
-.status-choice input, .conditional-fields input, .acknowledge input { width: 18px; height: 18px; accent-color: #337ab7; }
-.conditional-fields, .duration { margin-top: 12px; }
-.duration { color: #344054; }
-.notes-field { display: block; margin-top: 12px; }
+.acknowledge input { width: 18px; height: 18px; accent-color: #337ab7; }
 textarea, .recovery-list input, .recovery-list select { box-sizing: border-box; width: 100%; padding: 8px 10px; border: 1px solid #d0d5dd; border-radius: 5px; font: inherit; }
-textarea:focus, input:focus, select:focus, .student-card:focus { outline: 2px solid #84adff; outline-offset: 2px; }
+textarea:focus, input:focus, select:focus, .student-card:focus { outline: 2px solid #175cd3; outline-offset: 2px; }
 .validation { margin: 7px 0 0; color: #b42318; font-size: 13px; }
 .link-button { padding: 0; border: 0; background: none; color: #175cd3; cursor: pointer; text-decoration: underline; }
 
 @media (max-width: 700px) {
   :host { padding-bottom: 74px; }
   .attendance-heading, .sheet-header { align-items: flex-start; }
-  .attendance-list { grid-template-columns: 1fr; max-height: none; overflow: visible; padding: 0; }
-  .status-choice label { flex: 1 1 45%; }
 }

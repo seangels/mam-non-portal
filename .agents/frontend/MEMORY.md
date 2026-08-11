@@ -26,7 +26,7 @@ Last updated: 2026-08-12
 - Full `PUT` is required for user/student updates; cleared optional fields are sent as `null`. Date-only payloads are `YYYY-MM-DD` and must not shift through UTC conversion.
 - Roles/statuses: `SuperAdmin|Admin|Teacher`; user `Active|Inactive|Locked`; student `Active|Inactive`; gender `Male|Female|Other`. UI role guards/navigation do not replace server authorization.
 - Server list limits: page starts at 1 and page size is at most 100. Keep sort field names within the backend whitelists documented in `ui/AGENTS.md` and the relevant numbered plan in `plans/`.
-- Attendance is a full-roster aggregate: Missing POST sends all current snapshot students plus `expectedSnapshotVersion`; Saved PUT sends all persisted snapshot students plus `expectedVersion`. Present is persisted, not inferred after save. UI keeps baseline/drafts in memory and never silently overwrites `409`.
+- Attendance is a full-roster aggregate: Missing POST sends all current snapshot students plus `expectedSnapshotVersion`; Saved PUT sends all persisted snapshot students plus `expectedVersion`. `Unmarked` is a persisted status; Missing defaults still come only from the backend. UI keeps baseline/drafts in memory and never silently overwrites `409`.
 - Attendance dates remain DateOnly and follow server business date in `Asia/Ho_Chi_Minh`. Teacher only receives current responsible groups; Admin/SuperAdmin can select all groups and alone can run acknowledged historical recovery.
 - Teacher management uses `/teachers` as the canonical aggregate. List/detail combine User account fields with `teacherCode`, `note`, attendance policy, responsible-group summaries, timestamps and `version`; create/full PUT/delete/policy carry the TCH contract and optimistic concurrency. Teacher list search is always remote and trusts server `totalItems`; do not apply local accent filtering to paged rows.
 - `/users` is now `Tài khoản quản trị`: only SuperAdmin can open it and its UI always queries/creates/updates role `Admin`. Password change remains the only Teacher action routed through `/users/{userId}/password`.
@@ -35,7 +35,7 @@ Last updated: 2026-08-12
 
 ## Implemented feature baseline
 
-As implemented and verified on 2026-08-11:
+As implemented and verified on 2026-08-12:
 
 - Real API/environment/model layer and normalized `ApiError`/`ProblemDetails` handling.
 - Login, refresh rotation support, logout, `/me`, session restore, route guards, role-aware navigation, and in-memory token state.
@@ -45,11 +45,11 @@ As implemented and verified on 2026-08-11:
 - `/student-groups` gives Admin/SuperAdmin remote group CRUD/filter, responsible Teacher assignment, current roster add/move/remove with the 100-student cap, and Teacher attendance-edit policy 1–7 days.
 - `/teachers`, `/teachers/new`, `/teachers/:id`, and `/teachers/:id/edit` give Admin/SuperAdmin remote list/filter/paging, read-only detail/group summaries, atomic create, full versioned update, password change and versioned soft-delete. The form supports editable user-entered Teacher code, nullable clearing, dirty-route/beforeunload protection, double-submit prevention and conflict recovery without overwriting the draft.
 - Teacher group assignment and attendance policy remain exclusively in `/student-groups`. Policy PUT now sends `expectedVersion`; a conflict keeps the popup open and lets the manager load the latest Teacher version. Teacher detail only links to these controls.
-- `/#/attendance` is available to all roles. It implements role-aware context/group selection, Missing/Saved card list, accent-insensitive local search, full-roster POST/PUT, conditional status validation, dirty route/date/group/beforeunload guards, conflict/permission states, and Admin historical recovery using explicit group/Teacher/Student candidate pickers. For past dates, managers can open recovery from the page toolbar without selecting a current context group, so inactive/deleted historical groups remain reachable.
+- `/#/attendance` is available to all roles. Its main daily list uses a fluid compact-card grid with a 195 px minimum track (five cards at the verified 1036 px content width on a 1366 px viewport), a vertical desktop/horizontal mobile identity rail containing only nickname and student code, native status/permission selects, five accessible text-and-color status states, accent-insensitive local search, full-roster POST/PUT, dirty guards and explicit conflict/read-only states. For past dates, managers can open manual recovery from the toolbar without selecting a current context group, so inactive/deleted historical groups remain reachable.
 - All portal labels/error copy use Vietnamese dictionaries and DevExtreme `vi` messages. Raw `ProblemDetails.title/detail` is not displayed; stable codes map to Vietnamese copy and trace ID remains available for support.
 - `/#/students` now has remote group/unassigned/study-mode/weekday filters, adaptive group/schedule columns, a versioned assign/move/unassign popup and a responsive schedule editor with exactly six Vietnamese weekday checkboxes. Group roster uses the same versioned Student command and exposes conflict reload; schedule/nested validation conflicts keep the Student draft.
-- Attendance context displays the date-specific scheduled count. Missing copy no longer claims every row defaults to Present; an empty scheduled roster is read-only and has no save action. Saved rendering and manual historical recovery are unchanged.
-- Focused Jasmine coverage currently consists of 36 specs, including DateOnly, Vietnamese attendance search, attendance endpoint/full-roster/recovery behavior, Teacher route/role/dashboard boundaries, remote paging mapping, canonical Teacher service endpoints, form request mapping, policy concurrency, administrator-account isolation, API error mapping, and auth/setup state.
+- Attendance context displays the date-specific scheduled count. Missing copy no longer claims every row defaults to Present; an empty scheduled roster is read-only and has no save action. `AbsentHalfDay` and `AbsentFullDay` use only permission state; every UI write, including recovery, sends `halfDayPart=null`. Notes entered or edited in UI are limited to 200 characters, while an untouched Saved legacy note over 200 is round-tripped exactly through full-roster PUT.
+- Focused Jasmine coverage currently consists of 59 specs, including DateOnly, Vietnamese attendance search, AUI Unmarked/default/full-roster/half-day/legacy-note/read-only/conflict/recovery behavior, Teacher route/role/dashboard boundaries, remote paging mapping, canonical Teacher service endpoints, form request mapping, policy concurrency, administrator-account isolation, API error mapping, and auth/setup state.
 
 ## Environment and deployment handoff
 
@@ -79,11 +79,11 @@ npm --prefix ui run build -- --configuration iis
 
 ## Last verified baseline
 
-Fresh Student schedule/group verification on 2026-08-12:
+Fresh compact-attendance verification on 2026-08-12:
 
-- `npm --prefix ui run test:ci`: passed 50/50 in Chrome Headless 151. Dependency console emitted the existing DevExtreme W0019 license warning and Inferno development-mode warning; tests had no failures.
-- `npm --prefix ui run build -- --configuration development` with `NG_BUILD_MAX_WORKERS=1`: passed, 10.99 MB initial raw development output; final hash `3ee6073d72d35e2a`.
-- Per the SCH execution gate, no production build, IIS build/package, or deploy was run. Generated `ui/dist/` remains ignored and must be rebuilt when the production skill is explicitly invoked.
+- `npm --prefix ui run test:ci`: passed 59/59 in Chrome Headless 151. Dependency console emitted the existing DevExtreme W0019 license warning and Inferno development-mode warning; tests had no failures. The first full run exposed an existing Student group-summary regression (`groupText` used the responsible Teacher instead of the group name); the one-line fix was retained and the rerun passed.
+- `npm --prefix ui run build -- --configuration development` with `NG_BUILD_MAX_WORKERS=1`: passed after the 195 px density correction and compact pill fit adjustment, 11.00 MB initial raw development output; final hash `dfa785fd5adcf72a`. Compact-card rules are split into a second component stylesheet for maintainability; both stylesheet source files remain below 5 KB. Focused attendance rerun passed 16/16 after this CSS-only correction.
+- Per the AUI execution gate, no production build, IIS build/package, or deploy was run. Generated `ui/dist/` remains ignored and must be rebuilt when the production skill is explicitly invoked.
 - The prior ATT production/IIS package baseline remains historical evidence only; root-owned shared memory records its hash. It has not been rebuilt with TCH changes.
 
 ## Known pitfalls
@@ -100,6 +100,7 @@ Fresh Student schedule/group verification on 2026-08-12:
 - Teacher policy is still edited in `/student-groups`, not the Teacher form. Always carry the row `version` as `expectedVersion` and retain the conflict-reload behavior.
 - Keep Student request DTOs explicit; deriving them with `Omit<Student,...>` can leak group/version/response fields. Never call the Student group endpoint from `StudentGroupsService`; both management pages use `StudentsService.assignGroup` and must refresh the returned version.
 - `StudyMode.OneToOne` is schedule metadata while `AttendanceStatus.OneToOneHour` is the persisted 60-minute status. Missing defaults come from the API; Saved and recovery records must never be re-filtered against the current schedule.
+- Keep the separate raw-note baseline in the attendance editor. It is required so full-roster PUT preserves untouched API legacy notes over 200 characters even though all newly entered or edited notes are limited to 200 in the UI.
 - Karma loads DevExtreme components and currently prints W0019 when no local DevExtreme license key is installed; this is a licensing/setup warning rather than a test failure and must be resolved by the product owner before commercial deployment.
 - Avoid unplanned Angular/DevExtreme/CDK upgrades; the current dependency mix builds, while a partial upgrade can break the template and generated themes.
 

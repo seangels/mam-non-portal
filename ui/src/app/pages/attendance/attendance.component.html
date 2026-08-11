@@ -160,9 +160,10 @@
 
   <div class="content-block summary-grid" aria-label="Tổng hợp toàn bộ nhóm">
     <div><span>Tổng số</span><strong>{{ summary.total }}</strong></div>
-    <div><span>Có mặt</span><strong>{{ summary.present }}</strong></div>
-    <div><span>Vắng</span><strong>{{ summary.absent }}</strong></div>
-    <div><span>Học riêng 1 giờ</span><strong>{{ summary.oneToOne }}</strong></div>
+    <div class="summary-present"><span>Có mặt</span><strong>{{ summary.present }}</strong></div>
+    <div class="summary-absent"><span>Vắng</span><strong>{{ summary.absent }}</strong></div>
+    <div class="summary-one-to-one"><span>Học riêng 1 giờ</span><strong>{{ summary.oneToOne }}</strong></div>
+    <div class="summary-unmarked"><span>Chưa điểm danh</span><strong>{{ summary.unmarked }}</strong></div>
   </div>
 
   <p class="content-block filter-result" aria-live="polite">
@@ -177,58 +178,73 @@
       *ngFor="let item of filteredDrafts; trackBy: trackStudent"
       [class.dirty]="isDirty(item)"
       [class.invalid]="item.invalidMessage"
+      [attr.aria-label]="cardIdentity(item)"
       tabindex="-1"
       role="listitem">
-      <header>
-        <div>
-          <h3>{{ item.nickName }}</h3>
-          <span>{{ item.studentCode }}</span>
-        </div>
-        <span class="changed" *ngIf="isDirty(item)">Đã thay đổi</span>
-      </header>
-
-      <fieldset class="status-choice" [disabled]="!canModify">
-        <legend>Trạng thái của {{ item.nickName }}</legend>
-        <label *ngFor="let option of statusOptions">
-          <input
-            type="radio"
-            [name]="'status-' + item.studentId"
-            [value]="option.value"
-            [checked]="item.status === option.value"
-            (change)="onStatusChange(item, option.value)" />
-          <span><i [class]="'dx-icon-' + option.icon" aria-hidden="true"></i> {{ option.text }}</span>
-        </label>
-      </fieldset>
-
-      <div class="conditional-fields" *ngIf="item.status === 'AbsentHalfDay'">
-        <fieldset [disabled]="!canModify">
-          <legend>Buổi nghỉ</legend>
-          <label *ngFor="let option of halfDayOptions">
-            <input type="radio" [name]="'half-' + item.studentId" [value]="option.value" [(ngModel)]="item.halfDayPart" />
-            <span>{{ option.text }}</span>
-          </label>
-        </fieldset>
+      <div class="identity-rail" aria-hidden="true">
+        <strong>{{ item.nickName }}</strong>
+        <span>·</span>
+        <small>{{ item.studentCode }}</small>
       </div>
 
-      <fieldset class="conditional-fields" *ngIf="item.status === 'AbsentFullDay' || item.status === 'AbsentHalfDay'" [disabled]="!canModify">
-        <legend>Lý do nghỉ</legend>
-        <label><input type="radio" [name]="'excused-' + item.studentId" [value]="true" [(ngModel)]="item.isExcused" /> <span>Có phép</span></label>
-        <label><input type="radio" [name]="'excused-' + item.studentId" [value]="false" [(ngModel)]="item.isExcused" /> <span>Không phép</span></label>
-      </fieldset>
+      <div class="card-fields">
+        <span class="changed" *ngIf="isDirty(item)">Đã thay đổi</span>
 
-      <div class="duration" *ngIf="item.status === 'OneToOneHour'">Thời lượng cố định: <strong>60 phút</strong></div>
+        <label class="status-pill" [ngClass]="statusClass(item.status)">
+          <span class="visually-hidden">Trạng thái của {{ cardIdentity(item) }}</span>
+          <select
+            [(ngModel)]="item.status"
+            [disabled]="!canModify"
+            [attr.aria-label]="'Trạng thái của ' + cardIdentity(item)"
+            (ngModelChange)="onStatusChange(item, $event)">
+            <option
+              *ngFor="let option of statusOptions"
+              [ngValue]="option.value"
+              [attr.aria-label]="option.accessibleText">
+              {{ option.compactText }}
+            </option>
+          </select>
+        </label>
 
-      <label class="notes-field">
-        <span>Ghi chú <small>({{ (item.notes || '').length }}/200)</small></span>
-        <textarea
-          [(ngModel)]="item.notes"
-          maxlength="200"
-          rows="2"
-          [disabled]="!canModify"
-          [attr.aria-label]="'Ghi chú'">
-        </textarea>
-      </label>
-      <p class="validation" *ngIf="item.invalidMessage" role="alert">{{ item.invalidMessage }}</p>
+        <label class="conditional-select" *ngIf="item.status === 'AbsentFullDay' || item.status === 'AbsentHalfDay'">
+          <span class="visually-hidden">Tình trạng phép của {{ cardIdentity(item) }}</span>
+          <select
+            [(ngModel)]="item.isExcused"
+            [disabled]="!canModify"
+            [attr.aria-label]="'Tình trạng phép của ' + cardIdentity(item)"
+            (ngModelChange)="clearValidation(item)">
+            <option [ngValue]="true">Có phép</option>
+            <option [ngValue]="false">Không phép</option>
+          </select>
+        </label>
+
+        <div class="duration-chip" *ngIf="item.status === 'OneToOneHour'" aria-label="Thời lượng 60 phút">60 phút</div>
+
+        <label class="notes-field">
+          <span>
+            Ghi chú
+            <small [class.legacy-note]="isLegacyNote(item)">{{ noteCounter(item) }}</small>
+          </span>
+          <textarea
+            [(ngModel)]="item.notes"
+            maxlength="200"
+            rows="2"
+            [disabled]="!canModify"
+            [attr.aria-invalid]="item.invalidMessage ? 'true' : null"
+            [attr.aria-describedby]="item.invalidMessage ? 'attendance-error-' + item.studentId : null"
+            [attr.aria-label]="'Ghi chú cho ' + cardIdentity(item)"
+            (ngModelChange)="clearValidation(item)">
+          </textarea>
+          <small class="legacy-note-hint" *ngIf="isLegacyNote(item)">Dữ liệu cũ được giữ nguyên; nếu chỉnh sửa, hãy rút còn tối đa 200 ký tự.</small>
+        </label>
+        <p
+          class="validation"
+          *ngIf="item.invalidMessage"
+          [id]="'attendance-error-' + item.studentId"
+          role="alert">
+          {{ item.invalidMessage }}
+        </p>
+      </div>
     </article>
 
     <div class="message" *ngIf="filteredDrafts.length === 0">
@@ -317,14 +333,11 @@
         <select [(ngModel)]="item.status" (ngModelChange)="onRecoveryStatusChange(item, $event)" [attr.aria-label]="'Trạng thái của ' + item.nickName">
           <option *ngFor="let option of statusOptions" [ngValue]="option.value">{{ option.text }}</option>
         </select>
-        <select *ngIf="item.status === 'AbsentHalfDay'" [(ngModel)]="item.halfDayPart" [attr.aria-label]="'Buổi nghỉ của ' + item.nickName">
-          <option *ngFor="let option of halfDayOptions" [ngValue]="option.value">{{ option.text }}</option>
-        </select>
         <select *ngIf="item.status === 'AbsentFullDay' || item.status === 'AbsentHalfDay'" [(ngModel)]="item.isExcused" [attr.aria-label]="'Lý do nghỉ của ' + item.nickName">
           <option [ngValue]="true">Có phép</option>
           <option [ngValue]="false">Không phép</option>
         </select>
-        <input [(ngModel)]="item.notes" maxlength="200" [attr.aria-label]="'Ghi chú'" placeholder="Ghi chú" />
+        <input [(ngModel)]="item.notes" maxlength="200" [attr.aria-label]="'Ghi chú của ' + item.nickName" placeholder="Ghi chú (tối đa 200 ký tự)" />
         <span class="validation" *ngIf="item.invalidMessage">{{ item.invalidMessage }}</span>
       </article>
     </div>

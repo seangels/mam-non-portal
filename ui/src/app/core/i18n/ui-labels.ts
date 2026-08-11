@@ -61,7 +61,8 @@ export const ATTENDANCE_STATUS_LABELS: Record<AttendanceStatus, string> = {
   Present: 'Có mặt',
   AbsentFullDay: 'Vắng nguyên buổi',
   AbsentHalfDay: 'Vắng 1/2 buổi',
-  OneToOneHour: 'Học 1-1 (1 giờ)'
+  OneToOneHour: 'Học 1-1 (1 giờ)',
+  Unmarked: 'Chưa điểm danh'
 };
 
 export const HALF_DAY_LABELS: Record<HalfDayPart, string> = {

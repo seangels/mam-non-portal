@@ -19,7 +19,6 @@ import {
   AttendanceEntry,
   AttendanceStatus,
   DailyAttendance,
-  HalfDayPart,
   RecoveryGroupCandidate,
   RecoveryStudentCandidate,
   RecoveryTeacherCandidate,
@@ -27,7 +26,6 @@ import {
 } from '../../core/models/api.models';
 import {
   ATTENDANCE_STATUS_LABELS,
-  HALF_DAY_LABELS,
   SHEET_STATE_LABELS,
   SNAPSHOT_SOURCE_LABELS,
   readOnlyReasonLabel
@@ -42,23 +40,28 @@ interface AttendanceDraft extends AttendanceEntry {
   invalidMessage?: string;
 }
 
+interface AttendanceStatusOption {
+  value: AttendanceStatus;
+  text: string;
+  compactText: string;
+  accessibleText: string;
+  className: string;
+}
+
 @Component({
   selector: 'app-attendance',
   templateUrl: './attendance.component.html',
-  styleUrls: ['./attendance.component.scss']
+  styleUrls: ['./attendance.component.scss', './attendance-card.component.scss']
 })
 export class AttendanceComponent implements OnInit, PendingChangesAware {
   @ViewChildren('studentCard') studentCards?: QueryList<ElementRef<HTMLElement>>;
 
-  readonly statusOptions: Array<{ value: AttendanceStatus; text: string; icon: string }> = [
-    { value: 'Present', text: ATTENDANCE_STATUS_LABELS.Present, icon: 'check' },
-    { value: 'AbsentFullDay', text: ATTENDANCE_STATUS_LABELS.AbsentFullDay, icon: 'close' },
-    { value: 'AbsentHalfDay', text: ATTENDANCE_STATUS_LABELS.AbsentHalfDay, icon: 'clock' },
-    { value: 'OneToOneHour', text: ATTENDANCE_STATUS_LABELS.OneToOneHour, icon: 'user' }
-  ];
-  readonly halfDayOptions: Array<{ value: HalfDayPart; text: string }> = [
-    { value: 'Morning', text: HALF_DAY_LABELS.Morning },
-    { value: 'Afternoon', text: HALF_DAY_LABELS.Afternoon }
+  readonly statusOptions: AttendanceStatusOption[] = [
+    { value: 'Present', text: ATTENDANCE_STATUS_LABELS.Present, compactText: 'Có mặt', accessibleText: 'Có mặt', className: 'status-present' },
+    { value: 'AbsentFullDay', text: ATTENDANCE_STATUS_LABELS.AbsentFullDay, compactText: 'Nghỉ', accessibleText: 'Nghỉ cả ngày', className: 'status-absent' },
+    { value: 'AbsentHalfDay', text: ATTENDANCE_STATUS_LABELS.AbsentHalfDay, compactText: 'Nghỉ 1/2', accessibleText: 'Nghỉ một nửa ngày', className: 'status-half-day' },
+    { value: 'OneToOneHour', text: ATTENDANCE_STATUS_LABELS.OneToOneHour, compactText: '1-1', accessibleText: 'Học một kèm một, 60 phút', className: 'status-one-to-one' },
+    { value: 'Unmarked', text: ATTENDANCE_STATUS_LABELS.Unmarked, compactText: 'Chưa điểm danh', accessibleText: 'Chưa điểm danh', className: 'status-unmarked' }
   ];
   readonly sheetStateLabels = SHEET_STATE_LABELS;
   readonly snapshotSourceLabels = SNAPSHOT_SOURCE_LABELS;
@@ -104,6 +107,7 @@ export class AttendanceComponent implements OnInit, PendingChangesAware {
   recoveryError = '';
 
   private baseline = new Map<string, string>();
+  private noteBaselines = new Map<string, string | null>();
   private contextRequest = 0;
   private dailyRequest = 0;
   private groupCandidates = new Map<string, RecoveryGroupCandidate>();
@@ -170,12 +174,13 @@ export class AttendanceComponent implements OnInit, PendingChangesAware {
     return this.drafts.filter(item => this.isDirty(item)).length;
   }
 
-  get summary(): { total: number; present: number; absent: number; oneToOne: number } {
+  get summary(): { total: number; present: number; absent: number; oneToOne: number; unmarked: number } {
     return {
       total: this.drafts.length,
       present: this.drafts.filter(item => item.status === 'Present').length,
       absent: this.drafts.filter(item => item.status === 'AbsentFullDay' || item.status === 'AbsentHalfDay').length,
-      oneToOne: this.drafts.filter(item => item.status === 'OneToOneHour').length
+      oneToOne: this.drafts.filter(item => item.status === 'OneToOneHour').length,
+      unmarked: this.drafts.filter(item => item.status === 'Unmarked').length
     };
   }
 
@@ -265,12 +270,12 @@ export class AttendanceComponent implements OnInit, PendingChangesAware {
   onStatusChange(item: AttendanceDraft, value: AttendanceStatus): void {
     item.status = value;
     item.invalidMessage = undefined;
-    if (value === 'Present') {
+    if (value === 'Present' || value === 'Unmarked') {
       item.halfDayPart = null;
       item.isExcused = null;
       item.durationMinutes = null;
     } else if (value === 'AbsentHalfDay') {
-      item.halfDayPart ??= 'Morning';
+      item.halfDayPart = null;
       item.isExcused ??= false;
       item.durationMinutes = null;
     } else if (value === 'AbsentFullDay') {
@@ -286,6 +291,29 @@ export class AttendanceComponent implements OnInit, PendingChangesAware {
 
   onRecoveryStatusChange(item: AttendanceDraft, value: AttendanceStatus): void {
     this.onStatusChange(item, value);
+  }
+
+  clearValidation(item: AttendanceDraft): void {
+    item.invalidMessage = undefined;
+  }
+
+  cardIdentity(item: AttendanceDraft): string {
+    return `${item.nickName.trim() || 'Chưa có tên gọi'} · ${item.studentCode}`;
+  }
+
+  statusClass(status: AttendanceStatus): string {
+    return this.statusOptions.find(option => option.value === status)?.className ?? 'status-unmarked';
+  }
+
+  noteCounter(item: AttendanceDraft): string {
+    const length = item.notes?.length ?? 0;
+    return length > 200 && !this.notesChanged(item)
+      ? `Dữ liệu cũ · ${length} ký tự`
+      : `${length}/200`;
+  }
+
+  isLegacyNote(item: AttendanceDraft): boolean {
+    return (item.notes?.length ?? 0) > 200 && !this.notesChanged(item);
   }
 
   async save(): Promise<void> {
@@ -366,7 +394,7 @@ export class AttendanceComponent implements OnInit, PendingChangesAware {
         groupId: this.recoveryGroupId!,
         date: this.date,
         responsibleTeacherId: this.recoveryTeacherId!,
-        records: this.recoveryDrafts.map(item => this.toRecord(item)),
+        records: this.recoveryDrafts.map(item => this.toRecord(item, true)),
         acknowledgeHistoricalSnapshot: true,
         recoveryReason: this.recoveryReason.trim()
       }));
@@ -451,6 +479,7 @@ export class AttendanceComponent implements OnInit, PendingChangesAware {
       this.daily = null;
       this.drafts = [];
       this.baseline.clear();
+      this.noteBaselines.clear();
     } finally {
       if (request === this.dailyRequest) this.dailyLoading = false;
     }
@@ -462,6 +491,7 @@ export class AttendanceComponent implements OnInit, PendingChangesAware {
     this.maxDate = daily.serverDate;
     this.selectedGroupId = daily.group.id;
     this.drafts = daily.items.map(item => ({ ...item }));
+    this.noteBaselines = new Map(this.drafts.map(item => [item.studentId, item.notes]));
     this.baseline = new Map(this.drafts.map(item => [item.studentId, this.serialize(item)]));
     this.errorMessage = '';
     this.errorTitle = '';
@@ -474,6 +504,7 @@ export class AttendanceComponent implements OnInit, PendingChangesAware {
     this.daily = null;
     this.drafts = [];
     this.baseline.clear();
+    this.noteBaselines.clear();
     this.search = '';
     this.statusFilter = null;
     this.errorMessage = '';
@@ -486,12 +517,10 @@ export class AttendanceComponent implements OnInit, PendingChangesAware {
     let firstInvalid = -1;
     items.forEach((item, index) => {
       item.invalidMessage = undefined;
-      if (item.status === 'AbsentHalfDay' && !item.halfDayPart) {
-        item.invalidMessage = 'Chọn buổi nghỉ.';
-      } else if ((item.status === 'AbsentHalfDay' || item.status === 'AbsentFullDay') && item.isExcused == null) {
+      if ((item.status === 'AbsentHalfDay' || item.status === 'AbsentFullDay') && item.isExcused == null) {
         item.invalidMessage = 'Chọn có phép hoặc không phép.';
-      } else if ((item.notes?.length ?? 0) > 2000) {
-        item.invalidMessage = 'Ghi chú không được vượt quá 2.000 ký tự.';
+      } else if ((item.notes?.length ?? 0) > 200 && (recovery || this.notesChanged(item))) {
+        item.invalidMessage = 'Ghi chú không được vượt quá 200 ký tự.';
       }
       if (item.invalidMessage && firstInvalid < 0) firstInvalid = index;
     });
@@ -534,11 +563,11 @@ export class AttendanceComponent implements OnInit, PendingChangesAware {
       if (!items[index]) return;
       const normalized = field.toLocaleLowerCase('en-US');
       items[index].invalidMessage = normalized.includes('halfdaypart')
-        ? 'Chọn buổi nghỉ.'
+        ? 'Dữ liệu buổi nghỉ không hợp lệ. Hãy chọn lại trạng thái.'
         : normalized.includes('isexcused')
           ? 'Chọn có phép hoặc không phép.'
           : normalized.includes('notes')
-            ? 'Ghi chú không hợp lệ hoặc vượt quá 2.000 ký tự.'
+            ? 'Ghi chú không hợp lệ.'
             : normalized.includes('status')
               ? 'Chọn trạng thái điểm danh hợp lệ.'
               : 'Thông tin điểm danh của học sinh chưa hợp lệ.';
@@ -551,19 +580,25 @@ export class AttendanceComponent implements OnInit, PendingChangesAware {
     }
   }
 
-  private toRecord(item: AttendanceDraft): SaveAttendanceRecord {
+  private toRecord(item: AttendanceDraft, recovery = false): SaveAttendanceRecord {
     return {
       studentId: item.studentId,
       status: item.status,
-      halfDayPart: item.status === 'AbsentHalfDay' ? item.halfDayPart : null,
+      halfDayPart: null,
       isExcused: item.status === 'AbsentFullDay' || item.status === 'AbsentHalfDay' ? item.isExcused : null,
       durationMinutes: item.status === 'OneToOneHour' ? 60 : null,
-      notes: item.notes?.trim() || null
+      notes: !recovery && !this.notesChanged(item)
+        ? this.noteBaselines.get(item.studentId) ?? null
+        : item.notes?.trim() || null
     };
   }
 
   private serialize(item: AttendanceDraft): string {
     return JSON.stringify(this.toRecord(item));
+  }
+
+  private notesChanged(item: AttendanceDraft): boolean {
+    return (item.notes ?? null) !== (this.noteBaselines.get(item.studentId) ?? null);
   }
 
   private hasPendingChanges(): boolean {

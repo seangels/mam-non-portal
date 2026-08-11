@@ -476,7 +476,7 @@ export class StudentsComponent {
   }
 
   groupText(student: Student): string {
-    return student.groupId ? `${student.groupCode} · ${student.responsibleTeacherName}` : 'Chưa phân nhóm';
+    return student.groupId ? `${student.groupCode} · ${student.groupName}` : 'Chưa phân nhóm';
   }
 
   scheduleText(student: Student): string {

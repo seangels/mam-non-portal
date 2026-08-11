@@ -1,0 +1,92 @@
+:host {
+  --attendance-present-bg: #d1fadf;
+  --attendance-present-text: #05603a;
+  --attendance-absent-bg: #fee4e2;
+  --attendance-absent-text: #912018;
+  --attendance-half-bg: #fef0c7;
+  --attendance-half-text: #7a2e0e;
+  --attendance-one-bg: #e7f6ec;
+  --attendance-one-text: #14532d;
+  --attendance-unmarked-bg: #eaecf0;
+  --attendance-unmarked-text: #344054;
+}
+
+.summary-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.summary-present { border-top: 3px solid var(--attendance-present-text); }
+.summary-absent { border-top: 3px solid var(--attendance-absent-text); }
+.summary-one-to-one { border-top: 3px solid var(--attendance-one-text); }
+.summary-unmarked { border-top: 3px solid var(--attendance-unmarked-text); }
+
+.attendance-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 195px), 1fr));
+  align-items: start;
+  gap: 10px;
+  max-height: min(88vh, 1050px);
+  overflow-y: auto;
+  padding: 2px 6px 2px 2px;
+  scroll-behavior: smooth;
+}
+
+.student-card {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  min-width: 0;
+  min-height: 148px;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid #d0d5dd;
+  border-radius: 9px;
+  box-shadow: 0 1px 4px #10182815;
+}
+.student-card.dirty { border-color: #84adff; }
+.student-card.invalid { border-color: #f04438; }
+
+.identity-rail {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 0;
+  padding: 9px 7px;
+  overflow: hidden;
+  border-right: 1px solid #d0d5dd;
+  background: #f2f4f7;
+  color: #344054;
+  font-size: 12px;
+  font-weight: 600;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+}
+.identity-rail strong, .identity-rail small { max-height: 106px; overflow: hidden; font: inherit; text-overflow: ellipsis; white-space: nowrap; }
+.identity-rail small { color: #667085; font-size: 11px; }
+.card-fields { position: relative; display: grid; align-content: start; gap: 7px; min-width: 0; padding: 16px 8px 10px; }
+.changed { position: absolute; top: 3px; right: 8px; color: #175cd3; font-size: 10px; font-weight: 600; }
+
+.status-pill, .conditional-select { display: block; min-width: 0; margin: 0; }
+.status-pill select, .conditional-select select { box-sizing: border-box; width: 100%; min-height: 36px; padding: 6px 22px 6px 8px; border: 1px solid currentColor; border-radius: 999px; background: inherit; color: inherit; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+.conditional-select select { border-color: #98a2b3; border-radius: 6px; background: #fff; color: #344054; font-weight: 600; }
+.status-present { background: var(--attendance-present-bg); color: var(--attendance-present-text); }
+.status-absent { background: var(--attendance-absent-bg); color: var(--attendance-absent-text); }
+.status-half-day { background: var(--attendance-half-bg); color: var(--attendance-half-text); }
+.status-one-to-one { background: var(--attendance-one-bg); color: var(--attendance-one-text); }
+.status-unmarked { background: var(--attendance-unmarked-bg); color: var(--attendance-unmarked-text); }
+.status-pill select:disabled, .conditional-select select:disabled, .notes-field textarea:disabled { cursor: default; opacity: .78; }
+.duration-chip { justify-self: start; padding: 5px 9px; border-radius: 999px; background: var(--attendance-one-bg); color: var(--attendance-one-text); font-size: 12px; font-weight: 700; }
+
+.notes-field { display: block; min-width: 0; margin: 0; }
+.notes-field > span { display: flex; justify-content: space-between; gap: 5px; margin-bottom: 3px; font-size: 11px; }
+.notes-field small { color: #667085; font-weight: 400; white-space: nowrap; }
+.notes-field small.legacy-note { color: #7a4d00; font-weight: 600; }
+.notes-field textarea { min-height: 42px; max-height: 58px; padding: 5px 7px; resize: vertical; font-size: 12px; line-height: 1.35; }
+.legacy-note-hint { display: block; margin-top: 3px; color: #7a4d00; font-size: 10px; line-height: 1.3; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+
+@media (max-width: 700px) {
+  .attendance-list { grid-template-columns: 1fr; max-height: none; overflow: visible; padding: 0; }
+  .summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .student-card { grid-template-columns: 1fr; min-height: 0; }
+  .identity-rail { flex-direction: row; min-height: 44px; padding: 8px 12px; border-right: 0; border-bottom: 1px solid #d0d5dd; writing-mode: horizontal-tb; transform: none; }
+  .identity-rail strong, .identity-rail small { max-width: 48%; max-height: none; }
+  .card-fields { padding: 18px 12px 12px; }
+  .status-pill select, .conditional-select select, .notes-field textarea { min-height: 44px; font-size: 13px; }
+}

@@ -6,7 +6,7 @@ export type StudyMode = 'OneToOne' | 'FullDay';
 export type StudyWeekday = 'Monday' | 'Tuesday' | 'Wednesday' | 'Thursday' | 'Friday' | 'Saturday';
 export type SortOrder = 'asc' | 'desc';
 export type StudentGroupStatus = 'Active' | 'Inactive';
-export type AttendanceStatus = 'Present' | 'AbsentFullDay' | 'AbsentHalfDay' | 'OneToOneHour';
+export type AttendanceStatus = 'Present' | 'AbsentFullDay' | 'AbsentHalfDay' | 'OneToOneHour' | 'Unmarked';
 export type HalfDayPart = 'Morning' | 'Afternoon';
 export type SheetState = 'Missing' | 'Saved';
 export type SnapshotSource = 'CurrentSnapshot' | 'HistoricalRecovery';
@@ -289,6 +289,7 @@ export interface AttendanceSummary {
   present: number;
   absent: number;
   oneToOne: number;
+  unmarked: number;
 }
 
 export interface AttendanceEntry {
