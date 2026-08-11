@@ -48,6 +48,6 @@ Last updated: 2026-08-11
 ## Current handoff
 
 - Project custom agents are defined as `backend` and `frontend` under `.codex/agents/`; root and nested `AGENTS.md` files define their scope.
-- Attendance epic `ATT` has a draft cross-stack plan at `api/attendance-plan.md`. Implementation has not started; review `ATT-DEC-01` through `ATT-DEC-09` before starting `ATT-01`.
+- Attendance epic `ATT` has a draft cross-stack plan at `api/attendance-plan.md`. Implementation has not started. `ATT-DEC-06` is approved: maximum 100 students/group; show about 8–10 cards per viewport and scroll the rest. Other attendance decisions remain pending review.
 - Runtime subagent processes must be recreated in a new chat, then resume from these repository files.
 - Future backend/frontend agents should update their role memory and this file if they change a cross-stack contract or deployment behavior.

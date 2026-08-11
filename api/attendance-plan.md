@@ -22,7 +22,8 @@ feat/att-02-attendance-read
 - Thêm item `Điểm danh` trên sidebar cho `Teacher`, `Admin`, `SuperAdmin`.
 - Giáo viên chỉ xem và điểm danh học sinh thuộc nhóm mình phụ trách tại ngày được chọn.
 - `Admin` và `SuperAdmin` được thao tác mọi nhóm.
-- Mỗi giáo viên thường phụ trách một nhóm khoảng 10 học sinh, nhưng mô hình vẫn hỗ trợ một giáo viên phụ trách nhiều nhóm.
+- Mỗi giáo viên thường phụ trách một nhóm, nhưng mô hình vẫn hỗ trợ một giáo viên phụ trách nhiều nhóm.
+- Mỗi nhóm có tối đa 100 học sinh. UI bố trí để nhìn rõ khoảng 8–10 card trong một viewport và cuộn xuống để xem phần còn lại.
 - Màn hình chính hiển thị danh sách dạng card, tối ưu cho thao tác nhanh trên desktop, tablet và điện thoại.
 - Bộ lọc mặc định mở, có thể collapse/expand; gồm ngày, nhóm theo điều kiện quyền và tìm kiếm tên/mã/nickname không phân biệt dấu.
 - Trạng thái mặc định là `Có mặt`; database chỉ lưu các trường hợp ngoại lệ.
@@ -74,7 +75,7 @@ Quy tắc lưu:
 - Quan hệ Teacher–Group là nhiều-nhiều để hỗ trợ đúng trường hợp một giáo viên được assign nhiều nhóm.
 - Một nhóm có thể có đồng giáo viên nếu nghiệp vụ cần.
 - Một học sinh chỉ thuộc một nhóm tại cùng một ngày.
-- Khoảng 10 học sinh/nhóm là ngưỡng cảnh báo UI, không phải constraint cứng để tránh lỗi race và không chặn ngoại lệ hợp lệ.
+- Tối đa 100 học sinh có membership hiện hành trong một nhóm; API gán/chuyển student kiểm tra giới hạn trong cùng transaction để tránh race.
 - Không seed nhóm hoặc assignment. Admin/SuperAdmin tạo nhóm và phân công qua UI/API.
 
 ## 5. Thiết kế dữ liệu
@@ -283,7 +284,7 @@ GET /api/v1/attendance/daily
 - Teacher có đúng một group có thể bỏ `groupId`; backend tự resolve.
 - Admin/SuperAdmin bắt buộc chọn một group, không có lựa chọn `Tất cả nhóm`, để tránh thao tác nhầm và giữ danh sách nhỏ.
 - Search server-side trên `studentCode`, `fullName`, `nickName`, không phân biệt hoa thường hoặc dấu tiếng Việt.
-- Không phân trang trong v1 vì luôn scope một group. Ngưỡng khoảng 10 là warning mềm; cap kỹ thuật 100 được enforce ngay tại API gán/chuyển student, nên không thể tạo group hợp lệ nhưng daily API không mở được.
+- Không phân trang trong v1 vì luôn scope một group và giới hạn nghiệp vụ là 100 học sinh. API trả toàn bộ roster của group; UI cuộn danh sách card.
 
 Response đề xuất:
 
@@ -379,7 +380,7 @@ Phạm vi một nhóm nhỏ cho phép giải pháp đơn giản và dễ vận h
 3. Dùng một `VietnameseTextNormalizer` chung cho query và ba field `studentCode`, `fullName`, `nickName`: lowercase invariant, Unicode decomposition, bỏ combining marks, đổi `đ/Đ` thành `d`, trim/collapse whitespace.
 4. Contains-match trên chuỗi normalized.
 
-Giải pháp này vẫn là server-side search, không tải dữ liệu ngoài quyền về browser, không yêu cầu quyền cài PostgreSQL extension trên máy IIS và đủ cho khoảng 10–100 học sinh/nhóm. Nếu đo đạc sau này cho thấy cần search trên tập lớn, bổ sung persisted normalized column và GIN `pg_trgm` trong một migration riêng.
+Giải pháp này vẫn là server-side search, không tải dữ liệu ngoài quyền về browser, không yêu cầu quyền cài PostgreSQL extension trên máy IIS và đủ cho tối đa 100 học sinh/nhóm. Nếu phạm vi sau này vượt giới hạn này, bổ sung persisted normalized column và GIN `pg_trgm` trong một migration riêng.
 
 Test bắt buộc: `nguyen`, `Nguyễn`, `NGUYEN` trả cùng kết quả; mã và nickname cũng tìm đúng.
 
@@ -416,6 +417,8 @@ Mỗi card hiển thị:
 - Notes với counter giới hạn ký tự.
 - Trạng thái dirty/đang lưu/đã lưu/lỗi.
 
+Vùng danh sách có chiều cao/responsive spacing để thường hiển thị rõ khoảng 8–10 card cùng lúc. Khi group có nhiều hơn, người dùng cuộn dọc; không cắt dữ liệu, không giới hạn 10 card và không dùng pagination ở màn hình v1.
+
 Khi chọn `Có mặt`, UI xóa dữ liệu exception cũ khỏi form change. Dùng sticky action `Lưu thay đổi (n)` và chỉ gửi card dirty; không autosave ngay khi chạm để giảm ghi nhầm trên thiết bị cảm ứng.
 
 Summary đầu danh sách:
@@ -445,7 +448,7 @@ Tính năng chưa vận hành hoàn chỉnh nếu chỉ có schema/API. `ATT-01`
 - Gán/gỡ giáo viên với ngày hiệu lực.
 - Gán/chuyển học sinh với ngày hiệu lực.
 - Danh sách cảnh báo Teacher/Student chưa được phân công.
-- Cảnh báo mềm khi nhóm vượt khoảng 10 học sinh.
+- Hiển thị số lượng hiện tại trên tối đa 100; từ chối gán/chuyển học sinh thứ 101 bằng validation rõ ràng.
 
 Vị trí UI cần review. Đề xuất mặc định: thêm trang `/student-groups` và item sidebar `Nhóm`; dùng picker từ user role Teacher và student hiện có, không tạo duplicate tài khoản/học sinh.
 
@@ -548,7 +551,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\deploy\iis\build-iis-p
 
 - `ATT-BE-01`: entity/config/migration/backfill Teacher.
 - `ATT-BE-02`: group, teacher-group, student-group API và lifecycle rule.
-- `ATT-FE-01`: trang quản trị nhóm/phân công, unassigned state và warning quy mô nhóm.
+- `ATT-FE-01`: trang quản trị nhóm/phân công, unassigned state và kiểm tra giới hạn 100 học sinh.
 - `ATT-QA-01`: migration test, assignment authorization và regression User/Student CRUD.
 
 **DoD:** Admin/SuperAdmin tạo group và phân công hoàn toàn qua UI, không seed/manual SQL; lịch sử assignment đúng.
@@ -595,12 +598,12 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\deploy\iis\build-iis-p
 | `ATT-DEC-03` | 1-1 có nhiều block/ngày/cần giờ bắt đầu hoặc đồng thời với vắng? | Một block cố định 60 phút/ngày, không giờ bắt đầu và loại trừ với trạng thái vắng. |
 | `ATT-DEC-04` | Phép/không phép áp dụng cho trạng thái nào? | Chỉ hai loại vắng và bắt buộc chọn rõ. |
 | `ATT-DEC-05` | Teacher được sửa ngày quá khứ bao lâu? | Chỉ hôm nay; Admin/SuperAdmin được sửa mọi ngày không tương lai. |
-| `ATT-DEC-06` | Khoảng 10 học sinh có phải giới hạn cứng? | Cảnh báo mềm ở 10; API gán student enforce cap kỹ thuật 100. |
+| `ATT-DEC-06` | Giới hạn học sinh/nhóm và cách hiển thị? | **Đã chốt:** tối đa 100; UI hiển thị khoảng 8–10 card/viewport và scroll phần còn lại. |
 | `ATT-DEC-07` | Có làm UI quản trị nhóm/phân công trong epic? | Có, tại `/student-groups`; không dùng seed/manual SQL. |
 | `ATT-DEC-08` | Admin có lựa chọn tất cả nhóm trên attendance page? | Không; bắt buộc một group để tránh thao tác nhầm. |
 | `ATT-DEC-09` | Retention lịch sử thay đổi attendance? | Exception giữ vô thời hạn; audit tạm theo 90 ngày cho đến khi chốt policy. |
 
-Không bắt đầu `ATT-01` trước khi `ATT-DEC-01` đến `ATT-DEC-09` được duyệt; retention hoặc cách lưu lịch sử cũng có thể làm thay đổi schema.
+`ATT-DEC-06` đã được duyệt. Không bắt đầu `ATT-01` trước khi các quyết định còn lại (`ATT-DEC-01`–`05`, `07`–`09`) được duyệt; retention hoặc cách lưu lịch sử cũng có thể làm thay đổi schema.
 
 ## 16. Definition of Done toàn epic
 
