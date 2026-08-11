@@ -1,6 +1,6 @@
 # Theo dõi triển khai Admin Portal
 
-Tài liệu nguồn: [`api/plan.md`](api/plan.md)
+Danh mục kế hoạch: [`plans/README.md`](plans/README.md). Contract nền: [`plans/01-BASE-admin-portal.md`](plans/01-BASE-admin-portal.md).
 
 ## Quy ước trạng thái
 
@@ -38,7 +38,7 @@ Mỗi agent chỉ cập nhật section mình sở hữu sau từng mốc công v
 - B6 (2026-08-11): đã thêm policy PortalManagers và application authorization rule: SuperAdmin quản lý Admin/Teacher, Admin chỉ quản lý Teacher, Teacher bị chặn. Logout nay có thể revoke bằng refresh cookie + CSRF dù bearer đã hết hạn; API build sạch.
 - B7 (2026-08-11): đã hoàn tất User CRUD, đổi mật khẩu, soft delete, revoke toàn bộ session khi đổi role/status/password/delete, phân trang/filter/sort whitelist và audit không chứa password; build API đạt 0 warning/0 error.
 - B8 (2026-08-11): đã hoàn tất Student CRUD, validation ngày sinh, chuẩn hóa/unique studentCode trên bản ghi active, cho phép tái sử dụng sau soft delete, phân trang/filter/sort whitelist và audit; build API đạt 0 warning/0 error.
-- Điều chỉnh contract (2026-08-11): update user/student dùng `PUT` full replacement để nullable field có thể được xóa bằng `null`; `api/plan.md` đã đồng bộ. Ngày sinh thiếu (`0001-01-01`) cũng bị validation từ chối.
+- Điều chỉnh contract (2026-08-11): update user/student dùng `PUT` full replacement để nullable field có thể được xóa bằng `null`; `plans/01-BASE-admin-portal.md` đã đồng bộ. Ngày sinh thiếu (`0001-01-01`) cũng bị validation từ chối.
 - B9 (2026-08-11): audit đã phủ auth/User/Student; thêm SQL cleanup và console maintenance chạy batch theo retention audit 90 ngày/session 30 ngày; build toàn solution đạt 0 warning/0 error.
 - B10 (2026-08-11): thêm migrate-on-startup tùy chọn, seed SuperAdmin từ environment (không hard-code secret), Dockerfile, PostgreSQL/API Compose, `.env.example` và ignore secret/build output; build solution đạt 0 warning/0 error.
 - B11 (2026-08-11): 11 unit test pass; 7 integration scenarios đã viết/build (auth 401, role 403, login sai, CSRF/logout không bearer, User PUT/409, Student CRUD/409/404/reuse code, pagination/filter/sort), nhưng runtime test bị chặn do máy không có Docker engine.
@@ -98,7 +98,7 @@ Mỗi agent chỉ cập nhật section mình sở hữu sau từng mốc công v
 
 ### Integration log
 
-- Khởi tạo: `api/plan.md` là contract nguồn; backend sở hữu `api/`, frontend sở hữu `ui/`.
+- Khởi tạo: `plans/01-BASE-admin-portal.md` là contract nền; backend sở hữu `api/`, frontend sở hữu `ui/`.
 - Contract enum: `UserStatus = Active/Inactive/Locked`, `StudentStatus = Active/Inactive`; JSON enum dạng chuỗi.
 - Contract CSRF cross-site: UI không đọc cookie của API; login/refresh trả `csrfToken`, bootstrap qua `GET /api/v1/auth/csrf`, UI lưu token trong memory và gửi header `X-CSRF-TOKEN` cho refresh/logout.
 - Contract update resource: dùng `PUT /api/v1/users/{id}` và `PUT /api/v1/students/{id}` với full form để phân biệt rõ việc xóa các field nullable; không dùng PATCH nullable mơ hồ.
@@ -178,7 +178,7 @@ Mỗi agent chỉ cập nhật section mình sở hữu sau từng mốc công v
 ## Epic điểm danh `ATT` — owner: `root`
 
 - [x] `ATT-P-01`. Phân tích gap backend/frontend và yêu cầu nghiệp vụ
-- [x] `ATT-P-02`. Tạo plan cross-stack có mã từng đợt tại `api/attendance-plan.md`
+- [x] `ATT-P-02`. Tạo plan cross-stack có mã từng đợt tại `plans/02-ATT-attendance.md`
 - [x] `ATT-P-03`. `ATT-DEC-01`–`10` đã chốt; chọn full daily snapshot gồm `Present`
 - [x] `ATT-P-04`. `ATT-DEC-11` đã chốt; toàn bộ UI chỉ sử dụng tiếng Việt
 - [x] `ATT-01`. Nền tảng Teacher/Group/current roster và UI quản trị
@@ -221,7 +221,7 @@ QA/Integration:
 
 - `ATT-01` bắt đầu: đã kiểm tra working tree sạch tại commit `287a477`; giao song song backend sở hữu `api/` và frontend sở hữu `ui/`, root điều phối contract/trạng thái/integration.
 - Preflight QA: .NET SDK `10.0.302`, Node `20.11.0`; Docker Engine `29.7.2` hoạt động và PostgreSQL 17 Compose đang healthy/expose cổng 5432. Lệnh npm trong sandbox bị chặn quyền đọc profile Windows, frontend sẽ chạy build/test với quyền phù hợp khi tới gate.
-- `ATT-BE-00`/`ATT-FE-00`: đã khóa contract quản trị Teacher/StudentGroup/Student group fields và query filters. Group metadata, responsible Teacher và Student group có command mutation riêng; frontend đã nhận DTO thống nhất, root đã đồng bộ `api/attendance-plan.md`.
+- `ATT-BE-00`/`ATT-FE-00`: đã khóa contract quản trị Teacher/StudentGroup/Student group fields và query filters. Group metadata, responsible Teacher và Student group có command mutation riêng; frontend đã nhận DTO thống nhất, root đã đồng bộ `plans/02-ATT-attendance.md`.
 - `ATT-FE-00` hoàn tất: TypeScript compile sạch; đã thêm DTO/service đầy đủ, dictionary label/error/read-only, utility DateOnly/search không dấu, Angular `vi-VN`, DevExtreme message tiếng Việt và dọn raw role/status/chuỗi tiếng Anh hiện có. UI không dùng raw `ProblemDetails.title/detail`.
 - `ATT-BE-00` hoàn tất: DTO/controller/OpenAPI contract cho Teacher, StudentGroup, Student group fields, attendance context/daily/create/update/recovery/candidates và machine-readable ProblemDetails đã khóa, không lệch plan; `dotnet build api/AdminPortal.slnx --no-restore` đạt 0 warning/error.
 - `ATT-FE-01` hoàn tất, Angular development build đạt: thêm `/student-groups`, remote group CRUD/filter, phân/gỡ responsible Teacher, roster popup tối đa 100 với search không dấu/gán-gỡ-chuyển Student, Teacher policy grid chỉnh window 1–7 ngày, route/sidebar `Nhóm` và mapping lỗi tiếng Việt.
@@ -273,7 +273,7 @@ QA/Integration:
 ## Epic quản lý thông tin giáo viên `TCH` — owner: `root`
 
 - [x] `TCH-P-01`. Rà soát hiện trạng User/Teacher/Group/Attendance và các bề mặt UI hiện có
-- [x] `TCH-P-02`. Lập kế hoạch cross-stack có mã từng đợt tại `api/teacher-management-plan.md`
+- [x] `TCH-P-02`. Lập kế hoạch cross-stack có mã từng đợt tại `plans/03-TCH-teacher-management.md`
 - [ ] `TCH-P-03`. Review và chốt `TCH-DEC-01`–`TCH-DEC-12`
 - [ ] `TCH-00`. Khóa field ownership, REST/OpenAPI, wireflow và test traceability
 - [ ] `TCH-01`. Schema/migration/backfill, danh sách và chi tiết giáo viên
@@ -290,3 +290,17 @@ QA/Integration:
 - Plan đề xuất sidebar/route `Giáo viên`, danh sách remote paging/filter/sort, detail, create/edit page, password/delete flow, toàn bộ UI tiếng Việt và optimistic concurrency bằng `expectedVersion`.
 - Có 12 quyết định cần người dùng review, gồm bộ field, mã tự sinh, chuyển mutation khỏi User CRUD, trạng thái nhân sự, search không dấu, ngày vào làm tương lai và soft-delete/history.
 - Đợt này chỉ thay đổi tài liệu plan/tracking/memory; không sửa source sản phẩm và không chạy build, package hoặc deploy production.
+
+## Tổ chức thư mục kế hoạch — owner: `root`
+
+- [x] `PLAN-ORG-01`. Chuyển toàn bộ plan ra thư mục root `plans/`
+- [x] `PLAN-ORG-02`. Đánh số thứ tự và gắn mã `BASE`, `ATT`, `TCH` vào tên file
+- [x] `PLAN-ORG-03`. Tạo `plans/README.md` làm mục lục thứ tự/phụ thuộc/trạng thái
+- [x] `PLAN-ORG-04`. Đồng bộ toàn bộ link trong agent rules, memory, README và task log
+
+### Plan organization log
+
+- Thứ tự đã khóa theo dependency và lịch sử triển khai: `01-BASE` → `02-ATT` → `03-TCH`.
+- `BASE` là contract nền; các plan có số lớn hơn chỉ mở rộng hoặc override trong phạm vi epic của mình.
+- Không để stub tại đường dẫn cũ trong `api/`; mọi tài liệu/agent phải đọc qua `plans/README.md` và đường dẫn mới.
+- Đây là thay đổi tổ chức Markdown/TOML, không thay đổi runtime source; không chạy product build/test hoặc production skill.

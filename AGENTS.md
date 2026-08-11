@@ -22,8 +22,8 @@ Runtime subagent processes do not survive a new chat. Recreate the `backend` and
 
 1. Read this file.
 2. Read `.agents/README.md` and `.agents/shared/MEMORY.md`.
-3. Backend work: read `api/AGENTS.md`, `.agents/backend/MEMORY.md`, and the relevant sections of `api/plan.md`.
-4. Frontend work: read `ui/AGENTS.md`, `.agents/frontend/MEMORY.md`, and the API contract sections used by the UI.
+3. Backend work: read `api/AGENTS.md`, `.agents/backend/MEMORY.md`, `plans/01-BASE-admin-portal.md`, and the relevant feature plan in `plans/`.
+4. Frontend work: read `ui/AGENTS.md`, `.agents/frontend/MEMORY.md`, and the relevant contract sections in `plans/` used by the UI.
 5. Read the relevant current section and recent log entries in `tasks.md`.
 6. Recheck runtime facts such as running processes, containers, ports, database contents, IIS state, and generated artifacts. Never treat ephemeral state in memory as guaranteed current.
 
@@ -39,7 +39,7 @@ Runtime subagent processes do not survive a new chat. Recreate the `backend` and
 
 ## Shared engineering rules
 
-- `api/plan.md` is the source of truth for the REST contract. Coordinate changes between backend and frontend.
+- `plans/01-BASE-admin-portal.md` is the base REST contract; numbered feature plans in `plans/` extend it in dependency order. Coordinate contract changes between backend and frontend.
 - Preserve user changes and the dirty worktree. Do not reset or overwrite unrelated files.
 - Use `apply_patch` for source/document edits.
 - Keep code clean, small, readable, and aligned with the existing architecture. Do not add abstractions without a concrete need.

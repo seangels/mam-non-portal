@@ -4,7 +4,7 @@ Last updated: 2026-08-11
 
 ## Resume here
 
-- Read `ui/AGENTS.md`, `.agents/shared/MEMORY.md`, the relevant `api/plan.md` contract sections, `ui/README.md`, and the current frontend/deployment sections of `tasks.md` before acting.
+- Read `ui/AGENTS.md`, `.agents/shared/MEMORY.md`, `plans/README.md`, the relevant numbered plan contract sections, `ui/README.md`, and the current frontend/deployment sections of `tasks.md` before acting.
 - Frontend owns `ui/`. Root owns shared contract/deployment/tracking files; backend owns `api/`. Coordinate any contract change instead of editing across ownership boundaries silently.
 - Verify the current source and runtime state. This file records durable context; it does not guarantee that `node_modules`, `.certs`, `dist`, ignored artifacts/releases, API processes, PostgreSQL, or IIS exist now.
 
@@ -25,7 +25,7 @@ Last updated: 2026-08-11
 - Setup is a one-time unauthenticated flow: `GET setup/status`, then `POST setup/super-admin` only for an entirely empty user table. Success routes to login without creating a session; `409` is handled as already initialized. An unavailable setup-status API remains a retryable error and must not be bypassed.
 - Full `PUT` is required for user/student updates; cleared optional fields are sent as `null`. Date-only payloads are `YYYY-MM-DD` and must not shift through UTC conversion.
 - Roles/statuses: `SuperAdmin|Admin|Teacher`; user `Active|Inactive|Locked`; student `Active|Inactive`; gender `Male|Female|Other`. UI role guards/navigation do not replace server authorization.
-- Server list limits: page starts at 1 and page size is at most 100. Keep sort field names within the backend whitelists documented in `ui/AGENTS.md` and `api/plan.md`.
+- Server list limits: page starts at 1 and page size is at most 100. Keep sort field names within the backend whitelists documented in `ui/AGENTS.md` and the relevant numbered plan in `plans/`.
 - Attendance is a full-roster aggregate: Missing POST sends all current snapshot students plus `expectedSnapshotVersion`; Saved PUT sends all persisted snapshot students plus `expectedVersion`. Present is persisted, not inferred after save. UI keeps baseline/drafts in memory and never silently overwrites `409`.
 - Attendance dates remain DateOnly and follow server business date in `Asia/Ho_Chi_Minh`. Teacher only receives current responsible groups; Admin/SuperAdmin can select all groups and alone can run acknowledged historical recovery.
 

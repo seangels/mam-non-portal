@@ -3,10 +3,11 @@
 ## 1. Thông tin kế hoạch
 
 - **Epic:** `TCH`
+- **Thứ tự:** `03`
 - **Trạng thái:** bản nháp để review; chưa triển khai cho đến khi chốt các quyết định `TCH-DEC-*` ở mục 16.
 - **Ngày lập:** 2026-08-11.
 - **Phạm vi:** .NET 10 REST API, PostgreSQL 17 và Angular/DevExtreme UI.
-- **Contract nền:** [`plan.md`](plan.md) và [`attendance-plan.md`](attendance-plan.md).
+- **Contract nền:** [`01-BASE-admin-portal.md`](01-BASE-admin-portal.md) và [`02-ATT-attendance.md`](02-ATT-attendance.md).
 
 Mỗi đợt phát triển dùng mã `TCH-00` đến `TCH-06`. Task backend, frontend và kiểm thử lần lượt dùng hậu tố `TCH-BE-*`, `TCH-FE-*`, `TCH-QA-*`. Mã đã cấp không tái sử dụng; task phát sinh thêm hậu tố, ví dụ `TCH-BE-03A`.
 

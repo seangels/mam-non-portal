@@ -188,7 +188,7 @@ Enum được gửi/nhận dưới dạng chuỗi. `StudentStatus` chỉ có `Ac
 - Ngày nghiệp vụ dùng `Asia/Ho_Chi_Minh`; mọi role bị chặn mutation ngày tương lai. Teacher chỉ thao tác group đang phụ trách và trong policy riêng 1–7 ngày.
 - `GET /attendance/daily` không ghi database. Khi chưa có phiếu, API trả `sheetState=Missing` và preview toàn roster là `Present`; chỉ `POST /attendance/sheets` mới xác nhận/lưu phiếu.
 - POST lần đầu và PUT cập nhật đều nhận đúng full roster, tối đa 100 record. POST dùng `expectedSnapshotVersion`; PUT dùng `expectedVersion`. Conflict trả `ProblemDetails.code` ổn định như `SnapshotChanged` hoặc `SheetVersionConflict`.
-- Trạng thái hỗ trợ: `Present`, `AbsentFullDay`, `AbsentHalfDay`, `OneToOneHour`; các field `halfDayPart`, `isExcused`, `durationMinutes` phải đúng bảng điều kiện trong `attendance-plan.md`.
+- Trạng thái hỗ trợ: `Present`, `AbsentFullDay`, `AbsentHalfDay`, `OneToOneHour`; các field `halfDayPart`, `isExcused`, `durationMinutes` phải đúng bảng điều kiện trong [`../plans/02-ATT-attendance.md`](../plans/02-ATT-attendance.md).
 - Phiếu đã lưu giữ snapshot code/name/nickname của group, Teacher và Student. Rename/move/soft-delete dữ liệu hiện tại không sửa phiếu cũ.
 - Historical recovery chỉ dành cho Admin/SuperAdmin khi không thể chứng minh current snapshot của ngày quá khứ; bắt buộc acknowledgment, reason, Teacher và danh sách Student rõ ràng.
 

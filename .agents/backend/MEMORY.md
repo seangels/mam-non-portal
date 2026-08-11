@@ -5,7 +5,7 @@
 ## Trạng thái gần nhất
 
 - Cập nhật: 2026-08-11.
-- Backend feature scope trong `api/plan.md` và attendance epic trong `api/attendance-plan.md` đã hoàn tất: Teacher profile/policy, StudentGroup/current roster, attendance Missing/Saved, full POST/PUT, historical recovery, audit/concurrency và migration.
+- Backend feature scope trong `plans/01-BASE-admin-portal.md` và attendance epic trong `plans/02-ATT-attendance.md` đã hoàn tất: Teacher profile/policy, StudentGroup/current roster, attendance Missing/Saved, full POST/PUT, historical recovery, audit/concurrency và migration.
 - Baseline xác minh gần nhất: solution build `0 warning / 0 error`; unit test `23/23`; integration test PostgreSQL 17 Testcontainers Release `15/15`; EF báo không có pending model changes.
 - Integration attendance gồm Missing GET không ghi, full first-save/PUT, immutable snapshot, stale version/snapshot, Teacher A/B scope/window, historical recovery, lifecycle conflict, audit không raw notes, concurrent first-save/cap 100 và rehearsal nâng DB có dữ liệu từ InitialCreate lên attendance migration.
 - Không có blocker backend đã biết tại thời điểm snapshot. Trước mỗi task phải kiểm tra `git status`, `tasks.md` và source vì trạng thái này có thể đã thay đổi.
@@ -19,7 +19,7 @@
 - `api/tests/AdminPortal.UnitTests`: authorization/validation rules.
 - `api/tests/AdminPortal.IntegrationTests`: `WebApplicationFactory` + PostgreSQL Testcontainers; setup flow ở `SetupFlowTests.cs`, các contract còn lại ở `AdminPortalApiTests.cs`.
 - `api/tools/AdminPortal.Maintenance` và `api/scripts/maintenance/cleanup-retention.sql`: cleanup batch audit 90 ngày/session history 30 ngày.
-- Contract nguồn: `api/plan.md`; hướng dẫn chạy/vận hành: `api/README.md`; sample HTTP: `api/requests.http`; tiến độ liên agent: `tasks.md`.
+- Contract nền: `plans/01-BASE-admin-portal.md`; plan có thứ tự tại `plans/README.md`; hướng dẫn chạy/vận hành: `api/README.md`; sample HTTP: `api/requests.http`; tiến độ liên agent: `tasks.md`.
 
 ## Contract đang được frontend sử dụng
 
@@ -29,7 +29,7 @@
 - Login/refresh trả access token, `expiresIn`, `csrfToken`, user. Access token giữ ở memory phía UI; refresh cookie là Secure/HttpOnly/SameSite=None; CSRF gửi qua `X-CSRF-TOKEN`.
 - Users và students dùng GET list/detail, POST create, `PUT` full replacement, DELETE soft-delete. User có thêm `PUT /users/{id}/password`.
 - Teacher management: GET list/detail và `PUT /teachers/{id}/attendance-policy`; policy 1–7 ngày. StudentGroup có CRUD, responsible-teacher endpoint; Student có endpoint group riêng và response/filter group.
-- Attendance: GET context/daily; POST sheet full roster; PUT sheet full replacement; Admin/SuperAdmin historical-recovery và ba candidate API. DTO/date/query chính xác nằm trong `api/attendance-plan.md` section 7.
+- Attendance: GET context/daily; POST sheet full roster; PUT sheet full replacement; Admin/SuperAdmin historical-recovery và ba candidate API. DTO/date/query chính xác nằm trong `plans/02-ATT-attendance.md` section 7.
 - Pagination mặc định page 1/pageSize 20, tối đa 100. User sort whitelist: `email`, `fullName`, `role`, `status`, `createdAt`. Student: `studentCode`, `fullName`, `nickName`, `dateOfBirth`, `gender`, `status`, `createdAt`.
 - `UserStatus`: `Active`, `Inactive`, `Locked`; `StudentStatus`: `Active`, `Inactive`; `Gender`: `Male`, `Female`, `Other` hoặc null.
 - Role rule: SuperAdmin quản lý Admin/Teacher; Admin chỉ Teacher; Teacher không quản trị. User list không trả SuperAdmin và User CRUD không quản lý SuperAdmin.

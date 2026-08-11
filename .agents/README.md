@@ -8,7 +8,7 @@ The live backend/frontend subagent processes exist only inside one chat thread. 
 - `backend/MEMORY.md`: backend architecture, security invariants, database/API state, commands, and backend verification.
 - `frontend/MEMORY.md`: frontend architecture, auth/setup behavior, environment configuration, commands, and frontend verification.
 - `../tasks.md`: detailed chronological status and execution log.
-- `../api/plan.md`: REST API contract and business rules.
+- `../plans/README.md`: ordered plan index; `../plans/01-BASE-admin-portal.md` is the base REST contract and later numbered plans extend it.
 
 ## How to resume in a new chat
 
@@ -24,4 +24,4 @@ The live backend/frontend subagent processes exist only inside one chat thread. 
 - Keep the `Last updated` date and `Last verified` section accurate.
 - Replace obsolete current-state facts and preserve only decisions that still constrain implementation.
 - Put secrets nowhere in `.agents/`. Refer to the configuration key name or secret store, never its value.
-- If backend and frontend disagree, update `shared/MEMORY.md` and `api/plan.md` as part of resolving the contract.
+- If backend and frontend disagree, update `shared/MEMORY.md` and the relevant numbered plan in `../plans/` as part of resolving the contract.

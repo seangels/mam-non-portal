@@ -3,10 +3,11 @@
 ## 1. Thông tin kế hoạch
 
 - **Epic:** `ATT`
-- **Trạng thái:** `ATT-DEC-01` đến `ATT-DEC-11` đã chốt; sẵn sàng khóa OpenAPI draft và triển khai `ATT-01`.
+- **Thứ tự:** `02`
+- **Trạng thái:** `ATT-DEC-01` đến `ATT-DEC-11` đã chốt; epic đã triển khai và kiểm định.
 - **Ngày lập:** 2026-08-11.
 - **Phạm vi:** .NET 10 REST API, PostgreSQL 17, Angular/DevExtreme UI và đóng gói IIS.
-- **Contract nền:** [`plan.md`](plan.md).
+- **Contract nền:** [`01-BASE-admin-portal.md`](01-BASE-admin-portal.md).
 
 Mỗi đợt phát triển có mã `ATT-00` đến `ATT-05`. Task backend, frontend và kiểm thử dùng hậu tố `ATT-BE-*`, `ATT-FE-*`, `ATT-QA-*`. Mã đã cấp không tái sử dụng; việc phát sinh dùng hậu tố, ví dụ `ATT-FE-04A`.
 

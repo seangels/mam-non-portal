@@ -1,6 +1,6 @@
 # Mầm Non Admin UI
 
-Admin portal xây bằng Angular 15 và DevExtreme 23.2. Ứng dụng hỗ trợ đăng nhập, quản lý tài khoản, nhóm/học sinh và điểm danh theo contract tại [`../api/plan.md`](../api/plan.md) cùng [`../api/attendance-plan.md`](../api/attendance-plan.md).
+Admin portal xây bằng Angular 15 và DevExtreme 23.2. Ứng dụng hỗ trợ đăng nhập, quản lý tài khoản, nhóm/học sinh và điểm danh theo contract nền tại [`../plans/01-BASE-admin-portal.md`](../plans/01-BASE-admin-portal.md) cùng plan [`../plans/02-ATT-attendance.md`](../plans/02-ATT-attendance.md). Danh mục và thứ tự các kế hoạch nằm tại [`../plans/README.md`](../plans/README.md).
 
 ## Yêu cầu
 

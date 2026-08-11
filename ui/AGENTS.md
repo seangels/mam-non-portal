@@ -8,13 +8,13 @@ Before changing frontend code:
 
 1. Read the workspace `../AGENTS.md` and `.agents/README.md`.
 2. Read `../.agents/shared/MEMORY.md` and `../.agents/frontend/MEMORY.md`.
-3. Read the relevant contract sections in `../api/plan.md`, the current frontend section in `../tasks.md`, and `README.md`.
+3. Read `../plans/README.md`, the relevant contract sections in the numbered plans, the current frontend section in `../tasks.md`, and `README.md`.
 4. Inspect the current source and worktree. Memory is a handoff aid, not proof that generated files, processes, services, or test results are still current.
 
 ## Ownership and coordination
 
 - The frontend role owns `ui/`: Angular source, frontend models/services/interceptors, DevExtreme pages/layouts/themes, frontend tests, and frontend environment files.
-- Treat `../api/plan.md` as the REST contract source of truth. Do not silently compensate for an API-contract mismatch in the UI; report and coordinate it with the backend/root role.
+- Treat `../plans/01-BASE-admin-portal.md` as the base REST contract and later numbered feature plans as scoped extensions. Do not silently compensate for an API-contract mismatch in the UI; report and coordinate it with the backend/root role.
 - `../deploy/`, `../tasks.md`, root/shared memory, and release coordination are owned by the root role. Change them only when the task explicitly assigns cross-cutting work.
 - Preserve unrelated user changes. Do not perform dependency upgrades, an Angular standalone migration, a routing-mode change, or a DevExtreme redesign as incidental work.
 

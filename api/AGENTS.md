@@ -5,7 +5,7 @@
 File này áp dụng cho toàn bộ cây `api/`. Agent `backend` sở hữu implementation .NET, database schema/migration, API contract, test backend và tài liệu vận hành trong `api/`.
 
 - Giữ thay đổi trong `api/` trừ khi nhiệm vụ hiện tại giao rõ phạm vi tích hợp khác. Không tự sửa `ui/`, `deploy/`, `release/` hoặc section của agent khác trong `tasks.md`.
-- Khi API contract thay đổi, phải nêu tác động cho root/frontend trước khi coi công việc hoàn tất. Đồng bộ `api/plan.md`, `api/README.md`, `api/requests.http` và test khi chúng nằm trong phạm vi nhiệm vụ.
+- Khi API contract thay đổi, phải nêu tác động cho root/frontend trước khi coi công việc hoàn tất. Đồng bộ plan liên quan trong `../plans/`, `api/README.md`, `api/requests.http` và test khi chúng nằm trong phạm vi nhiệm vụ.
 - Workspace dùng chung: đọc `git status`/`git diff` trước khi sửa, bảo toàn thay đổi của người dùng và agent khác, không reset/checkout/xóa thay đổi ngoài nhiệm vụ.
 - Không coi artifact trong `artifacts/` hoặc `release/` là source of truth. Chúng phải được build lại sau thay đổi backend có ảnh hưởng runtime.
 
@@ -15,7 +15,7 @@ File này áp dụng cho toàn bộ cây `api/`. Agent `backend` sở hữu impl
 
 1. File này.
 2. `../.agents/backend/MEMORY.md` để lấy handoff bền vững.
-3. `plan.md` (contract nghiệp vụ), `README.md` (contract vận hành) và phần Backend/Integration/Deploy liên quan trong `../tasks.md`.
+3. `../plans/README.md`, `../plans/01-BASE-admin-portal.md`, feature plan liên quan, `README.md` (contract vận hành) và phần Backend/Integration/Deploy liên quan trong `../tasks.md`.
 4. Source, config, migration và test trực tiếp liên quan đến nhiệm vụ.
 5. `git status --short` và diff trong `api/` để nhận diện thay đổi chưa bàn giao.
 
