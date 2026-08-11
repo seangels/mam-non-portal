@@ -152,7 +152,7 @@ export class StudentGroupsComponent implements OnInit {
       pageSize: Math.min(options.take ?? 20, 100),
       search: typeof options.searchValue === 'string' ? options.searchValue : undefined,
       status: 'Active',
-      sortBy: 'fullName',
+      sortBy: 'studentCode',
       sortOrder: 'asc'
     })).then(result => ({ data: result.items, totalCount: result.pagination.totalItems }))
   });
@@ -174,7 +174,7 @@ export class StudentGroupsComponent implements OnInit {
 
   readonly teacherDisplay = (teacher: Teacher | null) => teacher?.fullName ?? '';
   readonly studentDisplay = (student: Student | null) => student
-    ? `${student.fullName} (${student.studentCode})${student.groupName ? ` · ${student.groupName}` : ' · Chưa phân nhóm'}`
+    ? `${student.nickName} (${student.studentCode})${student.groupName ? ` · ${student.groupName}` : ' · Chưa phân nhóm'}`
     : '';
 
   constructor(
@@ -291,7 +291,7 @@ export class StudentGroupsComponent implements OnInit {
     const student = await firstValueFrom(this.students.get(this.selectedStudentId));
     if (student.groupId && student.groupId !== this.selectedGroup.id) {
       const accepted = await confirm(
-        `Chuyển “${student.fullName}” từ nhóm “${student.groupName ?? 'hiện tại'}” sang “${this.selectedGroup.name}”?`,
+        `Chuyển “${student.nickName}” từ nhóm “${student.groupName ?? 'hiện tại'}” sang “${this.selectedGroup.name}”?`,
         'Xác nhận chuyển nhóm'
       );
       if (!accepted) {
@@ -317,7 +317,7 @@ export class StudentGroupsComponent implements OnInit {
   }
 
   async unassignStudent(student: Student): Promise<void> {
-    const accepted = await confirm(`Gỡ “${student.fullName}” khỏi nhóm “${this.selectedGroup?.name}”?`, 'Xác nhận gỡ khỏi nhóm');
+    const accepted = await confirm(`Gỡ “${student.nickName}” khỏi nhóm “${this.selectedGroup?.name}”?`, 'Xác nhận gỡ khỏi nhóm');
     if (!accepted) {
       return;
     }
@@ -407,7 +407,7 @@ export class StudentGroupsComponent implements OnInit {
         page: 1,
         pageSize: 100,
         groupId: this.selectedGroup.id,
-        sortBy: 'fullName',
+        sortBy: 'studentCode',
         sortOrder: 'asc'
       }));
       this.roster = result.items;

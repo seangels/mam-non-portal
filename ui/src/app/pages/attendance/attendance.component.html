@@ -181,14 +181,14 @@
       role="listitem">
       <header>
         <div>
-          <h3>{{ item.fullName }} <small *ngIf="item.nickName">({{ item.nickName }})</small></h3>
+          <h3>{{ item.nickName }}</h3>
           <span>{{ item.studentCode }}</span>
         </div>
         <span class="changed" *ngIf="isDirty(item)">Đã thay đổi</span>
       </header>
 
       <fieldset class="status-choice" [disabled]="!canModify">
-        <legend>Trạng thái của {{ item.fullName }}</legend>
+        <legend>Trạng thái của {{ item.nickName }}</legend>
         <label *ngFor="let option of statusOptions">
           <input
             type="radio"
@@ -219,13 +219,13 @@
       <div class="duration" *ngIf="item.status === 'OneToOneHour'">Thời lượng cố định: <strong>60 phút</strong></div>
 
       <label class="notes-field">
-        <span>Ghi chú <small>({{ (item.notes || '').length }}/2.000)</small></span>
+        <span>Ghi chú <small>({{ (item.notes || '').length }}/200)</small></span>
         <textarea
           [(ngModel)]="item.notes"
-          maxlength="2000"
+          maxlength="200"
           rows="2"
           [disabled]="!canModify"
-          [attr.aria-label]="'Ghi chú cho ' + item.fullName">
+          [attr.aria-label]="'Ghi chú'">
         </textarea>
       </label>
       <p class="validation" *ngIf="item.invalidMessage" role="alert">{{ item.invalidMessage }}</p>
@@ -313,18 +313,18 @@
 
     <div class="recovery-list" *ngIf="recoveryDrafts.length" role="list" aria-label="Trạng thái học sinh lịch sử">
       <article *ngFor="let item of recoveryDrafts; trackBy: trackStudent" role="listitem">
-        <strong>{{ item.fullName }}</strong><small>{{ item.studentCode }}</small>
-        <select [(ngModel)]="item.status" (ngModelChange)="onRecoveryStatusChange(item, $event)" [attr.aria-label]="'Trạng thái của ' + item.fullName">
+        <strong>{{ item.nickName }}</strong><small>{{ item.studentCode }}</small>
+        <select [(ngModel)]="item.status" (ngModelChange)="onRecoveryStatusChange(item, $event)" [attr.aria-label]="'Trạng thái của ' + item.nickName">
           <option *ngFor="let option of statusOptions" [ngValue]="option.value">{{ option.text }}</option>
         </select>
-        <select *ngIf="item.status === 'AbsentHalfDay'" [(ngModel)]="item.halfDayPart" [attr.aria-label]="'Buổi nghỉ của ' + item.fullName">
+        <select *ngIf="item.status === 'AbsentHalfDay'" [(ngModel)]="item.halfDayPart" [attr.aria-label]="'Buổi nghỉ của ' + item.nickName">
           <option *ngFor="let option of halfDayOptions" [ngValue]="option.value">{{ option.text }}</option>
         </select>
-        <select *ngIf="item.status === 'AbsentFullDay' || item.status === 'AbsentHalfDay'" [(ngModel)]="item.isExcused" [attr.aria-label]="'Lý do nghỉ của ' + item.fullName">
+        <select *ngIf="item.status === 'AbsentFullDay' || item.status === 'AbsentHalfDay'" [(ngModel)]="item.isExcused" [attr.aria-label]="'Lý do nghỉ của ' + item.nickName">
           <option [ngValue]="true">Có phép</option>
           <option [ngValue]="false">Không phép</option>
         </select>
-        <input [(ngModel)]="item.notes" maxlength="2000" [attr.aria-label]="'Ghi chú cho ' + item.fullName" placeholder="Ghi chú" />
+        <input [(ngModel)]="item.notes" maxlength="200" [attr.aria-label]="'Ghi chú'" placeholder="Ghi chú" />
         <span class="validation" *ngIf="item.invalidMessage">{{ item.invalidMessage }}</span>
       </article>
     </div>

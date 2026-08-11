@@ -49,7 +49,9 @@ interface StudentEditor {
   studyMode: StudyMode;
   studyWeekdays: StudyWeekday[];
   groupId: string | null;
+  groupCode: string | null;
   groupName: string | null;
+  responsibleTeacherName: string | null;
   version: number;
 }
 
@@ -101,7 +103,7 @@ export class StudentsComponent {
   ];
   readonly today = new Date();
   readonly groupDisplay = (group: StudentGroup | null): string => group
-    ? `${group.code} · ${group.name} · ${group.studentCount}/100`
+    ? `${group.code} · ${group.responsibleTeacherName} · ${group.studentCount}/100`
     : '';
 
   search = '';
@@ -474,7 +476,7 @@ export class StudentsComponent {
   }
 
   groupText(student: Student): string {
-    return student.groupId ? `${student.groupCode} · ${student.groupName}` : 'Chưa phân nhóm';
+    return student.groupId ? `${student.groupCode} · ${student.responsibleTeacherName}` : 'Chưa phân nhóm';
   }
 
   scheduleText(student: Student): string {
@@ -502,7 +504,9 @@ export class StudentsComponent {
       studyMode: student.studySchedule.mode,
       studyWeekdays: this.canonicalWeekdays(student.studySchedule.weekdays),
       groupId: student.groupId ?? null,
+      groupCode: student.groupCode ?? null,
       groupName: student.groupName ?? null,
+      responsibleTeacherName: student.responsibleTeacherName ?? null,
       version: student.version
     };
     this.editorBaseline = this.serializeEditor(this.editor);
@@ -522,7 +526,9 @@ export class StudentsComponent {
       studyMode: 'FullDay',
       studyWeekdays: [...CANONICAL_WEEKDAYS],
       groupId: null,
+      groupCode: null,
       groupName: null,
+      responsibleTeacherName: null,
       version: 1
     };
   }

@@ -371,26 +371,62 @@ public sealed class StudentService(
         };
 
     private static StudentResponse Map(Student student) => new(
-        student.Id, student.StudentCode, student.FullName, student.NickName, student.DateOfBirth,
-        student.Gender, student.Status, student.GuardianName, student.GuardianPhone, student.Note,
-        student.GroupId, student.Group?.Code, student.Group?.Name,
+        student.Id, 
+        student.StudentCode, 
+        student.FullName, 
+        student.NickName, 
+        student.DateOfBirth,
+        student.Gender, 
+        student.Status, 
+        student.GuardianName, 
+        student.GuardianPhone, 
+        student.Note,
+        student.GroupId, 
+        student.Group?.Code, 
+        student.Group?.Name,
+        student.Group?.ResponsibleTeacher?.User?.FullName,
         new StudyScheduleResponse(student.StudyMode, StudentScheduleRules.Decode(student.StudyWeekdayMask)),
         student.Version, student.CreatedAt, student.UpdatedAt);
 
     private static StudentResponse Map(StudentRow row) => new(
-        row.Id, row.StudentCode, row.FullName, row.NickName, row.DateOfBirth,
-        row.Gender, row.Status, row.GuardianName, row.GuardianPhone, row.Note,
-        row.GroupId, row.GroupCode, row.GroupName,
+        row.Id, 
+        row.StudentCode, 
+        row.FullName, 
+        row.NickName, 
+        row.DateOfBirth,
+        row.Gender, 
+        row.Status, 
+        row.GuardianName, 
+        row.GuardianPhone, 
+        row.Note,
+        row.GroupId, 
+        row.GroupCode, 
+        row.GroupName,
+        row.ResponsibleTeacherName,
         new StudyScheduleResponse(row.StudyMode, StudentScheduleRules.Decode(row.StudyWeekdayMask)),
         row.Version, row.CreatedAt, row.UpdatedAt);
 
     private static IQueryable<StudentRow> ProjectRows(IQueryable<Student> query) =>
         query.Select(student => new StudentRow(
-            student.Id, student.StudentCode, student.FullName, student.NickName, student.DateOfBirth,
-            student.Gender, student.Status, student.GuardianName, student.GuardianPhone, student.Note,
-            student.GroupId, student.Group == null ? null : student.Group.Code,
-            student.Group == null ? null : student.Group.Name, student.StudyMode,
-            student.StudyWeekdayMask, student.Version, student.CreatedAt, student.UpdatedAt));
+            student.Id,
+            student.StudentCode,
+            student.FullName,
+            student.NickName,
+            student.DateOfBirth,
+            student.Gender,
+            student.Status,
+            student.GuardianName,
+            student.GuardianPhone,
+            student.Note,
+            student.GroupId,
+            student.Group == null ? null : student.Group.Code,
+            student.Group == null ? null : student.Group.Name,
+            student.Group == null || student.Group.ResponsibleTeacher == null || student.Group.ResponsibleTeacher.User == null ? null : student.Group.ResponsibleTeacher.User.FullName,
+            student.StudyMode,
+            student.StudyWeekdayMask,
+            student.Version,
+            student.CreatedAt,
+            student.UpdatedAt));
 
     private static void EnsureVersion(Student student, int expectedVersion)
     {
@@ -425,8 +461,23 @@ public sealed class StudentService(
     ];
 
     private sealed record StudentRow(
-        Guid Id, string StudentCode, string FullName, string NickName, DateOnly DateOfBirth,
-        Gender? Gender, StudentStatus Status, string? GuardianName, string? GuardianPhone, string? Note,
-        Guid? GroupId, string? GroupCode, string? GroupName, StudyMode StudyMode,
-        short StudyWeekdayMask, int Version, DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt);
+        Guid Id, 
+        string StudentCode, 
+        string FullName, 
+        string NickName, 
+        DateOnly DateOfBirth,
+        Gender? Gender, 
+        StudentStatus Status, 
+        string? GuardianName, 
+        string? GuardianPhone, 
+        string? Note,
+        Guid? GroupId, 
+        string? GroupCode, 
+        string? GroupName, 
+        string? ResponsibleTeacherName,
+        StudyMode StudyMode,
+        short StudyWeekdayMask, 
+        int Version, 
+        DateTimeOffset CreatedAt, 
+        DateTimeOffset UpdatedAt);
 }

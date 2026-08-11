@@ -149,6 +149,7 @@ function studentRow(): Student {
     groupId: 'group-1',
     groupCode: 'MAM-1',
     groupName: 'Mầm 1',
+    responsibleTeacherName: 'Cô Lan',
     studySchedule: { mode: 'FullDay', weekdays: ['Monday', 'Wednesday', 'Saturday'] },
     createdAt: '',
     updatedAt: '',

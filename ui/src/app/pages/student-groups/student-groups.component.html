@@ -164,11 +164,11 @@
     <div *ngIf="!rosterLoading" class="roster-list" role="list" aria-label="Học sinh hiện tại trong nhóm">
       <div *ngFor="let student of filteredRoster" class="roster-row" role="listitem">
         <div>
-          <strong>{{ student.fullName }}</strong>
-          <span>{{ student.studentCode }} · {{ student.nickName }} · {{ studentStatusLabels[student.status] }}</span>
+          <strong>{{ student.nickName }}</strong>
+          <span>{{ student.studentCode }} · {{ studentStatusLabels[student.status] }}</span>
         </div>
         <dx-button text="Gỡ khỏi nhóm" icon="remove" stylingMode="outlined" [disabled]="saving"
-          [hint]="'Gỡ ' + student.fullName + ' khỏi nhóm'" (onClick)="unassignStudent(student)"></dx-button>
+          [hint]="'Gỡ ' + student.nickName + ' khỏi nhóm'" (onClick)="unassignStudent(student)"></dx-button>
       </div>
     </div>
   </div>

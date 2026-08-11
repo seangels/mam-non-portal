@@ -34,6 +34,7 @@ public sealed record StudentResponse(
     Guid? GroupId,
     string? GroupCode,
     string? GroupName,
+    string? ResponsibleTeacherName,
     StudyScheduleResponse StudySchedule,
     int Version,
     DateTimeOffset CreatedAt,

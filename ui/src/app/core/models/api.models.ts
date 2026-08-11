@@ -105,6 +105,7 @@ export interface Student {
   groupId?: string | null;
   groupCode?: string | null;
   groupName?: string | null;
+  responsibleTeacherName?: string | null;
   studySchedule: StudySchedule;
   createdAt: string;
   updatedAt: string;

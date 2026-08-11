@@ -58,7 +58,7 @@
     <dxo-sorting mode="single"></dxo-sorting>
 
     <dxi-column dataField="studentCode" caption="Mã học sinh" sortOrder="asc" [hidingPriority]="10"></dxi-column>
-    <dxi-column dataField="fullName" caption="Họ và tên" [hidingPriority]="11"></dxi-column>
+    <dxi-column dataField="fullName" [visible]="false" caption="Họ và tên" [hidingPriority]="11"></dxi-column>
     <dxi-column dataField="nickName" caption="Tên gọi" [hidingPriority]="4"></dxi-column>
     <dxi-column caption="Nhóm hiện tại" cellTemplate="groupCell" [allowSorting]="false"
       [hidingPriority]="9"></dxi-column>
@@ -101,7 +101,7 @@
     </div>
     <div *ngIf="editorError && !editorConflict" class="form-message error" role="alert">{{ editorError }}</div>
     <div *ngIf="editor.groupId" class="form-message info">
-      Nhóm hiện tại: <strong>{{ editor.groupName }}</strong>. Cần gỡ khỏi nhóm trước khi ngừng học hoặc xóa.
+      Nhóm hiện tại: <strong>{{ editor.groupCode }} · {{ editor.responsibleTeacherName }}</strong>. Cần gỡ khỏi nhóm trước khi ngừng học hoặc xóa.
     </div>
 
     <dx-form [formData]="editor" [disabled]="saving" labelLocation="top" [colCount]="2"
