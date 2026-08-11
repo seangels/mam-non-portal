@@ -274,7 +274,7 @@ QA/Integration:
 
 - [x] `TCH-P-01`. Rà soát hiện trạng User/Teacher/Group/Attendance và các bề mặt UI hiện có
 - [x] `TCH-P-02`. Lập kế hoạch cross-stack có mã từng đợt tại `plans/03-TCH-teacher-management.md`
-- [~] `TCH-P-03`. Đã chốt `TCH-DEC-01`–`08`, `10`–`12`; chờ duyệt search không dấu `TCH-DEC-09`
+- [x] `TCH-P-03`. Đã review và chốt `TCH-DEC-01`–`TCH-DEC-12`
 - [ ] `TCH-00`. Khóa field ownership, REST/OpenAPI, wireflow và test traceability
 - [ ] `TCH-01`. Schema/migration/backfill, danh sách và chi tiết giáo viên
 - [ ] `TCH-02`. Atomic create, full update, validation và concurrency
@@ -291,7 +291,8 @@ QA/Integration:
 - Plan ban đầu liệt kê 12 quyết định về field, mã giáo viên, mutation boundary, policy, search và lifecycle; các quyết định đã được thu hẹp/cập nhật ở các dòng log tiếp theo.
 - Đợt này chỉ thay đổi tài liệu plan/tracking/memory; không sửa source sản phẩm và không chạy build, package hoặc deploy production.
 - Cập nhật quyết định (2026-08-11): Teacher chỉ thêm `teacher_code`, `note`, `version` trên schema hiện có; mã do người dùng nhập và được phép sửa; `/teachers` là mutation surface canonical; group assignment và policy vẫn ở trang `Nhóm`; không làm field nhân sự, self-service, upload hoặc ngày vào làm; giữ optimistic concurrency và soft-delete/history.
-- `TCH-DEC-09` còn chờ: plan đã mô tả cụ thể server-side search không dấu bằng PostgreSQL `unaccent`, tác động remote paging, quyền extension, benchmark và hướng `pg_trgm` nếu dữ liệu lớn.
+- Trước khi chốt `TCH-DEC-09`, plan đã mô tả cụ thể server-side search không dấu bằng PostgreSQL `unaccent`, tác động remote paging, quyền extension, benchmark và hướng `pg_trgm` nếu dữ liệu lớn.
+- `TCH-DEC-09` đã chốt (2026-08-11): bắt buộc search họ tên không dấu/case-insensitive tại server bằng PostgreSQL `unaccent`; không thêm search column/index phức tạp trong v1, benchmark trước khi cân nhắc `pg_trgm`.
 
 ## Tổ chức thư mục kế hoạch — owner: `root`
 

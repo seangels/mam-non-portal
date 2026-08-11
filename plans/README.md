@@ -6,7 +6,7 @@ Các file được đánh số theo thứ tự phụ thuộc và triển khai. M
 |---:|---|---|---|---|
 | 01 | `BASE` | [`01-BASE-admin-portal.md`](01-BASE-admin-portal.md) | Đã triển khai | Không |
 | 02 | `ATT` | [`02-ATT-attendance.md`](02-ATT-attendance.md) | Đã triển khai | `BASE` |
-| 03 | `TCH` | [`03-TCH-teacher-management.md`](03-TCH-teacher-management.md) | Chờ chốt `TCH-DEC-09` | `BASE`, `ATT` |
+| 03 | `TCH` | [`03-TCH-teacher-management.md`](03-TCH-teacher-management.md) | Đã chốt plan, sẵn sàng `TCH-00` | `BASE`, `ATT` |
 
 ## Quy ước đặt tên
 

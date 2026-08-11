@@ -4,7 +4,7 @@
 
 - **Epic:** `TCH`
 - **Thứ tự:** `03`
-- **Trạng thái:** `TCH-DEC-01`–`08`, `10`–`12` đã chốt; `TCH-DEC-09` đang chờ duyệt sau khi giải thích phương án search không dấu.
+- **Trạng thái:** `TCH-DEC-01`–`12` đã chốt; sẵn sàng triển khai `TCH-00`.
 - **Ngày lập:** 2026-08-11.
 - **Phạm vi:** .NET 10 REST API, PostgreSQL 17 và Angular/DevExtreme UI.
 - **Contract nền:** [`01-BASE-admin-portal.md`](01-BASE-admin-portal.md) và [`02-ATT-attendance.md`](02-ATT-attendance.md).
@@ -166,7 +166,7 @@ sortOrder=asc|desc
 Quy tắc:
 
 - `pageSize` từ 1 đến 100.
-- `search` tìm theo mã giáo viên, họ tên, email và số điện thoại. Cơ chế không dấu của họ tên chờ chốt tại `TCH-DEC-09`.
+- `search` tìm theo mã giáo viên, họ tên, email và số điện thoại; họ tên bắt buộc không phân biệt dấu/hoa thường tại server theo `TCH-DEC-09`.
 - Nếu gửi đồng thời `groupId` và `unassigned=true`, trả `400 ValidationFailed`.
 - Sort dùng whitelist, không nhận biểu thức động; luôn thêm `id` làm tie-break để phân trang ổn định.
 - Response giữ contract chung `{ items, pagination }`.
@@ -502,7 +502,7 @@ Có loading, empty, 403, 404, retry và trace reference bằng nội dung tiến
 | `TCH-DEC-06` | Giữ UI và endpoint chính sách điểm danh tại vị trí hiện tại; không đưa policy vào Teacher form | Đã chốt |
 | `TCH-DEC-07` | Không làm Teacher self-service | Đã chốt |
 | `TCH-DEC-08` | Không làm dữ liệu nhạy cảm hoặc upload trong epic này | Đã chốt |
-| `TCH-DEC-09` | Có bắt buộc search họ tên không dấu ở server hay chỉ search có dấu/case-insensitive | Chờ duyệt |
+| `TCH-DEC-09` | Bắt buộc search họ tên không dấu/case-insensitive tại server bằng PostgreSQL `unaccent` | Đã chốt |
 | `TCH-DEC-10` | Không làm ngày vào làm | Đã chốt |
 | `TCH-DEC-11` | Dùng `expectedVersion` trong full PUT/policy PUT; DELETE dùng query version | Đã chốt |
 | `TCH-DEC-12` | Soft-delete User, revoke session, giữ Teacher/mã hiện tại/lịch sử; chặn xóa khi còn nhóm | Đã chốt |
@@ -553,9 +553,9 @@ Tài liệu kỹ thuật tham chiếu:
 - [PostgreSQL 17 `pg_trgm`](https://www.postgresql.org/docs/17/pgtrgm.html).
 - [Npgsql EF Core translation cho `EF.Functions.Unaccent`](https://www.npgsql.org/efcore/mapping/full-text-search.html).
 
-Khuyến nghị chốt `TCH-DEC-09`: **có search không dấu ở server bằng `unaccent`**, chưa thêm search column/index phức tạp trong v1.
+`TCH-DEC-09` đã chốt: **bắt buộc search không dấu ở server bằng `unaccent`**, chưa thêm search column/index phức tạp trong v1.
 
-Chỉ bắt đầu `TCH-00` sau khi người dùng chốt `TCH-DEC-09`.
+Plan đã đủ quyết định để bắt đầu `TCH-00`.
 
 ## 17. Definition of Done
 
