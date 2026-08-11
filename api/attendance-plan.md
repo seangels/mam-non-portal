@@ -3,7 +3,7 @@
 ## 1. Thông tin kế hoạch
 
 - **Epic:** `ATT`
-- **Trạng thái:** Draft để review; chưa bắt đầu implementation.
+- **Trạng thái:** `ATT-DEC-01` đến `ATT-DEC-09` đã chốt; còn `ATT-DEC-10` về mô hình lưu trữ trước khi implementation.
 - **Ngày lập:** 2026-08-11.
 - **Phạm vi:** .NET 10 REST API, PostgreSQL 17, Angular/DevExtreme UI và đóng gói IIS.
 - **Contract nền:** [`plan.md`](plan.md).
@@ -47,7 +47,9 @@ feat/att-02-attendance-read
 - UI mặc định ngày hiện tại theo `Asia/Ho_Chi_Minh`; không dùng chuyển đổi UTC có thể làm lệch ngày.
 - Backend dùng option `BusinessTimeZone = Asia/Ho_Chi_Minh` cùng `TimeProvider` để xác định ngày server; không lấy trực tiếp ngày UTC hoặc tin đồng hồ browser.
 - Không cho ghi ngày tương lai.
-- Quyền sửa ngày quá khứ cần được chốt tại `ATT-00`; đề xuất mặc định an toàn là Teacher chỉ sửa hôm nay, Admin/SuperAdmin được sửa ngày không nằm trong tương lai.
+- Mỗi Teacher có `attendanceEditWindowDays` từ 1 đến 7, mặc định 7 và do Admin/SuperAdmin cấu hình riêng.
+- Window bao gồm hôm nay: giá trị 1 chỉ cho hôm nay; giá trị 7 cho hôm nay và 6 ngày lịch trước đó. Backend tính theo `serverDate` và `BusinessTimeZone`.
+- Admin/SuperAdmin được sửa mọi ngày không nằm trong tương lai.
 
 ### 4.2. Trạng thái hiển thị và record lưu trữ
 
@@ -67,7 +69,7 @@ Quy tắc lưu:
 - `notes` được trim, nullable, tối đa 2.000 ký tự; có thể nhập cho mọi exception.
 - `OneToOneHour` cố định `durationMinutes = 60` trong phạm vi này. Chưa lưu giờ bắt đầu và chưa hỗ trợ nhiều block trong cùng ngày cho đến khi nghiệp vụ xác nhận.
 - `OneToOneHour` là trạng thái loại trừ với hai trạng thái vắng trong v1; một student không thể vừa vắng vừa có block 1-1 trong cùng ngày.
-- `AbsentHalfDay` dự kiến có `halfDayPart = Morning | Afternoon`; đây là điểm cần review vì yêu cầu hiện tại chưa định nghĩa nửa buổi nào.
+- `AbsentHalfDay` bắt buộc có `halfDayPart = Morning | Afternoon`.
 
 ### 4.3. Nhóm và phân công
 
@@ -77,6 +79,15 @@ Quy tắc lưu:
 - Một học sinh chỉ thuộc một nhóm tại cùng một ngày.
 - Tối đa 100 học sinh có membership hiện hành trong một nhóm; API gán/chuyển student kiểm tra giới hạn trong cùng transaction để tránh race.
 - Không seed nhóm hoặc assignment. Admin/SuperAdmin tạo nhóm và phân công qua UI/API.
+
+### 4.4. Quyết định mô hình lưu trữ còn mở
+
+Trao đổi sau khi lập draft tạo thêm `ATT-DEC-10`, cần chọn một trong hai trước khi tạo migration:
+
+- **A — Exception-only:** giữ thiết kế hiện tại `attendance_exceptions`; không lưu `Present`, vì vậy cần assignment có `effective_from/effective_to` để tái dựng roster lịch sử.
+- **B — Full daily snapshot (đang khuyến nghị):** dùng `attendance_sheets` + `attendance_records`, lưu cả `Present` cho tối đa 100 student mỗi group/ngày; có thể dùng `students.group_id` và teacher/group assignment hiện tại thay cho khoảng hiệu lực nếu chấp nhận rằng ngày chưa tạo sheet không thể tái dựng sau khi cơ cấu nhóm đổi.
+
+Các section schema/REST bên dưới hiện mô tả phương án A và sẽ được thay thế nếu duyệt phương án B. Không bắt đầu `ATT-01` khi `ATT-DEC-10` chưa chốt.
 
 ## 5. Thiết kế dữ liệu
 
@@ -89,6 +100,7 @@ Profile nghiệp vụ một-một với tài khoản `users`:
 ```text
 id          uuid PK
 user_id     uuid NOT NULL UNIQUE FK -> users.id RESTRICT
+attendance_edit_window_days smallint NOT NULL DEFAULT 7
 created_at  timestamptz
 updated_at  timestamptz
 ```
@@ -99,6 +111,7 @@ Quy tắc:
 - Tạo profile trong cùng transaction khi tạo/chuyển user sang role `Teacher`.
 - Migration backfill profile cho user `Teacher` đã tồn tại; đây là chuyển đổi dữ liệu, không phải seed tài khoản.
 - Không xóa cứng profile để bảo toàn lịch sử.
+- `attendance_edit_window_days` có check constraint từ 1 đến 7; Admin/SuperAdmin có thể cấu hình riêng từng Teacher và mọi thay đổi phải audit.
 - Nếu một user từng là Teacher được chuyển về role `Teacher`, service tái sử dụng profile cũ thay vì insert profile trùng `user_id`.
 - Đổi role hoặc xóa user Teacher đang có assignment hiệu lực trả `409`; Admin phải kết thúc/chuyển assignment rõ ràng trước.
 
@@ -216,6 +229,7 @@ Quy tắc bắt buộc:
 ```http
 GET    /api/v1/teachers
 GET    /api/v1/teachers/{id}
+PUT    /api/v1/teachers/{id}/attendance-policy
 
 GET    /api/v1/student-groups
 POST   /api/v1/student-groups
@@ -235,6 +249,7 @@ PUT    /api/v1/student-group-assignments/{assignmentId}/end-date
 - Mỗi response assignment có `assignmentId`; cập nhật lịch sử dùng ID này, không suy luận từ cặp teacher/group có thể được gán lại nhiều lần.
 - Không dùng DELETE body vì client/proxy/IIS có thể xử lý không đồng nhất.
 - `GET /teachers` trả `{ items, pagination }`, hỗ trợ `search`, `status`, `page`, `pageSize`, sort whitelist; chỉ trả profile có user role `Teacher` theo filter nghiệp vụ và không trả thông tin authentication.
+- `PUT /teachers/{id}/attendance-policy` nhận `{ "attendanceEditWindowDays": 1..7 }`; Admin/SuperAdmin đều được cấu hình và response trả policy mới.
 - `GET /student-groups` hỗ trợ `search`, `status`, pagination và sort whitelist.
 - Filter `unassigned=true` luôn đi kèm `asOfDate`; nghĩa là không có assignment hiệu lực tại ngày đó, không chỉ kiểm tra row đang mở.
 - Group code/name bắt buộc, trim, giới hạn độ dài; code được normalize và unique trên record chưa xóa. Mọi FK dùng delete behavior `RESTRICT`.
@@ -259,6 +274,7 @@ Response:
       "studentCount": 10
     }
   ],
+  "attendanceEditWindowDays": 7,
   "canEdit": true,
   "readOnlyReason": null
 }
@@ -268,6 +284,7 @@ Response:
 - Admin/SuperAdmin nhận mọi group phù hợp với trạng thái/ngày.
 - `studentCount` là số membership hiệu lực tại `date`; daily history có thể bao gồm student đã inactive/deleted sau ngày đó.
 - `serverDate`, `canEdit`, `readOnlyReason` giúp UI hiển thị read-only đúng policy; backend vẫn tự kiểm tra lại khi mutation.
+- Context trả thêm `attendanceEditWindowDays` của Teacher để UI giải thích window; backend tính `canEdit` bằng ngày server và không tin giá trị client.
 - Khi xem ngày lịch sử, context vẫn trả Group từng có assignment/membership tại ngày đó kể cả hiện đã inactive/soft-delete.
 - UI tự xác định hiển thị group filter dựa trên role và số group; backend không tin quyết định ẩn/hiện của UI.
 
@@ -450,13 +467,14 @@ Tính năng chưa vận hành hoàn chỉnh nếu chỉ có schema/API. `ATT-01`
 - Danh sách cảnh báo Teacher/Student chưa được phân công.
 - Hiển thị số lượng hiện tại trên tối đa 100; từ chối gán/chuyển học sinh thứ 101 bằng validation rõ ràng.
 
-Vị trí UI cần review. Đề xuất mặc định: thêm trang `/student-groups` và item sidebar `Nhóm`; dùng picker từ user role Teacher và student hiện có, không tạo duplicate tài khoản/học sinh.
+Vị trí UI đã chốt: thêm trang `/student-groups` và item sidebar `Nhóm`; dùng picker từ user role Teacher và student hiện có, không tạo duplicate tài khoản/học sinh. Trang quản lý Teacher cho Admin/SuperAdmin cấu hình window sửa điểm danh từ 1 đến 7 ngày.
 
 ## 11. Audit, logging và retention
 
 Audit tối thiểu:
 
 - `TeacherProfile.Created`.
+- `Teacher.AttendancePolicyUpdated`.
 - `Group.Created`, `Group.Updated`, `Group.Deleted`.
 - `TeacherGroup.Assigned`, `TeacherGroup.Unassigned`.
 - `StudentGroup.Assigned`, `StudentGroup.Moved`, `StudentGroup.Unassigned`.
@@ -464,7 +482,7 @@ Audit tối thiểu:
 
 Audit attendance chứa actor, IDs, ngày, trạng thái, phép/không phép, duration và version. Mặc định chỉ ghi `notesChanged`, không nhân đôi raw notes vào audit/application log. Không log request body.
 
-Attendance exception là dữ liệu nghiệp vụ và được giữ đến khi có policy riêng. Audit log hiện giữ 90 ngày; cần review xem lịch sử thay đổi điểm danh có yêu cầu retention dài hơn hay không.
+Attendance exception/record là dữ liệu nghiệp vụ và được giữ lâu dài, không thuộc cleanup tự động. Audit thay đổi tạm giữ 90 ngày theo policy hiện tại.
 
 ## 12. Migration và tương thích dữ liệu hiện có
 
@@ -486,12 +504,14 @@ Release phải cập nhật OpenAPI, `api/README.md`, `api/requests.http`, agent
 
 - Date-range assignment không chồng nhau.
 - Lifecycle Teacher user/profile và conflict khi còn assignment.
+- Validation/configuration `attendanceEditWindowDays` từ 1 đến 7.
 - Validation từng exception status.
 - Authorization theo role/group/date.
 - Vietnamese normalization và contains search.
 - Resolve group khi Teacher có 0/1/nhiều nhóm.
 - Concurrency version và batch all-or-nothing.
 - Business date/timezone quanh ranh giới UTC và local day.
+- Window 1 ngày/7 ngày và policy riêng của hai Teacher khác nhau.
 
 ### 13.2. PostgreSQL integration
 
@@ -505,6 +525,7 @@ Release phải cập nhật OpenAPI, `api/README.md`, `api/requests.http`, agent
 - Search `nguyen` tìm được `Nguyễn`; code/nickname đúng.
 - Student inactive/deleted hoặc ngoài membership không được ghi.
 - Validation `400`, auth `401/403/404`, stale version/race `409`.
+- Teacher ngoài edit window bị từ chối; Admin/SuperAdmin vẫn sửa được ngày không tương lai.
 - Audit đủ nhưng không chứa raw notes/body/secret.
 - OpenAPI schema đúng.
 
@@ -521,6 +542,7 @@ Release phải cập nhật OpenAPI, `api/README.md`, `api/requests.http`, agent
 - Chỉ gửi card dirty; `Present` sinh change clear chứ không tạo row.
 - Dirty-change guard, double-submit protection và 401/403/409/network states.
 - `canEdit = false` vẫn xem được snapshot nhưng không mutation; response cũ không ghi đè state khi filter đổi nhanh.
+- UI hiển thị đúng policy 1–7 ngày của Teacher và read-only reason ngoài window.
 - Responsive/keyboard interaction quan trọng.
 
 Verification cuối epic:
@@ -541,7 +563,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\deploy\iis\build-iis-p
 
 - `ATT-P-01`: phân tích gap backend/frontend và yêu cầu nghiệp vụ.
 - `ATT-P-02`: tạo plan cross-stack và mã các đợt phát triển.
-- `ATT-P-03`: review/chốt các quyết định mở ở mục 15.
+- `ATT-P-03`: ghi nhận `ATT-DEC-01`–`09` và chốt `ATT-DEC-10` về storage model.
 - `ATT-BE-00`: khóa schema, enum, authorization và OpenAPI draft.
 - `ATT-FE-00`: khóa wireflow filter/card/save và UI quản trị assignment.
 
@@ -589,27 +611,28 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\deploy\iis\build-iis-p
 
 **DoD:** toàn bộ gate xanh; package IIS mới được build trên máy source và sẵn sàng chuyển sang máy đích.
 
-## 15. Quyết định cần review trước implementation
+## 15. Quyết định nghiệp vụ
 
-| ID | Câu hỏi | Mặc định đề xuất |
+| ID | Câu hỏi | Quyết định |
 |---|---|---|
-| `ATT-DEC-01` | “Buổi” là cả ngày hay một ca học? | Một record/student/ngày; API dùng `AbsentFullDay`/`AbsentHalfDay`, UI giữ nhãn nghiệp vụ. |
-| `ATT-DEC-02` | Vắng 1/2 buổi có cần chọn sáng/chiều? | Có, bắt buộc `Morning` hoặc `Afternoon`. |
-| `ATT-DEC-03` | 1-1 có nhiều block/ngày/cần giờ bắt đầu hoặc đồng thời với vắng? | Một block cố định 60 phút/ngày, không giờ bắt đầu và loại trừ với trạng thái vắng. |
-| `ATT-DEC-04` | Phép/không phép áp dụng cho trạng thái nào? | Chỉ hai loại vắng và bắt buộc chọn rõ. |
-| `ATT-DEC-05` | Teacher được sửa ngày quá khứ bao lâu? | Chỉ hôm nay; Admin/SuperAdmin được sửa mọi ngày không tương lai. |
+| `ATT-DEC-01` | “Buổi” là cả ngày hay một ca học? | **Đã chốt:** một record/student/ngày; API dùng `AbsentFullDay`/`AbsentHalfDay`, UI giữ nhãn nghiệp vụ. |
+| `ATT-DEC-02` | Vắng 1/2 buổi có cần chọn sáng/chiều? | **Đã chốt:** bắt buộc `Morning` hoặc `Afternoon`. |
+| `ATT-DEC-03` | 1-1 có nhiều block/ngày/cần giờ bắt đầu hoặc đồng thời với vắng? | **Đã chốt:** một block cố định 60 phút/ngày, không giờ bắt đầu và loại trừ với trạng thái vắng. |
+| `ATT-DEC-04` | Phép/không phép áp dụng cho trạng thái nào? | **Đã chốt:** áp dụng cho các loại vắng và bắt buộc chọn rõ. |
+| `ATT-DEC-05` | Teacher được sửa ngày quá khứ bao lâu? | **Đã chốt:** window 1–7 ngày, mặc định 7, Admin/SuperAdmin cấu hình riêng từng Teacher; hai role quản trị sửa mọi ngày không tương lai. |
 | `ATT-DEC-06` | Giới hạn học sinh/nhóm và cách hiển thị? | **Đã chốt:** tối đa 100; UI hiển thị khoảng 8–10 card/viewport và scroll phần còn lại. |
-| `ATT-DEC-07` | Có làm UI quản trị nhóm/phân công trong epic? | Có, tại `/student-groups`; không dùng seed/manual SQL. |
-| `ATT-DEC-08` | Admin có lựa chọn tất cả nhóm trên attendance page? | Không; bắt buộc một group để tránh thao tác nhầm. |
-| `ATT-DEC-09` | Retention lịch sử thay đổi attendance? | Exception giữ vô thời hạn; audit tạm theo 90 ngày cho đến khi chốt policy. |
+| `ATT-DEC-07` | Có làm UI quản trị nhóm/phân công trong epic? | **Đã chốt:** có, tại `/student-groups`; không dùng seed/manual SQL. |
+| `ATT-DEC-08` | Admin có lựa chọn tất cả nhóm trên attendance page? | **Đã chốt:** không; bắt buộc một group để tránh thao tác nhầm. |
+| `ATT-DEC-09` | Retention lịch sử thay đổi attendance? | **Đã chốt:** attendance data giữ lâu dài; audit thay đổi giữ 90 ngày theo policy hiện tại. |
+| `ATT-DEC-10` | Chỉ lưu exception hay lưu đủ phiếu daily gồm `Present`? | **Chờ chốt:** A — exception-only + temporal assignment; B — full daily snapshot, đang khuyến nghị. |
 
-`ATT-DEC-06` đã được duyệt. Không bắt đầu `ATT-01` trước khi các quyết định còn lại (`ATT-DEC-01`–`05`, `07`–`09`) được duyệt; retention hoặc cách lưu lịch sử cũng có thể làm thay đổi schema.
+`ATT-DEC-01` đến `ATT-DEC-09` đã được duyệt. Không bắt đầu `ATT-01` trước khi `ATT-DEC-10` được chốt vì quyết định này thay đổi trực tiếp schema, migration và REST contract.
 
 ## 16. Definition of Done toàn epic
 
 - Teacher chỉ đọc/ghi đúng student thuộc assignment tại ngày điểm danh.
 - Admin/SuperAdmin thao tác mọi group nhưng phải chọn group rõ ràng.
-- Không có row `Present`; reset về Present loại bỏ exception hiện hành.
+- Storage tuân theo `ATT-DEC-10`: phương án A không có row `Present`; phương án B lưu snapshot đầy đủ gồm `Present`.
 - Search tên/mã/nickname không phân biệt dấu và hoa thường.
 - UI card-list, filter collapse mặc định expand và conditional group filter đúng yêu cầu.
 - Có UI quản lý Teacher/Group/Student assignment, không cần seed/manual SQL.

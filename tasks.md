@@ -179,7 +179,7 @@ Mỗi agent chỉ cập nhật section mình sở hữu sau từng mốc công v
 
 - [x] `ATT-P-01`. Phân tích gap backend/frontend và yêu cầu nghiệp vụ
 - [x] `ATT-P-02`. Tạo plan cross-stack có mã từng đợt tại `api/attendance-plan.md`
-- [~] `ATT-P-03`. Review/chốt các quyết định nghiệp vụ; `ATT-DEC-06` đã chốt
+- [~] `ATT-P-03`. `ATT-DEC-01`–`09` đã chốt; còn `ATT-DEC-10` về storage model
 - [ ] `ATT-01`. Nền tảng Teacher/Group/Assignment và UI quản trị
 - [ ] `ATT-02`. Vertical slice đọc điểm danh, filter và card list
 - [ ] `ATT-03`. Vertical slice ghi/clear attendance exception
@@ -191,7 +191,9 @@ Mỗi agent chỉ cập nhật section mình sở hữu sau từng mốc công v
 - `ATT-P-01`: xác nhận hiện trạng chưa có Teacher profile, Group, assignment hoặc attendance; Student CRUD/search hiện tại chưa scope theo giáo viên và chưa search không dấu.
 - `ATT-P-02`: plan chọn mô hình assignment có khoảng hiệu lực để tái dựng roster quá khứ khi `Present` không được lưu; hỗ trợ Teacher nhiều group nhưng không hard-limit 10 student.
 - REST draft dùng context + daily snapshot + batch save card dirty; `Present` clear exception, không insert row. Admin/SuperAdmin bắt buộc chọn một group; Teacher chỉ nhận group được assign theo ngày.
-- Review chéo backend/frontend đã chuẩn hóa contract theo ngày (`AbsentFullDay`/`AbsentHalfDay`), assignment interval nửa mở, atomic move/end-date endpoint, computed `Present`, version conflict, historical roster và read-only state. `ATT-P-03` đang chờ duyệt các quyết định nghiệp vụ còn lại.
+- Review chéo backend/frontend đã chuẩn hóa contract theo ngày (`AbsentFullDay`/`AbsentHalfDay`), assignment interval nửa mở, atomic move/end-date endpoint, computed `Present`, version conflict, historical roster và read-only state. Các quyết định `ATT-DEC-01`–`09` đã được duyệt; còn storage model `ATT-DEC-10`.
 - `ATT-DEC-06` đã chốt: tối đa 100 học sinh/nhóm; màn hình hiển thị rõ khoảng 8–10 card cùng lúc và scroll dọc để xem toàn bộ, không pagination trong v1.
+- `ATT-DEC-01`–`05`, `07`–`09` đã chốt: điểm danh theo ngày; half-day bắt buộc Morning/Afternoon; 1-1 cố định 60 phút và loại trừ với vắng; phép/không phép cho các loại vắng; Teacher có edit window 1–7 ngày mặc định 7 do Admin/SuperAdmin cấu hình riêng; có UI nhóm; quản trị bắt buộc chọn một group; attendance data giữ lâu dài và audit 90 ngày.
+- Phát sinh `ATT-DEC-10` cần chốt trước `ATT-01`: giữ exception-only + temporal assignment hay chuyển sang full daily snapshot lưu cả `Present`.
 - Git workflow: người dùng cho phép chủ động tạo local commit theo từng milestone; không bao gồm push/merge/rebase/tag nếu chưa được yêu cầu riêng.
 - Chưa thay đổi source/schema/API/UI và chưa chạy build/test trong đợt lập plan này.
