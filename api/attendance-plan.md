@@ -3,7 +3,7 @@
 ## 1. Thông tin kế hoạch
 
 - **Epic:** `ATT`
-- **Trạng thái:** `ATT-DEC-01` đến `ATT-DEC-10` đã chốt; sẵn sàng khóa OpenAPI draft và triển khai `ATT-01`.
+- **Trạng thái:** `ATT-DEC-01` đến `ATT-DEC-11` đã chốt; sẵn sàng khóa OpenAPI draft và triển khai `ATT-01`.
 - **Ngày lập:** 2026-08-11.
 - **Phạm vi:** .NET 10 REST API, PostgreSQL 17, Angular/DevExtreme UI và đóng gói IIS.
 - **Contract nền:** [`plan.md`](plan.md).
@@ -601,6 +601,18 @@ Summary đầu danh sách:
 - Dirty guard bao phủ đổi ngày/group, chuyển route/sidebar và `beforeunload`. Search local không kích hoạt guard.
 - Missing nhưng chưa dirty không cần beforeunload warning; banner phải thể hiện rõ ngày đó chưa được ghi nhận.
 
+### 9.5. Ngôn ngữ UI
+
+- `ATT-DEC-11`: toàn bộ portal, không chỉ trang điểm danh, chỉ dùng tiếng Việt cho nội dung người dùng nhìn thấy hoặc được công nghệ hỗ trợ đọc: sidebar, tiêu đề, label, placeholder, nút, menu, dialog xác nhận, validation, toast, loading, empty state, lỗi, tooltip, `title`, `aria-label` và nội dung screen-reader.
+- Enum, route, field JSON và `ProblemDetails.code` vẫn giữ tên kỹ thuật tiếng Anh trong API/code. Frontend ánh xạ tập trung sang nhãn tiếng Việt; không render trực tiếp `Present`, `Missing`, `SnapshotChanged` hoặc raw `title/detail` không bảo đảm tiếng Việt.
+- Nhãn tối thiểu: `Present` → `Có mặt`, `AbsentFullDay` → `Vắng nguyên buổi`, `AbsentHalfDay` → `Vắng 1/2 buổi`, `OneToOneHour` → `Học 1-1 (1 giờ)`, `Missing` → `Chưa lưu`, `Saved` → `Đã lưu`.
+- Role/status cũng phải có nhãn tiếng Việt nhất quán, ví dụ `SuperAdmin` → `Siêu quản trị viên`, `Admin` → `Quản trị viên`, `Teacher` → `Giáo viên`, `Active` → `Đang hoạt động`, `Inactive` → `Ngừng hoạt động`, `Locked` → `Đã khóa`.
+- Lỗi biết trước ánh xạ bằng `ProblemDetails.code`; lỗi chưa biết dùng thông báo dự phòng tiếng Việt và có thể hiển thị `traceId` dưới nhãn `Mã tra cứu`, không đưa exception/raw response lên UI.
+- Ngày hiển thị theo `dd/MM/yyyy`, số theo locale `vi-VN`; payload API vẫn dùng `YYYY-MM-DD` và format kỹ thuật đã chốt.
+- Angular cấu hình locale `vi-VN`; DevExtreme dùng locale/message tiếng Việt và bổ sung override tập trung cho chuỗi còn thiếu. Pager, grid, popup, date picker, validation và tooltip của thư viện bên thứ ba cũng không được rơi về tiếng Anh.
+- Dữ liệu do người dùng nhập như họ tên, nickname, mã học sinh và notes được hiển thị nguyên văn, không tự dịch.
+- V1 không thêm bộ chuyển ngôn ngữ hay chuỗi tiếng Anh dự phòng. Các label dùng constant/mapping/service tập trung để dễ chỉnh sửa; đa ngôn ngữ nếu cần sẽ là epic riêng.
+
 ## 10. Quản trị nhóm/phân công qua UI
 
 Tính năng chưa vận hành hoàn chỉnh nếu chỉ có schema/API. `ATT-01` phải cung cấp UI cho Admin/SuperAdmin:
@@ -701,6 +713,9 @@ Release phải cập nhật OpenAPI, `api/README.md`, `api/requests.http`, agent
 - UI áp đúng state-specific permission (`Missing` dùng `canCreate`, `Saved` dùng `canEdit`); response cũ không ghi đè state khi filter đổi nhanh.
 - UI hiển thị đúng policy 1–7 ngày của Teacher và read-only reason ngoài window.
 - 100 cards render ổn với `trackBy`, normal vertical scroll và sticky save không che card cuối.
+- Mọi visible text, validation/error/empty/loading state và accessibility label đều là tiếng Việt; enum/error code kỹ thuật không xuất hiện trực tiếp.
+- Ngày/số hiển thị theo `vi-VN`; fallback lỗi chưa biết vẫn là tiếng Việt và có nhãn `Mã tra cứu` khi hiển thị trace ID.
+- Smoke các route hiện có (setup/login/dashboard/user/student) và route mới (group/attendance) để phát hiện chuỗi mặc định tiếng Anh từ ứng dụng hoặc DevExtreme.
 - Responsive/keyboard interaction quan trọng.
 
 Verification cuối epic:
@@ -722,8 +737,9 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\deploy\iis\build-iis-p
 - `ATT-P-01`: phân tích gap backend/frontend và yêu cầu nghiệp vụ.
 - `ATT-P-02`: tạo plan cross-stack và mã các đợt phát triển.
 - `ATT-P-03`: ghi nhận `ATT-DEC-01`–`09` và chốt `ATT-DEC-10` về storage model.
+- `ATT-P-04`: ghi nhận `ATT-DEC-11` và khóa UI chỉ sử dụng tiếng Việt.
 - `ATT-BE-00`: khóa schema, enum, authorization và OpenAPI draft.
-- `ATT-FE-00`: khóa wireflow filter/card/save và UI quản trị assignment.
+- `ATT-FE-00`: khóa wireflow filter/card/save, UI quản trị assignment và dictionary nhãn tiếng Việt tập trung.
 
 **DoD:** không còn quyết định ảnh hưởng schema/REST; acceptance criteria được duyệt.
 
@@ -783,8 +799,9 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\deploy\iis\build-iis-p
 | `ATT-DEC-08` | Admin có lựa chọn tất cả nhóm trên attendance page? | **Đã chốt:** không; bắt buộc một group để tránh thao tác nhầm. |
 | `ATT-DEC-09` | Retention lịch sử thay đổi attendance? | **Đã chốt:** attendance data giữ lâu dài; audit thay đổi giữ 90 ngày theo policy hiện tại. |
 | `ATT-DEC-10` | Chỉ lưu exception hay lưu đủ phiếu daily gồm `Present`? | **Đã chốt:** full daily snapshot `attendance_sheets` + `attendance_records`, lưu cả `Present`; bỏ temporal assignment. |
+| `ATT-DEC-11` | UI dùng ngôn ngữ nào? | **Đã chốt:** toàn bộ nội dung hiển thị/accessibility chỉ dùng tiếng Việt; API/code giữ identifier tiếng Anh và frontend ánh xạ tập trung. |
 
-`ATT-DEC-01` đến `ATT-DEC-10` đã được duyệt. `ATT-P-03` hoàn tất; `ATT-01` có thể bắt đầu sau khi OpenAPI draft khớp plan này.
+`ATT-DEC-01` đến `ATT-DEC-11` đã được duyệt. `ATT-P-03` và `ATT-P-04` hoàn tất; `ATT-01` có thể bắt đầu sau khi OpenAPI draft khớp plan này.
 
 ## 16. Definition of Done toàn epic
 
@@ -793,6 +810,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\deploy\iis\build-iis-p
 - Missing không được hiểu là đã điểm danh; mỗi Saved sheet lưu snapshot đầy đủ gồm cả `Present`.
 - Search tên/mã/nickname không phân biệt dấu và hoa thường.
 - UI card-list, filter collapse mặc định expand và conditional group filter đúng yêu cầu.
+- Toàn bộ UI, thông báo lỗi và accessibility text chỉ dùng tiếng Việt; không lộ enum/code/raw error tiếng Anh cho người dùng.
 - Có UI quản lý responsible Teacher/current Student group, không cần seed/manual SQL.
 - Migration nâng cấp được database hiện có và rollback/backup procedure được ghi rõ.
 - Validation, `ProblemDetails`, concurrency, audit/privacy và OpenAPI thống nhất.

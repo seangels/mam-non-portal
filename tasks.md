@@ -180,6 +180,7 @@ Mỗi agent chỉ cập nhật section mình sở hữu sau từng mốc công v
 - [x] `ATT-P-01`. Phân tích gap backend/frontend và yêu cầu nghiệp vụ
 - [x] `ATT-P-02`. Tạo plan cross-stack có mã từng đợt tại `api/attendance-plan.md`
 - [x] `ATT-P-03`. `ATT-DEC-01`–`10` đã chốt; chọn full daily snapshot gồm `Present`
+- [x] `ATT-P-04`. `ATT-DEC-11` đã chốt; toàn bộ UI chỉ sử dụng tiếng Việt
 - [ ] `ATT-01`. Nền tảng Teacher/Group/current roster và UI quản trị
 - [ ] `ATT-02`. Vertical slice đọc Missing/Saved sheet, filter và card list
 - [ ] `ATT-03`. Vertical slice tạo/cập nhật full daily sheet
@@ -194,6 +195,8 @@ Mỗi agent chỉ cập nhật section mình sở hữu sau từng mốc công v
 - `ATT-DEC-06` đã chốt: tối đa 100 học sinh/nhóm; màn hình hiển thị rõ khoảng 8–10 card cùng lúc và scroll dọc để xem toàn bộ, không pagination trong v1.
 - `ATT-DEC-01`–`05`, `07`–`09` đã chốt: điểm danh theo ngày; half-day bắt buộc Morning/Afternoon; 1-1 cố định 60 phút và loại trừ với vắng; phép/không phép cho các loại vắng; Teacher có edit window 1–7 ngày mặc định 7 do Admin/SuperAdmin cấu hình riêng; có UI nhóm; quản trị bắt buộc chọn một group; attendance data giữ lâu dài và audit 90 ngày.
 - `ATT-DEC-10` đã chốt full daily snapshot: `attendance_sheets` + `attendance_records`, lưu cả `Present`; bỏ `effective_from/effective_to` và temporal assignment.
+- `ATT-DEC-11` đã chốt: toàn bộ visible text, error/validation/empty/loading state và accessibility text trên UI dùng tiếng Việt; API/code giữ identifier tiếng Anh và frontend ánh xạ tập trung, không hiển thị raw enum/error code.
+- `ATT-P-04`: đã bổ sung locale `vi-VN`, yêu cầu Việt hóa chuỗi DevExtreme, mapping role/status/attendance/error code và smoke các route cũ/mới; kiểm tra Markdown fences và `git diff --check` đạt. Không chạy product build/test vì chỉ cập nhật contract/plan.
 - Plan đã rewrite: current `responsible_teacher_id` trên group, current `group_id` trên Student, Missing preview không phải lịch sử, Saved sheet snapshot bất biến, first save ghi đủ roster, update dùng aggregate sheet version và full replacement.
 - Contract plan dùng `snapshotVersion` bao phủ roster, group/Teacher/Student identity; stale create trả `409 SnapshotChanged`. Ngày quá khứ không thể chứng minh snapshot trả `HistoricalSnapshotUnavailable`; chỉ Admin/SuperAdmin có recovery flow với roster/Teacher rõ ràng, acknowledgement, reason và audit.
 - Review cuối khóa rõ state permission: Missing dùng `canCreate`, Saved dùng `canEdit`; first-save vẫn hoạt động khi dirty bằng 0. Historical recovery có group/student/teacher candidate APIs riêng, machine-readable `ProblemDetails.code` và không được bypass luồng chuẩn.

@@ -709,4 +709,5 @@ Feature điểm danh dùng mã epic `ATT` và được chia thành các đợt `
 
 - Plan cross-stack, schema, REST contract, authorization, UI card-list, test và các quyết định cần review: [`attendance-plan.md`](attendance-plan.md).
 - Trạng thái triển khai chi tiết được theo dõi trong `../tasks.md` theo đúng mã đợt.
+- Toàn bộ portal chỉ sử dụng tiếng Việt cho visible/accessibility text, bao gồm chuỗi mặc định của DevExtreme; identifier kỹ thuật trong API vẫn dùng tiếng Anh và được frontend ánh xạ tập trung sang nhãn tiếng Việt.
 - Các mô tả “Student là resource độc lập” và “Teacher không gọi API quản trị” ở baseline vẫn đúng với CRUD cũ. Khi feature `ATT` được triển khai, Student có `group_id` hiện tại, group có một responsible Teacher hiện tại và mỗi phiếu đã lưu giữ full daily snapshot gồm cả `Present`; không dùng assignment có `effective_from/effective_to`. Teacher chỉ được gọi API điểm danh đã scope theo group đang phụ trách và vẫn không có quyền CRUD quản trị.
