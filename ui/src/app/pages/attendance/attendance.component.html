@@ -68,6 +68,7 @@
       <span>Tìm học sinh</span>
       <dx-text-box
         [(ngModel)]="search"
+        valueChangeEvent="input"
         mode="search"
         placeholder="Mã, họ tên hoặc tên gọi"
         [inputAttr]="{ 'aria-label': 'Tìm học sinh' }"

@@ -1,9 +1,10 @@
+import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { of, throwError } from 'rxjs';
 import { ApiError } from '../../core/models/api-error';
 import { DailyAttendance } from '../../core/models/api.models';
 import { AttendanceService } from '../../core/services/attendance.service';
 import { AuthService } from '../../shared/services';
-import { AttendanceComponent } from './attendance.component';
+import { AttendanceComponent, AttendanceModule } from './attendance.component';
 
 describe('AttendanceComponent editor', () => {
   let attendance: jasmine.SpyObj<AttendanceService>;
@@ -294,8 +295,95 @@ describe('AttendanceComponent editor', () => {
   });
 });
 
+describe('AttendanceComponent DevExtreme search integration', () => {
+  let fixture: ComponentFixture<AttendanceComponent>;
+  let component: AttendanceComponent;
+
+  beforeEach(async () => {
+    const attendance = jasmine.createSpyObj<AttendanceService>('AttendanceService', [
+      'context', 'daily', 'create', 'update', 'recover',
+      'recoveryGroups', 'recoveryStudents', 'recoveryTeachers'
+    ]);
+    attendance.context.and.returnValue(of({
+      date: '2026-08-14',
+      serverDate: '2026-08-14',
+      groups: [{ id: 'group-1', code: 'MAM-01', name: 'Mầm 1', studentCount: 6 }],
+      attendanceEditWindowDays: 3,
+      canEdit: true,
+      readOnlyReason: null
+    }));
+    attendance.recoveryStudents.and.returnValue(of({
+      items: [],
+      pagination: { page: 1, pageSize: 100, totalItems: 0, totalPages: 0 }
+    }));
+    const auth = jasmine.createSpyObj<AuthService>('AuthService', ['hasRole']);
+    auth.hasRole.and.callFake((...roles) => roles.includes('SuperAdmin'));
+
+    await TestBed.configureTestingModule({
+      imports: [AttendanceModule],
+      providers: [
+        { provide: AttendanceService, useValue: attendance },
+        { provide: AuthService, useValue: auth }
+      ]
+    }).compileComponents();
+
+    fixture = TestBed.createComponent(AttendanceComponent);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+    await settleAttendanceView(fixture);
+    applyDaily(component, attendanceSearchDaily());
+    fixture.detectChanges();
+  });
+
+  it('filters the six-card draft from native text input without losing the dirty S115 draft', () => {
+    const target = component.drafts.find(item => item.studentCode === 'S115');
+    if (!target) {
+      throw new Error('S115 attendance fixture is missing.');
+    }
+    component.onStatusChange(target, 'AbsentFullDay');
+    target.notes = 'Chưa lưu';
+
+    const input = fixture.nativeElement.querySelector(
+      '.attendance-filters .dx-textbox input[aria-label="Tìm học sinh"]'
+    ) as HTMLInputElement;
+    input.value = 's115';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    fixture.detectChanges();
+
+    expect(component.search).toBe('s115');
+    expect(component.filteredDrafts.map(item => item.studentCode)).toEqual(['S115']);
+    expect(fixture.nativeElement.querySelectorAll('.student-card').length).toBe(1);
+    expect(fixture.nativeElement.querySelector('.filter-result').textContent).toContain('1/6');
+    expect(target.status).toBe('AbsentFullDay');
+    expect(target.notes).toBe('Chưa lưu');
+  });
+});
+
+async function settleAttendanceView(fixture: ComponentFixture<AttendanceComponent>): Promise<void> {
+  await fixture.whenStable();
+  for (let turn = 0; turn < 5; turn += 1) {
+    await Promise.resolve();
+  }
+  fixture.detectChanges();
+}
+
 function applyDaily(component: AttendanceComponent, value: DailyAttendance): void {
   (component as any).applyDaily(value);
+}
+
+function attendanceSearchDaily(): DailyAttendance {
+  const value = daily('Saved');
+  const template = value.items[0];
+  value.items = [
+    { ...template, studentId: 'student-1', studentCode: 'S101', fullName: 'Nguyễn An', nickName: 'An' },
+    { ...template, studentId: 'student-2', studentCode: 'S102', fullName: 'Lê Chi', nickName: 'Chi' },
+    { ...template, studentId: 'student-3', studentCode: 'S103', fullName: 'Phạm Dũng', nickName: 'Dũng' },
+    { ...template, studentId: 'student-4', studentCode: 'S104', fullName: 'Vũ Hà', nickName: 'Hà' },
+    { ...template, studentId: 'student-5', studentCode: 'S105', fullName: 'Đỗ Khang', nickName: 'Khang' },
+    { ...template, studentId: 'student-6', studentCode: 'S115', fullName: 'Trần Bình', nickName: 'Bin' }
+  ];
+  value.summary = { rosterTotal: 6, present: 6, absent: 0, oneToOne: 0, unmarked: 0 };
+  return value;
 }
 
 function daily(state: 'Missing' | 'Saved'): DailyAttendance {
