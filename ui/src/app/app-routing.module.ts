@@ -1,4 +1,5 @@
 import { NgModule } from '@angular/core';
+import { CommonModule } from '@angular/common';
 import { Routes, RouterModule } from '@angular/router';
 import { LoginFormComponent, SetupFormComponent, SetupFormModule } from './shared/components';
 import { AuthGuardService, PublicOnlyGuard, RoleGuard } from './shared/services';
@@ -95,6 +96,7 @@ export const APP_ROUTES: Routes = [
 
 @NgModule({
   imports: [
+    CommonModule,
     RouterModule.forRoot(APP_ROUTES, { useHash: true }),
     UsersModule,
     StudentsModule,
