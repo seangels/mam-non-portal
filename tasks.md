@@ -461,6 +461,22 @@ QA/Integration:
 - `AUI-QA-02` hoàn tất: native status select điều khiển được bằng bàn phím từ `Present` đến `Unmarked` rồi phục hồi draft; mobile control/identity rail cao tối thiểu 44 px; viewport tương đương zoom/responsive không tràn ngang. Tỷ lệ tương phản text/background đo được: Present 6,73:1; Absent 7,18:1; Half-day 8,32:1; One-to-one 8,15:1; Unmarked 8,84:1.
 - `AUI-QA-03` hoàn tất qua backend build/unit/integration 40/40 + 26/26, frontend full 59/59 + attendance 16/16 và browser smoke Missing. Các case persisted Unmarked, defaults theo lịch, full-roster POST/PUT, dirty/conflict/read-only/empty/recovery và legacy half-day/note đều có regression coverage; không chạy production/IIS.
 
+## Epic hạ phiên bản Angular 12 / DevExtreme 19 `DX19` — owner: `frontend`
+
+- [x] `DX19-FE-00`. Khóa Node 14.21.3, npm 8.19.4, package graph Angular 12.2.17 / DevExtreme 19.2.5 và sinh lockfile mới
+- [~] `DX19-FE-01`. Tương thích Angular 12 workspace, polyfills và test bootstrap
+- [ ] `DX19-FE-02`. Chuyển API/type DevExtreme 23 sang DevExtreme 19, giữ nguyên hành vi
+- [ ] `DX19-FE-03`. Sinh lại theme 19.2.5 và giữ bố cục hiện tại
+- [ ] `DX19-QA-01`. Hồi quy tự động toàn UI bằng development build và ChromeHeadlessCI
+- [ ] `DX19-QA-02`. Smoke-test thủ công toàn bộ màn hình DevExtreme, cập nhật tài liệu và memory
+
+### DX19 execution log
+
+- 2026-08-14: người dùng đã chuyển đúng `node v14.21.3` / `npm 8.19.4`, xóa `ui/node_modules` và `ui/package-lock.json`; precondition đã được xác nhận lại. Chỉ chạy development build/test, không chạy production/IIS nếu chưa gọi `$gv-portal-production`.
+- `DX19-FE-00` dependency resolution: npm 8.19.4 trên Windows đọc đúng prefix nhưng `install/ci` vẫn chạy Arborist theo current working directory; plan đã sửa hai lệnh lifecycle để chạy trực tiếp trong `ui`. Graph Node 14 cần pin thêm `browserslist 4.21.9`, `node-releases 2.0.13`, `sass 1.69.7` do registry drift của transitive range.
+- `npm audit` sau khi khóa stack EOL báo 112 finding (6 low, 63 moderate, 38 high, 5 critical). Đây là rủi ro đã biết của yêu cầu Angular 12/DevExtreme 19; không chạy `npm audit fix` vì sẽ phá version matrix. Cần đánh giá bảo mật riêng trước production.
+- `DX19-FE-00` hoàn tất tại commit `a479996`: lockfile v2, dependency tree/CLI/ThemeBuilder đúng pin; task review không còn finding material. Không sinh theme, không chạy production/IIS.
+
 ## Tổ chức thư mục kế hoạch — owner: `root`
 
 - [x] `PLAN-ORG-01`. Chuyển toàn bộ plan ra thư mục root `plans/`

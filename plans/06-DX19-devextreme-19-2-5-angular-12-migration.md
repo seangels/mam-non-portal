@@ -223,10 +223,12 @@ Yêu cầu:
 
 - [ ] **Step 5: Resolve dependency và tạo lock mới, chưa chạy theme lifecycle**
 
-Run:
+Run từ thư mục `ui/` (npm 8.19.4 trên Windows không áp dụng `--prefix` cho Arborist của lệnh `install`, dù đã đọc đúng `ui/.npmrc`):
 
 ```powershell
-npm --prefix ui install --ignore-scripts
+Push-Location ui
+npm install --ignore-scripts
+Pop-Location
 ```
 
 Expected: thành công không dùng `--force`/`--legacy-peer-deps`; `ui/package-lock.json` có `lockfileVersion: 2`. Đây là lần duy nhất được bỏ lifecycle scripts; `preinstall` đã được kiểm tra trực tiếp ở Step 3 và `postinstall` sẽ được chứng minh bằng clean `npm ci` tại Task 4.
@@ -526,10 +528,12 @@ Expected: build pass; Angular vẫn load `dx.common.css`, base theme và additio
 
 - [ ] **Step 4: Chứng minh clean install chạy đầy đủ lifecycle**
 
-Run:
+Run từ thư mục `ui/` vì giới hạn `--prefix` của npm 8.19.4 trên Windows cũng áp dụng cho Arborist của lệnh `ci`:
 
 ```powershell
-npm --prefix ui ci
+Push-Location ui
+npm ci
+Pop-Location
 ```
 
 Expected: `preinstall` xác nhận đúng Node/npm, `postinstall` chạy `build-themes`, generated output sau `npm ci` không khác output ở Step 2. Không dùng `--ignore-scripts` tại đây hoặc ở các lần cài sau.
