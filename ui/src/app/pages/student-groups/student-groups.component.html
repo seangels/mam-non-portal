@@ -13,7 +13,7 @@
   <section *ngIf="selectedTab === 0" aria-labelledby="groups-heading">
     <h2 id="groups-heading" class="visually-hidden">Danh sách nhóm học sinh</h2>
     <div class="filters management-filters">
-      <dx-text-box [(value)]="groupSearch" placeholder="Mã hoặc tên nhóm" [showClearButton]="true"
+      <dx-text-box [(value)]="groupSearch" valueChangeEvent="input" placeholder="Mã hoặc tên nhóm" [showClearButton]="true"
         (onEnterKey)="applyGroupFilters()"></dx-text-box>
       <dx-select-box [(value)]="groupStatus" [items]="groupStatuses" valueExpr="value" displayExpr="text"
         placeholder="Trạng thái nhóm" [showClearButton]="true"></dx-select-box>
@@ -54,7 +54,7 @@
     <h2 id="teachers-heading" class="section-title">Thời hạn sửa điểm danh của giáo viên</h2>
     <p class="section-description">Thời hạn tính cả hôm nay và có thể cấu hình từ 1 đến 7 ngày cho từng giáo viên.</p>
     <div class="filters management-filters">
-      <dx-text-box [(value)]="teacherSearch" placeholder="Tên giáo viên" [showClearButton]="true"
+      <dx-text-box [(value)]="teacherSearch" valueChangeEvent="input" placeholder="Tên giáo viên" [showClearButton]="true"
         (onEnterKey)="applyTeacherFilters()"></dx-text-box>
       <dx-select-box [(value)]="teacherStatus" [items]="teacherStatuses" valueExpr="value" displayExpr="text"
         placeholder="Trạng thái tài khoản" [showClearButton]="true"></dx-select-box>
@@ -152,7 +152,7 @@
     </div>
     <p class="helper-text">Có thể chọn học sinh chưa phân nhóm hoặc chuyển từ nhóm khác. Việc chuyển có hiệu lực ngay.</p>
 
-    <dx-text-box [(value)]="rosterSearch" placeholder="Tìm trong nhóm theo tên, mã hoặc tên gọi"
+    <dx-text-box [(value)]="rosterSearch" valueChangeEvent="input" placeholder="Tìm trong nhóm theo tên, mã hoặc tên gọi"
       [showClearButton]="true"></dx-text-box>
 
     <div *ngIf="rosterLoading" class="loading-state" role="status">

@@ -8,7 +8,7 @@
 
 <div class="content-block dx-card grid-card">
   <div class="filters">
-    <dx-text-box [(value)]="search" placeholder="Tên, email, số điện thoại" [showClearButton]="true" (onEnterKey)="applyFilters()"></dx-text-box>
+    <dx-text-box [(value)]="search" valueChangeEvent="input" placeholder="Tên, email, số điện thoại" [showClearButton]="true" (onEnterKey)="applyFilters()"></dx-text-box>
     <dx-select-box [(value)]="statusFilter" [items]="userStatuses" valueExpr="value" displayExpr="text" placeholder="Trạng thái" [showClearButton]="true"></dx-select-box>
     <dx-button text="Lọc" icon="filter" type="default" (onClick)="applyFilters()"></dx-button>
     <dx-button text="Đặt lại" icon="revert" stylingMode="outlined" (onClick)="resetFilters()"></dx-button>

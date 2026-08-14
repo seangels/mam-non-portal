@@ -9,7 +9,7 @@
 
 <div class="content-block dx-card grid-card">
   <section class="filters" aria-label="Bộ lọc học sinh">
-    <dx-text-box [(value)]="search" placeholder="Mã, tên, người giám hộ" [showClearButton]="true"
+    <dx-text-box [(value)]="search" valueChangeEvent="input" placeholder="Mã, tên, người giám hộ" [showClearButton]="true"
       [inputAttr]="{ 'aria-label': 'Tìm học sinh' }" (onEnterKey)="applyFilters()"></dx-text-box>
     <dx-select-box [(value)]="statusFilter" [items]="statuses" valueExpr="value" displayExpr="text"
       placeholder="Trạng thái" [showClearButton]="true"
