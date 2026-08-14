@@ -21,7 +21,10 @@ import {
   STUDY_WEEKDAY_SHORT_LABELS
 } from '../../core/i18n/ui-labels';
 import { ApiError } from '../../core/models/api-error';
-import { asLegacyWidgetDataSource } from '../../core/models/devextreme-legacy.types';
+import {
+  asLegacyWidgetDataSource,
+  PopupHidingEvent
+} from '../../core/models/devextreme-legacy.types';
 import {
   CreateStudentRequest,
   Gender,
@@ -126,6 +129,8 @@ export class StudentsComponent {
   scheduleModeError = '';
   scheduleWeekdaysError = '';
   private editorBaseline = '';
+  private editorDiscardConfirmationPending = false;
+  private allowEditorCloseOnce = false;
 
   groupAssignmentVisible = false;
   assignmentSaving = false;
@@ -282,17 +287,35 @@ export class StudentsComponent {
     this.editorVisible = true;
   }
 
-  onEditorHiding(event: { cancel?: boolean | Promise<boolean> }): void {
+  onEditorHiding(event: PopupHidingEvent): void {
+    if (this.allowEditorCloseOnce) {
+      this.allowEditorCloseOnce = false;
+      return;
+    }
     if (this.saving) {
       event.cancel = true;
       return;
     }
-    if (this.editorDirty) {
-      event.cancel = confirm(
-        'Thông tin học sinh chưa được lưu sẽ bị mất.',
-        'Bỏ thay đổi?'
-      ).then(discard => !discard);
+    if (!this.editorDirty) {
+      return;
     }
+
+    event.cancel = true;
+    if (this.editorDiscardConfirmationPending) {
+      return;
+    }
+
+    this.editorDiscardConfirmationPending = true;
+    void this.confirmEditorDiscard()
+      .then(discard => {
+        if (discard) {
+          this.allowEditorCloseOnce = true;
+          this.editorVisible = false;
+        }
+      })
+      .finally(() => {
+        this.editorDiscardConfirmationPending = false;
+      });
   }
 
   closeEditor(): void {
@@ -565,6 +588,13 @@ export class StudentsComponent {
       dateOfBirth: toDateOnly(editor.dateOfBirth),
       studyWeekdays: this.canonicalWeekdays(editor.studyWeekdays)
     });
+  }
+
+  private confirmEditorDiscard(): Promise<boolean> {
+    return confirm(
+      'Thông tin học sinh chưa được lưu sẽ bị mất.',
+      'Bỏ thay đổi?'
+    );
   }
 
   private resetEditorMessages(): void {

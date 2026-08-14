@@ -132,7 +132,53 @@ describe('StudentsComponent schedule and remote list', () => {
     expect(component.scheduleWeekdaysError).toContain('Chủ nhật');
     expect(component.editorDirty).toBeTrue();
   });
+
+  it('cancels hiding synchronously and keeps a dirty editor open when discard is declined', async () => {
+    component.openEdit(studentRow());
+    component.editor.fullName = 'Tên đang sửa';
+    const confirmDiscard = replaceDiscardConfirmation(component, false);
+    const event: { cancel?: boolean } = {};
+
+    component.onEditorHiding(event);
+
+    expect(event.cancel).toBeTrue();
+    await settlePromises();
+    expect(component.editorVisible).toBeTrue();
+    expect(confirmDiscard).toHaveBeenCalledTimes(1);
+  });
+
+  it('closes after discard is confirmed and bypasses exactly one repeated hiding event', async () => {
+    component.openEdit(studentRow());
+    component.editor.fullName = 'Tên đang sửa';
+    const confirmDiscard = replaceDiscardConfirmation(component, true);
+    const firstEvent: { cancel?: boolean } = {};
+
+    component.onEditorHiding(firstEvent);
+
+    expect(firstEvent.cancel).toBeTrue();
+    await settlePromises();
+    expect(component.editorVisible).toBeFalse();
+
+    component.editorVisible = true;
+    const repeatedEvent: { cancel?: boolean } = {};
+    component.onEditorHiding(repeatedEvent);
+
+    expect(repeatedEvent.cancel).not.toBeTrue();
+    expect(confirmDiscard).toHaveBeenCalledTimes(1);
+  });
 });
+
+function replaceDiscardConfirmation(component: StudentsComponent, result: boolean): jasmine.Spy {
+  const confirmation = jasmine.createSpy('confirmEditorDiscard').and.returnValue(Promise.resolve(result));
+  const testable = component as unknown as { confirmEditorDiscard: () => Promise<boolean> };
+  testable.confirmEditorDiscard = confirmation;
+  return confirmation;
+}
+
+async function settlePromises(): Promise<void> {
+  await Promise.resolve();
+  await Promise.resolve();
+}
 
 function studentRow(): Student {
   return {

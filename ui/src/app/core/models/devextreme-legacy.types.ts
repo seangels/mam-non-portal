@@ -24,6 +24,10 @@ export interface ListSelectionChangedEvent {
   value?: unknown;
 }
 
+export interface PopupHidingEvent {
+  cancel?: boolean;
+}
+
 /**
  * DevExtreme 19 widgets accept a CustomStore at runtime, but their Angular
  * input declarations omit Store from the dataSource union. Keep the original
