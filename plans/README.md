@@ -9,6 +9,7 @@ Các file được đánh số theo thứ tự phụ thuộc và triển khai. M
 | 03 | `TCH` | [`03-TCH-teacher-management.md`](03-TCH-teacher-management.md) | Đã triển khai | `BASE`, `ATT` |
 | 04 | `SCH` | [`04-SCH-student-groups-study-schedule.md`](04-SCH-student-groups-study-schedule.md) | Đã triển khai | `BASE`, `ATT` |
 | 05 | `AUI` | [`05-AUI-attendance-compact-cards.md`](05-AUI-attendance-compact-cards.md) | Đã triển khai | `ATT`, `SCH` |
+| 06 | `DX19` | [`06-DX19-devextreme-19-2-5-angular-12-migration.md`](06-DX19-devextreme-19-2-5-angular-12-migration.md) | Chờ triển khai | `BASE`, `ATT`, `TCH`, `SCH`, `AUI` |
 
 ## Quy ước đặt tên
 
