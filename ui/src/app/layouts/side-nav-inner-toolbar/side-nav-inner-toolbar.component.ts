@@ -1,11 +1,17 @@
 import { Component, OnInit, NgModule, Input, ViewChild } from '@angular/core';
 import { SideNavigationMenuModule, HeaderModule } from '../../shared/components';
 import { ScreenService } from '../../shared/services';
-import { DxTreeViewTypes } from 'devextreme-angular/ui/tree-view';
-import { DxDrawerModule, DxDrawerTypes } from 'devextreme-angular/ui/drawer';
+import { DxDrawerModule } from 'devextreme-angular/ui/drawer';
 import { DxScrollViewModule, DxScrollViewComponent } from 'devextreme-angular/ui/scroll-view';
-import { DxToolbarModule, DxToolbarTypes } from 'devextreme-angular/ui/toolbar';
+import { DxToolbarModule } from 'devextreme-angular/ui/toolbar';
 import { CommonModule } from '@angular/common';
+import { NavigationItem } from '../../app-navigation';
+import {
+  DrawerOpenedStateMode,
+  DrawerRevealMode,
+  ToolbarItemClickEvent,
+  TreeViewItemClickEvent
+} from '../../core/models/devextreme-legacy.types';
 
 import { Router, NavigationEnd } from '@angular/router';
 
@@ -24,8 +30,8 @@ export class SideNavInnerToolbarComponent implements OnInit {
   @Input()
   title!: string;
 
-  menuMode: DxDrawerTypes.OpenedStateMode = 'shrink';
-  menuRevealMode: DxDrawerTypes.RevealMode = 'expand';
+  menuMode: DrawerOpenedStateMode = 'shrink';
+  menuRevealMode: DrawerRevealMode = 'expand';
   minMenuSize = 0;
   shaderEnabled = false;
 
@@ -55,9 +61,9 @@ export class SideNavInnerToolbarComponent implements OnInit {
     this.shaderEnabled = !isLarge;
   }
 
-  toggleMenu = (e: DxToolbarTypes.ItemClickEvent) => {
+  toggleMenu = (e: ToolbarItemClickEvent) => {
     this.menuOpened = !this.menuOpened;
-    e.event?.stopPropagation();
+    e.event?.stopPropagation?.();
   }
 
   get hideMenuAfterNavigation() {
@@ -68,13 +74,13 @@ export class SideNavInnerToolbarComponent implements OnInit {
     return !this.menuOpened;
   }
 
-  navigationChanged(event: DxTreeViewTypes.ItemClickEvent) {
-    const path = (event.itemData as any).path;
+  navigationChanged(event: TreeViewItemClickEvent<NavigationItem>) {
+    const path = event.itemData?.path;
     const pointerEvent = event.event;
 
     if (path && this.menuOpened) {
       if (event.node?.selected) {
-        pointerEvent?.preventDefault();
+        pointerEvent?.preventDefault?.();
       } else {
         this.router.navigate([path]);
         this.scrollView.instance.scrollTo(0);
@@ -83,10 +89,10 @@ export class SideNavInnerToolbarComponent implements OnInit {
       if (this.hideMenuAfterNavigation) {
         this.temporaryMenuOpened = false;
         this.menuOpened = false;
-        pointerEvent?.stopPropagation();
+        pointerEvent?.stopPropagation?.();
       }
     } else {
-      pointerEvent?.preventDefault();
+      pointerEvent?.preventDefault?.();
     }
   }
 

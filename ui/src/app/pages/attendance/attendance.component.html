@@ -52,7 +52,7 @@
         [displayExpr]="contextGroupText"
         [value]="selectedGroupId"
         [searchEnabled]="true"
-        searchExpr="name"
+        [searchExpr]="contextGroupSearch"
         placeholder="Chọn nhóm"
         noDataText="Không có nhóm phù hợp"
         [inputAttr]="{ 'aria-label': 'Nhóm học sinh' }"
@@ -273,7 +273,7 @@
   [maxWidth]="'96vw'"
   [height]="'90vh'"
   [showCloseButton]="true"
-  (onshown)="onRecoveryShown()"
+  (onShown)="onRecoveryShown()"
   [dragEnabled]="false">
   <div *dxTemplate="let data of 'content'" class="recovery-content">
     <!-- <div class="message warning">
@@ -317,9 +317,8 @@
           [selectionMode]="'all'"
           [selectAllMode]="'page'"
           [showSelectionControls]="true"
-          [selectByClick]="true"
           [searchEnabled]="true"
-          searchExpr="text"
+          [searchExpr]="recoveryStudentText"
           searchMode="contains"
           noDataText="Không có học sinh phù hợp"
           (onSelectionChanged)="onRecoveryStudentsChanged($event)">

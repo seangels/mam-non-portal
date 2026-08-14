@@ -9,7 +9,7 @@ import { AppModule } from './app/app.module';
 loadMessages(viMessages);
 locale('vi');
 
-themes.initialized(() => {
+themes.ready(() => {
   platformBrowserDynamic().bootstrapModule(AppModule)
     .catch(err => console.error(err));
 });

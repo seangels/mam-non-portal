@@ -1,4 +1,4 @@
-import { Component, NgModule, Input } from '@angular/core';
+import { Component, ElementRef, NgModule, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 
 import { DxListModule } from 'devextreme-angular/ui/list';
@@ -21,7 +21,11 @@ export class UserPanelComponent {
   @Input()
   user!: IUser | null;
 
-  constructor() {}
+  constructor(private readonly elementRef: ElementRef<HTMLElement>) {}
+
+  get contextMenuTarget(): Element {
+    return this.elementRef.nativeElement.closest('.user-button') ?? this.elementRef.nativeElement;
+  }
 }
 
 @NgModule({

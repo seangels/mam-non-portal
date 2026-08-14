@@ -85,7 +85,7 @@
 </div>
 
 <dx-popup [(visible)]="groupEditorVisible" [title]="groupEditorTitle" [width]="560" [height]="'auto'"
-  [showCloseButton]="true" [hideOnOutsideClick]="!saving">
+  [showCloseButton]="true" [closeOnOutsideClick]="!saving">
   <form *dxTemplate="let _ of 'content'" (submit)="saveGroup($event)">
     <dx-form [formData]="groupEditor" [disabled]="saving" labelLocation="top">
       <dxi-item dataField="code"><dxo-label text="Mã nhóm"></dxo-label>
@@ -108,7 +108,7 @@
 </dx-popup>
 
 <dx-popup [(visible)]="assignmentVisible" title="Phân công giáo viên" [width]="560" [height]="'auto'"
-  [showCloseButton]="true" [hideOnOutsideClick]="!saving">
+  [showCloseButton]="true" [closeOnOutsideClick]="!saving">
   <div *dxTemplate="let _ of 'content'">
     <p>Nhóm: <strong>{{ selectedGroup?.name }}</strong></p>
     <label class="field-label" for="teacher-picker">Giáo viên phụ trách</label>
@@ -126,7 +126,7 @@
 </dx-popup>
 
 <dx-popup [(visible)]="rosterVisible" title="Quản lý học sinh trong nhóm" [width]="820" [height]="'85vh'"
-  [showCloseButton]="true" [hideOnOutsideClick]="!saving">
+  [showCloseButton]="true" [closeOnOutsideClick]="!saving">
   <div *dxTemplate="let _ of 'content'" class="roster-dialog">
     <div class="roster-heading">
       <div>
@@ -175,7 +175,7 @@
 </dx-popup>
 
 <dx-popup [(visible)]="policyVisible" title="Thời hạn sửa điểm danh" [width]="480" [height]="'auto'"
-  [showCloseButton]="true" [hideOnOutsideClick]="!saving">
+  [showCloseButton]="true" [closeOnOutsideClick]="!saving">
   <form *dxTemplate="let _ of 'content'" (submit)="savePolicy($event)">
     <p>Giáo viên: <strong>{{ selectedTeacher?.fullName }}</strong></p>
     <div *ngIf="policyConflict" class="policy-conflict" role="alert">

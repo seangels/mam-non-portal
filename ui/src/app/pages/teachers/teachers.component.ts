@@ -8,6 +8,7 @@ import notify from 'devextreme/ui/notify';
 import { DxDataGridComponent } from 'devextreme-angular/ui/data-grid';
 import { ApiError } from '../../core/models/api-error';
 import { StudentGroup, Teacher, UserStatus } from '../../core/models/api.models';
+import { asLegacyWidgetDataSource } from '../../core/models/devextreme-legacy.types';
 import { USER_STATUS_LABELS } from '../../core/i18n/ui-labels';
 import { StudentGroupsService } from '../../core/services/student-groups.service';
 import { TeachersService } from '../../core/services/teachers.service';
@@ -40,7 +41,7 @@ export class TeachersComponent implements OnDestroy {
   search = '';
   statusFilter: UserStatus | null = null;
   groupId: string | null = null;
-  unassigned: boolean | null | undefined = false;
+  unassigned = false;
   filtersExpanded = true;
   loadError = '';
   deletingId: string | null = null;
@@ -48,7 +49,7 @@ export class TeachersComponent implements OnDestroy {
   passwordTeacher: Teacher | null = null;
   private searchTimer?: number;
 
-  readonly groupDataSource = new CustomStore({
+  readonly groupDataSource = asLegacyWidgetDataSource(new CustomStore({
     key: 'id',
     byKey: key => firstValueFrom(this.groups.get(String(key))),
     load: options => {
@@ -62,9 +63,9 @@ export class TeachersComponent implements OnDestroy {
         sortOrder: 'asc'
       })).then(result => ({ data: result.items, totalCount: result.pagination.totalItems }));
     }
-  });
+  }));
 
-  readonly dataSource = new CustomStore({
+  readonly dataSource = asLegacyWidgetDataSource(new CustomStore({
     key: 'id',
     load: options => {
       const pageSize = Math.min(options.take ?? 20, 100);
@@ -83,7 +84,7 @@ export class TeachersComponent implements OnDestroy {
         return { data: result.items, totalCount: result.pagination.totalItems };
       }).catch(error => this.rejectLoad(error));
     }
-  });
+  }));
 
   readonly groupDisplay = (group: StudentGroup | null): string => group ? `${group.code} · ${group.name}` : '';
 

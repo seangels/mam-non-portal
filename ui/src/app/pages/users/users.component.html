@@ -38,7 +38,7 @@
   </dx-data-grid>
 </div>
 
-<dx-popup [(visible)]="editorVisible" [title]="editorTitle" [width]="620" [height]="'auto'" [showCloseButton]="true" [hideOnOutsideClick]="!saving">
+<dx-popup [(visible)]="editorVisible" [title]="editorTitle" [width]="620" [height]="'auto'" [showCloseButton]="true" [closeOnOutsideClick]="!saving">
   <form *dxTemplate="let _ of 'content'" (submit)="save($event)">
     <dx-form [formData]="editor" [disabled]="saving" labelLocation="top" [colCount]="2">
       <dxi-item dataField="fullName" [colSpan]="2"><dxo-label text="Họ và tên"></dxo-label><dxi-validation-rule type="required" message="Vui lòng nhập họ tên"></dxi-validation-rule><dxi-validation-rule type="stringLength" [max]="200" message="Tối đa 200 ký tự"></dxi-validation-rule></dxi-item>
@@ -51,7 +51,7 @@
   </form>
 </dx-popup>
 
-<dx-popup [(visible)]="passwordVisible" title="Đổi mật khẩu" [width]="460" [height]="'auto'" [showCloseButton]="true" [hideOnOutsideClick]="!saving">
+<dx-popup [(visible)]="passwordVisible" title="Đổi mật khẩu" [width]="460" [height]="'auto'" [showCloseButton]="true" [closeOnOutsideClick]="!saving">
   <form *dxTemplate="let _ of 'content'" (submit)="changePassword($event)">
     <dx-form [formData]="passwordEditor" [disabled]="saving" labelLocation="top">
       <dxi-item dataField="password" editorType="dxTextBox" [editorOptions]="{ mode: 'password' }"><dxo-label text="Mật khẩu mới"></dxo-label><dxi-validation-rule type="required" message="Vui lòng nhập mật khẩu mới"></dxi-validation-rule><dxi-validation-rule type="pattern" [pattern]="passwordPattern" [message]="passwordRuleMessage"></dxi-validation-rule></dxi-item>

@@ -21,6 +21,7 @@ import {
   STUDY_WEEKDAY_SHORT_LABELS
 } from '../../core/i18n/ui-labels';
 import { ApiError } from '../../core/models/api-error';
+import { asLegacyWidgetDataSource } from '../../core/models/devextreme-legacy.types';
 import {
   CreateStudentRequest,
   Gender,
@@ -110,7 +111,7 @@ export class StudentsComponent {
   genderFilter: Gender | null = null;
   statusFilter: StudentStatus | null = null;
   groupIdFilter: string | null = null;
-  unassignedFilter: boolean | null | undefined = false;
+  unassignedFilter = false;
   studyModeFilter: StudyMode | null = null;
   studyWeekdayFilter: StudyWeekday | null = null;
   dateOfBirthFrom: Date | string | number = '';
@@ -134,7 +135,7 @@ export class StudentsComponent {
   assignmentConflict = '';
   private readonly groupCache = new Map<string, StudentGroup>();
 
-  readonly dataSource = new CustomStore({
+  readonly dataSource = asLegacyWidgetDataSource(new CustomStore({
     key: 'id',
     load: loadOptions => {
       const pageSize = Math.min(loadOptions.take ?? 20, 100);
@@ -156,9 +157,9 @@ export class StudentsComponent {
       })).then(response => ({ data: response.items, totalCount: response.pagination.totalItems }))
         .catch(error => this.rejectLoad(error));
     }
-  });
+  }));
 
-  readonly activeGroupDataSource = new CustomStore({
+  readonly activeGroupDataSource = asLegacyWidgetDataSource(new CustomStore({
     key: 'id',
     byKey: key => {
       const cached = this.groupCache.get(String(key));
@@ -181,9 +182,9 @@ export class StudentsComponent {
         return { data: result.items, totalCount: result.pagination.totalItems };
       }).catch(error => this.rejectLoad(error));
     }
-  });
+  }));
 
-  readonly assignmentGroupDataSource = new CustomStore({
+  readonly assignmentGroupDataSource = asLegacyWidgetDataSource(new CustomStore({
     key: 'id',
     byKey: key => {
       const id = String(key);
@@ -211,7 +212,7 @@ export class StudentsComponent {
         };
       }).catch(error => this.rejectLoad(error));
     }
-  });
+  }));
 
   get editorTitle(): string {
     return this.isEditing ? 'Cập nhật học sinh' : 'Thêm học sinh';

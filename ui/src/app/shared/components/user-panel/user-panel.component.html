@@ -8,7 +8,7 @@
   <dx-context-menu
     *ngIf="menuMode === 'context'"
     [items]="menuItems"
-    target=".user-button"
+    [target]="contextMenuTarget"
     showEvent="dxclick"
     width="210px"
     [position]="{

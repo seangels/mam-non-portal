@@ -15,7 +15,7 @@ import { TeachersService } from '../../core/services/teachers.service';
       [width]="460"
       [height]="'auto'"
       [showCloseButton]="true"
-      [hideOnOutsideClick]="!saving"
+      [closeOnOutsideClick]="!saving"
       (onHidden)="close()">
       <form *dxTemplate="let _ of 'content'" (submit)="save($event)">
         <p *ngIf="teacher">Giáo viên: <strong>{{ teacher.fullName }}</strong></p>

@@ -1,6 +1,7 @@
 import { Component, NgModule, Output, Input, EventEmitter, ViewChild, ElementRef, AfterViewInit, OnDestroy } from '@angular/core';
-import { DxTreeViewModule, DxTreeViewComponent, DxTreeViewTypes } from 'devextreme-angular/ui/tree-view';
+import { DxTreeViewModule, DxTreeViewComponent } from 'devextreme-angular/ui/tree-view';
 import { buildNavigation, NavigationItem } from '../../../app-navigation';
+import { TreeViewItemClickEvent } from '../../../core/models/devextreme-legacy.types';
 import { AuthService } from '../../services';
 import { Subscription } from 'rxjs';
 
@@ -16,7 +17,7 @@ export class SideNavigationMenuComponent implements AfterViewInit, OnDestroy {
   menu!: DxTreeViewComponent;
 
   @Output()
-  selectedItemChanged = new EventEmitter<DxTreeViewTypes.ItemClickEvent>();
+  selectedItemChanged = new EventEmitter<TreeViewItemClickEvent<NavigationItem>>();
 
   @Output()
   openMenu = new EventEmitter<any>();
@@ -63,7 +64,7 @@ export class SideNavigationMenuComponent implements AfterViewInit, OnDestroy {
     });
   }
 
-  onItemClick(event: DxTreeViewTypes.ItemClickEvent) {
+  onItemClick(event: TreeViewItemClickEvent<NavigationItem>) {
     this.selectedItemChanged.emit(event);
   }
 

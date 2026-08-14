@@ -174,6 +174,13 @@ describe('AttendanceComponent editor', () => {
     expect(identity).not.toContain('Nguyễn An');
   });
 
+  it('searches attendance groups by their name on DevExtreme 19', () => {
+    expect(component.contextGroupSearch({
+      id: 'group-1', code: 'MAM-01', name: 'Mầm 1', studentCount: 12
+    })).toBe('Mầm 1');
+    expect(component.contextGroupSearch(null)).toBe('');
+  });
+
   it('allows an administrator to start recovery for a past date without a current group', () => {
     component.date = '2026-08-01';
     component.maxDate = '2026-08-11';
@@ -235,7 +242,9 @@ describe('AttendanceComponent editor', () => {
       status: 'Inactive', isDeleted: true, currentGroupId: null
     });
 
-    component.onRecoveryStudentsChanged({ value: ['student-old'] });
+    component.onRecoveryStudentsChanged({
+      component: { option: () => ['student-old'] }
+    });
 
     expect(component.recoveryDrafts.length).toBe(1);
     expect(component.recoveryDrafts[0].status).toBe('Present');

@@ -16,6 +16,7 @@ import { DxSelectBoxModule } from 'devextreme-angular/ui/select-box';
 import { DxTabsModule } from 'devextreme-angular/ui/tabs';
 import { DxTextBoxModule } from 'devextreme-angular/ui/text-box';
 import { ApiError } from '../../core/models/api-error';
+import { asLegacyWidgetDataSource } from '../../core/models/devextreme-legacy.types';
 import {
   Student,
   StudentGroup,
@@ -69,10 +70,10 @@ export class StudentGroupsComponent implements OnInit {
   selectedTab = 0;
   groupSearch = '';
   groupStatus: StudentGroupStatus | null = null;
-  groupsWithoutTeacher: boolean | null | undefined = false;
+  groupsWithoutTeacher = false;
   teacherSearch = '';
   teacherStatus: UserStatus | null = null;
-  teachersWithoutGroup: boolean | null | undefined = false;
+  teachersWithoutGroup = false;
   saving = false;
 
   groupEditorVisible = false;
@@ -95,7 +96,7 @@ export class StudentGroupsComponent implements OnInit {
   policyEditor = { attendanceEditWindowDays: 7, expectedVersion: 1 };
   policyConflict = '';
 
-  readonly groupDataSource = new CustomStore({
+  readonly groupDataSource = asLegacyWidgetDataSource(new CustomStore({
     key: 'id',
     load: options => {
       const pageSize = Math.min(options.take ?? 20, 100);
@@ -111,9 +112,9 @@ export class StudentGroupsComponent implements OnInit {
       })).then(result => ({ data: result.items, totalCount: result.pagination.totalItems }))
         .catch(error => this.rejectLoad(error));
     }
-  });
+  }));
 
-  readonly teacherDataSource = new CustomStore({
+  readonly teacherDataSource = asLegacyWidgetDataSource(new CustomStore({
     key: 'id',
     load: options => {
       const pageSize = Math.min(options.take ?? 20, 100);
@@ -129,9 +130,9 @@ export class StudentGroupsComponent implements OnInit {
       })).then(result => ({ data: result.items, totalCount: result.pagination.totalItems }))
         .catch(error => this.rejectLoad(error));
     }
-  });
+  }));
 
-  readonly teacherPicker = new CustomStore({
+  readonly teacherPicker = asLegacyWidgetDataSource(new CustomStore({
     key: 'id',
     byKey: key => firstValueFrom(this.teachers.get(String(key))),
     load: options => firstValueFrom(this.teachers.list({
@@ -142,9 +143,9 @@ export class StudentGroupsComponent implements OnInit {
       sortBy: 'fullName',
       sortOrder: 'asc'
     })).then(result => ({ data: result.items, totalCount: result.pagination.totalItems }))
-  });
+  }));
 
-  readonly studentPicker = new CustomStore({
+  readonly studentPicker = asLegacyWidgetDataSource(new CustomStore({
     key: 'id',
     byKey: key => firstValueFrom(this.students.get(String(key))),
     load: options => firstValueFrom(this.students.list({
@@ -155,7 +156,7 @@ export class StudentGroupsComponent implements OnInit {
       sortBy: 'studentCode',
       sortOrder: 'asc'
     })).then(result => ({ data: result.items, totalCount: result.pagination.totalItems }))
-  });
+  }));
 
   get groupEditorTitle(): string {
     return this.isEditingGroup ? 'Cập nhật nhóm' : 'Thêm nhóm';

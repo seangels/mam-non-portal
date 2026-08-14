@@ -13,6 +13,7 @@ import { DxSelectBoxModule } from 'devextreme-angular/ui/select-box';
 import { DxTextBoxModule } from 'devextreme-angular/ui/text-box';
 import { ApiError } from '../../core/models/api-error';
 import { CreateUserRequest, User, UserStatus } from '../../core/models/api.models';
+import { asLegacyWidgetDataSource } from '../../core/models/devextreme-legacy.types';
 import { UsersService } from '../../core/services/users.service';
 import { USER_STATUS_LABELS } from '../../core/i18n/ui-labels';
 
@@ -55,7 +56,7 @@ export class UsersComponent {
   editor: UserEditor = this.emptyEditor();
   passwordEditor = { password: '', confirmPassword: '' };
 
-  readonly dataSource = new CustomStore({
+  readonly dataSource = asLegacyWidgetDataSource(new CustomStore({
     key: 'id',
     load: loadOptions => {
       const pageSize = loadOptions.take ?? 20;
@@ -77,7 +78,7 @@ export class UsersComponent {
       })).then(response => ({ data: response.items, totalCount: response.pagination.totalItems }))
         .catch(error => this.rejectLoad(error));
     }
-  });
+  }));
 
   get editorTitle(): string {
     return this.isEditing ? 'Cập nhật tài khoản quản trị' : 'Thêm quản trị viên';

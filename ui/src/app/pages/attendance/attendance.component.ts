@@ -15,6 +15,10 @@ import { DxListComponent, DxListModule } from 'devextreme-angular/ui/list';
 import { DxTextBoxModule } from 'devextreme-angular/ui/text-box';
 import { ApiError } from '../../core/models/api-error';
 import {
+  asLegacyWidgetDataSource,
+  ListSelectionChangedEvent
+} from '../../core/models/devextreme-legacy.types';
+import {
   AttendanceContext,
   AttendanceContextGroup,
   AttendanceEntry,
@@ -69,6 +73,7 @@ export class AttendanceComponent implements OnInit, PendingChangesAware {
   readonly contextGroupText = (group: AttendanceContextGroup | null): string => group
     ? `${group.name} · ${group.studentCount} học sinh có lịch`
     : '';
+  readonly contextGroupSearch = (group: AttendanceContextGroup | null): string => group?.name ?? '';
   readonly recoveryGroupText = (item: RecoveryGroupCandidate | null): string => item
     ? `${item.code} · ${item.name}${item.isDeleted ? ' · Đã xóa' : item.status === 'Inactive' ? ' · Ngừng hoạt động' : ''}`
     : '';
@@ -116,7 +121,7 @@ export class AttendanceComponent implements OnInit, PendingChangesAware {
   private studentCandidates = new Map<string, RecoveryStudentCandidate>();
   private teacherCandidates = new Map<string, RecoveryTeacherCandidate>();
 
-  readonly recoveryGroupDataSource = new CustomStore({
+  readonly recoveryGroupDataSource = asLegacyWidgetDataSource(new CustomStore({
     key: 'id',
     load: options => firstValueFrom(this.attendance.recoveryGroups({
       page: this.page(options), pageSize: this.pageSize(options), search: this.searchOf(options)
@@ -125,9 +130,9 @@ export class AttendanceComponent implements OnInit, PendingChangesAware {
       return { data: result.items, totalCount: result.pagination.totalItems };
     }).catch(error => this.rejectCandidate(error)),
     byKey: key => Promise.resolve(this.groupCandidates.get(String(key)) ?? null)
-  });
+  }));
 
-  readonly recoveryTeacherDataSource = new CustomStore({
+  readonly recoveryTeacherDataSource = asLegacyWidgetDataSource(new CustomStore({
     key: 'id',
     load: options => firstValueFrom(this.attendance.recoveryTeachers({
       page: this.page(options), pageSize: this.pageSize(options), search: this.searchOf(options)
@@ -136,7 +141,7 @@ export class AttendanceComponent implements OnInit, PendingChangesAware {
       return { data: result.items, totalCount: result.pagination.totalItems };
     }).catch(error => this.rejectCandidate(error)),
     byKey: key => Promise.resolve(this.teacherCandidates.get(String(key)) ?? null)
-  });
+  }));
 
   readonly recoveryStudentDataSource = new CustomStore({
     key: 'id',
@@ -379,8 +384,12 @@ export class AttendanceComponent implements OnInit, PendingChangesAware {
     this.recoveryVisible = true;
   }
 
-  onRecoveryStudentsChanged(event: any): void {
-    const requested = this.recoveryStudentList.selectedItemKeys;
+  onRecoveryStudentsChanged(event: ListSelectionChangedEvent): void {
+    const eventKeys = event.component?.option('selectedItemKeys') ?? event.value;
+    const selectedKeys = eventKeys ?? this.recoveryStudentList?.selectedItemKeys ?? [];
+    const requested = Array.isArray(selectedKeys)
+      ? selectedKeys.filter((id): id is string => typeof id === 'string')
+      : [];
     const ids = requested.slice(0, 100);
     if (requested.length > 100) notify('Mỗi phiếu có tối đa 100 học sinh.', 'warning', 2500);
     const previous = new Map(this.recoveryDrafts.map(item => [item.studentId, item]));

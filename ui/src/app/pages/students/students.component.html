@@ -92,7 +92,7 @@
 
 <dx-popup [(visible)]="editorVisible" [title]="editorTitle" [width]="760" [maxWidth]="'96vw'"
   [height]="'auto'" [maxHeight]="'94vh'" [showCloseButton]="!saving" [dragEnabled]="false"
-  [hideOnOutsideClick]="!saving" (onHiding)="onEditorHiding($event)">
+  [closeOnOutsideClick]="!saving" (onHiding)="onEditorHiding($event)">
   <form *dxTemplate="let _ of 'content'" class="student-form" (submit)="save($event)">
     <div *ngIf="editorConflict" class="form-message conflict" role="alert">
       <span>{{ editorConflict }}</span>
@@ -175,7 +175,7 @@
 </dx-popup>
 
 <dx-popup [(visible)]="groupAssignmentVisible" [title]="assignmentTitle" [width]="600" [maxWidth]="'96vw'"
-  [height]="'auto'" [showCloseButton]="!assignmentSaving" [hideOnOutsideClick]="!assignmentSaving"
+  [height]="'auto'" [showCloseButton]="!assignmentSaving" [closeOnOutsideClick]="!assignmentSaving"
   [dragEnabled]="false">
   <div *dxTemplate="let _ of 'content'" class="assignment-dialog">
     <div class="student-identity">

@@ -1,10 +1,15 @@
 import { Component, OnInit, NgModule, Input, ViewChild } from '@angular/core';
 import { SideNavigationMenuModule, HeaderModule } from '../../shared/components';
 import { ScreenService } from '../../shared/services';
-import { DxTreeViewTypes } from 'devextreme-angular/ui/tree-view';
-import { DxDrawerModule, DxDrawerTypes } from 'devextreme-angular/ui/drawer';
+import { DxDrawerModule } from 'devextreme-angular/ui/drawer';
 import { DxScrollViewModule, DxScrollViewComponent } from 'devextreme-angular/ui/scroll-view';
 import { CommonModule } from '@angular/common';
+import { NavigationItem } from '../../app-navigation';
+import {
+  DrawerOpenedStateMode,
+  DrawerRevealMode,
+  TreeViewItemClickEvent
+} from '../../core/models/devextreme-legacy.types';
 
 import { Router, NavigationEnd } from '@angular/router';
 
@@ -23,8 +28,8 @@ export class SideNavOuterToolbarComponent implements OnInit {
   @Input()
   title!: string;
 
-  menuMode: DxDrawerTypes.OpenedStateMode = 'shrink';
-  menuRevealMode: DxDrawerTypes.RevealMode = 'expand';
+  menuMode: DrawerOpenedStateMode = 'shrink';
+  menuRevealMode: DrawerRevealMode = 'expand';
   minMenuSize = 0;
   shaderEnabled = false;
 
@@ -62,13 +67,13 @@ export class SideNavOuterToolbarComponent implements OnInit {
     return !this.menuOpened;
   }
 
-  navigationChanged(event: DxTreeViewTypes.ItemClickEvent) {
-    const path = (event.itemData as any).path;
+  navigationChanged(event: TreeViewItemClickEvent<NavigationItem>) {
+    const path = event.itemData?.path;
     const pointerEvent = event.event;
 
     if (path && this.menuOpened) {
       if (event.node?.selected) {
-        pointerEvent?.preventDefault();
+        pointerEvent?.preventDefault?.();
       } else {
         this.router.navigate([path]);
         this.scrollView.instance.scrollTo(0);
@@ -77,10 +82,10 @@ export class SideNavOuterToolbarComponent implements OnInit {
       if (this.hideMenuAfterNavigation) {
         this.temporaryMenuOpened = false;
         this.menuOpened = false;
-        pointerEvent?.stopPropagation();
+        pointerEvent?.stopPropagation?.();
       }
     } else {
-      pointerEvent?.preventDefault();
+      pointerEvent?.preventDefault?.();
     }
   }
 
