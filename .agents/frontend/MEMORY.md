@@ -79,6 +79,13 @@ npm --prefix ui run build -- --configuration iis
 
 ## Last verified baseline
 
+DX19 automated regression checkpoint on 2026-08-14:
+
+- Toolchain facts: Node `v14.21.3`, npm `8.19.4`; direct local Angular CLI reports CLI/Angular `12.2.17`, CDK `12.2.13`, TypeScript `4.3.5` and RxJS `7.4.0`. `npm --prefix ui exec ng -- version` is not a reliable root-level probe (it reports an invalid config), while `ui\\node_modules\\.bin\\ng.cmd version` runs successfully and direct JSON-schema validation of `ui/angular.json` is valid.
+- `npm --prefix ui run test:ci` passed 64/64 in ChromeHeadlessCI. `NG_BUILD_MAX_WORKERS=1; npm --prefix ui run build -- --configuration development` passed with 11.77 MB initial output, hash `7ce1c11476d0890505a1`, and exactly 13 legacy DevExtreme 19 CommonJS optimization-bailout warnings; no template/type error. No existing spec changed because no compatibility expectation regressed. Source guards found no floating DevExtreme versions, compiler bypasses, disabled/focused specs, or known DevExtreme-23 API names. `git diff --check` passed; no UI/Karma listener remained after verification.
+- Logical dependency verification passed: `npm --prefix ui ls --package-lock-only` and targeted Angular/DevExtreme package listing exited 0 at the pinned matrix. The normal npm physical scan after ngcc reports root extraneous `__ngcc_entry_points__.json`, `bindings@1.5.0`, `file-uri-to-path@1.0.0`, and `nan@2.28.0`; the latter three are only children of optional Darwin-only `fsevents@1.2.13` absent on Windows. Record them without pruning or reinstalling node_modules. Fresh `npm --prefix ui audit --json` remains 112 findings (6 low, 63 moderate, 38 high, 5 critical); no `npm audit fix` is authorized because the EOL version matrix is pinned.
+- No production build, IIS build/package, deploy, dependency upgrade, source workaround, or API/deployment-contract change was made. DX19-QA-02 manual smoke remains pending.
+
 Fresh compact-attendance verification on 2026-08-12:
 
 - `npm --prefix ui run test:ci`: passed 59/59 in Chrome Headless 151. Dependency console emitted the existing DevExtreme W0019 license warning and Inferno development-mode warning; tests had no failures. The first full run exposed an existing Student group-summary regression (`groupText` used the responsible Teacher instead of the group name); the one-line fix was retained and the rerun passed.

@@ -467,10 +467,13 @@ QA/Integration:
 - [x] `DX19-FE-01`. Tương thích Angular 12 workspace, polyfills và test bootstrap
 - [x] `DX19-FE-02`. Chuyển API/type DevExtreme 23 sang DevExtreme 19, giữ nguyên hành vi
 - [x] `DX19-FE-03`. Sinh lại theme 19.2.5 và giữ bố cục hiện tại
-- [~] `DX19-QA-01`. Hồi quy tự động toàn UI bằng development build và ChromeHeadlessCI
+- [x] `DX19-QA-01`. Hồi quy tự động toàn UI bằng development build và ChromeHeadlessCI
 - [ ] `DX19-QA-02`. Smoke-test thủ công toàn bộ màn hình DevExtreme, cập nhật tài liệu và memory
 
 ### DX19 execution log
+
+- `DX19-QA-01` complete (2026-08-14): Node `v14.21.3`, npm `8.19.4`; the direct local Angular CLI reports CLI/Angular `12.2.17`, CDK `12.2.13`, TypeScript `4.3.5` and RxJS `7.4.0`. Full `npm --prefix ui run test:ci` passed `64/64` in ChromeHeadlessCI. `NG_BUILD_MAX_WORKERS=1; npm --prefix ui run build -- --configuration development` passed (initial 11.77 MB, hash `7ce1c11476d0890505a1`) with exactly 13 known DevExtreme 19 legacy CommonJS optimization-bailout warnings and no template/type error. Floating-version, compiler-bypass, disabled/focused-spec and known DevExtreme-23 API source guards had no matches; no spec expectation changed. `git diff --check` passed and status was clean before this tracking update; no development UI/Karma listener remained. No production build, IIS build/package, deploy, `npm audit fix`, `--force` or `--legacy-peer-deps` was run.
+- Logical dependency gate: `npm --prefix ui ls --package-lock-only` and the targeted Angular/DevExtreme package list both passed (exit `0`) at the pinned matrix. A normal physical-tree scan after Angular ngcc still reports root `__ngcc_entry_points__.json`, `bindings@1.5.0`, `file-uri-to-path@1.0.0`, and `nan@2.28.0` as extraneous: lockfile tracing limits the latter three to optional Darwin `fsevents@1.2.13`, absent on Windows. These are documented physical artifacts, not logical invalid/incorrect versions; do not run `npm prune` to hide them. Fresh `npm --prefix ui audit --json` exits `1` with the known EOL-stack baseline of 112 findings (6 low, 63 moderate, 38 high, 5 critical); no fix was applied. Generated EOF whitespace was not present in the tracked diff.
 
 - 2026-08-14: người dùng đã chuyển đúng `node v14.21.3` / `npm 8.19.4`, xóa `ui/node_modules` và `ui/package-lock.json`; precondition đã được xác nhận lại. Chỉ chạy development build/test, không chạy production/IIS nếu chưa gọi `$gv-portal-production`.
 - `DX19-FE-00` dependency resolution: npm 8.19.4 trên Windows đọc đúng prefix nhưng `install/ci` vẫn chạy Arborist theo current working directory; plan đã sửa hai lệnh lifecycle để chạy trực tiếp trong `ui`. Graph Node 14 cần pin thêm `browserslist 4.21.9`, `node-releases 2.0.13`, `sass 1.69.7` do registry drift của transitive range.
