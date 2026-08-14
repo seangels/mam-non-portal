@@ -464,8 +464,8 @@ QA/Integration:
 ## Epic hạ phiên bản Angular 12 / DevExtreme 19 `DX19` — owner: `frontend`
 
 - [x] `DX19-FE-00`. Khóa Node 14.21.3, npm 8.19.4, package graph Angular 12.2.17 / DevExtreme 19.2.5 và sinh lockfile mới
-- [~] `DX19-FE-01`. Tương thích Angular 12 workspace, polyfills và test bootstrap
-- [ ] `DX19-FE-02`. Chuyển API/type DevExtreme 23 sang DevExtreme 19, giữ nguyên hành vi
+- [x] `DX19-FE-01`. Tương thích Angular 12 workspace, polyfills và test bootstrap
+- [~] `DX19-FE-02`. Chuyển API/type DevExtreme 23 sang DevExtreme 19, giữ nguyên hành vi
 - [ ] `DX19-FE-03`. Sinh lại theme 19.2.5 và giữ bố cục hiện tại
 - [ ] `DX19-QA-01`. Hồi quy tự động toàn UI bằng development build và ChromeHeadlessCI
 - [ ] `DX19-QA-02`. Smoke-test thủ công toàn bộ màn hình DevExtreme, cập nhật tài liệu và memory
@@ -476,6 +476,8 @@ QA/Integration:
 - `DX19-FE-00` dependency resolution: npm 8.19.4 trên Windows đọc đúng prefix nhưng `install/ci` vẫn chạy Arborist theo current working directory; plan đã sửa hai lệnh lifecycle để chạy trực tiếp trong `ui`. Graph Node 14 cần pin thêm `browserslist 4.21.9`, `node-releases 2.0.13`, `sass 1.69.7` do registry drift của transitive range.
 - `npm audit` sau khi khóa stack EOL báo 112 finding (6 low, 63 moderate, 38 high, 5 critical). Đây là rủi ro đã biết của yêu cầu Angular 12/DevExtreme 19; không chạy `npm audit fix` vì sẽ phá version matrix. Cần đánh giá bảo mật riêng trước production.
 - `DX19-FE-00` hoàn tất tại commit `a479996`: lockfile v2, dependency tree/CLI/ThemeBuilder đúng pin; task review không còn finding material. Không sinh theme, không chạy production/IIS.
+- Build probe của Task 2 phát hiện override Browserslist ban đầu thiếu API Babel; corrective commit `52248bb` pin `browserslist 4.28.8` + `node-releases 2.0.44`. Runtime/build probe và review xác nhận tương thích Node 14, không còn lỗi Babel.
+- `DX19-FE-01` hoàn tất tại commit `9ea2bc7`: Angular 12 bundle generation và Karma bootstrap hoạt động; 36 lỗi còn lại đều thuộc DevExtreme 19 API/type ở Task 3. Reviewer approve, không nới strict hoặc xóa test.
 
 ## Tổ chức thư mục kế hoạch — owner: `root`
 
