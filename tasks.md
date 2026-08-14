@@ -468,7 +468,7 @@ QA/Integration:
 - [x] `DX19-FE-02`. Chuyển API/type DevExtreme 23 sang DevExtreme 19, giữ nguyên hành vi
 - [x] `DX19-FE-03`. Sinh lại theme 19.2.5 và giữ bố cục hiện tại
 - [x] `DX19-QA-01`. Hồi quy tự động toàn UI bằng development build và ChromeHeadlessCI
-- [ ] `DX19-QA-02`. Smoke-test thủ công toàn bộ màn hình DevExtreme, cập nhật tài liệu và memory
+- [~] `DX19-QA-02`. Smoke-test thủ công toàn bộ màn hình DevExtreme, cập nhật tài liệu và memory
 
 ### DX19 execution log
 
@@ -476,13 +476,14 @@ QA/Integration:
 - Logical dependency gate: `npm --prefix ui ls --package-lock-only` and the targeted Angular/DevExtreme package list both passed (exit `0`) at the pinned matrix. A normal physical-tree scan after Angular ngcc still reports root `__ngcc_entry_points__.json`, `bindings@1.5.0`, `file-uri-to-path@1.0.0`, and `nan@2.28.0` as extraneous: lockfile tracing limits the latter three to optional Darwin `fsevents@1.2.13`, absent on Windows. These are documented physical artifacts, not logical invalid/incorrect versions; do not run `npm prune` to hide them. Fresh `npm --prefix ui audit --json` exits `1` with the known EOL-stack baseline of 112 findings (6 low, 63 moderate, 38 high, 5 critical); no fix was applied. Generated EOF whitespace was not present in the tracked diff.
 
 - 2026-08-14: người dùng đã chuyển đúng `node v14.21.3` / `npm 8.19.4`, xóa `ui/node_modules` và `ui/package-lock.json`; precondition đã được xác nhận lại. Chỉ chạy development build/test, không chạy production/IIS nếu chưa gọi `$gv-portal-production`.
-- `DX19-FE-00` dependency resolution: npm 8.19.4 trên Windows đọc đúng prefix nhưng `install/ci` vẫn chạy Arborist theo current working directory; plan đã sửa hai lệnh lifecycle để chạy trực tiếp trong `ui`. Graph Node 14 cần pin thêm `browserslist 4.21.9`, `node-releases 2.0.13`, `sass 1.69.7` do registry drift của transitive range.
+- `DX19-FE-00` dependency resolution: npm 8.19.4 trên Windows đọc đúng prefix nhưng `install/ci` vẫn chạy Arborist theo current working directory; plan đã sửa hai lệnh lifecycle để chạy trực tiếp trong `ui`. Graph cuối cho Node 14 pin `browserslist 4.28.8`, `node-releases 2.0.44`, `sass 1.69.7`; cặp Browserslist/node-releases ban đầu đã được thay sau build probe Babel.
 - `npm audit` sau khi khóa stack EOL báo 112 finding (6 low, 63 moderate, 38 high, 5 critical). Đây là rủi ro đã biết của yêu cầu Angular 12/DevExtreme 19; không chạy `npm audit fix` vì sẽ phá version matrix. Cần đánh giá bảo mật riêng trước production.
 - `DX19-FE-00` hoàn tất tại commit `a479996`: lockfile v2, dependency tree/CLI/ThemeBuilder đúng pin; task review không còn finding material. Không sinh theme, không chạy production/IIS.
 - Build probe của Task 2 phát hiện override Browserslist ban đầu thiếu API Babel; corrective commit `52248bb` pin `browserslist 4.28.8` + `node-releases 2.0.44`. Runtime/build probe và review xác nhận tương thích Node 14, không còn lỗi Babel.
 - `DX19-FE-01` hoàn tất tại commit `9ea2bc7`: Angular 12 bundle generation và Karma bootstrap hoạt động; 36 lỗi còn lại đều thuộc DevExtreme 19 API/type ở Task 3. Reviewer approve, không nới strict hoặc xóa test.
 - `DX19-FE-02` hoàn tất qua các commit `baeca11`, `47ae290`, `02402cf`: compile errors 36→0, bootstrap bundled theme đúng lifecycle v19, popup dirty guard tương thích event-cancel đồng bộ và Deferred confirm. Full ChromeHeadlessCI 64/64, development build pass; reviewer cuối approve không còn finding.
 - `DX19-FE-03` hoàn tất source gate tại commit `1bfbe97`: bốn asset sinh bởi ThemeBuilder 19.2.5, clean `npm ci` chạy đủ pre/postinstall và hash ổn định, post-ci development build pass. Visual smoke chưa thực hiện vì `ng serve` không bind port 4200 sau 143 giây; bắt buộc thực hiện lại tại `DX19-QA-02`.
+- `DX19-QA-01` hoàn tất tại các commit `56c7aeb`, `3500575`: full 64/64, development build và logical/targeted dependency guards pass; frontend memory đã cập nhật current baseline. Reviewer approve không còn finding; production/IIS chưa chạy.
 
 ## Tổ chức thư mục kế hoạch — owner: `root`
 

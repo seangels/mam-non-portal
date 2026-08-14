@@ -597,12 +597,13 @@ Expected: pass không template/type error. Cảnh báo chỉ được chấp nh�
 Run:
 
 ```powershell
-npm --prefix ui ls
+npm --prefix ui ls --package-lock-only
+npm --prefix ui ls @angular/core @angular/cli @angular/cdk typescript rxjs zone.js devextreme devextreme-angular devextreme-themebuilder devextreme-cli devextreme-schematics
 rg -n '"(devextreme|devextreme-angular|devextreme-themebuilder)"\s*:\s*"(latest|\^|~)' ui/package.json
-rg -n "--legacy-peer-deps|skipLibCheck|strictTemplates.*false|hash.*false" ui
+rg -n -- "--legacy-peer-deps|skipLibCheck|strictTemplates.*false|hash.*false" ui
 ```
 
-Expected: dependency tree sạch; không version floating hoặc compiler bypass.
+Expected: logical tree từ lockfile và targeted version tree sạch, không `invalid`/sai version; không version floating hoặc compiler bypass. Với npm 8/Windows, physical-tree scan sau Angular ngcc có thể liệt kê `__ngcc_entry_points__.json` và các package con hoisted của optional Darwin `fsevents` là `extraneous`; phải ghi rõ exact artifact và chứng minh chúng không nằm trong logical lock graph, không được chạy `npm prune` chỉ để che kết quả tạm thời.
 
 - [ ] **Step 4: Kiểm tra diff**
 
