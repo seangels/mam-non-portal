@@ -1,9 +1,29 @@
+import { CommonModule } from '@angular/common';
+import { Component, ErrorHandler } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
+import { Router } from '@angular/router';
+import { RouterTestingModule } from '@angular/router/testing';
 import { DxButtonComponent } from 'devextreme-angular/ui/button';
 import { of } from 'rxjs';
 import { UsersService } from '../../core/services/users.service';
+import { LoginFormComponent, LoginFormModule } from '../../shared/components/login-form/login-form.component';
+import { AuthService } from '../../shared/services/auth.service';
 import { UsersComponent, UsersModule } from './users.component';
+
+@Component({
+  template: `
+    <ng-container *ngIf="authenticated; else unauthenticated">
+      <router-outlet></router-outlet>
+    </ng-container>
+    <ng-template #unauthenticated>
+      <router-outlet></router-outlet>
+    </ng-template>
+  `
+})
+class UsersLifecycleHostComponent {
+  authenticated = true;
+}
 
 describe('UsersComponent administrator boundary', () => {
   it('always queries only Admin accounts', async () => {
@@ -112,6 +132,82 @@ describe('UsersComponent DevExtreme filter value integration', () => {
       email: 'dx19-admin@example.test',
       password: 'Strong#Pass123'
     }));
+  });
+});
+
+describe('UsersComponent routed nested-option lifecycle', () => {
+  it('renders login after authentication changes during route navigation without a nested-option error', async () => {
+    const users = jasmine.createSpyObj<UsersService>('UsersService', [
+      'list', 'create', 'update', 'changePassword', 'delete'
+    ]);
+    users.list.and.returnValue(of({
+      items: [],
+      pagination: { page: 1, pageSize: 20, totalItems: 0, totalPages: 0 }
+    }));
+    const auth = jasmine.createSpyObj<AuthService>('AuthService', ['logIn']);
+    await TestBed.configureTestingModule({
+      imports: [
+        CommonModule,
+        UsersModule,
+        LoginFormModule,
+        RouterTestingModule.withRoutes([
+          { path: 'users', component: UsersComponent },
+          { path: 'login-form', component: LoginFormComponent }
+        ])
+      ],
+      declarations: [UsersLifecycleHostComponent],
+      providers: [
+        { provide: UsersService, useValue: users },
+        { provide: AuthService, useValue: auth }
+      ]
+    }).compileComponents();
+
+    const hostFixture = TestBed.createComponent(UsersLifecycleHostComponent);
+    const router = TestBed.inject(Router);
+    await router.navigateByUrl('/users');
+    hostFixture.detectChanges();
+    await hostFixture.whenStable();
+    const usersComponent = hostFixture.debugElement.query(By.directive(UsersComponent))
+      .componentInstance as UsersComponent;
+    usersComponent.openCreate();
+    hostFixture.detectChanges();
+    await hostFixture.whenStable();
+
+    usersComponent.openEdit({
+      id: 'admin-2',
+      email: 'dx19-admin@example.test',
+      fullName: 'DX19 Admin',
+      phoneNumber: '0900000000',
+      role: 'Admin',
+      status: 'Active',
+      createdAt: '2026-08-14T00:00:00Z',
+      updatedAt: '2026-08-14T00:00:00Z'
+    });
+    hostFixture.detectChanges();
+    await hostFixture.whenStable();
+
+    const errorHandler = TestBed.inject(ErrorHandler);
+    const handleError = spyOn(errorHandler, 'handleError');
+    hostFixture.componentInstance.authenticated = false;
+    await router.navigateByUrl('/login-form');
+
+    expect(() => hostFixture.detectChanges()).not.toThrow();
+    await hostFixture.whenStable();
+    hostFixture.detectChanges();
+
+    expect(handleError).not.toHaveBeenCalled();
+    expect(hostFixture.debugElement.query(By.directive(LoginFormComponent))).not.toBeNull();
+    expect(hostFixture.nativeElement.querySelectorAll('.login-form .dx-field-item-label').length).toBe(0);
+
+    const submitInput = hostFixture.nativeElement.querySelector(
+      '.login-form .dx-button-submit-input'
+    ) as HTMLInputElement;
+    submitInput.click();
+    hostFixture.detectChanges();
+
+    expect(hostFixture.nativeElement.textContent).toContain('Vui lòng nhập email');
+    expect(hostFixture.nativeElement.textContent).toContain('Vui lòng nhập mật khẩu');
+    expect(auth.logIn).not.toHaveBeenCalled();
   });
 });
 
