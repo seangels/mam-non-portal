@@ -136,15 +136,23 @@ describe('StudentsComponent schedule and remote list', () => {
   it('cancels hiding synchronously and keeps a dirty editor open when discard is declined', async () => {
     component.openEdit(studentRow());
     component.editor.fullName = 'Tên đang sửa';
-    const confirmDiscard = replaceDiscardConfirmation(component, false);
-    const event: { cancel?: boolean } = {};
+    const confirmDiscard = replaceDiscardConfirmation(component, false, false);
+    const firstEvent: { cancel?: boolean } = {};
 
-    component.onEditorHiding(event);
+    component.onEditorHiding(firstEvent);
 
-    expect(event.cancel).toBeTrue();
+    expect(firstEvent.cancel).toBeTrue();
     await settlePromises();
     expect(component.editorVisible).toBeTrue();
     expect(confirmDiscard).toHaveBeenCalledTimes(1);
+
+    const secondEvent: { cancel?: boolean } = {};
+    component.onEditorHiding(secondEvent);
+
+    expect(secondEvent.cancel).toBeTrue();
+    await settlePromises();
+    expect(component.editorVisible).toBeTrue();
+    expect(confirmDiscard).toHaveBeenCalledTimes(2);
   });
 
   it('closes after discard is confirmed and bypasses exactly one repeated hiding event', async () => {
@@ -168,16 +176,50 @@ describe('StudentsComponent schedule and remote list', () => {
   });
 });
 
-function replaceDiscardConfirmation(component: StudentsComponent, result: boolean): jasmine.Spy {
-  const confirmation = jasmine.createSpy('confirmEditorDiscard').and.returnValue(Promise.resolve(result));
-  const testable = component as unknown as { confirmEditorDiscard: () => Promise<boolean> };
+interface DeferredConfirmation {
+  then(
+    onFulfilled?: (value: boolean) => unknown,
+    onRejected?: (reason: unknown) => unknown
+  ): DeferredConfirmation;
+  catch(onRejected: (reason: unknown) => unknown): DeferredConfirmation;
+  always(callback: () => unknown): DeferredConfirmation;
+}
+
+function replaceDiscardConfirmation(component: StudentsComponent, ...results: boolean[]): jasmine.Spy {
+  const confirmation = jasmine.createSpy('confirmEditorDiscard').and.callFake(() => {
+    const result = results.shift();
+    if (result === undefined) {
+      throw new Error('Missing deferred confirmation result.');
+    }
+    return deferredConfirmation(result);
+  });
+  const testable = component as unknown as { confirmEditorDiscard: () => PromiseLike<boolean> };
   testable.confirmEditorDiscard = confirmation;
   return confirmation;
 }
 
+function deferredConfirmation(result: boolean): DeferredConfirmation {
+  let deferred: DeferredConfirmation;
+  deferred = {
+    then(onFulfilled): DeferredConfirmation {
+      void Promise.resolve().then(() => onFulfilled?.(result));
+      return deferred;
+    },
+    catch(): DeferredConfirmation {
+      return deferred;
+    },
+    always(callback): DeferredConfirmation {
+      void Promise.resolve().then(callback);
+      return deferred;
+    }
+  };
+  return deferred;
+}
+
 async function settlePromises(): Promise<void> {
-  await Promise.resolve();
-  await Promise.resolve();
+  for (let turn = 0; turn < 5; turn += 1) {
+    await Promise.resolve();
+  }
 }
 
 function studentRow(): Student {

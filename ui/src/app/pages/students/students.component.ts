@@ -306,7 +306,7 @@ export class StudentsComponent {
     }
 
     this.editorDiscardConfirmationPending = true;
-    void this.confirmEditorDiscard()
+    void Promise.resolve(this.confirmEditorDiscard())
       .then(discard => {
         if (discard) {
           this.allowEditorCloseOnce = true;
