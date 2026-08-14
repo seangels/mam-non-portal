@@ -9,7 +9,7 @@
     </dxi-item>
 
     <dxi-item dataField="password" editorType="dxTextBox"
-      [editorOptions]="{ stylingMode: 'filled', placeholder: 'Mật khẩu', mode: 'password' }">
+      [editorOptions]="{ stylingMode: 'filled', placeholder: 'Mật khẩu', mode: 'password', valueChangeEvent: 'input' }">
       <dxi-validation-rule type="required" message="Vui lòng nhập mật khẩu"></dxi-validation-rule>
       <dxo-label [visible]="false"></dxo-label>
     </dxi-item>

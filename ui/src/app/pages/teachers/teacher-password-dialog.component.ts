@@ -20,12 +20,12 @@ import { TeachersService } from '../../core/services/teachers.service';
       <form *dxTemplate="let _ of 'content'" (submit)="save($event)">
         <p *ngIf="teacher">Giáo viên: <strong>{{ teacher.fullName }}</strong></p>
         <dx-form [formData]="editor" [disabled]="saving" labelLocation="top">
-          <dxi-item dataField="password" editorType="dxTextBox" [editorOptions]="{ mode: 'password' }">
+          <dxi-item dataField="password" editorType="dxTextBox" [editorOptions]="{ mode: 'password', valueChangeEvent: 'input' }">
             <dxo-label text="Mật khẩu mới"></dxo-label>
             <dxi-validation-rule type="required" message="Vui lòng nhập mật khẩu mới"></dxi-validation-rule>
             <dxi-validation-rule type="pattern" [pattern]="passwordPattern" [message]="passwordRuleMessage"></dxi-validation-rule>
           </dxi-item>
-          <dxi-item dataField="confirmPassword" editorType="dxTextBox" [editorOptions]="{ mode: 'password' }">
+          <dxi-item dataField="confirmPassword" editorType="dxTextBox" [editorOptions]="{ mode: 'password', valueChangeEvent: 'input' }">
             <dxo-label text="Xác nhận mật khẩu"></dxo-label>
             <dxi-validation-rule type="required" message="Vui lòng xác nhận mật khẩu"></dxi-validation-rule>
           </dxi-item>

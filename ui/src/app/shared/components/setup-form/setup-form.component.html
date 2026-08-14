@@ -23,7 +23,7 @@
       </dxi-item>
 
       <dxi-item dataField="password" editorType="dxTextBox"
-        [editorOptions]="{ stylingMode: 'filled', placeholder: 'Mật khẩu', mode: 'password' }">
+        [editorOptions]="{ stylingMode: 'filled', placeholder: 'Mật khẩu', mode: 'password', valueChangeEvent: 'input' }">
         <dxi-validation-rule type="required" message="Vui lòng nhập mật khẩu"></dxi-validation-rule>
         <dxi-validation-rule type="pattern" [pattern]="passwordPattern"
           message="Tối thiểu 12 ký tự, gồm chữ hoa, chữ thường, số và ký tự đặc biệt"></dxi-validation-rule>
@@ -31,7 +31,7 @@
       </dxi-item>
 
       <dxi-item dataField="confirmPassword" editorType="dxTextBox"
-        [editorOptions]="{ stylingMode: 'filled', placeholder: 'Nhập lại mật khẩu', mode: 'password' }">
+        [editorOptions]="{ stylingMode: 'filled', placeholder: 'Nhập lại mật khẩu', mode: 'password', valueChangeEvent: 'input' }">
         <dxi-validation-rule type="required" message="Vui lòng xác nhận mật khẩu"></dxi-validation-rule>
         <dxi-validation-rule type="compare" [comparisonTarget]="passwordComparison"
           message="Mật khẩu xác nhận không khớp"></dxi-validation-rule>

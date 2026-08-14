@@ -71,6 +71,42 @@ describe('UsersComponent DevExtreme filter value integration', () => {
     await loadUsers(component);
     expect(users.list.calls.mostRecent().args[0].search).toBeUndefined();
   });
+
+  it('submits the password typed into the real create-user editor', async () => {
+    users.create.and.returnValue(of({
+      id: 'admin-2',
+      email: 'dx19-admin@example.test',
+      fullName: 'DX19 Admin',
+      phoneNumber: '0900000000',
+      role: 'Admin',
+      status: 'Active',
+      createdAt: '2026-08-14T00:00:00Z',
+      updatedAt: '2026-08-14T00:00:00Z'
+    }));
+
+    component.openCreate();
+    fixture.detectChanges();
+    await settleWidgetUpdates(fixture);
+
+    enterPopupFormValue('fullName', 'DX19 Admin');
+    enterPopupFormValue('email', 'dx19-admin@example.test');
+    enterPopupFormValue('phoneNumber', '0900000000');
+    const passwordInput = enterPopupFormValue('password', 'Strong#Pass123', false);
+    passwordInput.dispatchEvent(new Event('blur', { bubbles: true }));
+    fixture.detectChanges();
+
+    expect(passwordInput.value).toBe('Strong#Pass123');
+    expect(component.editor.fullName).toBe('DX19 Admin');
+    expect(component.editor.email).toBe('dx19-admin@example.test');
+    expect(component.editor.phoneNumber).toBe('0900000000');
+    expect(component.editor.password).toBe('Strong#Pass123');
+    clickPopupButton(fixture, 'Tạo quản trị viên');
+    await flushMicrotasks(fixture);
+
+    expect(component.editor.password).toBe('Strong#Pass123');
+    expect(users.create).toHaveBeenCalledTimes(1);
+    expect(users.create.calls.mostRecent().args[0].password).toBe('Strong#Pass123');
+  });
 });
 
 interface LoadableDataSource {
@@ -89,6 +125,19 @@ function enterSearchValue(fixture: ComponentFixture<UsersComponent>, value: stri
   fixture.detectChanges();
 }
 
+function enterPopupFormValue(name: string, value: string, commitChange = true): HTMLInputElement {
+  const input = document.querySelector(`.dx-popup-content input[name="${name}"]`) as HTMLInputElement | null;
+  if (!input) {
+    throw new Error(`DevExtreme form input not found: ${name}`);
+  }
+  input.value = value;
+  input.dispatchEvent(new Event('input', { bubbles: true }));
+  if (commitChange) {
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+  return input;
+}
+
 function clickDxButton(fixture: ComponentFixture<UsersComponent>, text: string): void {
   const button = fixture.debugElement.queryAll(By.directive(DxButtonComponent))
     .find(item => (item.componentInstance as DxButtonComponent).text === text);
@@ -99,8 +148,26 @@ function clickDxButton(fixture: ComponentFixture<UsersComponent>, text: string):
   fixture.detectChanges();
 }
 
+function clickPopupButton(fixture: ComponentFixture<UsersComponent>, text: string): void {
+  const button = Array.from(document.querySelectorAll<HTMLElement>('.dx-popup-content .dx-button'))
+    .find(item => item.textContent?.includes(text));
+  if (!button) {
+    throw new Error(`DevExtreme popup button not found: ${text}`);
+  }
+  const submitInput = button.querySelector<HTMLInputElement>('.dx-button-submit-input');
+  if (!submitInput) {
+    throw new Error(`DevExtreme popup submit input not found: ${text}`);
+  }
+  submitInput.click();
+  fixture.detectChanges();
+}
+
 async function settleWidgetUpdates(fixture: ComponentFixture<UsersComponent>): Promise<void> {
   await fixture.whenStable();
+  await flushMicrotasks(fixture);
+}
+
+async function flushMicrotasks(fixture: ComponentFixture<UsersComponent>): Promise<void> {
   for (let turn = 0; turn < 5; turn += 1) {
     await Promise.resolve();
   }
