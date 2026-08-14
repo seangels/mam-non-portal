@@ -1,6 +1,6 @@
 # Frontend role memory
 
-Last updated: 2026-08-12
+Last updated: 2026-08-14
 
 ## Resume here
 
@@ -10,7 +10,7 @@ Last updated: 2026-08-12
 
 ## Current frontend architecture
 
-- Angular 15.2 NgModule application with strict TypeScript 4.9, RxJS 7.8, and DevExtreme 23.2.3. Do not assume standalone components or newer Angular APIs.
+- Angular 12.2.17 NgModule application with strict TypeScript 4.3.5, RxJS 7.4.0, and DevExtreme/DevExtreme Angular 19.2.5. Development/build tooling is pinned to Node 14.21.3 and npm 8.19.4; do not assume standalone components or newer Angular/DevExtreme APIs.
 - `ui/src/app/core/models/` defines API DTOs/enums and `ProblemDetails` mapping. `core/services/` owns the generic API client plus setup/auth/user/student state and clients. `core/interceptors/auth.interceptor.ts` owns bearer, CSRF, and refresh retry behavior.
 - `shared/` contains auth/setup forms and reusable shell components/services; `layouts/` contains responsive DevExtreme drawer/toolbars; `pages/` contains dashboard, profile, administrator-account, Teacher, Student/Group management, and attendance.
 - `AppModule` has an `APP_INITIALIZER`: check setup status first and restore the auth session only if setup is complete. Router uses hash URLs.
@@ -33,7 +33,7 @@ Last updated: 2026-08-12
 - Student schedule contract adds `StudyMode = OneToOne|FullDay`, canonical Monday–Saturday weekdays and aggregate `version`. Student create/full PUT always sends `studySchedule`; update/group/delete use `expectedVersion`. `StudentsService.assignGroup` is the only frontend client for `PUT /students/{id}/group` and is shared by Student and Group pages.
 - Scheduled attendance is operational: Missing roster/defaults come only from the backend for the selected business date; UI must not derive or filter them again. `NoScheduledStudents` is a Daily GET read-only reason and a standard POST error code. Saved sheets and historical recovery remain independent of the current schedule; recovery continues as a manual roster with `Present` defaults.
 
-## Implemented feature baseline
+## Historical feature baseline (verified 2026-08-12, before DX19 migration)
 
 As implemented and verified on 2026-08-12:
 
