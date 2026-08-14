@@ -88,11 +88,11 @@
   [showCloseButton]="true" [closeOnOutsideClick]="!saving">
   <form *dxTemplate="let _ of 'content'" (submit)="saveGroup($event)">
     <dx-form [formData]="groupEditor" [disabled]="saving" labelLocation="top">
-      <dxi-item dataField="code"><dxo-label text="Mã nhóm"></dxo-label>
+      <dxi-item dataField="code" [editorOptions]="{ valueChangeEvent: 'input' }"><dxo-label text="Mã nhóm"></dxo-label>
         <dxi-validation-rule type="required" message="Vui lòng nhập mã nhóm"></dxi-validation-rule>
         <dxi-validation-rule type="stringLength" [max]="50" message="Mã nhóm tối đa 50 ký tự"></dxi-validation-rule>
       </dxi-item>
-      <dxi-item dataField="name"><dxo-label text="Tên nhóm"></dxo-label>
+      <dxi-item dataField="name" [editorOptions]="{ valueChangeEvent: 'input' }"><dxo-label text="Tên nhóm"></dxo-label>
         <dxi-validation-rule type="required" message="Vui lòng nhập tên nhóm"></dxi-validation-rule>
         <dxi-validation-rule type="stringLength" [max]="200" message="Tên nhóm tối đa 200 ký tự"></dxi-validation-rule>
       </dxi-item>

@@ -9,14 +9,14 @@
   <form class="setup-form" (submit)="onSubmit($event)">
     <dx-form [formData]="formData" [disabled]="loading">
       <dxi-item dataField="fullName" editorType="dxTextBox"
-        [editorOptions]="{ stylingMode: 'filled', placeholder: 'Họ và tên' }">
+        [editorOptions]="{ stylingMode: 'filled', placeholder: 'Họ và tên', valueChangeEvent: 'input' }">
         <dxi-validation-rule type="required" message="Vui lòng nhập họ tên"></dxi-validation-rule>
         <dxi-validation-rule type="stringLength" [max]="200" message="Họ tên tối đa 200 ký tự"></dxi-validation-rule>
         <dxo-label [visible]="false"></dxo-label>
       </dxi-item>
 
       <dxi-item dataField="email" editorType="dxTextBox"
-        [editorOptions]="{ stylingMode: 'filled', placeholder: 'Email', mode: 'email' }">
+        [editorOptions]="{ stylingMode: 'filled', placeholder: 'Email', mode: 'email', valueChangeEvent: 'input' }">
         <dxi-validation-rule type="required" message="Vui lòng nhập email"></dxi-validation-rule>
         <dxi-validation-rule type="email" message="Email không đúng định dạng"></dxi-validation-rule>
         <dxo-label [visible]="false"></dxo-label>

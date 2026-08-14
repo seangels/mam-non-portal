@@ -28,7 +28,7 @@
     <p class="helper-text">Các trường có dấu <span aria-hidden="true">*</span> là bắt buộc.</p>
     <dx-form #form [formData]="editor" [disabled]="saving" labelLocation="top"
       [colCountByScreen]="{ xs: 1, sm: 1, md: 2, lg: 2 }">
-      <dxi-item dataField="teacherCode" [editorOptions]="{ maxLength: 50, onFocusOut: normalizeCodeOnBlur }">
+      <dxi-item dataField="teacherCode" [editorOptions]="{ maxLength: 50, onFocusOut: normalizeCodeOnBlur, valueChangeEvent: 'input' }">
         <dxo-label text="Mã giáo viên *"></dxo-label>
         <dxi-validation-rule type="required" message="Vui lòng nhập mã giáo viên"></dxi-validation-rule>
         <dxi-validation-rule type="stringLength" [max]="50" message="Mã giáo viên tối đa 50 ký tự"></dxi-validation-rule>
@@ -38,23 +38,23 @@
         <dxo-label text="Trạng thái tài khoản *"></dxo-label>
         <dxi-validation-rule type="required" message="Vui lòng chọn trạng thái tài khoản"></dxi-validation-rule>
       </dxi-item>
-      <dxi-item dataField="fullName" [colSpan]="2" [editorOptions]="{ maxLength: 200 }">
+      <dxi-item dataField="fullName" [colSpan]="2" [editorOptions]="{ maxLength: 200, valueChangeEvent: 'input' }">
         <dxo-label text="Họ và tên *"></dxo-label>
         <dxi-validation-rule type="required" message="Vui lòng nhập họ và tên"></dxi-validation-rule>
         <dxi-validation-rule type="stringLength" [max]="200" message="Họ và tên tối đa 200 ký tự"></dxi-validation-rule>
       </dxi-item>
-      <dxi-item dataField="email" editorType="dxTextBox" [editorOptions]="{ mode: 'email', maxLength: 255 }">
+      <dxi-item dataField="email" editorType="dxTextBox" [editorOptions]="{ mode: 'email', maxLength: 255, valueChangeEvent: 'input' }">
         <dxo-label text="Email đăng nhập *"></dxo-label>
         <dxi-validation-rule type="required" message="Vui lòng nhập email"></dxi-validation-rule>
         <dxi-validation-rule type="email" message="Email không hợp lệ"></dxi-validation-rule>
         <dxi-validation-rule type="stringLength" [max]="255" message="Email tối đa 255 ký tự"></dxi-validation-rule>
       </dxi-item>
-      <dxi-item dataField="phoneNumber" [editorOptions]="{ maxLength: 30 }">
+      <dxi-item dataField="phoneNumber" [editorOptions]="{ maxLength: 30, valueChangeEvent: 'input' }">
         <dxo-label text="Số điện thoại"></dxo-label>
         <dxi-validation-rule type="stringLength" [max]="30" message="Số điện thoại tối đa 30 ký tự"></dxi-validation-rule>
       </dxi-item>
       <dxi-item dataField="note" editorType="dxTextArea" [colSpan]="2"
-        [editorOptions]="{ maxLength: 2000, minHeight: 120, autoResizeEnabled: true }">
+        [editorOptions]="{ maxLength: 2000, minHeight: 120, autoResizeEnabled: true, valueChangeEvent: 'input' }">
         <dxo-label text="Ghi chú"></dxo-label>
         <dxi-validation-rule type="stringLength" [max]="2000" message="Ghi chú tối đa 2.000 ký tự"></dxi-validation-rule>
       </dxi-item>

@@ -1,9 +1,11 @@
+import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { DxTextAreaModule } from 'devextreme-angular/ui/text-area';
 import { of, throwError } from 'rxjs';
 import { ApiError } from '../../core/models/api-error';
 import { Student } from '../../core/models/api.models';
 import { StudentGroupsService } from '../../core/services/student-groups.service';
 import { StudentsService } from '../../core/services/students.service';
-import { StudentsComponent } from './students.component';
+import { StudentsComponent, StudentsModule } from './students.component';
 
 describe('StudentsComponent schedule and remote list', () => {
   let students: jasmine.SpyObj<StudentsService>;
@@ -176,6 +178,70 @@ describe('StudentsComponent schedule and remote list', () => {
   });
 });
 
+describe('StudentsComponent DevExtreme form text-area integration', () => {
+  let fixture: ComponentFixture<StudentsComponent>;
+  let component: StudentsComponent;
+  let students: jasmine.SpyObj<StudentsService>;
+
+  beforeEach(async () => {
+    students = jasmine.createSpyObj<StudentsService>('StudentsService', [
+      'list', 'get', 'create', 'update', 'assignGroup', 'delete'
+    ]);
+    students.list.and.returnValue(of({
+      items: [],
+      pagination: { page: 1, pageSize: 20, totalItems: 0, totalPages: 0 }
+    }));
+    const groups = jasmine.createSpyObj<StudentGroupsService>('StudentGroupsService', ['list', 'get']);
+    groups.list.and.returnValue(of({
+      items: [],
+      pagination: { page: 1, pageSize: 20, totalItems: 0, totalPages: 0 }
+    }));
+
+    await TestBed.configureTestingModule({
+      imports: [StudentsModule, DxTextAreaModule],
+      providers: [
+        { provide: StudentsService, useValue: students },
+        { provide: StudentGroupsService, useValue: groups }
+      ]
+    }).compileComponents();
+
+    fixture = TestBed.createComponent(StudentsComponent);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+    await settleStudentWidgets(fixture);
+  });
+
+  it('submits a note typed into the real text-area editor', async () => {
+    const student = studentRow();
+    students.update.and.returnValue(of({ ...student, note: 'Cần theo dõi dị ứng' }));
+    component.openEdit(student);
+    fixture.detectChanges();
+    await settleStudentWidgets(fixture);
+
+    const noteInput = document.querySelector('.student-form textarea[name="note"]') as HTMLTextAreaElement | null;
+    if (!noteInput) {
+      throw new Error('DevExtreme student note editor not found.');
+    }
+    noteInput.value = 'Cần theo dõi dị ứng';
+    noteInput.dispatchEvent(new Event('input', { bubbles: true }));
+    noteInput.dispatchEvent(new Event('blur', { bubbles: true }));
+    fixture.detectChanges();
+
+    expect(noteInput.value).toBe('Cần theo dõi dị ứng');
+    const submitInput = document.querySelector(
+      '.student-form .dx-button-submit-input'
+    ) as HTMLInputElement | null;
+    if (!submitInput) {
+      throw new Error('DevExtreme student submit input not found.');
+    }
+    submitInput.click();
+    await settlePromises();
+
+    expect(students.update).toHaveBeenCalledTimes(1);
+    expect(students.update.calls.mostRecent().args[1].note).toBe('Cần theo dõi dị ứng');
+  });
+});
+
 interface DeferredConfirmation {
   then(
     onFulfilled?: (value: boolean) => unknown,
@@ -220,6 +286,18 @@ async function settlePromises(): Promise<void> {
   for (let turn = 0; turn < 5; turn += 1) {
     await Promise.resolve();
   }
+}
+
+async function settleStudentWidgets(fixture: ComponentFixture<StudentsComponent>): Promise<void> {
+  await fixture.whenStable();
+  await flushStudentMicrotasks(fixture);
+}
+
+async function flushStudentMicrotasks(fixture: ComponentFixture<StudentsComponent>): Promise<void> {
+  for (let turn = 0; turn < 5; turn += 1) {
+    await Promise.resolve();
+  }
+  fixture.detectChanges();
 }
 
 function studentRow(): Student {

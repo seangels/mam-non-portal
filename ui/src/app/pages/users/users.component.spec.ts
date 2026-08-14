@@ -72,7 +72,7 @@ describe('UsersComponent DevExtreme filter value integration', () => {
     expect(users.list.calls.mostRecent().args[0].search).toBeUndefined();
   });
 
-  it('submits the password typed into the real create-user editor', async () => {
+  it('submits text and password typed into the real create-user editors', async () => {
     users.create.and.returnValue(of({
       id: 'admin-2',
       email: 'dx19-admin@example.test',
@@ -88,24 +88,30 @@ describe('UsersComponent DevExtreme filter value integration', () => {
     fixture.detectChanges();
     await settleWidgetUpdates(fixture);
 
-    enterPopupFormValue('fullName', 'DX19 Admin');
-    enterPopupFormValue('email', 'dx19-admin@example.test');
-    enterPopupFormValue('phoneNumber', '0900000000');
-    const passwordInput = enterPopupFormValue('password', 'Strong#Pass123', false);
+    const fullNameInput = enterPopupFormValue('fullName', 'DX19 Admin');
+    fullNameInput.dispatchEvent(new Event('blur', { bubbles: true }));
+    const emailInput = enterPopupFormValue('email', 'dx19-admin@example.test');
+    emailInput.dispatchEvent(new Event('blur', { bubbles: true }));
+    const passwordInput = enterPopupFormValue('password', 'Strong#Pass123');
     passwordInput.dispatchEvent(new Event('blur', { bubbles: true }));
     fixture.detectChanges();
 
+    expect(fullNameInput.value).toBe('DX19 Admin');
+    expect(emailInput.value).toBe('dx19-admin@example.test');
     expect(passwordInput.value).toBe('Strong#Pass123');
     expect(component.editor.fullName).toBe('DX19 Admin');
     expect(component.editor.email).toBe('dx19-admin@example.test');
-    expect(component.editor.phoneNumber).toBe('0900000000');
     expect(component.editor.password).toBe('Strong#Pass123');
     clickPopupButton(fixture, 'Tạo quản trị viên');
     await flushMicrotasks(fixture);
 
     expect(component.editor.password).toBe('Strong#Pass123');
     expect(users.create).toHaveBeenCalledTimes(1);
-    expect(users.create.calls.mostRecent().args[0].password).toBe('Strong#Pass123');
+    expect(users.create.calls.mostRecent().args[0]).toEqual(jasmine.objectContaining({
+      fullName: 'DX19 Admin',
+      email: 'dx19-admin@example.test',
+      password: 'Strong#Pass123'
+    }));
   });
 });
 
@@ -125,16 +131,13 @@ function enterSearchValue(fixture: ComponentFixture<UsersComponent>, value: stri
   fixture.detectChanges();
 }
 
-function enterPopupFormValue(name: string, value: string, commitChange = true): HTMLInputElement {
+function enterPopupFormValue(name: string, value: string): HTMLInputElement {
   const input = document.querySelector(`.dx-popup-content input[name="${name}"]`) as HTMLInputElement | null;
   if (!input) {
     throw new Error(`DevExtreme form input not found: ${name}`);
   }
   input.value = value;
   input.dispatchEvent(new Event('input', { bubbles: true }));
-  if (commitChange) {
-    input.dispatchEvent(new Event('change', { bubbles: true }));
-  }
   return input;
 }
 

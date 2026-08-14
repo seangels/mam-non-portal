@@ -2,7 +2,7 @@
   <dx-form [formData]="formData" [disabled]="loading">
 
     <dxi-item dataField="email" editorType="dxTextBox"
-      [editorOptions]="{ stylingMode: 'filled', placeholder: 'Email', mode: 'email' }">
+      [editorOptions]="{ stylingMode: 'filled', placeholder: 'Email', mode: 'email', valueChangeEvent: 'input' }">
       <dxi-validation-rule type="required" message="Vui lòng nhập email"></dxi-validation-rule>
       <dxi-validation-rule type="email" message="Email không đúng định dạng"></dxi-validation-rule>
       <dxo-label [visible]="false"></dxo-label>

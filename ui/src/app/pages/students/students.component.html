@@ -106,7 +106,7 @@
 
     <dx-form [formData]="editor" [disabled]="saving" labelLocation="top" [colCount]="2"
       [colCountByScreen]="{ xs: 1, sm: 1, md: 2, lg: 2 }">
-      <dxi-item dataField="studentCode"><dxo-label text="Mã học sinh"></dxo-label>
+      <dxi-item dataField="studentCode" [editorOptions]="{ valueChangeEvent: 'input' }"><dxo-label text="Mã học sinh"></dxo-label>
         <dxi-validation-rule type="required" message="Vui lòng nhập mã học sinh"></dxi-validation-rule>
         <dxi-validation-rule type="stringLength" [max]="50" message="Mã học sinh tối đa 50 ký tự"></dxi-validation-rule>
       </dxi-item>
@@ -115,11 +115,11 @@
         <dxo-label text="Trạng thái"></dxo-label>
         <dxi-validation-rule type="required" message="Vui lòng chọn trạng thái"></dxi-validation-rule>
       </dxi-item>
-      <dxi-item dataField="fullName"><dxo-label text="Họ và tên"></dxo-label>
+      <dxi-item dataField="fullName" [editorOptions]="{ valueChangeEvent: 'input' }"><dxo-label text="Họ và tên"></dxo-label>
         <dxi-validation-rule type="required" message="Vui lòng nhập họ tên"></dxi-validation-rule>
         <dxi-validation-rule type="stringLength" [max]="200" message="Họ tên tối đa 200 ký tự"></dxi-validation-rule>
       </dxi-item>
-      <dxi-item dataField="nickName"><dxo-label text="Tên thường gọi"></dxo-label>
+      <dxi-item dataField="nickName" [editorOptions]="{ valueChangeEvent: 'input' }"><dxo-label text="Tên thường gọi"></dxo-label>
         <dxi-validation-rule type="required" message="Vui lòng nhập tên thường gọi"></dxi-validation-rule>
         <dxi-validation-rule type="stringLength" [max]="200" message="Tên thường gọi tối đa 200 ký tự"></dxi-validation-rule>
       </dxi-item>
@@ -132,14 +132,14 @@
         [editorOptions]="{ items: genders, valueExpr: 'value', displayExpr: 'text', showClearButton: true }">
         <dxo-label text="Giới tính"></dxo-label>
       </dxi-item>
-      <dxi-item dataField="guardianName"><dxo-label text="Người giám hộ"></dxo-label>
+      <dxi-item dataField="guardianName" [editorOptions]="{ valueChangeEvent: 'input' }"><dxo-label text="Người giám hộ"></dxo-label>
         <dxi-validation-rule type="stringLength" [max]="200" message="Người giám hộ tối đa 200 ký tự"></dxi-validation-rule>
       </dxi-item>
-      <dxi-item dataField="guardianPhone"><dxo-label text="SĐT người giám hộ"></dxo-label>
+      <dxi-item dataField="guardianPhone" [editorOptions]="{ valueChangeEvent: 'input' }"><dxo-label text="SĐT người giám hộ"></dxo-label>
         <dxi-validation-rule type="stringLength" [max]="30" message="Số điện thoại tối đa 30 ký tự"></dxi-validation-rule>
       </dxi-item>
       <dxi-item dataField="note" editorType="dxTextArea" [colSpan]="2"
-        [editorOptions]="{ height: 90, maxLength: 2000 }"><dxo-label text="Ghi chú"></dxo-label></dxi-item>
+        [editorOptions]="{ height: 90, maxLength: 2000, valueChangeEvent: 'input' }"><dxo-label text="Ghi chú"></dxo-label></dxi-item>
     </dx-form>
 
     <section class="schedule-editor" aria-labelledby="schedule-heading">
