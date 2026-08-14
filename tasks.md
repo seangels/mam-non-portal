@@ -466,8 +466,8 @@ QA/Integration:
 - [x] `DX19-FE-00`. Khóa Node 14.21.3, npm 8.19.4, package graph Angular 12.2.17 / DevExtreme 19.2.5 và sinh lockfile mới
 - [x] `DX19-FE-01`. Tương thích Angular 12 workspace, polyfills và test bootstrap
 - [x] `DX19-FE-02`. Chuyển API/type DevExtreme 23 sang DevExtreme 19, giữ nguyên hành vi
-- [~] `DX19-FE-03`. Sinh lại theme 19.2.5 và giữ bố cục hiện tại
-- [ ] `DX19-QA-01`. Hồi quy tự động toàn UI bằng development build và ChromeHeadlessCI
+- [x] `DX19-FE-03`. Sinh lại theme 19.2.5 và giữ bố cục hiện tại
+- [~] `DX19-QA-01`. Hồi quy tự động toàn UI bằng development build và ChromeHeadlessCI
 - [ ] `DX19-QA-02`. Smoke-test thủ công toàn bộ màn hình DevExtreme, cập nhật tài liệu và memory
 
 ### DX19 execution log
@@ -479,6 +479,7 @@ QA/Integration:
 - Build probe của Task 2 phát hiện override Browserslist ban đầu thiếu API Babel; corrective commit `52248bb` pin `browserslist 4.28.8` + `node-releases 2.0.44`. Runtime/build probe và review xác nhận tương thích Node 14, không còn lỗi Babel.
 - `DX19-FE-01` hoàn tất tại commit `9ea2bc7`: Angular 12 bundle generation và Karma bootstrap hoạt động; 36 lỗi còn lại đều thuộc DevExtreme 19 API/type ở Task 3. Reviewer approve, không nới strict hoặc xóa test.
 - `DX19-FE-02` hoàn tất qua các commit `baeca11`, `47ae290`, `02402cf`: compile errors 36→0, bootstrap bundled theme đúng lifecycle v19, popup dirty guard tương thích event-cancel đồng bộ và Deferred confirm. Full ChromeHeadlessCI 64/64, development build pass; reviewer cuối approve không còn finding.
+- `DX19-FE-03` hoàn tất source gate tại commit `1bfbe97`: bốn asset sinh bởi ThemeBuilder 19.2.5, clean `npm ci` chạy đủ pre/postinstall và hash ổn định, post-ci development build pass. Visual smoke chưa thực hiện vì `ng serve` không bind port 4200 sau 143 giây; bắt buộc thực hiện lại tại `DX19-QA-02`.
 
 ## Tổ chức thư mục kế hoạch — owner: `root`
 
