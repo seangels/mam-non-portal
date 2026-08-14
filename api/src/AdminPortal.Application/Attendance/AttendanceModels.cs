@@ -87,7 +87,15 @@ public sealed class CandidateListQuery
 public sealed record HistoricalGroupCandidateResponse(
     Guid Id, string Code, string Name, GroupStatus Status, bool IsDeleted);
 public sealed record HistoricalStudentCandidateResponse(
-    Guid Id, string StudentCode, string FullName, string NickName, StudentStatus Status,
-    bool IsDeleted, Guid? CurrentGroupId);
+    Guid Id, 
+    string StudentCode, 
+    string FullName, 
+    string NickName, 
+    string? GroupCode,
+    string? GroupName,
+    string? ResponsibleTeacherName,
+    StudentStatus Status,
+    bool IsDeleted, 
+    Guid? CurrentGroupId);
 public sealed record HistoricalTeacherCandidateResponse(
     Guid Id, Guid UserId, string FullName, UserStatus Status, bool IsDeleted, bool IsCurrentTeacherRole);

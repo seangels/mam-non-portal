@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, ElementRef, HostListener, NgModule, OnInit, QueryList, ViewChildren } from '@angular/core';
+import { Component, ElementRef, HostListener, NgModule, OnInit, QueryList, ViewChild, ViewChildren } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
 import CustomStore from 'devextreme/data/custom_store';
@@ -11,6 +11,7 @@ import { DxLoadIndicatorModule } from 'devextreme-angular/ui/load-indicator';
 import { DxPopupModule } from 'devextreme-angular/ui/popup';
 import { DxSelectBoxModule } from 'devextreme-angular/ui/select-box';
 import { DxTagBoxModule } from 'devextreme-angular/ui/tag-box';
+import { DxListComponent, DxListModule } from 'devextreme-angular/ui/list';
 import { DxTextBoxModule } from 'devextreme-angular/ui/text-box';
 import { ApiError } from '../../core/models/api-error';
 import {
@@ -55,7 +56,7 @@ interface AttendanceStatusOption {
 })
 export class AttendanceComponent implements OnInit, PendingChangesAware {
   @ViewChildren('studentCard') studentCards?: QueryList<ElementRef<HTMLElement>>;
-
+  @ViewChild('recoveryStudentList') recoveryStudentList!: DxListComponent;
   readonly statusOptions: AttendanceStatusOption[] = [
     { value: 'Present', text: ATTENDANCE_STATUS_LABELS.Present, compactText: 'Có mặt', accessibleText: 'Có mặt', className: 'status-present' },
     { value: 'AbsentFullDay', text: ATTENDANCE_STATUS_LABELS.AbsentFullDay, compactText: 'Nghỉ', accessibleText: 'Nghỉ cả ngày', className: 'status-absent' },
@@ -75,7 +76,7 @@ export class AttendanceComponent implements OnInit, PendingChangesAware {
     ? `${item.fullName}${item.isDeleted ? ' · Đã xóa' : !item.isCurrentTeacherRole ? ' · Không còn vai trò giáo viên' : item.status !== 'Active' ? ' · Không hoạt động' : ''}`
     : '';
   readonly recoveryStudentText = (item: RecoveryStudentCandidate | null): string => item
-    ? `${item.studentCode} · ${item.fullName}${item.nickName ? ` (${item.nickName})` : ''}${item.isDeleted ? ' · Đã xóa' : item.status === 'Inactive' ? ' · Ngừng học' : ''}`
+    ? `${item.studentCode} · ${item.fullName}${item.nickName ? ` - [${item.nickName}]` : ''}${item.isDeleted ? ' · Đã xóa' : item.status === 'Inactive' ? ' · Ngừng học' : ''} ${item.currentGroupId ? ` - Nhóm hiện tại: ${item.groupCode} · ${item.responsibleTeacherName}` : ''}`
     : '';
 
   date = businessToday();
@@ -100,6 +101,7 @@ export class AttendanceComponent implements OnInit, PendingChangesAware {
   recoverySaving = false;
   recoveryGroupId: string | null = null;
   recoveryTeacherId: string | null = null;
+  recoveryStudents: RecoveryStudentCandidate[] = [];
   recoveryStudentIds: string[] = [];
   recoveryDrafts: AttendanceDraft[] = [];
   recoveryReason = '';
@@ -219,9 +221,10 @@ export class AttendanceComponent implements OnInit, PendingChangesAware {
   constructor(
     private readonly attendance: AttendanceService,
     private readonly auth: AuthService
-  ) {}
+  ) { }
 
   ngOnInit(): void {
+    console.log('attendance.component đã được khởi tạo/quay lại!');
     void this.loadContext();
   }
 
@@ -376,15 +379,18 @@ export class AttendanceComponent implements OnInit, PendingChangesAware {
     this.recoveryVisible = true;
   }
 
-  onRecoveryStudentsChanged(event: { value?: string[] }): void {
-    const requested = event.value ?? [];
+  onRecoveryStudentsChanged(event: any): void {
+    const requested = this.recoveryStudentList.selectedItemKeys;
     const ids = requested.slice(0, 100);
     if (requested.length > 100) notify('Mỗi phiếu có tối đa 100 học sinh.', 'warning', 2500);
     const previous = new Map(this.recoveryDrafts.map(item => [item.studentId, item]));
     this.recoveryStudentIds = ids;
     this.recoveryDrafts = ids.map(id => previous.get(id) ?? this.recoveryDraft(this.studentCandidates.get(id), id));
   }
-
+  onRecoveryShown(): void {
+    console.log('onRecoveryShown()');
+    this.recoveryStudentList.instance.unselectAll();
+  }
   async saveRecovery(): Promise<void> {
     if (!this.recoveryReady || !this.validate(this.recoveryDrafts, true)) return;
     this.recoverySaving = true;
@@ -454,6 +460,14 @@ export class AttendanceComponent implements OnInit, PendingChangesAware {
         this.selectedGroupId = this.isTeacher && context.groups.length === 1 ? context.groups[0].id : null;
       }
       if (this.selectedGroupId) await this.loadDaily();
+      const recoveryStudentsResult = await firstValueFrom(this.attendance.recoveryStudents({ page: 1, pageSize: 100 }));
+      recoveryStudentsResult.items.forEach(item => this.studentCandidates.set(item.id, item));
+      this.recoveryStudents = recoveryStudentsResult.items.map(item => {
+        return {
+          ...item,
+          text: this.recoveryStudentText(item)
+        }
+      });
     } catch (error) {
       if (request === this.contextRequest) this.setError(error, 'Không thể tải phạm vi điểm danh.');
     } finally {
@@ -659,9 +673,10 @@ export class AttendanceComponent implements OnInit, PendingChangesAware {
     DxPopupModule,
     DxSelectBoxModule,
     DxTagBoxModule,
+    DxListModule,
     DxTextBoxModule
   ],
   declarations: [AttendanceComponent],
   exports: [AttendanceComponent]
 })
-export class AttendanceModule {}
+export class AttendanceModule { }

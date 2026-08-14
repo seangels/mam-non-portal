@@ -364,6 +364,9 @@ export interface RecoveryStudentCandidate {
   studentCode: string;
   fullName: string;
   nickName: string;
+  groupCode?: string | null;
+  groupName?: string | null;
+  responsibleTeacherName?: string | null;
   status: StudentStatus;
   isDeleted: boolean;
   currentGroupId: string | null;

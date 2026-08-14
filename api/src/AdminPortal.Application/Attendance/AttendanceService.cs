@@ -60,7 +60,7 @@ public sealed class AttendanceService(
             serverDate,
             groups.Select(x => new AttendanceContextGroupResponse(
                 x.Id, x.Code, x.Name,
-                savedCounts.GetValueOrDefault(x.Id, rosterCounts.GetValueOrDefault(x.Id)))).ToList(),
+                rosterCounts.GetValueOrDefault(x.Id, savedCounts.GetValueOrDefault(x.Id)))).ToList(),
             teacher?.AttendanceEditWindowDays,
             policy.CanEdit,
             policy.Reason);
@@ -430,35 +430,63 @@ public sealed class AttendanceService(
             ?? throw new NotFoundException("Không tìm thấy nhóm học sinh.");
         if (IsStandardSnapshotAvailable(group, request.Date))
             throw new ConflictException("Snapshot hiện tại vẫn đủ điều kiện tạo phiếu chuẩn.", ProblemCodes.HistoricalRecoveryNotAllowed);
-        if (await dbContext.AttendanceSheets.AnyAsync(
-            x => x.GroupId == group.Id && x.AttendanceDate == request.Date, cancellationToken))
-            throw new ConflictException("Phiếu điểm danh đã tồn tại.", ProblemCodes.AttendanceSheetAlreadyExists);
+
         var teacher = await dbContext.Teachers.IgnoreQueryFilters().AsNoTracking().Include(x => x.User)
             .SingleOrDefaultAsync(x => x.Id == request.ResponsibleTeacherId, cancellationToken)
             ?? throw new NotFoundException("Không tìm thấy hồ sơ giáo viên.");
-        var studentIds = request.Records.Select(x => x.StudentId).ToArray();
+        
+
+        var existingSheet = await dbContext.AttendanceSheets
+            .Include(x => x.Records)
+            .SingleOrDefaultAsync(x => x.GroupId == group.Id && x.AttendanceDate == request.Date, cancellationToken);
+
+        var existingRecordRequests = new List<AttendanceRecordRequest>();
+        if (existingSheet != null)
+        {
+            if (existingSheet.Records.Count > 0)
+            {
+                existingRecordRequests = existingSheet.Records.Select(x => new AttendanceRecordRequest(
+               x.StudentId, x.Status, x.HalfDayPart, x.IsExcused, x.DurationMinutes, x.Notes)).ToList();
+                dbContext.AttendanceRecords.RemoveRange(existingSheet.Records);
+            }
+            dbContext.AttendanceSheets.Remove(existingSheet);
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+
+        var now = timeProvider.GetUtcNow();
+        var sheet = new AttendanceSheet
+        {
+            Id = Guid.NewGuid(),
+            GroupId = group.Id,
+            AttendanceDate = request.Date,
+            GroupCodeSnapshot = group.Code,
+            GroupNameSnapshot = group.Name,
+            ResponsibleTeacherIdSnapshot = teacher.Id,
+            ResponsibleTeacherNameSnapshot = teacher.User.FullName,
+            SnapshotSource = AttendanceSnapshotSource.HistoricalRecovery,
+            HistoricalRecoveryReason = reason,
+            Version = 1,
+            CreatedByUserId = actor.UserId,
+            UpdatedByUserId = actor.UserId,
+            CreatedAt = now,
+            UpdatedAt = now
+        };
+        var requests = request.Records.ToDictionary(x => x.StudentId);
+        var studentIds = request.Records.Select(x => x.StudentId).ToList();
+        if (existingRecordRequests.Count > 0)
+        {
+            foreach (var record in existingRecordRequests)
+            {
+                requests.TryAdd(record.StudentId, record);
+                studentIds.Add(record.StudentId);
+            }
+        }
         var students = await dbContext.Students.IgnoreQueryFilters().AsNoTracking()
             .Where(x => studentIds.Contains(x.Id)).ToListAsync(cancellationToken);
         if (students.Count != studentIds.Distinct().Count())
             throw new AppValidationException("Danh sách học sinh recovery không hợp lệ.",
                 new Dictionary<string, string[]> { ["records"] = ["Có học sinh không tồn tại hoặc bị trùng."] });
-        if (await dbContext.AttendanceRecords.AnyAsync(
-            x => studentIds.Contains(x.StudentId) && x.AttendanceDate == request.Date, cancellationToken))
-            throw new ConflictException("Có học sinh đã nằm trong phiếu khác cùng ngày.", ProblemCodes.AttendanceRosterMismatch);
 
-        var now = timeProvider.GetUtcNow();
-        var sheet = new AttendanceSheet
-        {
-            Id = Guid.NewGuid(), GroupId = group.Id, AttendanceDate = request.Date,
-            GroupCodeSnapshot = group.Code, GroupNameSnapshot = group.Name,
-            ResponsibleTeacherIdSnapshot = teacher.Id,
-            ResponsibleTeacherNameSnapshot = teacher.User.FullName,
-            SnapshotSource = AttendanceSnapshotSource.HistoricalRecovery,
-            HistoricalRecoveryReason = reason,
-            Version = 1, CreatedByUserId = actor.UserId, UpdatedByUserId = actor.UserId,
-            CreatedAt = now, UpdatedAt = now
-        };
-        var requests = request.Records.ToDictionary(x => x.StudentId);
         foreach (var student in students.OrderBy(x => x.Id))
             sheet.Records.Add(CreateRecord(sheet, student, requests[student.Id], actor.UserId, now));
         dbContext.AttendanceSheets.Add(sheet);
@@ -519,7 +547,16 @@ public sealed class AttendanceService(
         var items = await candidates.OrderBy(x => x.FullName).ThenBy(x => x.Id)
             .Skip((query.Page - 1) * query.PageSize).Take(query.PageSize)
             .Select(x => new HistoricalStudentCandidateResponse(
-                x.Id, x.StudentCode, x.FullName, x.NickName, x.Status, x.DeletedAt != null, x.GroupId))
+                x.Id,
+                x.StudentCode,
+                x.FullName,
+                x.NickName,
+                x.Group == null ? null : x.Group.Code,
+                x.Group == null ? null : x.Group.Name,
+                x.Group == null || x.Group.ResponsibleTeacher == null ? null : x.Group.ResponsibleTeacher.User.FullName,
+                x.Status,
+                x.DeletedAt != null,
+                x.GroupId))
             .ToListAsync(cancellationToken);
         return Page(items, query, total);
     }
@@ -591,10 +628,17 @@ public sealed class AttendanceService(
     {
         var record = new AttendanceRecord
         {
-            Id = Guid.NewGuid(), SheetId = sheet.Id, Sheet = sheet, AttendanceDate = sheet.AttendanceDate,
-            StudentId = student.Id, StudentCodeSnapshot = student.StudentCode,
-            StudentFullNameSnapshot = student.FullName, StudentNickNameSnapshot = student.NickName,
-            CreatedAt = now, UpdatedAt = now, UpdatedByUserId = actorUserId
+            Id = Guid.NewGuid(),
+            SheetId = sheet.Id,
+            Sheet = sheet,
+            AttendanceDate = sheet.AttendanceDate,
+            StudentId = student.Id,
+            StudentCodeSnapshot = student.StudentCode,
+            StudentFullNameSnapshot = student.FullName,
+            StudentNickNameSnapshot = student.NickName,
+            CreatedAt = now,
+            UpdatedAt = now,
+            UpdatedByUserId = actorUserId
         };
         ApplyRecord(record, request, actorUserId, now, NormalizeOptional(request.Notes), null);
         return record;
@@ -624,15 +668,21 @@ public sealed class AttendanceService(
         object? oldValue,
         object? newValue) => dbContext.AuditLogs.Add(new AuditLog
         {
-            ActorUserId = actor.UserId, Action = action, EntityType = "AttendanceSheet", EntityId = sheet.Id,
+            ActorUserId = actor.UserId,
+            Action = action,
+            EntityType = "AttendanceSheet",
+            EntityId = sheet.Id,
             OldValues = oldValue is null ? null : JsonSerializer.Serialize(oldValue),
             NewValues = newValue is null ? null : JsonSerializer.Serialize(newValue),
-            IpAddress = actor.IpAddress, CreatedAt = timeProvider.GetUtcNow()
+            IpAddress = actor.IpAddress,
+            CreatedAt = timeProvider.GetUtcNow()
         });
 
     private static object AuditSnapshot(AttendanceSheet sheet, bool notesChanged) => new
     {
-        sheet.GroupId, sheet.AttendanceDate, sheet.Version,
+        sheet.GroupId,
+        sheet.AttendanceDate,
+        sheet.Version,
         SnapshotSource = sheet.SnapshotSource.ToString(),
         rosterTotal = sheet.Records.Count,
         present = sheet.Records.Count(x => x.Status == AttendanceStatus.Present),

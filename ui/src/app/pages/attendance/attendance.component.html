@@ -185,10 +185,10 @@
         <strong>{{ item.nickName }}</strong>
         <span>·</span>
         <small>{{ item.studentCode }}</small>
+        <span class="changed" *ngIf="isDirty(item)">Đã thay đổi</span>
       </div>
 
       <div class="card-fields">
-        <span class="changed" *ngIf="isDirty(item)">Đã thay đổi</span>
 
         <label class="status-pill" [ngClass]="statusClass(item.status)">
           <span class="visually-hidden">Trạng thái của {{ cardIdentity(item) }}</span>
@@ -217,8 +217,6 @@
             <option [ngValue]="false">Không phép</option>
           </select>
         </label>
-
-        <div class="duration-chip" *ngIf="item.status === 'OneToOneHour'" aria-label="Thời lượng 60 phút">60 phút</div>
 
         <label class="notes-field">
           <span>
@@ -275,12 +273,13 @@
   [maxWidth]="'96vw'"
   [height]="'90vh'"
   [showCloseButton]="true"
+  (onshown)="onRecoveryShown()"
   [dragEnabled]="false">
   <div *dxTemplate="let data of 'content'" class="recovery-content">
-    <div class="message warning">
+    <!-- <div class="message warning">
       <strong>Thao tác đặc biệt dành cho quản trị viên.</strong>
       <span>Chỉ dùng khi không còn ảnh chụp danh sách của ngày đã chọn. Mọi lựa chọn dưới đây sẽ tạo một ảnh chụp lịch sử mới.</span>
-    </div>
+    </div> -->
     <div class="recovery-fields">
       <label>
         <span>Nhóm lịch sử <b aria-hidden="true">*</b></span>
@@ -310,23 +309,24 @@
       </label>
       <label class="wide">
         <span>Học sinh trong danh sách lịch sử <b aria-hidden="true">*</b></span>
-        <dx-tag-box
-          [dataSource]="recoveryStudentDataSource"
-          valueExpr="id"
-          [displayExpr]="recoveryStudentText"
-          [value]="recoveryStudentIds"
-          [searchEnabled]="true"
+        <dx-list
+          #recoveryStudentList
+          [dataSource]="recoveryStudents"
+          [height]="400"
+          [keyExpr]="'id'"
+          [selectionMode]="'all'"
+          [selectAllMode]="'page'"
           [showSelectionControls]="true"
-          [hideSelectedItems]="true"
-          placeholder="Tìm và chọn học sinh"
+          [selectByClick]="true"
+          [searchEnabled]="true"
+          searchExpr="text"
+          searchMode="contains"
           noDataText="Không có học sinh phù hợp"
-          [inputAttr]="{ 'aria-label': 'Danh sách học sinh lịch sử bắt buộc' }"
-          (onValueChanged)="onRecoveryStudentsChanged($event)">
-        </dx-tag-box>
+          (onSelectionChanged)="onRecoveryStudentsChanged($event)">
+        ></dx-list>
         <small>Đã chọn {{ recoveryDrafts.length }}/100 học sinh.</small>
       </label>
     </div>
-
     <div class="recovery-list" *ngIf="recoveryDrafts.length" role="list" aria-label="Trạng thái học sinh lịch sử">
       <article *ngFor="let item of recoveryDrafts; trackBy: trackStudent" role="listitem">
         <strong>{{ item.nickName }}</strong><small>{{ item.studentCode }}</small>
@@ -343,8 +343,8 @@
     </div>
 
     <label class="recovery-reason">
-      <span>Lý do khôi phục <b aria-hidden="true">*</b> <small>({{ recoveryReason.length }}/500)</small></span>
-      <textarea [(ngModel)]="recoveryReason" maxlength="500" rows="3" aria-label="Lý do khôi phục bắt buộc"></textarea>
+      <span>Lý do khôi phục <b aria-hidden="true">*</b> <small>({{ recoveryReason.length }}/200)</small></span>
+      <textarea [(ngModel)]="recoveryReason" maxlength="200" rows="3" aria-label="Lý do khôi phục bắt buộc"></textarea>
     </label>
     <label class="acknowledge">
       <input type="checkbox" [(ngModel)]="recoveryAcknowledged" />

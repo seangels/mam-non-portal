@@ -15,7 +15,7 @@ app-attendance {
   .message.error { background: #fff5f5; border-color: #d92d20; color: #7a271a; }
   .message small { color: #667085; }
   .message-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
-  .summary-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+  .summary-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
   .summary-grid div { padding: 14px; border-radius: 8px; background: #fff; box-shadow: 0 1px 4px #10182815; }
   .summary-grid span { display: block; color: #667085; font-size: 12px; }
   .summary-grid strong { display: block; margin-top: 3px; font-size: 24px; }
