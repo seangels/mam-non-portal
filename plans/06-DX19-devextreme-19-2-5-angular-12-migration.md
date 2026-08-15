@@ -21,6 +21,10 @@
 - Không chạy production build, IIS build/package hoặc deploy nếu người dùng chưa gọi `$gv-portal-production`.
 - Người dùng chịu trách nhiệm chạy NVM, chuyển Node và xóa `ui/node_modules`, `ui/package-lock.json`; agent không tự thực hiện các thao tác này.
 
+## Execution Closure Note
+
+Ngày 2026-08-14, người dùng đã yêu cầu bỏ qua phần smoke test còn lại. Vì vậy `DX19` được chốt bằng automated gate, tài liệu và memory; browser smoke chỉ là một phần, không phải full-pass và không được mô tả là console-clean. Các phần đã kiểm tra gồm auth/setup guards, hash routing, authenticated-to-login teardown, Admin/Teacher/Group lifecycle, Attendance card density/search/draft discard và một số desktop/mobile layout. Student CRUD/schedule/assignment, các case Attendance/recovery còn lại, responsive/a11y đầy đủ và final console gate được skip theo quyết định của người dùng. Production/IIS vẫn chưa chạy vì chưa gọi `$gv-portal-production`.
+
 ---
 
 ## 1. Mã phát triển và phụ thuộc

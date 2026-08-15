@@ -1,10 +1,10 @@
 # Shared workspace memory
 
-Last updated: 2026-08-12
+Last updated: 2026-08-14
 
 ## Product and ownership
 
-- Admin portal with a .NET 10 REST API, PostgreSQL 17, and Angular 15/DevExtreme UI.
+- Admin portal with a .NET 10 REST API, PostgreSQL 17, and Angular 12.2.17/DevExtreme 19.2.5 UI.
 - Backend owns `api/`; frontend owns `ui/`; orchestrator owns shared contract/deployment/tracking files.
 - `plans/01-BASE-admin-portal.md` is the base REST contract; numbered feature plans are indexed in `plans/README.md`. `tasks.md` is the detailed execution log.
 
@@ -38,10 +38,12 @@ Last updated: 2026-08-12
 ## Last verified baseline
 
 - Backend build: 0 warnings/errors.
-- Backend unit tests: 38/38 passed.
-- Backend PostgreSQL 17/Testcontainers integration tests in Release: 24/24 passed, including fresh startup, `InitialCreate` → attendance → Teacher-management → Student-schedule upgrade rehearsal, optimistic-concurrency and schedule-vs-first-save race coverage.
-- EF Core reports no pending model changes. The latest migration is `20260811172348_AddStudentStudySchedule`.
-- Frontend development build passed for the SCH source and ChromeHeadlessCI tests: 50/50. Production/IIS AOT was intentionally not run during SCH; the last explicit production verification remains the earlier ATT/deployment baseline.
+- Backend unit tests: 40/40 passed.
+- Backend PostgreSQL 17/Testcontainers integration tests: 26/26 passed, including fresh startup, upgrade rehearsal through attendance/Teacher-management/Student-schedule/compact-attendance, optimistic-concurrency and schedule-vs-first-save race coverage.
+- EF Core reports no pending model changes. The latest backend migration is `20260811201427_AddAttendanceUnmarkedStatus`.
+- Frontend DX19 automated gate passed on Node `v14.21.3` and npm `8.19.4`: Angular/CLI `12.2.17`, CDK `12.2.13`, TypeScript `4.3.5`, RxJS `7.4.0`, DevExtreme `19.2.5`; `npm --prefix ui run test:ci` passed 72/72 and the single-worker development build passed with 11.77 MB initial output, hash `6138eb38f246f20a5a66`, and 16 known DevExtreme/CommonJS warnings.
+- Browser smoke for DX19 was partial and then waived by the user. Verified portions included auth/setup guards, hash routing, authenticated-to-login teardown, Admin/Teacher/Group lifecycle and selected Attendance/layout checks. Student CRUD/schedule/assignment, remaining Attendance/recovery flows, detailed responsive/a11y traversal and the final console gate were skipped, not passed. A responsive sidebar `internalFields` runtime finding remains accepted/skipped for this migration.
+- Production/IIS AOT was intentionally not run during SCH/AUI/DX19; the last explicit production verification remains the earlier ATT/deployment baseline.
 - PowerShell 5.1 parser passed for IIS scripts. Build/PrepareOnly and package checksum/content verification passed.
 - The last generated package in the current workspace was `release/gv-portal-iis-20260811-132500.zip` (6,935,733 bytes) with SHA-256 `389E4D5CD4510A377AF41C83A20BA7C7C68C41543B8ED85647D04DFADD07C523`. It contains 103 entries, the expected API/UI HTTPS bundle, and no source/PDB/Development config/secret file. Rebuild rather than assuming this ignored file exists elsewhere.
 
@@ -60,5 +62,6 @@ Last updated: 2026-08-12
 - Teacher management epic `TCH` at `plans/03-TCH-teacher-management.md` is implemented and verified. Teacher only adds editable user-entered `teacherCode`, nullable `note`, and aggregate `version` to the existing identity/policy/timestamps; account fields stay in User; `/teachers` is canonical; group assignment and attendance policy stay in `student-groups`; no HR fields/self-service/upload/start date. Soft-delete keeps Teacher/code/history and revokes User sessions; full PUT/policy/delete share optimistic versioning. Accent/case-insensitive search runs in the .NET API over all structured-filter candidates before exact total/paging; no PostgreSQL `unaccent` or search schema/index is used. Product scale is confirmed below 50 Teachers; candidate-count/duration telemetry remains the signal to revisit this approach.
 - Student group/schedule epic `SCH` at `plans/04-SCH-student-groups-study-schedule.md` is implemented and verified. `/students/{id}/group` remains the only group mutation. Student schedule is required `FullDay|OneToOne` plus one to six weekdays Monday–Saturday, protected by Student optimistic versioning. Current schedule derives Missing attendance roster/defaults while Saved sheets and manual historical recovery remain unchanged. PostgreSQL Student row locks use `FOR NO KEY UPDATE` so concurrent schedule mutation remains serialized without deadlocking AttendanceRecord foreign-key checks.
 - Attendance compact-card epic `AUI` at `plans/05-AUI-attendance-compact-cards.md` is implemented and verified. It adds persisted `AttendanceStatus.Unmarked`; keeps Missing defaults Present/OneToOneHour by schedule; new AbsentHalfDay writes omit `halfDayPart` but retain excused/unexcused; Saved legacy Morning/Afternoon survives an unchanged half-day status and clears when status changes. Main daily cards identify only `nickname · studentCode`; recovery keeps its existing layout but writes the new half-day semantics. UI notes max is 200 while the API remains 2,000, and unchanged longer legacy values are preserved. The grid is fluid and verified at five cards per row for a 1,036 px content area at 1366 px, with responsive single-column mobile cards, accessible design tokens and keyboard-operable native controls. Migration `20260811201427_AddAttendanceUnmarkedStatus` preserves legacy rows.
+- DevExtreme/Angular migration epic `DX19` at `plans/06-DX19-devextreme-19-2-5-angular-12-migration.md` is implemented with the user-approved smoke-test waiver. UI tooling is pinned to Node 14.21.3/npm 8.19.4, Angular 12.2.17, TypeScript 4.3.5, RxJS 7.4.0 and DevExtreme 19.2.5. Automated regression/build/dependency guards pass, but browser smoke was not completed; preserve the accepted sidebar `internalFields` runtime risk until a later cycle fixes or explicitly closes it. No backend/API, hash routing, auth flow, IIS environment, production build or deployment change was made.
 - Runtime subagent processes must be recreated in a new chat, then resume from these repository files.
 - Future backend/frontend agents should update their role memory and this file if they change a cross-stack contract or deployment behavior.

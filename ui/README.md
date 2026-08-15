@@ -1,19 +1,27 @@
 # Mầm Non Admin UI
 
-Admin portal xây bằng Angular 15 và DevExtreme 23.2. Ứng dụng hỗ trợ đăng nhập, quản lý tài khoản quản trị, giáo viên, nhóm/học sinh và điểm danh theo contract nền tại [`../plans/01-BASE-admin-portal.md`](../plans/01-BASE-admin-portal.md), plan [`../plans/02-ATT-attendance.md`](../plans/02-ATT-attendance.md), [`../plans/03-TCH-teacher-management.md`](../plans/03-TCH-teacher-management.md), [`../plans/04-SCH-student-groups-study-schedule.md`](../plans/04-SCH-student-groups-study-schedule.md) và [`../plans/05-AUI-attendance-compact-cards.md`](../plans/05-AUI-attendance-compact-cards.md). Danh mục và thứ tự các kế hoạch nằm tại [`../plans/README.md`](../plans/README.md).
+Admin portal xây bằng Angular 12.2.17 và DevExtreme 19.2.5. Ứng dụng hỗ trợ đăng nhập, quản lý tài khoản quản trị, giáo viên, nhóm/học sinh và điểm danh theo contract nền tại [`../plans/01-BASE-admin-portal.md`](../plans/01-BASE-admin-portal.md), plan [`../plans/02-ATT-attendance.md`](../plans/02-ATT-attendance.md), [`../plans/03-TCH-teacher-management.md`](../plans/03-TCH-teacher-management.md), [`../plans/04-SCH-student-groups-study-schedule.md`](../plans/04-SCH-student-groups-study-schedule.md) và [`../plans/05-AUI-attendance-compact-cards.md`](../plans/05-AUI-attendance-compact-cards.md). Danh mục và thứ tự các kế hoạch nằm tại [`../plans/README.md`](../plans/README.md).
 
 ## Yêu cầu
 
-- Node.js 18 hoặc 20.
+- Node.js đúng `14.21.3` và npm đúng `8.19.4` trên máy phát triển/build. `preinstall` sẽ dừng nếu sai phiên bản.
 - .NET SDK 10 để tạo và trust chứng thư HTTPS development dùng chung với API.
 - API đang chạy; cấu hình development mặc định là `https://localhost:7158/api/v1`.
+
+Node 14, Angular 12 và DevExtreme 19.2.5 đều đã EOL. Ma trận này được khóa do ràng buộc sản phẩm, không còn nhận bản vá bảo mật chính thức và cần được đánh giá riêng trước khi đưa lên production.
 
 ## Chạy local
 
 ```bash
+nvm install 14.21.3
+nvm use 14.21.3
+node --version
+npm --version
 npm ci
 npm start
 ```
+
+Trước `npm ci`, kết quả bắt buộc là `v14.21.3` và `8.19.4`. npm được cài cho đúng Node đang active trong NVM; không dùng `--force` hoặc `--legacy-peer-deps` để vượt qua guard.
 
 Lần chạy đầu, script `prestart` sẽ tạo/trust chứng thư HTTPS development của .NET và export cặp PEM vào `.certs/` (thư mục này không được commit). Chấp nhận hộp thoại trust certificate của hệ điều hành nếu được hỏi.
 
@@ -26,12 +34,18 @@ Khi khởi động, UI kiểm tra `GET /api/v1/setup/status`. Nếu database ch�
 ## Lệnh kiểm tra
 
 ```bash
-npm run build
 npm run test:ci
-npm run build -- --configuration iis
+npm run build -- --configuration development
 ```
 
-`test:ci` dùng Chrome headless với cấu hình phù hợp CI/container. Build production được xuất vào `dist/DevExtreme-app`. Configuration `iis` phải được dùng cho gói IIS hai host để bundle gọi đúng `https://api-gv-portal.local/api/v1`.
+`test:ci` dùng Chrome headless với cấu hình phù hợp CI/container. Khi máy ít tài nguyên, đặt `NG_BUILD_MAX_WORKERS=1` cho development build. Production build, IIS build/package và deploy chỉ được thực hiện khi người dùng gọi rõ `$gv-portal-production`; migration DX19 chưa xác minh production/IIS.
+
+## Trạng thái kiểm tra DX19
+
+- Cổng tự động cuối đã chạy với đúng Node/npm pin: 72/72 test pass, development build pass và dependency/source guards pass.
+- Smoke test trình duyệt đã kiểm tra một phần các luồng đăng nhập/shell, tài khoản quản trị, giáo viên, nhóm và điểm danh. Người dùng đã chủ động bỏ qua phần còn lại; Student CRUD/lịch học, các case Attendance/recovery còn lại, toàn bộ responsive/a11y và final console gate không được coi là đã pass.
+- NumberBox cấu hình chính sách đổi đúng khi người dùng thao tác bàn phím bình thường; kết quả khác từ browser automation được ghi nhận là artifact của automation.
+- Khi đổi responsive viewport từng xuất hiện lỗi DevExtreme `internalFields` tại sidebar. Người dùng chấp nhận bỏ qua lần này; đây vẫn là rủi ro runtime đã biết, không phải kết quả console sạch.
 
 ## Authentication và CSRF
 

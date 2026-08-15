@@ -6,7 +6,7 @@
 - **Thứ tự:** `04`
 - **Trạng thái:** Đã triển khai và xác minh `SCH-00`–`SCH-05` ngày 2026-08-12.
 - **Ngày lập:** 2026-08-11; bắt đầu triển khai 2026-08-12.
-- **Phạm vi:** .NET 10 REST API, PostgreSQL 17 và Angular 15/DevExtreme.
+- **Phạm vi:** .NET 10 REST API, PostgreSQL 17 và Angular/DevExtreme UI hiện tại.
 - **Contract nền:** [`01-BASE-admin-portal.md`](01-BASE-admin-portal.md), [`02-ATT-attendance.md`](02-ATT-attendance.md) và [`03-TCH-teacher-management.md`](03-TCH-teacher-management.md).
 
 Mỗi đợt phát triển dùng mã `SCH-00` đến `SCH-05`. Task backend, frontend và kiểm thử dùng hậu tố `SCH-BE-*`, `SCH-FE-*`, `SCH-QA-*`.

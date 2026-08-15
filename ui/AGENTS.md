@@ -20,7 +20,7 @@ Before changing frontend code:
 
 ## Existing architecture
 
-- Angular 15.2, TypeScript 4.9 in strict mode, RxJS 7.8, and DevExtreme/DevExtreme Angular 23.2.3.
+- Angular 12.2.17, TypeScript 4.3.5 in strict mode, RxJS 7.4.0, and DevExtreme/DevExtreme Angular 19.2.5. Development and build machines must use Node 14.21.3 with npm 8.19.4. These versions are EOL and remain pinned only because the product requires DevExtreme 19.2.5; do not use APIs introduced by newer Angular or DevExtreme releases.
 - This is an NgModule application, not a standalone-component application. `AppModule` registers `HttpClientModule`, the auth interceptor, and an `APP_INITIALIZER`.
 - Startup order is security-sensitive: `SetupService.loadStatus()` runs first; session restore runs only when setup is complete. If setup status fails, keep the retryable setup error state rather than bypassing initialization.
 - Routing uses `useHash: true`. Main routes are `/setup`, `/login-form`, `/home`, `/profile`, `/users`, `/students`, `/student-groups`, and `/attendance`.
@@ -68,20 +68,22 @@ From the workspace root:
 ```powershell
 npm --prefix ui ci
 npm --prefix ui start
-npm --prefix ui run build
 npm --prefix ui run test:ci
-npm --prefix ui run build -- --configuration iis
+$env:NG_BUILD_MAX_WORKERS = "1"
+npm --prefix ui run build -- --configuration development
 ```
 
-From `ui/`, the equivalent commands omit `--prefix ui`. `npm run build` uses the production configuration and writes `dist/DevExtreme-app`; `test:ci` uses `ChromeHeadlessCI`. Run `npm run build-themes` only when theme metadata changes.
+From `ui/`, the equivalent commands omit `--prefix ui`. `test:ci` uses `ChromeHeadlessCI`; the explicit development configuration is the normal build gate. `npm ci` runs the pinned toolchain check and regenerates the DevExtreme 19.2.5 themes through `postinstall`. Run `npm run build-themes` directly only when theme metadata changes.
 
-For a transfer package, the root-owned workflow is:
+Production builds, IIS builds/packages and deployment are not normal frontend verification. They may run only when the user explicitly invokes the root-owned `$gv-portal-production` skill. The transfer workflow remains root/infrastructure-owned.
 
-```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\deploy\iis\build-iis-package.ps1
-```
+## DX19 verification boundary
 
-For normal frontend code changes, at minimum run the production build and `test:ci`. Also run the IIS build when changing environments, API URL wiring, Angular build config, assets, routing/bootstrap behavior, or anything that can affect the packaged bundle.
+- Automated DX19 verification uses the exact Node/npm pins, full `test:ci`, a single-worker development build, logical/targeted dependency checks and source guards. Do not substitute a production/IIS build for this gate.
+- Browser smoke during the migration was partial. The user explicitly waived the uncompleted Student, Attendance recovery, responsive, accessibility and final console matrix; never describe that matrix as fully passed.
+- A DevExtreme 19 responsive sidebar transition previously produced `TypeError: Cannot read properties of null (reading 'internalFields')`. The user accepted skipping that finding for this migration; it remains a known runtime risk, not a clean-console result.
+- The policy NumberBox discrepancy observed through browser automation was manually checked by the user and changes correctly with normal keyboard input. Treat that observation as an automation artifact unless it reproduces through ordinary interaction.
+- Production/IIS compatibility has not been verified for the DX19 baseline. Keep the explicit `$gv-portal-production` gate.
 
 ## Durable memory and handoff
 

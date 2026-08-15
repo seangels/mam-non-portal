@@ -66,25 +66,26 @@ Run from the workspace root:
 ```powershell
 npm --prefix ui ci
 npm --prefix ui start
-npm --prefix ui run build
 npm --prefix ui run test:ci
-npm --prefix ui run build -- --configuration iis
+$env:NG_BUILD_MAX_WORKERS = "1"
+npm --prefix ui run build -- --configuration development
 ```
 
-- `npm run build` defaults to production and outputs `ui/dist/DevExtreme-app`.
 - `npm run test:ci` uses Karma/Jasmine with `ChromeHeadlessCI`.
 - `npm ci` runs `postinstall`, which rebuilds generated DevExtreme theme assets.
 - `ui/e2e/` is legacy template material and is not part of the current package scripts or verification gate.
-- Source-machine transfer package: `powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\deploy\iis\build-iis-package.ps1`.
+- Production build, IIS build/package and deployment require an explicit `$gv-portal-production` invocation and remain root/infrastructure-owned.
 
 ## Last verified baseline
 
-DX19 automated regression checkpoint on 2026-08-14:
+DX19 final automated gate and user-waived browser checkpoint on 2026-08-14:
 
 - Toolchain facts: Node `v14.21.3`, npm `8.19.4`; direct local Angular CLI reports CLI/Angular `12.2.17`, CDK `12.2.13`, TypeScript `4.3.5` and RxJS `7.4.0`. `npm --prefix ui exec ng -- version` is not a reliable root-level probe (it reports an invalid config), while `ui\\node_modules\\.bin\\ng.cmd version` runs successfully and direct JSON-schema validation of `ui/angular.json` is valid.
-- `npm --prefix ui run test:ci` passed 64/64 in ChromeHeadlessCI. `NG_BUILD_MAX_WORKERS=1; npm --prefix ui run build -- --configuration development` passed with 11.77 MB initial output, hash `7ce1c11476d0890505a1`, and exactly 13 legacy DevExtreme 19 CommonJS optimization-bailout warnings; no template/type error. No existing spec changed because no compatibility expectation regressed. Source guards found no floating DevExtreme versions, compiler bypasses, disabled/focused specs, or known DevExtreme-23 API names. `git diff --check` passed; no UI/Karma listener remained after verification.
-- Logical dependency verification passed: `npm --prefix ui ls --package-lock-only` and targeted Angular/DevExtreme package listing exited 0 at the pinned matrix. The normal npm physical scan after ngcc reports root extraneous `__ngcc_entry_points__.json`, `bindings@1.5.0`, `file-uri-to-path@1.0.0`, and `nan@2.28.0`; the latter three are only children of optional Darwin-only `fsevents@1.2.13` absent on Windows. Record them without pruning or reinstalling node_modules. Fresh `npm --prefix ui audit --json` remains 112 findings (6 low, 63 moderate, 38 high, 5 critical); no `npm audit fix` is authorized because the EOL version matrix is pinned.
-- No production build, IIS build/package, deploy, dependency upgrade, source workaround, or API/deployment-contract change was made. DX19-QA-02 manual smoke remains pending.
+- Fresh `npm --prefix ui run preinstall` passed. `npm --prefix ui run test:ci` passed 72/72 in ChromeHeadless 151. `NG_BUILD_MAX_WORKERS=1; npm --prefix ui run build -- --configuration development` passed with 11.77 MB initial output and hash `6138eb38f246f20a5a66`; it emitted 16 known DevExtreme 19/CommonJS optimization-bailout warnings and no template/type error.
+- Logical `npm --prefix ui ls --package-lock-only` and the targeted Angular/DevExtreme package tree both exited 0 at the exact pinned matrix; `package-lock.json` remains lockfile v2. Guards found no floating DevExtreme version, compiler/routing/install bypass, disabled/focused Jasmine spec or known newer DevExtreme API name. Scoped diff checking passed. The normal npm physical scan after ngcc reports root extraneous `__ngcc_entry_points__.json`, `bindings@1.5.0`, `file-uri-to-path@1.0.0`, and `nan@2.28.0`; the latter three are only children of optional Darwin-only `fsevents@1.2.13` absent on Windows. Record them without pruning or reinstalling node_modules. Fresh `npm --prefix ui audit --json` remains 112 findings (6 low, 63 moderate, 38 high, 5 critical); no `npm audit fix` is authorized because the EOL version matrix is pinned.
+- Manual browser smoke was partial, then the user explicitly waived the remaining matrix. Verified portions included auth/setup guards and hash routing, the authenticated-to-login teardown, administrator and Teacher lifecycle coverage, Group create/assign/unassign/delete, Attendance card density/search/draft discard, and selected desktop/mobile layouts. Student CRUD/schedule/assignment, remaining Attendance save/conflict/read-only/no-scheduled cases, historical recovery, detailed responsive/a11y traversal and the final console gate were skipped, not passed.
+- The policy NumberBox result seen through browser automation was manually checked by the user and normal keyboard editing works; no source change was required. A responsive sidebar transition separately produced `TypeError: Cannot read properties of null (reading 'internalFields')` inside DevExtreme navigation code. The user accepted skipping that finding for this migration, so it remains a known runtime risk and the smoke result must not be called console-clean.
+- No production build, IIS build/package, deploy, dependency mutation, API/REST contract change, hash-routing change, auth-flow change or environment change was made. Production/IIS compatibility remains unverified until `$gv-portal-production` is explicitly invoked.
 
 Fresh compact-attendance verification on 2026-08-12:
 
@@ -109,6 +110,8 @@ Fresh compact-attendance verification on 2026-08-12:
 - `StudyMode.OneToOne` is schedule metadata while `AttendanceStatus.OneToOneHour` is the persisted 60-minute status. Missing defaults come from the API; Saved and recovery records must never be re-filtered against the current schedule.
 - Keep the separate raw-note baseline in the attendance editor. It is required so full-roster PUT preserves untouched API legacy notes over 200 characters even though all newly entered or edited notes are limited to 200 in the UI.
 - Karma loads DevExtreme components and currently prints W0019 when no local DevExtreme license key is installed; this is a licensing/setup warning rather than a test failure and must be resolved by the product owner before commercial deployment.
+- The DX19 browser matrix was not completed by user decision. Preserve the accepted responsive sidebar `internalFields` finding in future handoffs until it is reproduced and fixed or explicitly closed in a later development cycle; do not infer a clean runtime console from the automated gate.
+- Browser automation may not commit DevExtreme 19 NumberBox values the same way as ordinary keyboard input. The user manually verified the policy value does change; reproduce with normal interaction before treating an automation-only mismatch as an application defect.
 - Avoid unplanned Angular/DevExtreme/CDK upgrades; the current dependency mix builds, while a partial upgrade can break the template and generated themes.
 
 ## Memory update and handoff format

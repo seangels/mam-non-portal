@@ -6,7 +6,7 @@
 - **Thứ tự:** `05`.
 - **Trạng thái:** Đã triển khai và xác minh ngày 2026-08-12.
 - **Ngày lập:** 2026-08-12.
-- **Phạm vi:** .NET 10 REST API, PostgreSQL 17 và Angular 15/DevExtreme tại trang `/#/attendance`.
+- **Phạm vi:** .NET 10 REST API, PostgreSQL 17 và Angular/DevExtreme UI hiện tại tại trang `/#/attendance`.
 - **Phụ thuộc:** [`02-ATT-attendance.md`](02-ATT-attendance.md) và [`04-SCH-student-groups-study-schedule.md`](04-SCH-student-groups-study-schedule.md).
 
 Về thứ tự áp dụng contract, plan `AUI` này mở rộng `ATT`/`SCH` và ghi đè đúng hai điểm: thêm persisted status `Unmarked`, đồng thời bỏ yêu cầu `Morning/Afternoon` đối với các thao tác `AbsentHalfDay` mới. Mọi quy tắc khác của `ATT`/`SCH` vẫn giữ nguyên.
