@@ -469,14 +469,17 @@ export class AttendanceComponent implements OnInit, PendingChangesAware {
         this.selectedGroupId = this.isTeacher && context.groups.length === 1 ? context.groups[0].id : null;
       }
       if (this.selectedGroupId) await this.loadDaily();
-      const recoveryStudentsResult = await firstValueFrom(this.attendance.recoveryStudents({ page: 1, pageSize: 100 }));
-      recoveryStudentsResult.items.forEach(item => this.studentCandidates.set(item.id, item));
-      this.recoveryStudents = recoveryStudentsResult.items.map(item => {
-        return {
-          ...item,
-          text: this.recoveryStudentText(item)
-        }
-      });
+      if (this.isAdministrator) {
+        const recoveryStudentsResult = await firstValueFrom(this.attendance.recoveryStudents({ page: 1, pageSize: 100 }));
+        recoveryStudentsResult.items.forEach(item => this.studentCandidates.set(item.id, item));
+        this.recoveryStudents = recoveryStudentsResult.items.map(item => {
+          return {
+            ...item,
+            text: this.recoveryStudentText(item)
+          }
+        });
+      }
+
     } catch (error) {
       if (request === this.contextRequest) this.setError(error, 'Không thể tải phạm vi điểm danh.');
     } finally {
