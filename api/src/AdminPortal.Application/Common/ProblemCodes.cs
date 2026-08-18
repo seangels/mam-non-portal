@@ -30,4 +30,5 @@ public static class ProblemCodes
     public const string NoScheduledStudents = nameof(NoScheduledStudents);
     public const string HistoricalRecoveryNotAllowed = nameof(HistoricalRecoveryNotAllowed);
     public const string AssessmentNotFound = nameof(AssessmentNotFound);
+    public const string AssessmentGroupNotFound = nameof(AssessmentGroupNotFound);
 }

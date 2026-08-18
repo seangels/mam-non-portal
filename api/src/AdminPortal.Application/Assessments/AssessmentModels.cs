@@ -11,7 +11,7 @@ public sealed class AssessmentListQuery
     public Guid? GroupLv1Id { get; init; }
     public Guid? GroupLv2Id { get; init; }
     public Guid? GroupLv3Id { get; init; }
-    [MaxLength(40)] public string SortBy { get; init; } = "rowIndex";
+    [MaxLength(40)] public string SortBy { get; init; } = "rowindex";
     [RegularExpression("(?i)^(asc|desc)$")] public string SortOrder { get; init; } = "asc";
 }
 
@@ -23,12 +23,8 @@ public sealed record AssessmentListItemResponse(
     int? RowIndex,
     string GroupLv1Name,
     string GroupLv2Name,
-    string GroupLv3Name);
-
-public sealed record AssessmentGroupResponse(
-    Guid Id,
-    string Name,
-    int Level);
+    string GroupLv3Name
+    );
 
 public sealed record AssessmentDetailResponse(
     Guid Id,
@@ -38,6 +34,7 @@ public sealed record AssessmentDetailResponse(
     int? RowIndex,
     string GroupLv1Name,
     string GroupLv2Name,
-    string GroupLv3Name);
+    string GroupLv3Name
+    );
 
 

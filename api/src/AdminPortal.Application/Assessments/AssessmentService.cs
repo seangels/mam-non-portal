@@ -144,7 +144,7 @@ public sealed partial class AssessmentService(
                 {
                     ["sortBy"] =
                     [
-                        "Chỉ hỗ trợ code, name, email, rowindex."
+                        "Chỉ hỗ trợ code, name, rowindex."
                     ]
                 })
         };
