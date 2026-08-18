@@ -4,30 +4,27 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace AdminPortal.Infrastructure.Persistence.Configurations;
 
-internal sealed class TeacherConfiguration : IEntityTypeConfiguration<Teacher>
+internal sealed class AssessmentConfiguration : IEntityTypeConfiguration<Assessment>
 {
-    public void Configure(EntityTypeBuilder<Teacher> builder)
+    public void Configure(EntityTypeBuilder<Assessment> builder)
     {
-        builder.ToTable("teachers", table =>
-        {
-            table.HasCheckConstraint(
-                "ck_teachers_attendance_edit_window_days",
-                "attendance_edit_window_days BETWEEN 1 AND 7");
-            table.HasCheckConstraint(
-                "ck_teachers_teacher_code",
-                "teacher_code = upper(btrim(teacher_code)) AND teacher_code <> ''");
-            table.HasCheckConstraint("ck_teachers_version", "version >= 1");
-        });
+        builder.ToTable("assessments");
         builder.HasKey(x => x.Id);
-        builder.Property(x => x.TeacherCode).HasMaxLength(50).IsRequired();
+        builder.Property(x => x.Code).IsRequired().HasMaxLength(50);
+        builder.Property(x => x.Name).IsRequired().HasMaxLength(500);
         builder.Property(x => x.Note).HasMaxLength(2000);
-        builder.Property(x => x.AttendanceEditWindowDays).HasDefaultValue((short)7);
-        builder.Property(x => x.Version).HasDefaultValue(1).IsConcurrencyToken();
-        builder.HasIndex(x => x.UserId).IsUnique();
-        builder.HasIndex(x => x.TeacherCode).IsUnique();
-        builder.HasOne(x => x.User)
-            .WithOne(x => x.TeacherProfile)
-            .HasForeignKey<Teacher>(x => x.UserId)
-            .OnDelete(DeleteBehavior.Restrict);
+        builder.Property(x => x.RowIndex);
+        builder.HasOne(x => x.GroupLv1)
+            .WithMany(x => x.AssessmentsLv1)
+            .HasForeignKey(x => x.GroupLv1Id)
+            .OnDelete(DeleteBehavior.SetNull);
+        builder.HasOne(x => x.GroupLv2)
+            .WithMany(x => x.AssessmentsLv2)
+            .HasForeignKey(x => x.GroupLv2Id)
+            .OnDelete(DeleteBehavior.SetNull);
+        builder.HasOne(x => x.GroupLv3)
+            .WithMany(x => x.AssessmentsLv3)
+            .HasForeignKey(x => x.GroupLv3Id)
+            .OnDelete(DeleteBehavior.SetNull);
     }
 }

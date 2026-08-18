@@ -10,9 +10,9 @@ internal sealed class AssessmentGroupConfiguration : IEntityTypeConfiguration<As
     {
         builder.ToTable("assessment_groups");
         builder.HasKey(x => x.Id);
-        builder.Property(x => x.IsRoot).IsRequired().HasDefaultValue(false);
-        builder.Property(x => x.Name).HasMaxLength(2000);
-        builder.Property(x => x.Level).HasDefaultValue((short)7);
+        builder.Property(x => x.Name).IsRequired().HasMaxLength(2000);
+        builder.Property(x => x.Level).IsRequired().HasDefaultValue(1);
+        builder.Property(x => x.DisplayOrder);
         builder.Property(x => x.ParentId);
     }
 }

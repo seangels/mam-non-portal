@@ -1,3 +1,4 @@
+using AdminPortal.Application.Common;
 using AdminPortal.Application.Teachers;
 
 namespace AdminPortal.UnitTests;

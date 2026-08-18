@@ -13,6 +13,8 @@ public interface IApplicationDbContext
     DbSet<StudentGroup> StudentGroups { get; }
     DbSet<AttendanceSheet> AttendanceSheets { get; }
     DbSet<AttendanceRecord> AttendanceRecords { get; }
+    DbSet<Assessment> Assessments { get; }
+    DbSet<AssessmentGroup> AssessmentGroups { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }
