@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace AdminPortal.Api.Controllers;
 
 [ApiController]
+[Authorize]
 [Route("api/v1/assessment-groups")]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized)]
@@ -21,8 +22,8 @@ public sealed class AssessmentGroupController(IAssessmentGroupService assessment
         [FromQuery] AssessmentGroupListQuery query,
         CancellationToken cancellationToken) => Ok(await assessmentGroupService.ListAsync(query, cancellationToken));
 
-    [HttpGet("{id:guid}")]
-    [ProducesResponseType<AssessmentGroupDetailResponse>(StatusCodes.Status200OK)]
-    public async Task<ActionResult<AssessmentGroupDetailResponse>> Get(Guid id, CancellationToken cancellationToken) =>
-        Ok(await assessmentGroupService.GetAsync(id, cancellationToken));
+    [HttpGet("{name}")]
+    [ProducesResponseType<AssessmentGroupListItemResponse>(StatusCodes.Status200OK)]
+    public async Task<ActionResult<AssessmentGroupListItemResponse>> Get(string name, CancellationToken cancellationToken) =>
+        Ok(await assessmentGroupService.GetAsync(name, cancellationToken));
 }

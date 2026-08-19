@@ -1,10 +1,10 @@
 import { Component, OnInit, NgModule, Input, ViewChild } from '@angular/core';
 import { SideNavigationMenuModule, HeaderModule } from '../../shared/components';
-import { ScreenService } from '../../shared/services';
+import { AuthService, ScreenService } from '../../shared/services';
 import { DxDrawerModule } from 'devextreme-angular/ui/drawer';
 import { DxScrollViewModule, DxScrollViewComponent } from 'devextreme-angular/ui/scroll-view';
 import { CommonModule } from '@angular/common';
-import { NavigationItem } from '../../app-navigation';
+import { buildNavigation, NavigationItem } from '../../app-navigation';
 import {
   DrawerOpenedStateMode,
   DrawerRevealMode,
@@ -12,6 +12,7 @@ import {
 } from '../../core/models/devextreme-legacy.types';
 
 import { Router, NavigationEnd } from '@angular/router';
+import { UserRole } from 'src/app/core/models/api.models';
 
 @Component({
   selector: 'app-side-nav-outer-toolbar',
@@ -27,26 +28,42 @@ export class SideNavOuterToolbarComponent implements OnInit {
 
   @Input()
   title!: string;
+  pageTitle?: string = '';
 
   menuMode: DrawerOpenedStateMode = 'shrink';
   menuRevealMode: DrawerRevealMode = 'expand';
   minMenuSize = 0;
   shaderEnabled = false;
 
-  constructor(private screen: ScreenService, private router: Router) { }
-
+  constructor(
+    private screen: ScreenService,
+    private router: Router,
+    private auth: AuthService
+  ) { }
+  private currentRole?: UserRole;
   ngOnInit() {
+    this.auth.user$.subscribe(user => this.currentRole = user?.role);
+
     this.menuOpened = this.screen.sizes['screen-large'];
 
     this.router.events.subscribe(val => {
       if (val instanceof NavigationEnd) {
         this.selectedRoute = val.urlAfterRedirects.split('?')[0];
+        this.pageTitle = this.resolveTitle(this.selectedRoute);
       }
     });
 
     this.screen.changed.subscribe(() => this.updateDrawer());
 
     this.updateDrawer();
+  }
+
+  private resolveTitle(path: string): string {
+    const flatten = (items: NavigationItem[]): NavigationItem[] =>
+      items.flatMap(i => (i.items ? [i, ...flatten(i.items)] : [i]));
+
+    const match = flatten(buildNavigation(this.currentRole)).find(i => i.path === path);
+    return match?.text ?? '';
   }
 
   updateDrawer() {

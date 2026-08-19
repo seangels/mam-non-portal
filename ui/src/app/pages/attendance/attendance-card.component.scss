@@ -90,3 +90,15 @@
   .card-fields { padding: 18px 12px 12px; }
   .status-pill select, .conditional-select select, .notes-field textarea { min-height: 44px; font-size: 13px; }
 }
+:host {
+  ::ng-deep {
+    dx-button{
+      display: flex;
+      align-items: center;
+      .dx-button-content{
+        display: inherit;
+      }
+    }
+  }
+}
+

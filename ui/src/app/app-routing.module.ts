@@ -15,6 +15,8 @@ import { TeacherFormComponent } from './pages/teachers/teacher-form.component';
 import { TeachersComponent } from './pages/teachers/teachers.component';
 import { TeachersModule } from './pages/teachers/teachers.module';
 import { PendingChangesGuard } from './core/guards/pending-changes.guard';
+import { AssessmentsComponent } from './pages/assessments/assessments.component';
+import { AssessmentsModule } from './pages/assessments/assessments.module';
 
 export const APP_ROUTES: Routes = [
   {
@@ -71,6 +73,12 @@ export const APP_ROUTES: Routes = [
     component: AttendanceComponent,
     canActivate: [SetupCompletedGuard, AuthGuardService, RoleGuard],
     canDeactivate: [PendingChangesGuard],
+    data: { roles: ['SuperAdmin', 'Admin', 'Teacher'] }
+  },
+  {
+    path: 'assessments',
+    component: AssessmentsComponent,
+    canActivate: [SetupCompletedGuard, AuthGuardService, RoleGuard],
     data: { roles: ['SuperAdmin', 'Admin', 'Teacher'] }
   },
   {

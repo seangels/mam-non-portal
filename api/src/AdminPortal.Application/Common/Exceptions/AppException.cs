@@ -33,3 +33,8 @@ public sealed class AppValidationException(
 {
     public IReadOnlyDictionary<string, string[]> Errors { get; } = errors;
 }
+
+public sealed class NormalException(
+    string message,
+    string? code = null,
+    IReadOnlyDictionary<string, object?>? extensions = null) : AppException(message, code, extensions);

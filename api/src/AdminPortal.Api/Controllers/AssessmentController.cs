@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace AdminPortal.Api.Controllers;
 
 [ApiController]
+[Authorize]
 [Route("api/v1/assessments")]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized)]

@@ -14,7 +14,5 @@ public interface IApplicationDbContext
     DbSet<AttendanceSheet> AttendanceSheets { get; }
     DbSet<AttendanceRecord> AttendanceRecords { get; }
     DbSet<Assessment> Assessments { get; }
-    DbSet<AssessmentGroup> AssessmentGroups { get; }
-
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

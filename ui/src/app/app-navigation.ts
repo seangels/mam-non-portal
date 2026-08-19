@@ -10,7 +10,8 @@ export interface NavigationItem {
 export function buildNavigation(role?: UserRole): NavigationItem[] {
   const items: NavigationItem[] = [
     { text: 'Tổng quan', path: '/home', icon: 'home' },
-    { text: 'Điểm danh', path: '/attendance', icon: 'check' }
+    { text: 'Điểm danh', path: '/attendance', icon: 'check' },
+    { text: 'DS Đánh giá', path: '/assessments', icon: 'paste' }
   ];
 
   if (role === 'SuperAdmin' || role === 'Admin') {
@@ -22,8 +23,9 @@ export function buildNavigation(role?: UserRole): NavigationItem[] {
   }
 
   if (role === 'SuperAdmin') {
-    items.splice(2, 0, { text: 'Tài khoản quản trị', path: '/users', icon: 'group' });
+    items.splice(items.length, 0, { text: 'Tài khoản quản trị', path: '/users', icon: 'group' });
   }
+
 
   return items;
 }

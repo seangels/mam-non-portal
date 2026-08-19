@@ -1,0 +1,148 @@
+<!-- <div class="content-block page-toolbar">
+  <div>
+    <h1 class="page-title">Quản lý Đánh giá</h1>
+    <p class="page-subtitle">Quản lý các nội dung đánh giá.</p>
+  </div>
+</div> -->
+
+<section class="content-block dx-card filter-card" aria-labelledby="assessment-filter-heading">
+  <button class="filter-toggle" type="button" (click)="filtersExpanded = !filtersExpanded"
+    [attr.aria-expanded]="filtersExpanded" aria-controls="assessment-filters">
+    <span id="assessment-filter-heading">Bộ lọc đánh giá</span>
+    <span aria-hidden="true">{{ filtersExpanded ? '−' : '+' }}</span>
+  </button>
+  <div *ngIf="filtersExpanded" id="assessment-filters" class="filters assessment-filters-container">
+
+    <!-- ROW 1: CHỨA CÁC INPUT SEARCH -->
+    <div class="filter-row inputs-row">
+      <dx-text-box
+        class="search-input"
+        [(value)]="search"
+        valueChangeEvent="input"
+        placeholder="Mã, tên"
+        [showClearButton]="true"
+        [inputAttr]="{ 'aria-label': 'Tìm đánh giá theo mã, tên' }"
+        (onValueChanged)="scheduleSearch()"
+        (onEnterKey)="applyFilters()">
+      </dx-text-box>
+
+      <dx-select-box
+        class="lv1-input"
+        [(value)]="groupLv1Name"
+        [dataSource]="groupLv1DataSource"
+        valueExpr="name"
+        [displayExpr]="groupDisplay"
+        [searchEnabled]="true"
+        searchMode="contains"
+        [placeholder]="groupLv1Placeholder"
+        [showClearButton]="true"
+        noDataText="Không có nhóm phù hợp"
+        [inputAttr]="{ 'aria-label': 'Lọc theo nhóm tuổi' }"
+        (onValueChanged)="onGroupLv1Changed()">
+      </dx-select-box>
+
+      <dx-select-box
+        class="lv2-input"
+        [(value)]="groupLv2Name"
+        [dataSource]="groupLv2DataSource"
+        valueExpr="name"
+        [displayExpr]="groupDisplay"
+        [searchEnabled]="true"
+        searchMode="contains"
+        [placeholder]="groupLv2Placeholder"
+        [showClearButton]="true"
+        noDataText="Không có nhóm phù hợp"
+        [inputAttr]="{ 'aria-label': 'Lọc theo nhóm 2' }"
+        (onValueChanged)="onGroupLv2Changed()">
+      </dx-select-box>
+
+      <dx-select-box
+        class="lv3-input"
+        [(value)]="groupLv3Name"
+        [dataSource]="groupLv3DataSource"
+        valueExpr="name"
+        [displayExpr]="groupDisplay"
+        [searchEnabled]="true"
+        searchMode="contains"
+        [placeholder]="groupLv3Placeholder"
+        [showClearButton]="true"
+        noDataText="Không có nhóm phù hợp"
+        [inputAttr]="{ 'aria-label': 'Lọc theo nhóm 3' }"
+        (onValueChanged)="onGroupLv3Changed()">
+      </dx-select-box>
+    </div>
+
+    <!-- ROW 2: CHỨA CÁC BUTTON HÀNH ĐỘNG -->
+    <div class="filter-row buttons-row">
+      <dx-button
+        class="sync-btn"
+        stylingMode="outlined"
+        hint="Đồng bộ dữ liệu từ GGSheet"
+        [text]="saveButtonText"
+        icon="save"
+        type="default"
+        [disabled]="saveDisabled"
+        (onClick)="syncAssessmentsFromGGSheet()">
+      </dx-button>
+
+      <dx-button
+        text="Lọc"
+        icon="filter"
+        type="default"
+        hint="Áp dụng bộ lọc đánh giá"
+        (onClick)="applyFilters()">
+      </dx-button>
+
+      <dx-button
+        text="Đặt lại"
+        icon="revert"
+        stylingMode="outlined"
+        hint="Xóa toàn bộ bộ lọc"
+        (onClick)="resetFilters()">
+      </dx-button>
+
+      <dx-button
+        text="Ẩn/Hiện cột"
+        icon="column-chooser"
+        stylingMode="outlined"
+        hint="Ẩn/Hiện cột"
+        (onClick)="showDialogColumnChooser()">
+      </dx-button>
+    </div>
+
+  </div>
+
+</section>
+
+<div *ngIf="loadError" class="content-block error-panel" role="alert">
+  <span>{{ loadError }}</span>
+  <dx-button text="Thử lại" icon="refresh" stylingMode="outlined" (onClick)="retryLoad()"></dx-button>
+</div>
+
+<div class="content-block dx-card grid-card">
+  <dx-data-grid #grid [dataSource]="dataSource" [remoteOperations]="{ paging: false, sorting: false }"
+    [showBorders]="true" [columnAutoWidth]="true" [columnHidingEnabled]="true" [wordWrapEnabled]="true"
+    [rowAlternationEnabled]="true" [hoverStateEnabled]="true" noDataText="Không có dữ liệu phù hợp">
+    <dxo-load-panel [enabled]="true" text="Đang tải ..."></dxo-load-panel>
+    <dxo-paging [pageSize]="5000"></dxo-paging>
+    <dxo-sorting mode="single"></dxo-sorting>
+
+    <dxi-column dataField="groupLv1Name" caption="Nhóm tuổi" cellTemplate="groupLv1Cell" [minWidth]="180"></dxi-column>
+    <dxi-column [visible]="false" dataField="groupLv2Name" caption="Nhóm lv 2" cellTemplate="groupLv2Cell" [minWidth]="200"></dxi-column>
+    <dxi-column [visible]="false" dataField="groupLv3Name" caption="Nhóm lv 3" cellTemplate="groupLv3Cell" [minWidth]="280"></dxi-column>
+    <dxi-column dataField="code" caption="Mã" [width]="70"></dxi-column>
+    <dxi-column dataField="name" caption="Nội dung" [minWidth]="320"></dxi-column>
+    <dxi-column dataField="rowIndex" caption="RowIndex"  sortOrder="asc" [minWidth]="60"></dxi-column>
+
+    <div *dxTemplate="let cell of 'groupLv1Cell'" class="group-cell">
+      <span>{{ cell.data.groupLv1Name }}</span>
+    </div>
+    <div *dxTemplate="let cell of 'groupLv2Cell'" class="group-cell">
+      <span>{{ cell.data.groupLv2Name }}</span>
+    </div>
+    <div *dxTemplate="let cell of 'groupLv3Cell'" class="group-cell">
+      <span>{{ cell.data.groupLv3Name }}</span>
+    </div>
+
+  </dx-data-grid>
+</div>

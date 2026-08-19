@@ -6,11 +6,11 @@ namespace AdminPortal.Application.Assessments;
 public sealed class AssessmentListQuery
 {
     [Range(1, 1_000_000)] public int Page { get; init; } = 1;
-    [Range(1, 100)] public int PageSize { get; init; } = 20;
+    [Range(1, 5000)] public int PageSize { get; init; } = 5000;
     [MaxLength(200)] public string? Search { get; init; }
-    public Guid? GroupLv1Id { get; init; }
-    public Guid? GroupLv2Id { get; init; }
-    public Guid? GroupLv3Id { get; init; }
+    public string? GroupLv1Name { get; init; }
+    public string? GroupLv2Name { get; init; }
+    public string? GroupLv3Name { get; init; }
     [MaxLength(40)] public string SortBy { get; init; } = "rowindex";
     [RegularExpression("(?i)^(asc|desc)$")] public string SortOrder { get; init; } = "asc";
 }
@@ -21,9 +21,9 @@ public sealed record AssessmentListItemResponse(
     string Name,
     string? Note,
     int? RowIndex,
-    string GroupLv1Name,
-    string GroupLv2Name,
-    string GroupLv3Name
+    string? GroupLv1Name,
+    string? GroupLv2Name,
+    string? GroupLv3Name
     );
 
 public sealed record AssessmentDetailResponse(
@@ -32,9 +32,9 @@ public sealed record AssessmentDetailResponse(
     string Name,
     string? Note,
     int? RowIndex,
-    string GroupLv1Name,
-    string GroupLv2Name,
-    string GroupLv3Name
+    string? GroupLv1Name,
+    string? GroupLv2Name,
+    string? GroupLv3Name
     );
 
 

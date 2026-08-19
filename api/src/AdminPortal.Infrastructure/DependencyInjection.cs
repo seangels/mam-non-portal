@@ -16,6 +16,9 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using AdminPortal.Application.AssessmentGroups;
+using AdminPortal.Application.Assessments;
+using AdminPortal.Application.GoogleSheets;
 
 namespace AdminPortal.Infrastructure;
 
@@ -48,6 +51,19 @@ public static class DependencyInjection
         services.AddScoped<ITokenService, TokenService>();
         services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
         services.AddScoped<ISetupService, SetupService>();
+        services.AddScoped<IAssessmentGroupService, AssessmentGroupService>();
+        services.AddScoped<IAssessmentService, AssessmentService>();
+
+        // 1. Map và đăng ký cấu hình vào DI Container
+        services.Configure<GoogleSheetsSettings>(configuration.GetSection("GoogleSheets"));
+
+        // 2. Nếu cần inject trực tiếp Interface IGoogleSheetsSettings ở nơi khác
+        services.AddSingleton<IGoogleSheetsSettings>(sp => 
+            configuration.GetSection("GoogleSheets").Get<GoogleSheetsSettings>() ?? new GoogleSheetsSettings());
+
+        // 3. Đăng ký Service thao tác Sheets
+        services.AddScoped<IGoogleSheetsService, GoogleSheetsService>();
+
         services.AddSingleton(TimeProvider.System);
 
         services.AddOptions<DatabaseOptions>()

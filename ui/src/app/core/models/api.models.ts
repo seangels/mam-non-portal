@@ -389,3 +389,52 @@ export interface HistoricalRecoveryRequest {
   acknowledgeHistoricalSnapshot: true;
   recoveryReason: string;
 }
+
+
+export interface AssessmentListQuery extends ListQuery {
+  groupLv1Name?: string;
+  groupLv2Name?: string;
+  groupLv3Name?: string;
+}
+
+export interface Assessment {
+  id: string;
+  code: string;
+  name: string;
+  rowIndex: number;
+  groupLv1Name: string;
+  groupLv2Name: string;
+  groupLv3Name: string;
+}
+
+export interface AssessmentDetail extends Assessment {
+}
+
+
+
+export interface AssessmentGroupListQuery extends ListQuery {
+  level?: number;
+  parentName?: string;
+  parentParentName?: string;
+}
+
+export interface AssessmentGroup {
+  id: string;
+  name: string;
+  level?: number;
+  parentName?: string | null;
+}
+export interface AssessmentGroupDetail extends AssessmentGroup {
+}
+
+
+export interface SyncAssessmentFromGoogleSheetsRequest {
+}
+
+export interface SyncAssessmentFromGoogleSheetsResponse {
+  sheetsTotalRows: number;
+  databaseTotalRows: number;
+  insertedRows: number;
+  updatedRows: number;
+  deletedRows: number;
+}

@@ -3,6 +3,7 @@ using System;
 using AdminPortal.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace AdminPortal.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(AdminPortalDbContext))]
-    partial class AdminPortalDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260818185009_UpdateAssessmentManagement")]
+    partial class UpdateAssessmentManagement
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -39,25 +42,14 @@ namespace AdminPortal.Infrastructure.Persistence.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
-                    b.Property<string>("GroupLv1Name")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)")
-                        .HasColumnName("group_lv1name");
-
-                    b.Property<string>("GroupLv2Name")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)")
-                        .HasColumnName("group_lv2name");
-
-                    b.Property<string>("GroupLv3Name")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)")
-                        .HasColumnName("group_lv3name");
+                    b.Property<Guid>("GroupId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("group_id");
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasMaxLength(2000)
-                        .HasColumnType("character varying(2000)")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
                         .HasColumnName("name");
 
                     b.Property<string>("Note")
@@ -80,10 +72,64 @@ namespace AdminPortal.Infrastructure.Persistence.Migrations
                     b.HasKey("Id")
                         .HasName("pk_assessments");
 
+                    b.HasIndex("GroupId")
+                        .HasDatabaseName("ix_assessments_group_id");
+
                     b.HasIndex("UpdatedByUserId")
                         .HasDatabaseName("ix_assessments_updated_by_user_id");
 
                     b.ToTable("assessments", (string)null);
+                });
+
+            modelBuilder.Entity("AdminPortal.Domain.Entities.AssessmentGroup", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<int?>("DisplayOrder")
+                        .HasColumnType("integer")
+                        .HasColumnName("display_order");
+
+                    b.Property<int>("Level")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1)
+                        .HasColumnName("level");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)")
+                        .HasColumnName("name");
+
+                    b.Property<Guid?>("ParentId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("parent_id");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid>("UpdatedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by_user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_assessment_groups");
+
+                    b.HasIndex("ParentId")
+                        .HasDatabaseName("ix_assessment_groups_parent_id");
+
+                    b.HasIndex("UpdatedByUserId")
+                        .HasDatabaseName("ix_assessment_groups_updated_by_user_id");
+
+                    b.ToTable("assessment_groups", (string)null);
                 });
 
             modelBuilder.Entity("AdminPortal.Domain.Entities.AttendanceRecord", b =>
@@ -735,12 +781,41 @@ namespace AdminPortal.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("AdminPortal.Domain.Entities.Assessment", b =>
                 {
+                    b.HasOne("AdminPortal.Domain.Entities.AssessmentGroup", "Group")
+                        .WithMany("Assessments")
+                        .HasForeignKey("GroupId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .IsRequired()
+                        .HasConstraintName("fk_assessments_assessment_groups_group_id");
+
                     b.HasOne("AdminPortal.Domain.Entities.User", "UpdatedByUser")
                         .WithMany()
                         .HasForeignKey("UpdatedByUserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_assessments_users_updated_by_user_id");
+
+                    b.Navigation("Group");
+
+                    b.Navigation("UpdatedByUser");
+                });
+
+            modelBuilder.Entity("AdminPortal.Domain.Entities.AssessmentGroup", b =>
+                {
+                    b.HasOne("AdminPortal.Domain.Entities.AssessmentGroup", "Parent")
+                        .WithMany("ChildGroups")
+                        .HasForeignKey("ParentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .HasConstraintName("fk_assessment_groups_assessment_groups_parent_id");
+
+                    b.HasOne("AdminPortal.Domain.Entities.User", "UpdatedByUser")
+                        .WithMany()
+                        .HasForeignKey("UpdatedByUserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_assessment_groups_users_updated_by_user_id");
+
+                    b.Navigation("Parent");
 
                     b.Navigation("UpdatedByUser");
                 });
@@ -878,6 +953,13 @@ namespace AdminPortal.Infrastructure.Persistence.Migrations
                         .HasConstraintName("fk_teachers_users_user_id");
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("AdminPortal.Domain.Entities.AssessmentGroup", b =>
+                {
+                    b.Navigation("Assessments");
+
+                    b.Navigation("ChildGroups");
                 });
 
             modelBuilder.Entity("AdminPortal.Domain.Entities.AttendanceSheet", b =>
