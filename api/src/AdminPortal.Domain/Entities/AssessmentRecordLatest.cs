@@ -15,7 +15,10 @@ public sealed class AssessmentRecordLatest
 
     [Column(TypeName = "jsonb")]
     public required AssessmentSnapshot AssessmentSnapshot { get; set; }
-    public required string AssessmentCode { get; set; }
+    [ForeignKey(nameof(AssessmentId))]
+    public required Guid AssessmentId {get;set;}
+    public required Assessment Assessment {get;set;}
+
     public AssessmentGrade? LatestGrade  { get; set; }
     [StringLength(2000)]
     public string? Note { get; set; }

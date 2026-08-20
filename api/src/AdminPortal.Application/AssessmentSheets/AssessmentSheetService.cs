@@ -396,9 +396,11 @@ public sealed class AssessmentSheetService(
         if (latestSheetId is null)
             return new Dictionary<string, AssessmentGrade?>(StringComparer.Ordinal);
 
-        return await dbContext.AssessmentRecordLatests.AsNoTracking()
+        return await dbContext.AssessmentRecordLatests
+            .Include(x=>x.Assessment)
+            .AsNoTracking()
             .Where(x => x.AssessmentSheetLatestId == latestSheetId)
-            .ToDictionaryAsync(x => x.AssessmentCode, x => x.LatestGrade, StringComparer.Ordinal, cancellationToken);
+            .ToDictionaryAsync(x => x.Assessment.Code, x => x.LatestGrade, StringComparer.Ordinal, cancellationToken);
     }
 
     private static List<AssessmentRecord> BuildRecords(
