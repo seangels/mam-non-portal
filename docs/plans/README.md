@@ -10,6 +10,7 @@ Các file được đánh số theo thứ tự phụ thuộc và triển khai. M
 | 04 | `SCH` | [`04-SCH-student-groups-study-schedule.md`](04-SCH-student-groups-study-schedule.md) | Đã triển khai | `BASE`, `ATT` |
 | 05 | `AUI` | [`05-AUI-attendance-compact-cards.md`](05-AUI-attendance-compact-cards.md) | Đã triển khai | `ATT`, `SCH` |
 | 06 | `DX19` | [`06-DX19-devextreme-19-2-5-angular-12-migration.md`](06-DX19-devextreme-19-2-5-angular-12-migration.md) | Đã triển khai; smoke một phần theo user-waiver | `BASE`, `ATT`, `TCH`, `SCH`, `AUI` |
+| 07 | `ASH` | [`07-ASH-assessment-sheet.md`](07-ASH-assessment-sheet.md) | Chưa triển khai | `BASE` |
 
 ## Quy ước đặt tên
 

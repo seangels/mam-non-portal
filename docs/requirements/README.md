@@ -15,6 +15,7 @@ Thư mục này là bản tổng hợp yêu cầu đã được chốt cho Admin
 | 06 | [Giao diện điểm danh](06-giao-dien-diem-danh.md) | Compact card, responsive, tìm kiếm, dirty state và accessibility |
 | 07 | [API, bảo mật và vận hành](07-api-bao-mat-va-van-hanh.md) | Quy ước REST, lỗi, bảo mật, audit, retention và health check |
 | 08 | [Triển khai IIS local HTTPS](08-trien-khai-iis-local-https.md) | Yêu cầu gói bàn giao và máy đích IIS/PostgreSQL |
+| 09 | [Bảng đánh giá năng lực](09-bang-danh-gia-nang-luc.md) | AssessmentSheet theo đợt, tích hợp Google Sheet [F01] và PDF [F02]/[F03] |
 
 ## Thứ tự ưu tiên khi có nội dung cũ mâu thuẫn
 
@@ -39,3 +40,4 @@ Yêu cầu được chắt lọc từ các plan theo thứ tự `BASE → ATT �
 | 05 | ATT + SCH + AUI theo thứ tự, sau đó áp dụng delta recovery/context hiện có trong source |
 | 06 | AUI, yêu cầu UI tiếng Việt của ATT và layout card/recovery hiện có trong source |
 | 08 | Các quyết định triển khai IIS/HTTPS đã chốt trong shared memory và tài liệu deploy |
+| 09 | Mô tả nghiệp vụ AssessmentSheet do người dùng cung cấp trực tiếp, đối chiếu với entity `Assessment`/`AssessmentGroup`/`AssessmentSheetLatest`/`AssessmentRecordLatest` và luồng đồng bộ Google Sheet hiện có trong source; còn nhiều điểm mở cần chốt (xem mục 15 của tài liệu) |

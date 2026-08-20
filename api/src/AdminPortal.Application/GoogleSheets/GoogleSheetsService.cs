@@ -2,7 +2,9 @@ using System.Text.RegularExpressions;
 using AdminPortal.Application.Common;
 using AdminPortal.Application.Common.Exceptions;
 using AdminPortal.Application.Common.Interfaces;
+using AdminPortal.Application.Common.Models;
 using AdminPortal.Domain.Entities;
+using AdminPortal.Domain.Enums;
 using Google.Apis.Auth.OAuth2;
 using Google.Apis.Services;
 using Google.Apis.Sheets.v4;
@@ -16,6 +18,7 @@ public class GoogleSheetsSettings : IGoogleSheetsSettings
 {
     public string CredentialFilePath { get; set; } = string.Empty;
     public string SpreadsheetId { get; set; } = string.Empty;
+    public string AssessmentSheetTemplateFileId { get; set; } = string.Empty;
 }
 internal sealed class AssessmentGroupSync
 {
@@ -134,7 +137,7 @@ public class GoogleSheetsService : IGoogleSheetsService, IDisposable
     public async Task<SyncAssessmentsFromGoogleSheetsResponse> SyncAssessmentsAsync(SyncAssessmentsFromGoogleSheetsRequest request, CancellationToken cancellationToken)
     {
         var actor = currentActor.GetRequired();
-        AuthorizationRules.EnsurePortalManager(actor);
+        EnsureAssessmentSyncRole(actor);
         var data = new List<AssessmentGoogleSheetResponse>();
         try
         {
@@ -214,4 +217,67 @@ public class GoogleSheetsService : IGoogleSheetsService, IDisposable
             DeletedRows: 0 // Replace with actual deleted count
         );
     }
+
+    public async Task<AssessmentSheetGoogleActionResponse> ExportAssessmentSheetToSheetAsync(
+        Guid assessmentSheetId,
+        CancellationToken cancellationToken)
+    {
+        await LoadAssessmentSheetForActionAsync(assessmentSheetId, cancellationToken);
+        throw GoogleMappingBlocked("Chưa có mapping cột cho sheet data của file F01 nên chưa thể xuất bảng đánh giá.");
+    }
+
+    public async Task<AssessmentSheetGoogleActionResponse> SyncAssessmentSheetToSheetAsync(
+        Guid assessmentSheetId,
+        CancellationToken cancellationToken)
+    {
+        await LoadAssessmentSheetForActionAsync(assessmentSheetId, cancellationToken);
+        throw GoogleMappingBlocked("Chưa có mapping cột cho sheet data của file F01 nên chưa thể đồng bộ bảng đánh giá.");
+    }
+
+    public async Task<AssessmentSheetGoogleActionResponse> SubmitAssessmentSheetResultsAsync(
+        Guid assessmentSheetId,
+        CancellationToken cancellationToken)
+    {
+        await LoadAssessmentSheetForActionAsync(assessmentSheetId, cancellationToken);
+        throw GoogleMappingBlocked("Chưa có mapping dò ô E16:E/H16:16 trong F0.ĐG nên chưa thể ghi kết quả đánh giá.");
+    }
+
+    public async Task<AssessmentSheetGoogleActionResponse> GenerateAssessmentSheetPlanPdfAsync(
+        Guid assessmentSheetId,
+        CancellationToken cancellationToken)
+    {
+        await LoadAssessmentSheetForActionAsync(assessmentSheetId, cancellationToken);
+        throw GoogleMappingBlocked("Chưa có mapping vị trí dữ liệu trên khcn_template và cấu hình lưu PDF nên chưa thể sinh F02.");
+    }
+
+    public async Task<AssessmentSheetGoogleActionResponse> GenerateAssessmentSheetResultPdfAsync(
+        Guid assessmentSheetId,
+        CancellationToken cancellationToken)
+    {
+        await LoadAssessmentSheetForActionAsync(assessmentSheetId, cancellationToken);
+        throw GoogleMappingBlocked("Chưa có mapping vị trí dữ liệu trên KQ_template và cấu hình lưu PDF nên chưa thể sinh F03.");
+    }
+
+    private async Task<AssessmentSheet> LoadAssessmentSheetForActionAsync(
+        Guid assessmentSheetId,
+        CancellationToken cancellationToken)
+    {
+        EnsureAssessmentSyncRole(currentActor.GetRequired());
+        var sheet = await dbContext.AssessmentSheets.AsNoTracking()
+            .SingleOrDefaultAsync(x => x.Id == assessmentSheetId, cancellationToken)
+            ?? throw new NotFoundException("Không tìm thấy bảng đánh giá.", ProblemCodes.AssessmentSheetNotFound);
+        _ = await dbContext.AssessmentRecords.AsNoTracking()
+            .Where(x => x.AssessmentSheetId == assessmentSheetId)
+            .CountAsync(cancellationToken);
+        return sheet;
+    }
+
+    private static void EnsureAssessmentSyncRole(ActorContext actor)
+    {
+        if (actor.Role is not (UserRole.SuperAdmin or UserRole.Admin or UserRole.Teacher))
+            throw new ForbiddenException("Không đủ quyền.");
+    }
+
+    private static NormalException GoogleMappingBlocked(string message) =>
+        new(message, ProblemCodes.AssessmentSheetGoogleMappingBlocked);
 }

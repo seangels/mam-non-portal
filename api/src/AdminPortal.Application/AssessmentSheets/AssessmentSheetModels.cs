@@ -1,0 +1,136 @@
+using System.ComponentModel.DataAnnotations;
+using AdminPortal.Application.Common.Models;
+using AdminPortal.Domain.Enums;
+
+namespace AdminPortal.Application.AssessmentSheets;
+
+public sealed class AssessmentSheetListQuery
+{
+    [Range(1, 1_000_000)] public int Page { get; init; } = 1;
+    [Range(1, 100)] public int PageSize { get; init; } = 20;
+    [MaxLength(200)] public string? Search { get; init; }
+    public Guid? StudentId { get; init; }
+    public AssessmentSheetStatus? Status { get; init; }
+    [MaxLength(40)] public string SortBy { get; init; } = "updatedAt";
+    [RegularExpression("(?i)^(asc|desc)$")] public string SortOrder { get; init; } = "desc";
+}
+
+public sealed class AssessmentPlanCandidateQuery
+{
+    [Range(1, 1_000_000)] public int Page { get; init; } = 1;
+    [Range(1, 5000)] public int PageSize { get; init; } = 5000;
+    [Required] public Guid StudentId { get; init; }
+    [MaxLength(200)] public string? Search { get; init; }
+    public string? GroupLv1Name { get; init; }
+    public string? GroupLv2Name { get; init; }
+    public string? GroupLv3Name { get; init; }
+    public AssessmentGrade? LatestGradeAtOrBelow { get; init; }
+    [MaxLength(40)] public string SortBy { get; init; } = "rowIndex";
+    [RegularExpression("(?i)^(asc|desc)$")] public string SortOrder { get; init; } = "asc";
+}
+
+public sealed record AssessmentSheetListItemResponse(
+    Guid Id,
+    string Name,
+    AssessmentSheetStatus Status,
+    Guid StudentId,
+    string? StudentCode,
+    string? StudentFullName,
+    Guid? ResponsibleTeacherId,
+    string? ResponsibleTeacherFullName,
+    DateTimeOffset? StartDate,
+    DateTimeOffset? DueDate,
+    DateTimeOffset? DoneDate,
+    DateTimeOffset? SubmissionDate,
+    string? AssessmentSheetSpreadsheetId,
+    string? PlanFileLinkPdf,
+    string? ResultFileLinkPdf,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset UpdatedAt);
+
+public sealed record AssessmentSheetDetailResponse(
+    Guid Id,
+    string Name,
+    AssessmentSheetStatus Status,
+    Guid StudentId,
+    AssessmentSheetStudentSnapshotResponse StudentSnapshot,
+    Guid? ResponsibleTeacherId,
+    string? ResponsibleTeacherFullName,
+    string? Note,
+    DateTimeOffset? StartDate,
+    DateTimeOffset? DueDate,
+    DateTimeOffset? DoneDate,
+    DateTimeOffset? SubmissionDate,
+    string? Feedback,
+    string? AssessmentSheetSpreadsheetId,
+    string? PlanFileLinkPdf,
+    string? ResultFileLinkPdf,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset UpdatedAt,
+    IReadOnlyList<AssessmentSheetRecordResponse> Records);
+
+public sealed record AssessmentSheetStudentSnapshotResponse(
+    string? StudentCode,
+    string? FullName,
+    string? NickName,
+    DateOnly? DateOfBirth,
+    Gender? Gender);
+
+public sealed record AssessmentSheetRecordResponse(
+    Guid Id,
+    Guid AssessmentSheetId,
+    int? AssessmentRowIndex,
+    AssessmentSnapshotResponse Assessment,
+    AssessmentGrade? PlanGrade,
+    string? PlanNote,
+    AssessmentGrade? FinalGrade,
+    string? FinalNote,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset UpdatedAt);
+
+public sealed record AssessmentSnapshotResponse(
+    string Code,
+    string Name,
+    string? GroupLv1Name,
+    string? GroupLv2Name,
+    string? GroupLv3Name,
+    int? RowIndex);
+
+public sealed record AssessmentPlanCandidateResponse(
+    Guid Id,
+    string Code,
+    string Name,
+    string? GroupLv1Name,
+    string? GroupLv2Name,
+    string? GroupLv3Name,
+    int? RowIndex,
+    AssessmentGrade? LatestGrade);
+
+public sealed record CreateAssessmentSheetRequest(
+    [param: Required, MaxLength(300)] string Name,
+    Guid StudentId,
+    Guid? ResponsibleTeacherId,
+    [param: MaxLength(2000)] string? Note,
+    DateTimeOffset? StartDate,
+    DateTimeOffset? DueDate,
+    [param: Required, MinLength(1), MaxLength(5000)] IReadOnlyList<Guid> AssessmentIds);
+
+public sealed record UpdateAssessmentSheetRequest(
+    [param: Required, MaxLength(300)] string Name,
+    Guid? ResponsibleTeacherId,
+    [param: MaxLength(2000)] string? Note,
+    DateTimeOffset? StartDate,
+    DateTimeOffset? DueDate,
+    [param: MaxLength(2000)] string? Feedback);
+
+public sealed record ReplaceAssessmentSheetRecordsRequest(
+    [param: Required, MinLength(1), MaxLength(5000)] IReadOnlyList<AssessmentSheetRecordRequest> Records);
+
+public sealed record AssessmentSheetRecordRequest(
+    Guid AssessmentId,
+    AssessmentGrade? PlanGrade,
+    [param: MaxLength(2000)] string? PlanNote,
+    AssessmentGrade? FinalGrade,
+    [param: MaxLength(2000)] string? FinalNote);
+
+public sealed record UpdateAssessmentSheetStatusRequest(AssessmentSheetStatus Status);

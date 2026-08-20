@@ -31,4 +31,8 @@ public static class ProblemCodes
     public const string HistoricalRecoveryNotAllowed = nameof(HistoricalRecoveryNotAllowed);
     public const string AssessmentNotFound = nameof(AssessmentNotFound);
     public const string AssessmentGroupNotFound = nameof(AssessmentGroupNotFound);
+    public const string AssessmentSheetNotFound = nameof(AssessmentSheetNotFound);
+    public const string AssessmentSheetAlreadyExists = nameof(AssessmentSheetAlreadyExists);
+    public const string AssessmentSheetDone = nameof(AssessmentSheetDone);
+    public const string AssessmentSheetGoogleMappingBlocked = nameof(AssessmentSheetGoogleMappingBlocked);
 }

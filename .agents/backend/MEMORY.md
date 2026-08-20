@@ -4,11 +4,12 @@
 
 ## Trạng thái gần nhất
 
-- Cập nhật: 2026-08-12.
-- Backend feature scope trong `plans/01-BASE-admin-portal.md` đến `plans/05-AUI-attendance-compact-cards.md` đã hoàn tất. Attendance hỗ trợ persisted `Unmarked`, summary riêng và semantics half-day mới mà không làm mất `halfDayPart` lịch sử.
-- Baseline xác minh gần nhất ở cấu hình mặc định/Debug: solution build `0 warning / 0 error`; unit test `40/40`; integration test PostgreSQL 17 Testcontainers `26/26`; EF báo không có pending model changes. Dev API process cũ đã được dừng có chủ đích để mở khóa Debug DLL và chưa được khởi động lại.
-- Integration AUI phủ JSON/OpenAPI `Unmarked`, summary, write/round-trip, DB constraint fresh, upgrade bảo toàn legacy Morning/Afternoon, full PUT preserve/clear theo status và audit không chứa attendance notes. Regression SCH/ATT/Teacher/Base vẫn nằm trong cùng full suite.
-- Không có blocker backend đã biết tại thời điểm snapshot. Trước mỗi task phải kiểm tra `git status`, `tasks.md` và source vì trạng thái này có thể đã thay đổi.
+- Cập nhật: 2026-08-20.
+- ASH backend đang ở trạng thái partial: `ASH-BE-00`/`ASH-BE-01` đã có từ trước; lượt này thêm `AssessmentSheets` application surface/controller/DI cho `ASH-BE-02` và chuẩn bị interface/action stubs cho `ASH-BE-03`/`ASH-BE-04`.
+- `AssessmentSheetService` hỗ trợ list/detail/plan-candidates/create/update/replace-records/status. Create snapshot Student/Assessment, chặn Student inactive, prefill `PlanGrade` từ `AssessmentRecordLatest.LatestGrade`, để trống `Final*`; replace records giữ `Plan*`/`Final*` độc lập; `Done` khoá update/records và `Open` mở lại. Quyền mở cho `Teacher`/`Admin`/`SuperAdmin`, không giới hạn nhóm.
+- `POST /google-sheets/sync-assessments` đã bỏ policy `PortalManagers` ở controller và kiểm tra role `Teacher`/`Admin`/`SuperAdmin` trong `GoogleSheetsService`, tránh mở nhầm các endpoint quản trị khác. Chưa implement upsert `AssessmentSheetLatest`/`AssessmentRecordLatest`.
+- Các action `export-to-sheet`, `sync-to-sheet`, `generate-plan-pdf`, `generate-result-pdf`, `submit-results` đã có route/interface nhưng hiện trả `ProblemCodes.AssessmentSheetGoogleMappingBlocked` vì còn thiếu mapping cột/vị trí Google Sheet/PDF và Drive copy/export/lưu file. Không tự suy diễn mapping.
+- Verification lượt này: `dotnet build api/src/AdminPortal.Api/AdminPortal.Api.csproj -c Release --no-restore` pass 0 warning/0 error; `dotnet test api/tests/AdminPortal.UnitTests/AdminPortal.UnitTests.csproj --no-restore` pass 40/40. `dotnet build api/AdminPortal.slnx --no-restore` và integration test bị chặn bởi `NU1903` package `SSH.NET` 2024.2.0 transitive qua Testcontainers; Debug build API riêng bị khóa DLL bởi process dotnet đang chạy, không kill vì chưa xác định command line an toàn.
 
 ## Bản đồ code
 

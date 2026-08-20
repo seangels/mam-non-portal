@@ -1,7 +1,17 @@
+using System.ComponentModel.DataAnnotations.Schema;
 using AdminPortal.Domain.Enums;
 
 namespace AdminPortal.Domain.Entities;
 
+[ComplexType]
+public sealed class StudentSnapshot
+{
+    public string? StudentCode { get; set; }
+    public string? FullName { get; set; }
+    public string? NickName { get; set; }
+    public DateOnly? DateOfBirth { get; set; }
+    public Gender? Gender { get; set; }
+}
 public sealed class Student
 {
     public Guid Id { get; set; } = Guid.NewGuid();

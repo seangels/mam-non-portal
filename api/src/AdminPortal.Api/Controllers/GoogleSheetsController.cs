@@ -18,7 +18,6 @@ namespace AdminPortal.Api.Controllers;
 public sealed class GoogleSheetsController(IGoogleSheetsService googleSheetsService) : ControllerBase
 {
     [HttpPost("sync-assessments")]
-    [Authorize(Policy = "PortalManagers")]
     [ProducesResponseType<SyncAssessmentsFromGoogleSheetsResponse>(StatusCodes.Status200OK)]
     public async Task<ActionResult<SyncAssessmentsFromGoogleSheetsResponse>> SyncAssessmentsFromGoogleSheets(
         SyncAssessmentsFromGoogleSheetsRequest request,

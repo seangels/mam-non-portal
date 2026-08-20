@@ -30,3 +30,11 @@ public sealed record SyncAssessmentsFromGoogleSheetsResponse(
     int UpdatedRows,
     int DeletedRows
     );
+
+public sealed record AssessmentSheetGoogleActionResponse(
+    Guid AssessmentSheetId,
+    string? AssessmentSheetSpreadsheetId,
+    string? PlanFileLinkPdf,
+    string? ResultFileLinkPdf,
+    DateTimeOffset? SubmissionDate,
+    DateTimeOffset UpdatedAt);

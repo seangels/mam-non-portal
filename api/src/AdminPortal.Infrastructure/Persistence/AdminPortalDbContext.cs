@@ -16,6 +16,10 @@ public sealed class AdminPortalDbContext(DbContextOptions<AdminPortalDbContext> 
     public DbSet<AttendanceSheet> AttendanceSheets => Set<AttendanceSheet>();
     public DbSet<AttendanceRecord> AttendanceRecords => Set<AttendanceRecord>();
     public DbSet<Assessment> Assessments => Set<Assessment>();
+    public DbSet<AssessmentSheet> AssessmentSheets => Set<AssessmentSheet>();
+    public DbSet<AssessmentRecord> AssessmentRecords => Set<AssessmentRecord>();
+    public DbSet<AssessmentSheetLatest> AssessmentSheetLatests => Set<AssessmentSheetLatest>();
+    public DbSet<AssessmentRecordLatest> AssessmentRecordLatests => Set<AssessmentRecordLatest>();
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(AdminPortalDbContext).Assembly);
