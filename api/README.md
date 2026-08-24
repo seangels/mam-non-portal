@@ -71,6 +71,12 @@ Các cấu hình bắt buộc/quan trọng:
 | `Security__AllowedOrigins__0` | Origin đầy đủ của UI, không dùng wildcard |
 | `Database__MigrateOnStartup` | `true` nếu instance chịu trách nhiệm apply migration |
 | `Attendance__BusinessTimeZone` | Múi giờ ngày nghiệp vụ, mặc định `Asia/Ho_Chi_Minh` |
+| `Spa__ServeFromClientAppBuild` | `true` để API serve SPA từ `ClientApp/build`; mặc định `false` |
+| `Spa__BuildPath` | Đường dẫn thư mục build UI, mặc định `ClientApp/build` tương đối với content root của API |
+
+### Serve SPA từ API
+
+Mặc định API vẫn chạy theo mô hình tách site UI/API. Khi cần một phương án chạy chung, copy output build của UI vào `src/AdminPortal.Api/ClientApp/build` và bật `Spa__ServeFromClientAppBuild=true`. API sẽ serve static files trong thư mục này và fallback các route SPA về `index.html`; các đường `/api`, `/health`, `/openapi` và `/swagger` vẫn trả theo API/404, không bị fallback sang SPA.
 
 ### Quản lý migration
 

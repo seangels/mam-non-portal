@@ -31,8 +31,18 @@
     <Content Update="appsettings.Development.json" CopyToPublishDirectory="Never" />
   </ItemGroup>
   <ItemGroup>
-  <None Update="google-credentials.qlmamnon-400006.json">
-    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-  </None>
-</ItemGroup>
+    <None Update="ClientApp\build\**\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </None>
+    <None Update="ClientApp\build\.gitkeep">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+      <CopyToPublishDirectory>Never</CopyToPublishDirectory>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Update="google-credentials.qlmamnon-400006.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
 </Project>

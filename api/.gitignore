@@ -7,4 +7,5 @@ TestResults/
 *.suo
 data/*
 **/google-credentials.*.json
-**/appsettings**
+**/appsettings.**.json
+**/ClientApp/build/**.*

@@ -10,6 +10,7 @@ using AdminPortal.Infrastructure;
 using AdminPortal.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.FileProviders;
 using Microsoft.OpenApi;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -57,6 +58,7 @@ builder.Services.AddProblemDetails(options =>
 builder.Services.AddExceptionHandler<ApiExceptionHandler>();
 builder.Services.AddHealthChecks()
     .AddCheck<DatabaseHealthCheck>("postgresql", tags: ["ready"]);
+builder.Services.Configure<SpaOptions>(builder.Configuration.GetSection(SpaOptions.SectionName));
 var loginPermitLimit = builder.Environment.IsEnvironment("Testing") ? 1000 : 5;
 var refreshPermitLimit = builder.Environment.IsEnvironment("Testing") ? 1000 : 20;
 var setupPermitLimit = builder.Environment.IsEnvironment("Testing") ? 1000 : 5;
@@ -94,6 +96,7 @@ builder.Services.AddCors(options => options.AddDefaultPolicy(policy =>
 }));
 
 var app = builder.Build();
+var spaOptions = app.Configuration.GetSection(SpaOptions.SectionName).Get<SpaOptions>() ?? new SpaOptions();
 
 await app.Services.InitializeDatabaseAsync(app.Lifetime.ApplicationStopping);
 
@@ -106,6 +109,18 @@ app.UseMiddleware<RequestLoggingMiddleware>();
 app.UseExceptionHandler();
 app.UseCors();
 app.UseRateLimiter();
+
+var spaBuildPath = ResolveSpaBuildPath(app.Environment.ContentRootPath, spaOptions.BuildPath);
+if (spaOptions.ServeFromClientAppBuild)
+{
+    if (Directory.Exists(spaBuildPath))
+    {
+        var spaFileProvider = new PhysicalFileProvider(spaBuildPath);
+        app.UseDefaultFiles(new DefaultFilesOptions { FileProvider = spaFileProvider });
+        app.UseStaticFiles(new StaticFileOptions { FileProvider = spaFileProvider });
+    }
+}
+
 app.UseAuthentication();
 app.UseAuthorization();
 
@@ -120,6 +135,27 @@ app.MapHealthChecks("/health/ready", new HealthCheckOptions
 {
     Predicate = registration => registration.Tags.Contains("ready")
 });
+if (spaOptions.ServeFromClientAppBuild)
+{
+    app.MapFallback(async context =>
+    {
+        if (!ShouldServeSpaFallback(context.Request.Path))
+        {
+            context.Response.StatusCode = StatusCodes.Status404NotFound;
+            return;
+        }
+
+        var indexPath = Path.Combine(spaBuildPath, "index.html");
+        if (!File.Exists(indexPath))
+        {
+            context.Response.StatusCode = StatusCodes.Status404NotFound;
+            return;
+        }
+
+        context.Response.ContentType = "text/html; charset=utf-8";
+        await context.Response.SendFileAsync(indexPath, context.RequestAborted);
+    });
+}
 
 await app.RunAsync();
 
@@ -133,5 +169,34 @@ static RateLimitPartition<string> CreateFixedWindowPartition(HttpContext context
             QueueLimit = 0,
             Window = TimeSpan.FromMinutes(1)
         });
+
+static string ResolveSpaBuildPath(string contentRootPath, string configuredPath)
+{
+    var buildPath = string.IsNullOrWhiteSpace(configuredPath)
+        ? "ClientApp/build"
+        : configuredPath;
+
+    return Path.GetFullPath(Path.IsPathRooted(buildPath)
+        ? buildPath
+        : Path.Combine(contentRootPath, buildPath));
+}
+
+static bool ShouldServeSpaFallback(PathString requestPath)
+{
+    var value = requestPath.Value ?? string.Empty;
+    if (Path.HasExtension(value))
+    {
+        return false;
+    }
+
+    return !StartsWithPathSegment(value, "/api")
+        && !StartsWithPathSegment(value, "/health")
+        && !StartsWithPathSegment(value, "/openapi")
+        && !StartsWithPathSegment(value, "/swagger");
+}
+
+static bool StartsWithPathSegment(string path, string segment) =>
+    path.Equals(segment, StringComparison.OrdinalIgnoreCase)
+    || path.StartsWith(segment + "/", StringComparison.OrdinalIgnoreCase);
 
 public partial class Program;

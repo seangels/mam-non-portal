@@ -1,9 +1,10 @@
 # Frontend role memory
 
-Last updated: 2026-08-14
+Last updated: 2026-08-24
 
 ## Resume here
 
+- 2026-08-24: Added frontend helper command for API-hosted SPA handoff. `ui/package.json` now has `npm run copy` (plus alias `copy:build:api`) which runs `ui/scripts/copy-build-to-api.ps1`. The script copies an existing Angular build from `ui/dist/DevExtreme-app` into `api/src/AdminPortal.Api/ClientApp/build`, cleans the destination before copying while preserving `.gitkeep`, validates `index.html`, and verifies the fixed API target path before deleting/copying. Verification run: `npm --prefix ui run copy -- -WhatIf` passed and changed no files. No Angular build, production/IIS package, or deployment was run.
 - Read `ui/AGENTS.md`, `.agents/shared/MEMORY.md`, `plans/README.md`, the relevant numbered plan contract sections, `ui/README.md`, and the current frontend/deployment sections of `tasks.md` before acting.
 - Frontend owns `ui/`. Root owns shared contract/deployment/tracking files; backend owns `api/`. Coordinate any contract change instead of editing across ownership boundaries silently.
 - Verify the current source and runtime state. This file records durable context; it does not guarantee that `node_modules`, `.certs`, `dist`, ignored artifacts/releases, API processes, PostgreSQL, or IIS exist now.

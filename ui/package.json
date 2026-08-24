@@ -8,6 +8,8 @@
     "start": "ng serve",
     "setup:https": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/setup-https.ps1",
     "build": "ng build",
+    "copy": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/copy-build-to-api.ps1",
+    "copy:build:api": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/copy-build-to-api.ps1",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
     "test:ci": "ng test --watch=false --browsers=ChromeHeadlessCI --progress=false",

@@ -25,6 +25,7 @@ Last updated: 2026-08-14
 ## Deployment decision
 
 - Production build/package/deploy is gated by the project skill `$gv-portal-production` at `.codex/skills/gv-portal-production`. Its `allow_implicit_invocation` is `false`; ordinary implementation or test work must use development verification and must not create a package or mutate IIS automatically.
+- Optional API-hosted SPA mode exists for non-default deployments: set `Spa:ServeFromClientAppBuild=true` and place the built UI output under `api/src/AdminPortal.Api/ClientApp/build` (or override `Spa:BuildPath`). The default remains `false`, preserving the separate API/UI IIS sites and the production skill gate.
 - The skill has distinct `build`, `verify`, and `deploy` modes. No mode defaults to non-deploying `build`; only explicit `deploy` authorizes target IIS/hosts/certificate/`C:\inetpub`/database changes.
 - Build happens on the source/build machine. The IIS target machine receives a ZIP containing publish artifacts and deploy documentation, not source code.
 - IIS local HTTPS hostnames are `api-gv-portal.local` and `gv-portal.local`, both on port 443 with SNI.

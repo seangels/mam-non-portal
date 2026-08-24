@@ -36,9 +36,10 @@ Khi khởi động, UI kiểm tra `GET /api/v1/setup/status`. Nếu database ch�
 ```bash
 npm run test:ci
 npm run build -- --configuration development
+npm run copy
 ```
 
-`test:ci` dùng Chrome headless với cấu hình phù hợp CI/container. Khi máy ít tài nguyên, đặt `NG_BUILD_MAX_WORKERS=1` cho development build. Production build, IIS build/package và deploy chỉ được thực hiện khi người dùng gọi rõ `$gv-portal-production`; migration DX19 chưa xác minh production/IIS.
+`test:ci` dùng Chrome headless với cấu hình phù hợp CI/container. Khi máy ít tài nguyên, đặt `NG_BUILD_MAX_WORKERS=1` cho development build. `npm run copy` copy build hiện có từ `dist/DevExtreme-app` sang `../api/src/AdminPortal.Api/ClientApp/build`, dọn nội dung cũ trong thư mục đích trước khi copy và giữ `.gitkeep`. Production build, IIS build/package và deploy chỉ được thực hiện khi người dùng gọi rõ `$gv-portal-production`; migration DX19 chưa xác minh production/IIS.
 
 ## Trạng thái kiểm tra DX19
 
