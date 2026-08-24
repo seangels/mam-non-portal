@@ -170,6 +170,20 @@ POST   /api/v1/attendance/sheets/historical-recovery
 GET    /api/v1/attendance/historical-recovery/group-candidates
 GET    /api/v1/attendance/historical-recovery/student-candidates
 GET    /api/v1/attendance/historical-recovery/teacher-candidates
+
+GET    /api/v1/assessment-sheets
+GET    /api/v1/assessment-sheets/plan-candidates
+GET    /api/v1/assessment-sheets/{id}
+POST   /api/v1/assessment-sheets
+PUT    /api/v1/assessment-sheets/{id}
+PUT    /api/v1/assessment-sheets/{id}/records
+PUT    /api/v1/assessment-sheets/{id}/status
+POST   /api/v1/assessment-sheets/{id}/export-to-sheet
+POST   /api/v1/assessment-sheets/{id}/sync-to-sheet
+POST   /api/v1/assessment-sheets/{id}/generate-plan-pdf
+POST   /api/v1/assessment-sheets/{id}/generate-result-pdf
+POST   /api/v1/assessment-sheets/{id}/submit-results
+POST   /api/v1/google-sheets/sync-assessments
 ```
 
 Hai setup endpoint không yêu cầu đăng nhập. POST được rate limit và chỉ hoạt động khi bảng `users` hoàn toàn rỗng, kể cả khi xét các bản ghi đã soft delete. Mật khẩu SuperAdmin phải đạt password policy chung: tối thiểu 12 ký tự, có chữ hoa, chữ thường, số và ký tự đặc biệt.
@@ -222,6 +236,18 @@ Các conflict/validation code ổn định: `TeacherNotFound`, `TeacherCodeAlrea
 - Write mới `AbsentHalfDay` gửi `halfDayPart=null`, bắt buộc `isExcused`; `Unmarked` có toàn bộ conditional field null. Column/wire `halfDayPart` vẫn tồn tại để đọc dữ liệu Morning/Afternoon legacy. Full PUT giữ part legacy nếu record vẫn là `AbsentHalfDay`, nhưng clear khi đổi status. API notes tiếp tục tối đa 2.000 ký tự để round-trip dữ liệu cũ.
 - Phiếu đã lưu giữ snapshot code/name/nickname của group, Teacher và Student. Rename/move/soft-delete dữ liệu hiện tại không sửa phiếu cũ.
 - Historical recovery chỉ dành cho Admin/SuperAdmin khi không thể chứng minh current snapshot của ngày quá khứ; bắt buộc acknowledgment, reason, Teacher và danh sách Student rõ ràng.
+
+### Bảng đánh giá năng lực (AssessmentSheet)
+
+- Yêu cầu nghiệp vụ đầy đủ: [`docs/requirements/09-bang-danh-gia-nang-luc.md`](../docs/requirements/09-bang-danh-gia-nang-luc.md); kế hoạch kỹ thuật: [`docs/plans/07-ASH-assessment-sheet.md`](../docs/plans/07-ASH-assessment-sheet.md); tiến độ: [`docs/tasks/07-ASH/status.md`](../docs/tasks/07-ASH/status.md).
+- Quyền: `Teacher`/`Admin`/`SuperAdmin` đều thao tác được `AssessmentSheet` của bất kỳ học sinh nào, không giới hạn theo nhóm — khác Attendance.
+- `AssessmentRecord` có 4 field kết quả độc lập: `planGrade`/`planNote` (giai đoạn kế hoạch, `planGrade` được server prefill từ dữ liệu gần nhất khi tạo) và `finalGrade`/`finalNote` (kết quả cuối, nhập riêng, không bị `PUT .../status` hay việc sửa cặp Plan ảnh hưởng).
+- `PUT /assessment-sheets/{id}` và `PUT /assessment-sheets/{id}/records` bị chặn (`409 AssessmentSheetDone`) khi `status = Done`; `PUT /assessment-sheets/{id}/status` luôn thực hiện được ở cả hai chiều `Open`↔`Done`, không cần lý do.
+- `GET /assessment-sheets/plan-candidates` dùng để chọn plan lúc tạo/sửa: lọc theo `studentId` (bắt buộc), `groupLv1Name`/`groupLv2Name`/`groupLv3Name`, `latestGradeAtOrBelow` (thang `A > B > C > D`), có `search`.
+- `export-to-sheet`/`sync-to-sheet`/`generate-plan-pdf`/`generate-result-pdf` gọi Google Drive/Sheets thật: tạo (lazy, một lần) file `[F01]` riêng bằng cách copy file mẫu `gen_assessment_sheet`, lưu id vào `assessmentSheetSpreadsheetId`, rồi ghi dữ liệu vào sheet `data`/`khcn_template`/`KQ_template` tương ứng; 2 action sinh PDF còn export sheet đó sang PDF (qua Drive export URL) rồi **tải thẳng lên Google Drive** (không lưu file cục bộ) — file `[F01]` và các PDF được đặt vào `Student.DriveFolderId` (nhập thủ công ở UI quản lý Student, `null` thì Drive API tự chọn vị trí mặc định). Sinh PDF lần sau ghi đè đúng file Drive cũ (không tạo file rác) nếu `PlanFileLinkPdf`/`ResultFileLinkPdf` đã có link cũ. `submit-results` ghi nhãn `finalGrade` vào `[F0.ĐG]` (dò `E16:E`/`H16:16`) và set `submissionDate`. **Định dạng cột trong sheet `data`/`khcn_template`/`KQ_template` hiện là suy đoán tạm (TẠM/CHƯA XÁC NHẬN), chưa có mapping thật từ đội vận hành** (xem `docs/requirements/09-bang-danh-gia-nang-luc.md` mục 15) — sửa lại `WriteRecordsToSheetAsync` trong `GoogleSheetsService.cs` khi có mapping chính thức. Lỗi Google/Drive thật (không phải mapping) trả `409 AssessmentSheetGoogleOperationFailed`. Chưa chạy được smoke test thật với các action này (cần xác nhận quyền service account trên Drive trước).
+- `Student.DriveFolderId`: id thư mục Google Drive riêng của học sinh, nhập thủ công qua `POST`/`PUT /students` (field `driveFolderId`, không bắt buộc) — backend chỉ đọc để đặt `[F01]`/PDF vào đúng thư mục, không tự tạo thư mục.
+- `POST /google-sheets/sync-assessments` giờ mở cho cả `Teacher` (trước đây chỉ `Admin`/`SuperAdmin`); đồng bộ lại `Assessment` (từ `_data_DG_only_item`) và nạp lại/ghi đè hoàn toàn `AssessmentSheetLatest`/`AssessmentRecordLatest` (dữ liệu gợi ý `planGrade`, từ sheet `_data_DG`, cột `ma_hs`/`item_id`/`ket_qua`). Dòng có mã học sinh/mục đánh giá/nhãn kết quả không khớp dữ liệu hiện có sẽ bị bỏ qua (best-effort theo từng dòng, không làm fail cả lượt đồng bộ).
+- Tên/vị trí sheet dùng trong tích hợp Google Sheets (`data`/`khcn_template`/`KQ_template`/`gid`, sheet `ĐG` và vị trí dò ô `E16:E`/`H16:16`, sheet `_data_DG` và dòng header/dữ liệu) đều **cấu hình được** qua mục `GoogleSheets` trong `appsettings.json` (`ResultSourceSheetName`, `ResultSourceFirstDataRow`, `ResultSourceFirstStudentColumnIndex`, `DataSheetName`, `PlanTemplateSheetName`/`PlanTemplateSheetGid`, `ResultTemplateSheetName`/`ResultTemplateSheetGid`, `LatestResultsSheetName`, `LatestResultsHeaderRow`, `LatestResultsFirstDataRow`) — không còn hardcode trong `GoogleSheetsService.cs`, đổi cấu trúc sheet nguồn không cần build lại.
 
 Migration `AddAttendanceFoundation` tạo toàn bộ schema attendance, backfill Teacher profile cho user role `Teacher` hiện có và để `group_id` của Student hiện tại là `null`. Không seed group hoặc attendance sheet.
 

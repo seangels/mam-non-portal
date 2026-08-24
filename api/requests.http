@@ -10,6 +10,8 @@
 @groupId = 00000000-0000-0000-0000-000000000000
 @sheetId = 00000000-0000-0000-0000-000000000000
 @attendanceDate = 2026-08-11
+@assessmentSheetId = 00000000-0000-0000-0000-000000000000
+@assessmentId = 00000000-0000-0000-0000-000000000000
 
 GET {{host}}/api/v1/setup/status
 
@@ -83,6 +85,7 @@ Content-Type: application/json
   "guardianName": null,
   "guardianPhone": null,
   "note": null,
+  "driveFolderId": null,
   "studySchedule": {
     "mode": "FullDay",
     "weekdays": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
@@ -105,6 +108,7 @@ Content-Type: application/json
   "guardianName": null,
   "guardianPhone": null,
   "note": null,
+  "driveFolderId": null,
   "studySchedule": {
     "mode": "OneToOne",
     "weekdays": ["Monday", "Wednesday", "Friday"]
@@ -269,6 +273,117 @@ Content-Type: application/json
     }
   ]
 }
+
+###
+
+GET {{host}}/api/v1/assessment-sheets?page=1&pageSize=20&studentId={{studentId}}&status=Open&sortBy=updatedAt&sortOrder=desc
+Authorization: Bearer {{accessToken}}
+
+###
+
+GET {{host}}/api/v1/assessment-sheets/plan-candidates?studentId={{studentId}}&latestGradeAtOrBelow=B&groupLv1Name=&sortBy=rowIndex&sortOrder=asc
+Authorization: Bearer {{accessToken}}
+
+###
+
+GET {{host}}/api/v1/assessment-sheets/{{assessmentSheetId}}
+Authorization: Bearer {{accessToken}}
+
+###
+
+POST {{host}}/api/v1/assessment-sheets
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "name": "8.9.10.26",
+  "studentId": "{{studentId}}",
+  "responsibleTeacherId": null,
+  "note": null,
+  "startDate": "2026-08-20T00:00:00+07:00",
+  "dueDate": "2026-10-31T00:00:00+07:00",
+  "assessmentIds": ["{{assessmentId}}"]
+}
+
+###
+
+PUT {{host}}/api/v1/assessment-sheets/{{assessmentSheetId}}
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "name": "8.9.10.26",
+  "responsibleTeacherId": "{{teacherId}}",
+  "note": null,
+  "startDate": "2026-08-20T00:00:00+07:00",
+  "dueDate": "2026-10-31T00:00:00+07:00",
+  "feedback": null
+}
+
+###
+
+PUT {{host}}/api/v1/assessment-sheets/{{assessmentSheetId}}/records
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "records": [
+    {
+      "assessmentId": "{{assessmentId}}",
+      "planGrade": "B",
+      "planNote": null,
+      "finalGrade": null,
+      "finalNote": null
+    }
+  ]
+}
+
+###
+
+PUT {{host}}/api/v1/assessment-sheets/{{assessmentSheetId}}/status
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "status": "Done"
+}
+
+###
+# Các action Google Sheet/PDF dưới đây gọi Drive/Sheets thật (copy file mẫu [F01], ghi sheet, export PDF, ghi [F0.ĐG]).
+# Định dạng cột trong sheet data/khcn_template/KQ_template hiện là suy đoán tạm, chưa có mapping thật từ đội vận hành
+# (xem docs/requirements/09-bang-danh-gia-nang-luc.md mục 15) — chỉ chạy khi đã xác nhận service account có quyền
+# đọc/copy file mẫu gen_assessment_sheet trên Drive, tránh tạo file rác/ghi nhầm trên Google Sheet thật.
+
+POST {{host}}/api/v1/assessment-sheets/{{assessmentSheetId}}/export-to-sheet
+Authorization: Bearer {{accessToken}}
+
+###
+
+POST {{host}}/api/v1/assessment-sheets/{{assessmentSheetId}}/sync-to-sheet
+Authorization: Bearer {{accessToken}}
+
+###
+
+POST {{host}}/api/v1/assessment-sheets/{{assessmentSheetId}}/generate-plan-pdf
+Authorization: Bearer {{accessToken}}
+
+###
+
+POST {{host}}/api/v1/assessment-sheets/{{assessmentSheetId}}/generate-result-pdf
+Authorization: Bearer {{accessToken}}
+
+###
+
+POST {{host}}/api/v1/assessment-sheets/{{assessmentSheetId}}/submit-results
+Authorization: Bearer {{accessToken}}
+
+###
+
+POST {{host}}/api/v1/google-sheets/sync-assessments
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{}
 
 ###
 

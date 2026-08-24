@@ -1,0 +1,77 @@
+:host { display: block; }
+.filter-card { padding: 0; overflow: hidden; }
+.filter-toggle { display: flex; width: 100%; min-height: 48px; align-items: center; justify-content: space-between; padding: 12px 18px; border: 0; background: transparent; color: inherit; font: inherit; font-weight: 600; text-align: left; cursor: pointer; }
+.filter-toggle:focus-visible { outline: 2px solid #337ab7; outline-offset: -3px; }
+.assessment-filters { padding: 0 18px 18px; align-items: center; }
+.group-cell { display: flex; flex-direction: column; gap: 3px; }
+.group-cell small { color: #667085; }
+.error-panel { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; border: 1px solid #f2b8b5; border-radius: 8px; background: #fff1f0; color: #8a1c16; }
+@media (max-width: 700px) {
+  .page-toolbar, .error-panel { align-items: stretch; flex-direction: column; }
+  .page-toolbar dx-button, .error-panel dx-button { width: 100%; }
+  .assessment-filters { align-items: stretch; }
+}
+
+// Định nghĩa các biến kích thước để dễ quản lý và tái sử dụng nếu cần
+$search-width: 220px;
+$lv1-width: 180px;
+$lv2-width: 200px;
+$gap-size: 10px;
+
+
+
+.assessment-filters-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px; // Khoảng cách giữa Row 1 và Row 2
+  padding: 16px;
+  background-color: #f9f9f9;
+  border-radius: 4px;
+
+  // Cấu hình chung cho cả 2 hàng dữ liệu
+  .filter-row {
+    display: flex;
+    align-items: center;
+    gap: $gap-size;
+    flex-wrap: wrap; // Tự động xuống dòng mượt mà trên màn hình nhỏ
+    width: 100%;
+
+    // --- ROW 1: CHI TIẾT CÁC Ô NHẬP LIỆU (INPUTS) ---
+    &.inputs-row {
+      .search-input {
+        width: $search-width;
+        flex: 0 0 $search-width; // Cố định không co giãn
+      }
+
+      .lv1-input {
+        width: $lv1-width;
+        flex: 0 0 $lv1-width; // Cố định không co giãn
+      }
+
+      .lv2-input {
+        width: $lv2-width;
+        flex: 0 0 $lv2-width; // Cố định không co giãn
+      }
+
+      .lv3-input {
+        flex: 1; // Tự động co giãn chiếm toàn bộ không gian còn lại
+        min-width: 200px; // Độ rộng an toàn tối thiểu trên màn hình vừa
+      }
+    }
+
+    // --- ROW 2: CHỨA CÁC NÚT BẤM (BUTTONS) CĂN PHẢI ---
+    &.buttons-row {
+      justify-content: flex-end;
+      margin-top: 4px;
+
+      dx-button {
+        min-width: 90px;
+      }
+
+      // Cấu hình riêng cho nút Đồng bộ bằng Class
+      .sync-btn {
+        margin-right: auto; // 💡 Luôn luôn nằm bên trái bất kể thứ tự khai báo HTML
+      }
+    }
+  }
+}

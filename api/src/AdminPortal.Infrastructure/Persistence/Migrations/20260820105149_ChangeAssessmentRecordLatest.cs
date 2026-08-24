@@ -8,6 +8,8 @@ namespace AdminPortal.Infrastructure.Persistence.Migrations
     /// <inheritdoc />
     public partial class ChangeAssessmentRecordLatest : Migration
     {
+        private static readonly string[] AssessmentRecordLatestUniqueIndexColumnsUp = new[] { "assessment_sheet_latest_id", "assessment_id" };
+        private static readonly string[] AssessmentRecordLatestUniqueIndexColumnsDown = new[] { "assessment_sheet_latest_id", "assessment_code" };
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
@@ -34,7 +36,7 @@ namespace AdminPortal.Infrastructure.Persistence.Migrations
             migrationBuilder.CreateIndex(
                 name: "ix_assessment_record_latests_assessment_sheet_latest_id_assess",
                 table: "assessment_record_latests",
-                columns: new[] { "assessment_sheet_latest_id", "assessment_id" },
+                columns: AssessmentRecordLatestUniqueIndexColumnsUp,
                 unique: true);
 
             migrationBuilder.AddForeignKey(
@@ -76,7 +78,7 @@ namespace AdminPortal.Infrastructure.Persistence.Migrations
             migrationBuilder.CreateIndex(
                 name: "ix_assessment_record_latests_assessment_sheet_latest_id_assess",
                 table: "assessment_record_latests",
-                columns: new[] { "assessment_sheet_latest_id", "assessment_code" },
+                columns: AssessmentRecordLatestUniqueIndexColumnsDown,
                 unique: true);
         }
     }

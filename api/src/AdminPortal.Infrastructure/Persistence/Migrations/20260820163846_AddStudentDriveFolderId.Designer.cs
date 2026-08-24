@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using AdminPortal.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -12,13 +13,15 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace AdminPortal.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(AdminPortalDbContext))]
-    partial class AdminPortalDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260820163846_AddStudentDriveFolderId")]
+    partial class AddStudentDriveFolderId
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.4")
+                .HasAnnotation("ProductVersion", "10.0.1")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -152,9 +155,7 @@ namespace AdminPortal.Infrastructure.Persistence.Migrations
 
                             b1.Property<int?>("RowIndex");
 
-                            b1
-                                .ToJson("assessment_snapshot")
-                                .HasColumnType("jsonb");
+                            b1.ToJson("assessment_snapshot");
                         });
 
                     b.HasKey("Id")
@@ -180,6 +181,10 @@ namespace AdminPortal.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("assessment_id");
 
+                    b.Property<int?>("AssessmentRowIndex")
+                        .HasColumnType("integer")
+                        .HasColumnName("assessment_row_index");
+
                     b.Property<Guid>("AssessmentSheetLatestId")
                         .HasColumnType("uuid")
                         .HasColumnName("assessment_sheet_latest_id");
@@ -201,6 +206,27 @@ namespace AdminPortal.Infrastructure.Persistence.Migrations
                     b.Property<DateTimeOffset>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
+
+                    b.ComplexProperty(typeof(Dictionary<string, object>), "AssessmentSnapshot", "AdminPortal.Domain.Entities.AssessmentRecordLatest.AssessmentSnapshot#AssessmentSnapshot", b1 =>
+                        {
+                            b1.IsRequired();
+
+                            b1.Property<string>("Code")
+                                .IsRequired();
+
+                            b1.Property<string>("GroupLv1Name");
+
+                            b1.Property<string>("GroupLv2Name");
+
+                            b1.Property<string>("GroupLv3Name");
+
+                            b1.Property<string>("Name")
+                                .IsRequired();
+
+                            b1.Property<int?>("RowIndex");
+
+                            b1.ToJson("assessment_snapshot");
+                        });
 
                     b.HasKey("Id")
                         .HasName("pk_assessment_record_latests");
@@ -311,9 +337,7 @@ namespace AdminPortal.Infrastructure.Persistence.Migrations
 
                             b1.Property<string>("StudentCode");
 
-                            b1
-                                .ToJson("student_snapshot")
-                                .HasColumnType("jsonb");
+                            b1.ToJson("student_snapshot");
                         });
 
                     b.HasKey("Id")
@@ -412,9 +436,7 @@ namespace AdminPortal.Infrastructure.Persistence.Migrations
 
                             b1.Property<string>("StudentCode");
 
-                            b1
-                                .ToJson("student_snapshot")
-                                .HasColumnType("jsonb");
+                            b1.ToJson("student_snapshot");
                         });
 
                     b.HasKey("Id")

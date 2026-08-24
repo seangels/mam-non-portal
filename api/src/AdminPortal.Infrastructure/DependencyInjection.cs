@@ -60,7 +60,7 @@ public static class DependencyInjection
         services.Configure<GoogleSheetsSettings>(configuration.GetSection("GoogleSheets"));
 
         // 2. Nếu cần inject trực tiếp Interface IGoogleSheetsSettings ở nơi khác
-        services.AddSingleton<IGoogleSheetsSettings>(sp => 
+        services.AddSingleton<IGoogleSheetsSettings>(sp =>
             configuration.GetSection("GoogleSheets").Get<GoogleSheetsSettings>() ?? new GoogleSheetsSettings());
 
         // 3. Đăng ký Service thao tác Sheets

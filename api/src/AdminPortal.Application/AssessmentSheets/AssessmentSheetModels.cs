@@ -10,6 +10,8 @@ public sealed class AssessmentSheetListQuery
     [Range(1, 100)] public int PageSize { get; init; } = 20;
     [MaxLength(200)] public string? Search { get; init; }
     public Guid? StudentId { get; init; }
+    public DateTimeOffset? DateFrom {get; init; }
+    public DateTimeOffset? DateTo {get; init; }
     public AssessmentSheetStatus? Status { get; init; }
     [MaxLength(40)] public string SortBy { get; init; } = "updatedAt";
     [RegularExpression("(?i)^(asc|desc)$")] public string SortOrder { get; init; } = "desc";

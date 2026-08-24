@@ -32,7 +32,7 @@ Theo mục 13 của plan. Cả 5 quyết định đã được khoá. `ASH-DEC-0
 | Giai đoạn | Tổng số việc | Chưa bắt đầu | Đang làm | Hoàn thành | Bị chặn |
 |---|---:|---:|---:|---:|---:|
 | Planning | 1 | 0 | 0 | 1 | 0 |
-| Backend | 6 | 1 | 3 | 2 | 0 |
+| Backend | 6 | 0 | 3 | 3 | 0 |
 | Frontend | 5 | 5 | 0 | 0 | 0 |
 | QA | 1 | 1 | 0 | 0 | 0 |
 
@@ -50,10 +50,10 @@ Cập nhật bảng này mỗi khi đổi trạng thái một dòng bên dưới
 |---|---|---|---|
 | `[x]` | [`ASH-BE-00`](details/02-ASH-BE-00.md) | Khoá contract DTO/enum/API surface (`PlanGrade`/`PlanNote`/`FinalGrade`/`FinalNote`, không phải 1 field `Grade`) | `ASH-P-01` |
 | `[x]` | [`ASH-BE-01`](details/03-ASH-BE-01.md) | Domain/EF configuration/migration (gồm `AssessmentSheetLatest`/`AssessmentRecordLatest`) | `ASH-BE-00` |
-| `[~]` | [`ASH-BE-02`](details/04-ASH-BE-02.md) | `AssessmentSheetService` (CRUD, plan filter, `Open`/`Done`) — API/service đã compile, còn thiếu test rule riêng | `ASH-BE-01` |
-| `[~]` | [`ASH-BE-03`](details/05-ASH-BE-03.md) | Mở rộng `GoogleSheetsService` (copy file mẫu → `[F01]` riêng, ghi sheet `data`, `[F0.ĐG]`, nạp lại) — đã có interface/action stubs và quyền Teacher cho sync; còn thiếu mapping/implementation Google | `ASH-BE-02` |
-| `[~]` | [`ASH-BE-04`](details/06-ASH-BE-04.md) | Sinh PDF `[F02]`/`[F03]` (ghi trực tiếp vào sheet sẵn có trong `[F01]` → export) — đã có endpoint/interface stub; còn thiếu mapping template/export/lưu file | `ASH-BE-03` |
-| `[ ]` | [`ASH-BE-05`](details/07-ASH-BE-05.md) | Test, README/`requests.http`, default gate, smoke phần backend | `ASH-BE-04` |
+| `[x]` | [`ASH-BE-02`](details/04-ASH-BE-02.md) | `AssessmentSheetService` (CRUD, plan filter, `Open`/`Done`) | `ASH-BE-01` |
+| `[~]` | [`ASH-BE-03`](details/05-ASH-BE-03.md) | Mở rộng `GoogleSheetsService` (copy file mẫu → `[F01]` riêng, ghi sheet `data`, `[F0.ĐG]`, nạp lại) — đủ 4/4 mục đã code thật (kể cả upsert `AssessmentSheetLatest`/`AssessmentRecordLatest` từ `_data_DG`); chưa đánh `[x]` vì chưa gọi Google API thật lần nào để xác nhận | `ASH-BE-02` |
+| `[~]` | [`ASH-BE-04`](details/06-ASH-BE-04.md) | Sinh PDF `[F02]`/`[F03]` (ghi trực tiếp vào sheet sẵn có trong `[F01]` → export) — đã code thật theo `ASH-DEC-01`, dùng mapping cột tạm (chưa xác nhận); **chưa gọi Google API thật lần nào nên chưa được đánh `[x]`** theo quy ước (chỉ tick khi đã chạy kiểm tra tương ứng) | `ASH-BE-03` |
+| `[~]` | [`ASH-BE-05`](details/07-ASH-BE-05.md) | Test, README/`requests.http`, default gate, smoke phần backend | `ASH-BE-04` |
 
 ## Frontend — owner: `frontend`
 

@@ -3,6 +3,7 @@ using AdminPortal.Application.Common;
 using AdminPortal.Application.Common.Exceptions;
 using AdminPortal.Application.Common.Interfaces;
 using AdminPortal.Application.Common.Models;
+using AdminPortal.Application.GoogleSheets;
 using AdminPortal.Domain.Entities;
 using AdminPortal.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
@@ -12,17 +13,20 @@ namespace AdminPortal.Application.AssessmentSheets;
 public sealed class AssessmentSheetService(
     IApplicationDbContext dbContext,
     ICurrentActor currentActor,
-    TimeProvider timeProvider) : IAssessmentSheetService
+    TimeProvider timeProvider,
+    IGoogleSheetsService googleSheetsService) : IAssessmentSheetService
 {
     public async Task<PagedResponse<AssessmentSheetListItemResponse>> ListAsync(
         AssessmentSheetListQuery query,
         CancellationToken cancellationToken)
     {
-        EnsureAssessmentSheetRole(currentActor.GetRequired());
+        AssessmentSheetRules.EnsureAssessmentSheetRole(currentActor.GetRequired());
 
         var sheets = dbContext.AssessmentSheets.AsNoTracking();
         if (query.StudentId is not null) sheets = sheets.Where(x => x.StudentId == query.StudentId);
         if (query.Status is not null) sheets = sheets.Where(x => x.AssessmentSheetStatus == query.Status);
+        if(query.DateFrom is not null) sheets = sheets.Where(x => x.StartDate <= query.DateFrom && query.DateFrom <= x.DueDate);
+        if(query.DateTo is not null) sheets = sheets.Where(x => x.StartDate <= query.DateTo && query.DateTo >= x.DueDate);
 
         var descending = query.SortOrder.Equals("desc", StringComparison.OrdinalIgnoreCase);
         var ordered = ApplySheetSort(sheets, query.SortBy, descending);
@@ -55,7 +59,7 @@ public sealed class AssessmentSheetService(
 
     public async Task<AssessmentSheetDetailResponse> GetAsync(Guid id, CancellationToken cancellationToken)
     {
-        EnsureAssessmentSheetRole(currentActor.GetRequired());
+        AssessmentSheetRules.EnsureAssessmentSheetRole(currentActor.GetRequired());
         return await BuildDetailAsync(id, cancellationToken);
     }
 
@@ -63,7 +67,7 @@ public sealed class AssessmentSheetService(
         AssessmentPlanCandidateQuery query,
         CancellationToken cancellationToken)
     {
-        EnsureAssessmentSheetRole(currentActor.GetRequired());
+        AssessmentSheetRules.EnsureAssessmentSheetRole(currentActor.GetRequired());
 
         var studentExists = await dbContext.Students.AsNoTracking()
             .AnyAsync(x => x.Id == query.StudentId, cancellationToken);
@@ -109,9 +113,9 @@ public sealed class AssessmentSheetService(
 
         if (query.LatestGradeAtOrBelow is not null)
         {
-            var threshold = GradeRank(query.LatestGradeAtOrBelow.Value);
+            var threshold = AssessmentSheetRules.GradeRank(query.LatestGradeAtOrBelow.Value);
             candidates = candidates
-                .Where(x => x.LatestGrade is not null && GradeRank(x.LatestGrade.Value) <= threshold)
+                .Where(x => x.LatestGrade is not null && AssessmentSheetRules.GradeRank(x.LatestGrade.Value) <= threshold)
                 .ToList();
         }
 
@@ -133,9 +137,9 @@ public sealed class AssessmentSheetService(
         CancellationToken cancellationToken)
     {
         var actor = currentActor.GetRequired();
-        EnsureAssessmentSheetRole(actor);
+        AssessmentSheetRules.EnsureAssessmentSheetRole(actor);
         var name = NormalizeRequired(request.Name, "name", "Tên bảng đánh giá là bắt buộc.");
-        EnsureDistinctIds(request.AssessmentIds, "assessmentIds");
+        AssessmentSheetRules.EnsureDistinctIds(request.AssessmentIds, "assessmentIds");
 
         var student = await dbContext.Students.AsNoTracking()
             .SingleOrDefaultAsync(x => x.Id == request.StudentId, cancellationToken)
@@ -167,7 +171,7 @@ public sealed class AssessmentSheetService(
 
         dbContext.AssessmentSheets.Add(sheet);
         await dbContext.AssessmentRecords.AddRangeAsync(
-            BuildRecords(sheet.Id, assessments, latestGrades, request.AssessmentIds, now, actor.UserId),
+            AssessmentSheetRules.BuildRecords(sheet.Id, assessments, latestGrades, request.AssessmentIds, now, actor.UserId),
             cancellationToken);
         AddAudit(actor, "AssessmentSheet.Created", sheet.Id, null, new { sheet.StudentId, RecordCount = request.AssessmentIds.Count });
         await dbContext.SaveChangesAsync(cancellationToken);
@@ -180,9 +184,9 @@ public sealed class AssessmentSheetService(
         CancellationToken cancellationToken)
     {
         var actor = currentActor.GetRequired();
-        EnsureAssessmentSheetRole(actor);
+        AssessmentSheetRules.EnsureAssessmentSheetRole(actor);
         var sheet = await FindRequiredAsync(id, cancellationToken);
-        EnsureOpen(sheet);
+        AssessmentSheetRules.EnsureOpen(sheet);
         var name = NormalizeRequired(request.Name, "name", "Tên bảng đánh giá là bắt buộc.");
         var responsibleTeacher = await LoadResponsibleTeacherAsync(request.ResponsibleTeacherId, cancellationToken);
         var old = SnapshotForAudit(sheet);
@@ -209,10 +213,10 @@ public sealed class AssessmentSheetService(
         CancellationToken cancellationToken)
     {
         var actor = currentActor.GetRequired();
-        EnsureAssessmentSheetRole(actor);
-        EnsureDistinctIds(request.Records.Select(x => x.AssessmentId).ToArray(), "records");
+        AssessmentSheetRules.EnsureAssessmentSheetRole(actor);
+        AssessmentSheetRules.EnsureDistinctIds(request.Records.Select(x => x.AssessmentId).ToArray(), "records");
         var sheet = await FindRequiredAsync(id, cancellationToken);
-        EnsureOpen(sheet);
+        AssessmentSheetRules.EnsureOpen(sheet);
         var assessments = await LoadAssessmentsByIdsAsync(request.Records.Select(x => x.AssessmentId).ToArray(), cancellationToken);
         var assessmentById = assessments.ToDictionary(x => x.Id);
         var oldRecords = await dbContext.AssessmentRecords
@@ -224,21 +228,8 @@ public sealed class AssessmentSheetService(
         foreach (var requestRecord in request.Records)
         {
             var assessment = assessmentById[requestRecord.AssessmentId];
-            dbContext.AssessmentRecords.Add(new AssessmentRecord
-            {
-                Id = Guid.NewGuid(),
-                AssessmentSheetId = sheet.Id,
-                AssessmentSheet = sheet,
-                AssessmentRowIndex = assessment.RowIndex,
-                AssessmentSnapshot = Snapshot(assessment),
-                PlanGrade = requestRecord.PlanGrade,
-                PlanNote = NormalizeOptional(requestRecord.PlanNote),
-                FinalGrade = requestRecord.FinalGrade,
-                FinalNote = NormalizeOptional(requestRecord.FinalNote),
-                UpdatedByUserId = actor.UserId,
-                CreatedAt = now,
-                UpdatedAt = now
-            });
+            dbContext.AssessmentRecords.Add(
+                AssessmentSheetRules.BuildReplacementRecord(sheet, assessment, requestRecord, now, actor.UserId));
         }
 
         sheet.UpdatedByUserId = actor.UserId;
@@ -254,7 +245,7 @@ public sealed class AssessmentSheetService(
         CancellationToken cancellationToken)
     {
         var actor = currentActor.GetRequired();
-        EnsureAssessmentSheetRole(actor);
+        AssessmentSheetRules.EnsureAssessmentSheetRole(actor);
         var sheet = await FindRequiredAsync(id, cancellationToken);
         var old = SnapshotForAudit(sheet);
         var now = timeProvider.GetUtcNow();
@@ -269,43 +260,92 @@ public sealed class AssessmentSheetService(
         return await BuildDetailAsync(sheet.Id, cancellationToken);
     }
 
-    public async Task<AssessmentSheetDetailResponse> ExportToSheetAsync(Guid id, CancellationToken cancellationToken)
-    {
-        await EnsureExistsForGoogleActionAsync(id, cancellationToken);
-        throw GoogleMappingBlocked("Chưa có mapping cột cho sheet data của file F01 nên chưa thể xuất bảng đánh giá.");
-    }
+    public async Task<AssessmentSheetDetailResponse> ExportToSheetAsync(Guid id, CancellationToken cancellationToken) =>
+        await ExportOrSyncToSheetAsync(id, cancellationToken);
 
-    public async Task<AssessmentSheetDetailResponse> SyncToSheetAsync(Guid id, CancellationToken cancellationToken)
+    public async Task<AssessmentSheetDetailResponse> SyncToSheetAsync(Guid id, CancellationToken cancellationToken) =>
+        await ExportOrSyncToSheetAsync(id, cancellationToken);
+
+    private async Task<AssessmentSheetDetailResponse> ExportOrSyncToSheetAsync(Guid id, CancellationToken cancellationToken)
     {
-        await EnsureExistsForGoogleActionAsync(id, cancellationToken);
-        throw GoogleMappingBlocked("Chưa có mapping cột cho sheet data của file F01 nên chưa thể đồng bộ bảng đánh giá.");
+        var actor = currentActor.GetRequired();
+        AssessmentSheetRules.EnsureAssessmentSheetRole(actor);
+        var sheet = await FindRequiredAsync(id, cancellationToken);
+        var records = await LoadRecordEntitiesAsync(id, cancellationToken);
+
+        var spreadsheetId = await googleSheetsService.EnsureAssessmentSheetSpreadsheetAsync(sheet, cancellationToken);
+        await googleSheetsService.WriteAssessmentSheetDataAsync(spreadsheetId, records, cancellationToken);
+
+        return await BuildDetailAsync(id, cancellationToken);
     }
 
     public async Task<AssessmentSheetDetailResponse> GeneratePlanPdfAsync(Guid id, CancellationToken cancellationToken)
     {
-        await EnsureExistsForGoogleActionAsync(id, cancellationToken);
-        throw GoogleMappingBlocked("Chưa có mapping vị trí dữ liệu trên khcn_template và cấu hình lưu PDF nên chưa thể sinh F02.");
+        var actor = currentActor.GetRequired();
+        AssessmentSheetRules.EnsureAssessmentSheetRole(actor);
+        var sheet = await FindRequiredAsync(id, cancellationToken);
+        var records = await LoadRecordEntitiesAsync(id, cancellationToken);
+
+        var spreadsheetId = await googleSheetsService.EnsureAssessmentSheetSpreadsheetAsync(sheet, cancellationToken);
+        var link = await googleSheetsService.GenerateAssessmentSheetPlanPdfAsync(
+            spreadsheetId, sheet.Id, sheet.StudentId, sheet.PlanFileLinkPdf, records, cancellationToken);
+
+        var now = timeProvider.GetUtcNow();
+        sheet.PlanFileLinkPdf = link;
+        sheet.UpdatedByUserId = actor.UserId;
+        sheet.UpdatedAt = now;
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return await BuildDetailAsync(id, cancellationToken);
     }
 
     public async Task<AssessmentSheetDetailResponse> GenerateResultPdfAsync(Guid id, CancellationToken cancellationToken)
     {
-        await EnsureExistsForGoogleActionAsync(id, cancellationToken);
-        throw GoogleMappingBlocked("Chưa có mapping vị trí dữ liệu trên KQ_template và cấu hình lưu PDF nên chưa thể sinh F03.");
+        var actor = currentActor.GetRequired();
+        AssessmentSheetRules.EnsureAssessmentSheetRole(actor);
+        var sheet = await FindRequiredAsync(id, cancellationToken);
+        var records = await LoadRecordEntitiesAsync(id, cancellationToken);
+
+        var spreadsheetId = await googleSheetsService.EnsureAssessmentSheetSpreadsheetAsync(sheet, cancellationToken);
+        var link = await googleSheetsService.GenerateAssessmentSheetResultPdfAsync(
+            spreadsheetId, sheet.Id, sheet.StudentId, sheet.ResultFileLinkPdf, records, cancellationToken);
+
+        var now = timeProvider.GetUtcNow();
+        sheet.ResultFileLinkPdf = link;
+        sheet.UpdatedByUserId = actor.UserId;
+        sheet.UpdatedAt = now;
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return await BuildDetailAsync(id, cancellationToken);
     }
 
     public async Task<AssessmentSheetDetailResponse> SubmitResultsAsync(Guid id, CancellationToken cancellationToken)
     {
-        await EnsureExistsForGoogleActionAsync(id, cancellationToken);
-        throw GoogleMappingBlocked("Chưa có mapping dò ô E16:E/H16:16 trong F0.ĐG nên chưa thể ghi kết quả đánh giá.");
+        var actor = currentActor.GetRequired();
+        AssessmentSheetRules.EnsureAssessmentSheetRole(actor);
+        var sheet = await FindRequiredAsync(id, cancellationToken);
+        var records = await LoadRecordEntitiesAsync(id, cancellationToken);
+
+        var studentCode = sheet.StudentSnapshot.StudentCode
+            ?? throw new ConflictException(
+                "Bảng đánh giá thiếu mã học sinh trong snapshot, không thể ghi vào [F0.ĐG].",
+                ProblemCodes.AssessmentSheetGoogleOperationFailed);
+        await googleSheetsService.WriteFinalGradesToSourceSheetAsync(studentCode, records, cancellationToken);
+
+        var now = timeProvider.GetUtcNow();
+        sheet.SubmissionDate = now;
+        sheet.UpdatedByUserId = actor.UserId;
+        sheet.UpdatedAt = now;
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return await BuildDetailAsync(id, cancellationToken);
     }
 
-    private async Task EnsureExistsForGoogleActionAsync(Guid id, CancellationToken cancellationToken)
-    {
-        EnsureAssessmentSheetRole(currentActor.GetRequired());
-        _ = await dbContext.AssessmentSheets.AsNoTracking()
-            .SingleOrDefaultAsync(x => x.Id == id, cancellationToken)
-            ?? throw AssessmentSheetNotFound();
-    }
+    private async Task<List<AssessmentRecord>> LoadRecordEntitiesAsync(Guid sheetId, CancellationToken cancellationToken) =>
+        await dbContext.AssessmentRecords.AsNoTracking()
+            .Where(x => x.AssessmentSheetId == sheetId)
+            .OrderBy(x => x.AssessmentRowIndex ?? int.MaxValue)
+            .ToListAsync(cancellationToken);
 
     private async Task<AssessmentSheetDetailResponse> BuildDetailAsync(Guid id, CancellationToken cancellationToken)
     {
@@ -403,36 +443,6 @@ public sealed class AssessmentSheetService(
             .ToDictionaryAsync(x => x.Assessment.Code, x => x.LatestGrade, StringComparer.Ordinal, cancellationToken);
     }
 
-    private static List<AssessmentRecord> BuildRecords(
-        Guid sheetId,
-        IReadOnlyCollection<Assessment> assessments,
-        IReadOnlyDictionary<string, AssessmentGrade?> latestGrades,
-        IReadOnlyList<Guid> assessmentIds,
-        DateTimeOffset now,
-        Guid actorUserId)
-    {
-        var assessmentById = assessments.ToDictionary(x => x.Id);
-        return assessmentIds.Select(assessmentId =>
-        {
-            var assessment = assessmentById[assessmentId];
-            return new AssessmentRecord
-            {
-                Id = Guid.NewGuid(),
-                AssessmentSheetId = sheetId,
-                AssessmentSheet = null!,
-                AssessmentRowIndex = assessment.RowIndex,
-                AssessmentSnapshot = Snapshot(assessment),
-                PlanGrade = latestGrades.GetValueOrDefault(assessment.Code),
-                PlanNote = null,
-                FinalGrade = null,
-                FinalNote = null,
-                UpdatedByUserId = actorUserId,
-                CreatedAt = now,
-                UpdatedAt = now
-            };
-        }).ToList();
-    }
-
     private void AddAudit(ActorContext actor, string action, Guid entityId, object? oldValue, object? newValue) =>
         dbContext.AuditLogs.Add(new AuditLog
         {
@@ -521,25 +531,6 @@ public sealed class AssessmentSheetService(
             { ["sortBy"] = ["Chỉ hỗ trợ code, name, rowIndex hoặc latestGrade."] })
         };
 
-    private static void EnsureAssessmentSheetRole(ActorContext actor)
-    {
-        if (actor.Role is not (UserRole.SuperAdmin or UserRole.Admin or UserRole.Teacher))
-            throw new ForbiddenException("Không đủ quyền.");
-    }
-
-    private static void EnsureOpen(AssessmentSheet sheet)
-    {
-        if (sheet.AssessmentSheetStatus == AssessmentSheetStatus.Done)
-            throw new ConflictException("Bảng đánh giá đã hoàn thành, không thể chỉnh sửa.", ProblemCodes.AssessmentSheetDone);
-    }
-
-    private static void EnsureDistinctIds(IReadOnlyCollection<Guid> ids, string field)
-    {
-        if (ids.Count == 0 || ids.Any(x => x == Guid.Empty) || ids.Distinct().Count() != ids.Count)
-            throw new AppValidationException("Danh sách mục đánh giá không hợp lệ.", new Dictionary<string, string[]>
-            { [field] = ["Danh sách phải có ít nhất một mục hợp lệ và không được trùng."] });
-    }
-
     private static string NormalizeRequired(string value, string field, string message)
     {
         if (string.IsNullOrWhiteSpace(value))
@@ -559,34 +550,12 @@ public sealed class AssessmentSheetService(
         Gender = student.Gender
     };
 
-    private static AssessmentSnapshot Snapshot(Assessment assessment) => new()
-    {
-        Code = assessment.Code,
-        Name = assessment.Name,
-        GroupLv1Name = assessment.GroupLv1Name,
-        GroupLv2Name = assessment.GroupLv2Name,
-        GroupLv3Name = assessment.GroupLv3Name,
-        RowIndex = assessment.RowIndex
-    };
-
     private static AssessmentSheetStudentSnapshotResponse ToResponse(StudentSnapshot snapshot) =>
         new(snapshot.StudentCode, snapshot.FullName, snapshot.NickName, snapshot.DateOfBirth, snapshot.Gender);
 
     private static AssessmentSnapshotResponse ToResponse(AssessmentSnapshot snapshot) =>
         new(snapshot.Code, snapshot.Name, snapshot.GroupLv1Name, snapshot.GroupLv2Name, snapshot.GroupLv3Name, snapshot.RowIndex);
 
-    private static int GradeRank(AssessmentGrade grade) => grade switch
-    {
-        AssessmentGrade.A => 4,
-        AssessmentGrade.B => 3,
-        AssessmentGrade.C => 2,
-        AssessmentGrade.D => 1,
-        _ => 0
-    };
-
     private static NotFoundException AssessmentSheetNotFound() =>
         new("Không tìm thấy bảng đánh giá.", ProblemCodes.AssessmentSheetNotFound);
-
-    private static NormalException GoogleMappingBlocked(string message) =>
-        new(message, ProblemCodes.AssessmentSheetGoogleMappingBlocked);
 }

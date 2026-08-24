@@ -23,3 +23,18 @@ Xây dựng logic nghiệp vụ lõi của `AssessmentSheet`: CRUD, chọn/sửa
 ## Kết quả mong đợi (Definition of Done)
 
 CRUD + filter + chuyển trạng thái hoạt động đúng qua API, có unit test cho các rule chính (`PlanGrade` khởi tạo đúng từ `LatestGrade` nhưng sau đó độc lập, không ghi ngược `AssessmentRecordLatest`; sửa `FinalGrade` không đổi `PlanGrade`; khoá sửa khi `Done`; quyền không giới hạn nhóm). Build API 0 warning/0 error.
+
+## Hoàn thành (2026-08-20)
+
+Đã tách toàn bộ logic thuần (không I/O) khỏi `AssessmentSheetService` vào `AssessmentSheetRules.cs` (static class, theo convention `AuthorizationRules`/`AttendanceRules`/`StudentRules`), gồm `EnsureAssessmentSheetRole`, `EnsureOpen`, `EnsureDistinctIds`, `GradeRank`, `BuildRecords` (khởi tạo `AssessmentRecord` lúc tạo, prefill `PlanGrade` từ `LatestGrade`), `BuildReplacementRecord` (map request → entity lúc `PUT .../records`, giữ `Plan*`/`Final*` độc lập). `AssessmentSheetRulesTests.cs` có 19 test case bao phủ đúng các rule DoD yêu cầu:
+
+- `BuildRecordsPrefillsPlanGradeFromLatestGradesByCode`/`BuildRecordsAlwaysLeavesFinalGradeAndFinalNoteEmpty` — `PlanGrade` khởi tạo từ `LatestGrade`, `FinalGrade` luôn trống lúc tạo.
+- `BuildReplacementRecordKeepsPlanAndFinalGradeIndependent`/`BuildReplacementRecordTrimsNotesAndTreatsBlankAsNull` — sửa `FinalGrade` không đổi `PlanGrade` và ngược lại.
+- `DoneSheetRejectsEnsureOpen`/`OpenSheetPassesEnsureOpen` — khoá sửa khi `Done`.
+- `EveryStaffRoleCanAccessAssessmentSheets`/`UnknownOrUnassignedRoleIsForbidden` — quyền mở cho `Teacher`/`Admin`/`SuperAdmin`, không có tham số nhóm nào trong rule (đúng "không giới hạn nhóm").
+
+"Không ghi ngược `AssessmentRecordLatest`" xác nhận bằng kiểm tra cấu trúc mã: `BuildRecords`/`BuildReplacementRecord` là hàm thuần (không nhận `IApplicationDbContext`, không thể ghi bất kỳ bảng nào); `AssessmentSheetService` chỉ đọc `AssessmentRecordLatests`/`AssessmentSheetLatests` qua `.AsNoTracking()` trong `LoadLatestGradesAsync`, không có lệnh `Add`/`Update`/`Remove` nào nhắm tới 2 `DbSet` đó trong toàn file.
+
+**Đã thử và loại bỏ:** test tích hợp bằng EF Core InMemory provider (gọi thẳng `AssessmentSheetService.CreateAsync`/`ReplaceRecordsAsync` qua `AdminPortalDbContext` in-memory) — phát hiện InMemory provider không tương thích với cách codebase map `AssessmentSnapshot`/`StudentSnapshot` qua `ComplexProperty(...).ToJson()` (jsonb): bất kỳ truy vấn nào `OrderBy`/`ThenBy`/`Select`/`ToDictionaryAsync` trên sub-property của complex type JSON đều ném `KeyNotFoundException` trong bộ dịch shaper của InMemory, kể cả `BuildDetailAsync` cơ bản nhất (`.ThenBy(x => x.AssessmentSnapshot.Code)`). Đây là giới hạn thật của EF Core InMemory provider với JSON complex type, không phải lỗi test. Đã gỡ bỏ file test và package `Microsoft.EntityFrameworkCore.InMemory` khỏi `AdminPortal.UnitTests.csproj`. Kết luận: xác minh round-trip CRUD qua DB thật chỉ khả thi qua `AdminPortal.IntegrationTests` (Postgres thật, đang bị chặn bởi `NU1903`) hoặc smoke test thủ công (`ASH-QA-01`).
+
+Verification: `dotnet build src/AdminPortal.Api/AdminPortal.Api.csproj -c Release` → 0 Warning/0 Error; `dotnet test tests/AdminPortal.UnitTests -c Release` → 59/59 pass.

@@ -104,6 +104,7 @@ public sealed class StudentService(
             GuardianName = NormalizeOptional(request.GuardianName),
             GuardianPhone = NormalizeOptional(request.GuardianPhone),
             Note = NormalizeOptional(request.Note),
+            DriveFolderId = NormalizeOptional(request.DriveFolderId),
             StudyMode = request.StudySchedule.Mode,
             StudyWeekdayMask = weekdayMask,
             Version = 1,
@@ -164,6 +165,7 @@ public sealed class StudentService(
         student.GuardianName = NormalizeOptional(request.GuardianName);
         student.GuardianPhone = NormalizeOptional(request.GuardianPhone);
         student.Note = NormalizeOptional(request.Note);
+        student.DriveFolderId = NormalizeOptional(request.DriveFolderId);
         student.StudyMode = request.StudySchedule.Mode;
         student.StudyWeekdayMask = weekdayMask;
         student.Version++;
@@ -340,6 +342,7 @@ public sealed class StudentService(
         if (student.GuardianName != NormalizeOptional(request.GuardianName)) fields.Add("guardianName");
         if (student.GuardianPhone != NormalizeOptional(request.GuardianPhone)) fields.Add("guardianPhone");
         if (student.Note != NormalizeOptional(request.Note)) fields.Add("note");
+        if (student.DriveFolderId != NormalizeOptional(request.DriveFolderId)) fields.Add("driveFolderId");
         if (student.StudyMode != request.StudySchedule.Mode) fields.Add("studySchedule.mode");
         if (student.StudyWeekdayMask != weekdayMask) fields.Add("studySchedule.weekdays");
         return fields.ToArray();
@@ -378,11 +381,12 @@ public sealed class StudentService(
         student.DateOfBirth,
         student.Gender, 
         student.Status, 
-        student.GuardianName, 
-        student.GuardianPhone, 
+        student.GuardianName,
+        student.GuardianPhone,
         student.Note,
-        student.GroupId, 
-        student.Group?.Code, 
+        student.DriveFolderId,
+        student.GroupId,
+        student.Group?.Code,
         student.Group?.Name,
         student.Group?.ResponsibleTeacher?.User?.FullName,
         new StudyScheduleResponse(student.StudyMode, StudentScheduleRules.Decode(student.StudyWeekdayMask)),
@@ -396,11 +400,12 @@ public sealed class StudentService(
         row.DateOfBirth,
         row.Gender, 
         row.Status, 
-        row.GuardianName, 
-        row.GuardianPhone, 
+        row.GuardianName,
+        row.GuardianPhone,
         row.Note,
-        row.GroupId, 
-        row.GroupCode, 
+        row.DriveFolderId,
+        row.GroupId,
+        row.GroupCode,
         row.GroupName,
         row.ResponsibleTeacherName,
         new StudyScheduleResponse(row.StudyMode, StudentScheduleRules.Decode(row.StudyWeekdayMask)),
@@ -418,6 +423,7 @@ public sealed class StudentService(
             student.GuardianName,
             student.GuardianPhone,
             student.Note,
+            student.DriveFolderId,
             student.GroupId,
             student.Group == null ? null : student.Group.Code,
             student.Group == null ? null : student.Group.Name,
@@ -457,21 +463,22 @@ public sealed class StudentService(
     private static readonly string[] StudentEditableFields =
     [
         "studentCode", "fullName", "nickName", "dateOfBirth", "gender", "status",
-        "guardianName", "guardianPhone", "note", "studySchedule.mode", "studySchedule.weekdays"
+        "guardianName", "guardianPhone", "note", "driveFolderId", "studySchedule.mode", "studySchedule.weekdays"
     ];
 
     private sealed record StudentRow(
-        Guid Id, 
-        string StudentCode, 
-        string FullName, 
-        string NickName, 
+        Guid Id,
+        string StudentCode,
+        string FullName,
+        string NickName,
         DateOnly DateOfBirth,
-        Gender? Gender, 
-        StudentStatus Status, 
-        string? GuardianName, 
-        string? GuardianPhone, 
+        Gender? Gender,
+        StudentStatus Status,
+        string? GuardianName,
+        string? GuardianPhone,
         string? Note,
-        Guid? GroupId, 
+        string? DriveFolderId,
+        Guid? GroupId,
         string? GroupCode, 
         string? GroupName, 
         string? ResponsibleTeacherName,

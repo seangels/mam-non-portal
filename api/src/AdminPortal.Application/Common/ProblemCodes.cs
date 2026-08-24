@@ -35,4 +35,5 @@ public static class ProblemCodes
     public const string AssessmentSheetAlreadyExists = nameof(AssessmentSheetAlreadyExists);
     public const string AssessmentSheetDone = nameof(AssessmentSheetDone);
     public const string AssessmentSheetGoogleMappingBlocked = nameof(AssessmentSheetGoogleMappingBlocked);
+    public const string AssessmentSheetGoogleOperationFailed = nameof(AssessmentSheetGoogleOperationFailed);
 }

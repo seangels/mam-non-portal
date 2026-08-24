@@ -20,3 +20,16 @@ Khép lại phần backend: viết test tương xứng, đồng bộ tài liệu
 ## Kết quả mong đợi (Definition of Done)
 
 Build 0 warning/0 error; unit + integration test pass; README/`requests.http`/memory đã đồng bộ; các bước smoke phía backend (1, 2, 3, 5, 7, 9 trong danh sách 10 bước) chạy được qua API trực tiếp, sẵn sàng để frontend nối vào ở `ASH-FE-04`.
+
+## Tiến độ hiện tại (2026-08-20)
+
+Người dùng yêu cầu "làm phần nào làm trước được" trong khi `ASH-BE-03`/`ASH-BE-04` chưa xong — đã hoàn thành phần không phụ thuộc 2 task đó:
+
+- **Đã xong**: tách `AssessmentSheetRules` (static class, theo đúng convention `AuthorizationRules`/`AttendanceRules`/`StudentRules`) gồm `EnsureAssessmentSheetRole`, `EnsureOpen`, `EnsureDistinctIds`, `GradeRank`; viết `AssessmentSheetRulesTests.cs` (15 test case, bao phủ toàn bộ 4 hàm). `dotnet test tests/AdminPortal.UnitTests -c Release` → 55/55 pass (40 cũ + 15 mới).
+- **Đã xong**: `api/README.md` (mục "Bảng đánh giá năng lực") và `api/requests.http` (đủ 12 route `assessment-sheets` + `google-sheets/sync-assessments`) đã cập nhật.
+- **Đã xong**: `.agents/backend/MEMORY.md` cập nhật trạng thái thật (không dựa vào bản ghi cũ), gồm cả phát hiện 2 bản stub Google-action song song và `AssessmentSheetAlreadyExists` chưa được throw.
+- **Chưa làm, chờ điều kiện**:
+  - Test cho `AssessmentSheetService` ở mức tích hợp (cần DbContext/EF InMemory hoặc Testcontainers) — service hiện chỉ có test rule thuần, chưa test luồng CRUD/prefill `PlanGrade` end-to-end.
+  - `dotnet test tests/AdminPortal.IntegrationTests` **vẫn bị chặn** bởi `NU1903` (`SSH.NET` qua `Testcontainers.PostgreSql 4.8.1`) — người dùng đã chọn hoãn nâng cấp, không tự ý nâng khi chưa được yêu cầu lại.
+  - Bước smoke 1/2/3/5/7/9 qua `requests.http` (gọi API thật, cần server + Postgres chạy) chưa thực hiện — hợp lý để làm sau khi `ASH-BE-03` xong phần đọc `AssessmentRecordLatest` (bước 3 phụ thuộc dữ liệu latest có thật), tránh test dựa trên dữ liệu giả.
+  - `dotnet-ef migrations has-pending-model-changes` chưa chạy lại xác nhận sau khi entity `AssessmentRecordLatest` ổn định ở migration `20260820105149_ChangeAssessmentRecordLatest`.

@@ -31,6 +31,7 @@ public sealed record StudentResponse(
     string? GuardianName,
     string? GuardianPhone,
     string? Note,
+    string? DriveFolderId,
     Guid? GroupId,
     string? GroupCode,
     string? GroupName,
@@ -62,6 +63,7 @@ public sealed record CreateStudentRequest(
     [param: MaxLength(200)] string? GuardianName,
     [param: MaxLength(30)] string? GuardianPhone,
     [param: MaxLength(2000)] string? Note,
+    [param: MaxLength(200)] string? DriveFolderId,
     [param: Required] StudyScheduleRequest StudySchedule);
 
 public sealed record UpdateStudentRequest(
@@ -74,5 +76,6 @@ public sealed record UpdateStudentRequest(
     [param: MaxLength(200)] string? GuardianName,
     [param: MaxLength(30)] string? GuardianPhone,
     [param: MaxLength(2000)] string? Note,
+    [param: MaxLength(200)] string? DriveFolderId,
     [param: Required] StudyScheduleRequest StudySchedule,
     [param: Range(1, int.MaxValue)] int ExpectedVersion);

@@ -22,6 +22,7 @@ internal sealed class StudentConfiguration : IEntityTypeConfiguration<Student>
         builder.Property(x => x.Status).HasConversion<string>().HasMaxLength(30);
         builder.Property(x => x.GuardianName).HasMaxLength(200);
         builder.Property(x => x.GuardianPhone).HasMaxLength(30);
+        builder.Property(x => x.DriveFolderId).HasMaxLength(200);
         builder.Property(x => x.StudyMode).HasConversion<string>().HasMaxLength(20).IsRequired();
         builder.Property(x => x.StudyWeekdayMask).IsRequired();
         builder.Property(x => x.Version).HasDefaultValue(1).IsConcurrencyToken();
