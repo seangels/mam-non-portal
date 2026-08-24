@@ -1,6 +1,6 @@
 {
   "ConnectionStrings": {
-    "DefaultConnection": "Host=localhost;Port=5432;Database=admin_portal;Username=admin_portal"
+    "DefaultConnection": ""
   },
   "Database": {
     "MigrateOnStartup": false
@@ -29,16 +29,16 @@
   },
   "AllowedHosts": "*",
   "GoogleSheets": {
-    "CredentialFilePath": "google-credentials.qlmamnon-400006.json",
+    "CredentialFilePath": "",
 
-    "AssessmentSheetTemplateFileId": "12ClFCOFCfUJJ1i8QstHweNaSdLfY-1MB2eaCuigqWwQ",
+    "AssessmentSheetTemplateFileId": "",
     "DataSheetName": "data",
     "PlanTemplateSheetName": "khcn_template",
     "PlanTemplateSheetGid": 1320805599,
     "ResultTemplateSheetName": "KQ_template",
     "ResultTemplateSheetGid": 1903920808,
 
-    "SpreadsheetId": "1Q5esWPI1jf2xk5VR7-ZPdxG4OBWiCZnJQrci7TtpMIo",
+    "SpreadsheetId": "",
     "SheetConfigLastRow": "__config!C2",
     "SheetConfigRange": "__config!B5:C{{lastRow}}"
 
