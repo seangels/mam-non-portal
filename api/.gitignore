@@ -9,3 +9,6 @@ data/*
 **/google-credentials.*.json
 **/appsettings.**.json
 **/ClientApp/build/**.*
+data-podman/*
+backups/*
+data-podman-restore-test/*
