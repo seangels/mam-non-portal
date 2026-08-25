@@ -48,6 +48,7 @@ Các điều chỉnh sau feedback tập trung giảm diện tích mỗi hàng: f
 - ✅ Giá trị trong cột `Kế hoạch` hiển thị dạng badge, lấy text/màu chữ/màu nền từ config `ASSESSMENT_GRADE_OPTIONS`.
 - ✅ Header `Kết quả hiện tại` có checkbox `Hiện kế hoạch` để bật/ẩn cột `Kế hoạch`.
 - ✅ `Kết quả hiện tại` dùng `dx-select-box`, hiển thị tiếng Việt và đổi màu theo grade đang chọn bằng config `ASSESSMENT_GRADE_OPTIONS`.
+- ✅ Khi khởi tạo records, nếu `finalGrade` chưa có thì tự fill bằng `planGrade`; nếu đã có `finalGrade` thì giữ nguyên, không ghi đè.
 - ✅ `Ghi chú` dùng textarea gọn trong cell, mặc định cao khoảng một hàng, giới hạn 2.000 ký tự theo backend `FinalNote`.
 
 ## Màu sắc cố định theo `groupLv2`

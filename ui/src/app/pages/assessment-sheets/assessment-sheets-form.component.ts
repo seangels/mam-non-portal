@@ -141,16 +141,17 @@ export function buildReplaceAssessmentSheetRecordsRequest(
       assessmentId: assessment.id,
       planGrade: record.planGrade ?? null,
       planNote: record.planNote ?? null,
-      finalGrade: record.finalGrade ?? null,
+      finalGrade: recordFinalGrade(record),
       finalNote: record.finalNote ?? null
     };
   });
+  const addedPlanGrade = normalizeAssessmentGrade(assessmentToAdd.latestGrade);
 
   records.push({
     assessmentId: assessmentToAdd.id,
-    planGrade: normalizeAssessmentGrade(assessmentToAdd.latestGrade),
+    planGrade: addedPlanGrade,
     planNote: normalizeOptional(assessmentToAdd.latestNote),
-    finalGrade: null,
+    finalGrade: addedPlanGrade,
     finalNote: null
   });
 
@@ -185,7 +186,7 @@ export function buildRemoveAssessmentSheetRecordRequest(
       assessmentId: assessment.id,
       planGrade: record.planGrade ?? null,
       planNote: record.planNote ?? null,
-      finalGrade: record.finalGrade ?? null,
+      finalGrade: recordFinalGrade(record),
       finalNote: record.finalNote ?? null
     };
   });
@@ -222,6 +223,13 @@ export function assessmentGradeColor(value: string | null | undefined): string {
 
 export function assessmentGradeBgColor(value: string | null | undefined): string {
   return ASSESSMENT_GRADE_OPTIONS.find(item => item.value === value)?.bgcolor ?? EMPTY_GRADE_OPTION.bgcolor;
+}
+
+export function initializeAssessmentSheetRecords(records: AssessmentSheetRecord[]): AssessmentSheetRecord[] {
+  return records.map(record => ({
+    ...record,
+    finalGrade: recordFinalGrade(record)
+  }));
 }
 
 export function buildAssessmentSheetRecordRows(records: AssessmentSheetRecord[]): AssessmentSheetRecordTableRow[] {
@@ -727,7 +735,7 @@ export class AssessmentSheetFormComponent implements OnInit {
     };
     this.studentSummary = this.buildStudentSummary(sheet);
     this.responsibleTeacherSummary = sheet.responsibleTeacherFullName ?? 'Chưa chọn giáo viên phụ trách';
-    this.records = sheet.records ?? [];
+    this.records = initializeAssessmentSheetRecords(sheet.records ?? []);
     this.recordRows = buildAssessmentSheetRecordRows(this.records);
     this.existingAssessmentCodes = this.records
       .map(record => record.assessment.code)
@@ -786,7 +794,7 @@ export class AssessmentSheetFormComponent implements OnInit {
       code: record.assessment.code,
       planGrade: record.planGrade ?? null,
       planNote: record.planNote ?? null,
-      finalGrade: record.finalGrade ?? null,
+      finalGrade: recordFinalGrade(record),
       finalNote: record.finalNote ?? ''
     }));
   }
@@ -863,9 +871,13 @@ function buildRecordRequestFromRecord(
     assessmentId: assessment.id,
     planGrade: record.planGrade ?? null,
     planNote: record.planNote ?? null,
-    finalGrade: record.finalGrade ?? null,
+    finalGrade: recordFinalGrade(record),
     finalNote: record.finalNote ?? null
   };
+}
+
+function recordFinalGrade(record: AssessmentSheetRecord): AssessmentGrade | null {
+  return record.finalGrade ?? record.planGrade ?? null;
 }
 
 function normalizeGroupName(value: string | null | undefined): string {

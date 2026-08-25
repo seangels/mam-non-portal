@@ -13,7 +13,8 @@ import {
   buildRemoveAssessmentSheetRecordRequest,
   buildReplaceAssessmentSheetRecordsRequest,
   buildSaveAssessmentSheetRecordsRequest,
-  buildUpdateAssessmentSheetRequest
+  buildUpdateAssessmentSheetRequest,
+  initializeAssessmentSheetRecords
 } from './assessment-sheets-form.component';
 
 describe('Assessment sheet form request mapping', () => {
@@ -112,7 +113,7 @@ describe('Assessment sheet form request mapping', () => {
           assessmentId: 'assessment-2',
           planGrade: 'A',
           planNote: 'Ghi chú gần nhất',
-          finalGrade: null,
+          finalGrade: 'A',
           finalNote: null
         }
       ]
@@ -201,6 +202,32 @@ describe('Assessment sheet form request mapping', () => {
         }
       ]
     });
+  });
+
+  it('defaults empty current results from plan grade when initializing and saving records', () => {
+    const initialized = initializeAssessmentSheetRecords([
+      {
+        id: 'record-1',
+        assessment: { code: 'A01', name: 'Ngôn ngữ' },
+        planGrade: 'B',
+        finalGrade: null
+      } as any,
+      {
+        id: 'record-2',
+        assessment: { code: 'A02', name: 'Vận động' },
+        planGrade: 'A',
+        finalGrade: 'C'
+      } as any
+    ]);
+
+    expect(initialized.map(record => record.finalGrade)).toEqual(['B', 'C']);
+
+    const request = buildSaveAssessmentSheetRecordsRequest(initialized, [
+      { id: 'assessment-1', code: 'A01' } as any,
+      { id: 'assessment-2', code: 'A02' } as any
+    ]);
+
+    expect(request.records.map(record => record.finalGrade)).toEqual(['B', 'C']);
   });
 });
 

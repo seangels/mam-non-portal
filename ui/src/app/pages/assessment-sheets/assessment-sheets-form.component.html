@@ -161,8 +161,8 @@
                 <div
                   class="grade-select-shell"
                   [class.disabled]="saving || recordMutationInProgress || originalStatus === 'Done'"
-                  [style.backgroundColor]="gradeBgColor(row.record.finalGrade)"
-                  [style.color]="gradeColor(row.record.finalGrade)">
+                  [style.backgroundColor]="gradeBgColor(row.record.finalGrade ?? row.record.planGrade)"
+                  [style.color]="gradeColor(row.record.finalGrade ?? row.record.planGrade)">
                   <dx-select-box
                     class="grade-select-box"
                     [dataSource]="gradeSelectOptions"
@@ -170,7 +170,7 @@
                     displayExpr="text"
                     itemTemplate="gradeOption"
                     [disabled]="saving || recordMutationInProgress || originalStatus === 'Done'"
-                    [value]="row.record.finalGrade ?? null"
+                    [value]="row.record.finalGrade ?? row.record.planGrade ?? null"
                     (onValueChanged)="updateRecordFinalGrade(row.record, $event.value)"
                     [attr.aria-label]="'Kết quả hiện tại của ' + row.record.assessment.code">
                     <div *dxTemplate="let grade of 'gradeOption'">
