@@ -130,7 +130,7 @@ Ngày 2026-08-14, người dùng đã yêu cầu bỏ qua phần smoke test còn
 | `DX19-FE-02` | DevExtreme types và widget option compatibility | `[DX19-FE-02] Adapt UI to DevExtreme 19 APIs` | Có |
 | `DX19-FE-03` | Theme 19.2.5 và layout CSS | `[DX19-FE-03] Rebuild DevExtreme 19 themes` | Có |
 | `DX19-QA-01` | Unit/integration UI regression | `[DX19-QA-01] Verify Angular 12 UI regressions` | Có |
-| `DX19-QA-02` | Smoke-test toàn portal + docs/memory/tasks | `[DX19-QA-02] Complete DevExtreme 19 migration` | Có |
+| `DX19-QA-02` | Smoke-test toàn portal + docs/memory/`docs/tasks` | `[DX19-QA-02] Complete DevExtreme 19 migration` | Có |
 
 Không squash các checkpoint trước khi toàn bộ migration được duyệt. Nếu checkpoint thất bại, revert đúng commit checkpoint; không reset worktree hoặc xóa thay đổi ngoài phạm vi.
 
@@ -340,7 +340,7 @@ Trong `ui/tsconfig.json`:
 }
 ```
 
-Giữ `strict`, `noImplicitOverride`, `noPropertyAccessFromIndexSignature`, `noImplicitReturns`, `strictTemplates` và `useDefineForClassFields: false` nếu compiler 4.3.5 chấp nhận. Chỉ bỏ option khi compiler xác nhận option đó chưa tồn tại; phải ghi lý do trong `tasks.md`, không tắt strictness.
+Giữ `strict`, `noImplicitOverride`, `noPropertyAccessFromIndexSignature`, `noImplicitReturns`, `strictTemplates` và `useDefineForClassFields: false` nếu compiler 4.3.5 chấp nhận. Chỉ bỏ option khi compiler xác nhận option đó chưa tồn tại; phải ghi lý do trong `docs/tasks/**`, không tắt strictness.
 
 - [ ] **Step 5: Bổ sung entrypoint vào tsconfig**
 
@@ -569,7 +569,7 @@ Stage exact files thực sự đổi; không stage toàn bộ `ui/src/app` nếu
 
 **Files:**
 - Modify only when a real compatibility expectation changed: existing `ui/src/**/*.spec.ts`
-- Modify: `tasks.md`
+- Modify: `docs/tasks/**`
 - Modify: `.agents/frontend/MEMORY.md`
 
 **Interfaces:**
@@ -622,7 +622,7 @@ Expected: không whitespace error; không có thay đổi trong `api/`, `deploy/
 
 - [ ] **Step 5: Ghi kết quả checkpoint**
 
-Trong `tasks.md` và frontend memory ghi:
+Trong `docs/tasks/**` và frontend memory ghi:
 
 - Version thực tế từ `node --version`, `npm --version`, `ng version`.
 - Số test pass/fail.
@@ -633,7 +633,7 @@ Trong `tasks.md` và frontend memory ghi:
 - [ ] **Step 6: Commit checkpoint**
 
 ```powershell
-git add tasks.md .agents/frontend/MEMORY.md ui/src/app/app-routing.spec.ts ui/src/app/pages/users/users.component.spec.ts ui/src/app/pages/teachers/teachers.component.spec.ts ui/src/app/pages/students/students.component.spec.ts ui/src/app/pages/student-groups/student-groups.component.spec.ts ui/src/app/pages/attendance/attendance.component.spec.ts
+git add docs/tasks .agents/frontend/MEMORY.md ui/src/app/app-routing.spec.ts ui/src/app/pages/users/users.component.spec.ts ui/src/app/pages/teachers/teachers.component.spec.ts ui/src/app/pages/students/students.component.spec.ts ui/src/app/pages/student-groups/student-groups.component.spec.ts ui/src/app/pages/attendance/attendance.component.spec.ts
 git commit -m "[DX19-QA-01] Verify Angular 12 UI regressions"
 ```
 
@@ -644,13 +644,13 @@ Chỉ giữ các spec thực sự thay đổi trong lệnh stage; không stage g
 ### Task 6: Smoke-test thủ công toàn portal (`DX19-QA-02`)
 
 **Files:**
-- Modify: `tasks.md`
+- Modify: `docs/tasks/**`
 - Modify: `.agents/frontend/MEMORY.md`
 - Modify: `.agents/shared/MEMORY.md`
 - Modify: `ui/AGENTS.md`
 - Modify: `ui/README.md`
-- Modify: `requirements/07-api-bao-mat-va-van-hanh.md` chỉ nếu tài liệu toolchain hiện ghi version cũ; không đổi requirement nghiệp vụ
-- Modify: `plans/README.md` trạng thái epic
+- Modify: `docs/requirements/07-api-bao-mat-va-van-hanh.md` chỉ nếu tài liệu toolchain hiện ghi version cũ; không đổi requirement nghiệp vụ
+- Modify: `docs/plans/README.md` trạng thái epic
 
 **Interfaces:**
 - Consumes: API development hiện hữu và UI dev build từ Task 5.
@@ -731,7 +731,7 @@ Expected: đúng version; full test/build/dependency tree pass; diff sạch. Kh�
 - [ ] **Step 8: Commit hoàn tất epic**
 
 ```powershell
-git add plans/README.md tasks.md ui/AGENTS.md ui/README.md .agents/frontend/MEMORY.md .agents/shared/MEMORY.md requirements/07-api-bao-mat-va-van-hanh.md
+git add docs/plans/README.md docs/tasks ui/AGENTS.md ui/README.md .agents/frontend/MEMORY.md .agents/shared/MEMORY.md docs/requirements/07-api-bao-mat-va-van-hanh.md
 git commit -m "[DX19-QA-02] Complete DevExtreme 19 migration"
 ```
 
@@ -762,7 +762,7 @@ Epic `DX19` chỉ hoàn tất khi:
 - Smoke-test matrix hoàn tất, không mất tính năng hoặc REST behavior.
 - Không có thay đổi trong backend/API contract/hash routing/auth/IIS environment.
 - Production/IIS không chạy nếu chưa có invocation `$gv-portal-production`.
-- `tasks.md`, plan index, role/shared memory và tài liệu frontend phản ánh đúng baseline mới.
+- `docs/tasks/**`, plan index, role/shared memory và tài liệu frontend phản ánh đúng baseline mới.
 
 ## 8. Rủi ro còn chấp nhận
 

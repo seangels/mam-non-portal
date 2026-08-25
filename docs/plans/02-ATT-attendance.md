@@ -845,4 +845,4 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\deploy\iis\build-iis-p
 - Migration nâng cấp được database hiện có và rollback/backup procedure được ghi rõ.
 - Validation, `ProblemDetails`, concurrency, audit/privacy và OpenAPI thống nhất.
 - Backend/frontend/integration test đạt; build không warning mới.
-- Agent memory, `tasks.md`, README và IIS release package được cập nhật.
+- Agent memory, `docs/tasks/**`, README và IIS release package được cập nhật.

@@ -29,14 +29,14 @@ Các yêu cầu sau là phiên bản cuối và ghi đè mô tả cũ:
 
 ## Nguồn tổng hợp
 
-Yêu cầu được chắt lọc từ các plan theo thứ tự `BASE → ATT → TCH → SCH → AUI` và các quyết định nghiệp vụ đã xác nhận. Các plan vẫn là nơi lưu phân tích, lộ trình, migration và test matrix; thư mục này là nguồn đọc nhanh cho phạm vi sản phẩm hiện hành.
+Yêu cầu được chắt lọc từ các plan theo thứ tự `BASE → ATT → TCH → SCH → AUI → ASH` và các quyết định nghiệp vụ đã xác nhận. Các plan vẫn là nơi lưu phân tích, lộ trình, migration và test matrix; thư mục này là nguồn đọc nhanh cho phạm vi sản phẩm hiện hành.
 
 | Requirements | Nguồn chính |
 |---|---|
-| 00, 01, 07 | `plans/01-BASE-admin-portal.md` và shared decisions |
-| 02 | `plans/03-TCH-teacher-management.md`, ghi đè phần Teacher cũ của BASE |
-| 03 | BASE, `plans/02-ATT-attendance.md` và `plans/04-SCH-student-groups-study-schedule.md` |
-| 04 | `plans/04-SCH-student-groups-study-schedule.md` |
+| 00, 01, 07 | `docs/plans/01-BASE-admin-portal.md` và shared decisions |
+| 02 | `docs/plans/03-TCH-teacher-management.md`, ghi đè phần Teacher cũ của BASE |
+| 03 | BASE, `docs/plans/02-ATT-attendance.md` và `docs/plans/04-SCH-student-groups-study-schedule.md` |
+| 04 | `docs/plans/04-SCH-student-groups-study-schedule.md` |
 | 05 | ATT + SCH + AUI theo thứ tự, sau đó áp dụng delta recovery/context hiện có trong source |
 | 06 | AUI, yêu cầu UI tiếng Việt của ATT và layout card/recovery hiện có trong source |
 | 08 | Các quyết định triển khai IIS/HTTPS đã chốt trong shared memory và tài liệu deploy |

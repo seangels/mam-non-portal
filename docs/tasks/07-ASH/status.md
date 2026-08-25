@@ -4,7 +4,7 @@ Nguồn: [`../../plans/07-ASH-assessment-sheet.md`](../../plans/07-ASH-assessmen
 
 File này là dashboard: chỉ liệt kê trạng thái tổng quan. Mỗi mã task bấm vào để mở file chi tiết trong [`details/`](details/) — nơi ghi Mục đích, Nội dung cụ thể cần làm và Kết quả mong đợi (DoD) của riêng task đó. Lịch sử thực hiện (log) không nằm trong từng file chi tiết mà gom chung tại [`log.md`](log.md), theo trình tự thời gian thật.
 
-Theo dõi toàn dự án vẫn nằm ở [`../../../tasks.md`](../../../tasks.md). Khi một mục ở đây đổi trạng thái, cập nhật cả dòng tương ứng (nếu có) ở `tasks.md`.
+Theo dõi toàn dự án nằm ở [`../README.md`](../README.md). Khi một mục ở đây đổi trạng thái, cập nhật chính file này và thêm log tương ứng vào `log.md`; không ghi vào `tasks.md` ở root vì file đó đã legacy/frozen.
 
 ## Quy ước trạng thái
 
@@ -25,7 +25,7 @@ Theo mục 13 của plan. Cả 5 quyết định đã được khoá. `ASH-DEC-0
 | `[x]` **Đã code phần quyền** | `ASH-DEC-02` | Cách mở quyền `Teacher` cho `sync-assessments` | Đã bỏ policy `PortalManagers` khỏi endpoint và kiểm tra role `Teacher`/`Admin`/`SuperAdmin` trong handler service. Phần nạp `AssessmentSheetLatest`/`AssessmentRecordLatest` vẫn chờ `ASH-BE-03`. |
 | `[x]` **Đã code** | `ASH-DEC-03` | Giữ/bỏ field `ClosedDate` | Đã bỏ trên cả `AssessmentSheet` và `AssessmentSheetLatest`; migration không tạo cột `closed_date`. |
 | `[x]` **Đã code** | `ASH-DEC-04` | Spreadsheet nguồn cho `[F01]` | Đã thêm `AssessmentSheetTemplateFileId = 12ClFCOFCfUJJ1i8QstHweNaSdLfY-1MB2eaCuigqWwQ` vào `GoogleSheetsSettings`/`appsettings.json`. Còn cần xác nhận riêng (không phải code): service account đã có quyền đọc/copy file mẫu chưa. |
-| `[x]` **Đã code** | `ASH-DEC-05` | Khoá upsert khi đồng bộ `AssessmentSheetLatest`/`AssessmentRecordLatest` | Migration đã tạo unique index `StudentId` (sheet) và (`AssessmentSheetLatestId`, `AssessmentCode`) (record) — `AssessmentCode` là field scalar mới thêm vào `AssessmentRecordLatest` vì EF không hỗ trợ index sub-property JSON. `ASH-BE-03` phải nhớ set field này khi upsert. |
+| `[x]` **Đã code** | `ASH-DEC-05` | Khoá upsert khi đồng bộ `AssessmentSheetLatest`/`AssessmentRecordLatest` | Migration hiện hành tạo unique index `StudentId` (sheet) và (`AssessmentSheetLatestId`, `AssessmentId`) (record). Bản trung gian từng dùng `AssessmentCode` đã được thay bằng FK `AssessmentId`; các log cũ nhắc `AssessmentCode` chỉ còn giá trị lịch sử. |
 
 ## Tổng quan
 

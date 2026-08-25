@@ -573,5 +573,5 @@ Plan đã đủ quyết định để bắt đầu `TCH-00`.
 - UI quản lý Teacher hoàn chỉnh, responsive, accessible và 100% nội dung hiển thị bằng tiếng Việt.
 - Không còn mutation Teacher qua UI User cũ; group assignment chỉ có một nguồn mutation.
 - Backend build/unit/PostgreSQL integration và frontend development build/unit tests pass.
-- Tài liệu, `tasks.md` và durable memory được cập nhật.
+- Tài liệu, `docs/tasks/**` và durable memory được cập nhật.
 - Production/IIS chỉ được build hoặc deploy khi người dùng gọi `$gv-portal-production` riêng.

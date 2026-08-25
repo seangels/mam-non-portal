@@ -1,6 +1,6 @@
 # Mầm Non Admin UI
 
-Admin portal xây bằng Angular 12.2.17 và DevExtreme 19.2.5. Ứng dụng hỗ trợ đăng nhập, quản lý tài khoản quản trị, giáo viên, nhóm/học sinh và điểm danh theo contract nền tại [`../plans/01-BASE-admin-portal.md`](../plans/01-BASE-admin-portal.md), plan [`../plans/02-ATT-attendance.md`](../plans/02-ATT-attendance.md), [`../plans/03-TCH-teacher-management.md`](../plans/03-TCH-teacher-management.md), [`../plans/04-SCH-student-groups-study-schedule.md`](../plans/04-SCH-student-groups-study-schedule.md) và [`../plans/05-AUI-attendance-compact-cards.md`](../plans/05-AUI-attendance-compact-cards.md). Danh mục và thứ tự các kế hoạch nằm tại [`../plans/README.md`](../plans/README.md).
+Admin portal xây bằng Angular 12.2.17 và DevExtreme 19.2.5. Ứng dụng hỗ trợ đăng nhập, quản lý tài khoản quản trị, giáo viên, nhóm/học sinh và điểm danh theo contract nền tại [`../docs/plans/01-BASE-admin-portal.md`](../docs/plans/01-BASE-admin-portal.md), plan [`../docs/plans/02-ATT-attendance.md`](../docs/plans/02-ATT-attendance.md), [`../docs/plans/03-TCH-teacher-management.md`](../docs/plans/03-TCH-teacher-management.md), [`../docs/plans/04-SCH-student-groups-study-schedule.md`](../docs/plans/04-SCH-student-groups-study-schedule.md) và [`../docs/plans/05-AUI-attendance-compact-cards.md`](../docs/plans/05-AUI-attendance-compact-cards.md). Danh mục và thứ tự các kế hoạch nằm tại [`../docs/plans/README.md`](../docs/plans/README.md).
 
 ## Yêu cầu
 

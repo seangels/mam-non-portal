@@ -8,14 +8,14 @@ Before changing frontend code:
 
 1. Read the workspace `../AGENTS.md` and `.agents/README.md`.
 2. Read `../.agents/shared/MEMORY.md` and `../.agents/frontend/MEMORY.md`.
-3. Read `../plans/README.md`, the relevant contract sections in the numbered plans, the current frontend section in `../tasks.md`, and `README.md`.
+3. Read `../docs/plans/README.md`, the relevant contract sections in the numbered plans, `../docs/tasks/README.md`, the current frontend section in the relevant `../docs/tasks/**` status/log files, and `README.md`.
 4. Inspect the current source and worktree. Memory is a handoff aid, not proof that generated files, processes, services, or test results are still current.
 
 ## Ownership and coordination
 
 - The frontend role owns `ui/`: Angular source, frontend models/services/interceptors, DevExtreme pages/layouts/themes, frontend tests, and frontend environment files.
-- Treat `../plans/01-BASE-admin-portal.md` as the base REST contract and later numbered feature plans as scoped extensions. Do not silently compensate for an API-contract mismatch in the UI; report and coordinate it with the backend/root role.
-- `../deploy/`, `../tasks.md`, root/shared memory, and release coordination are owned by the root role. Change them only when the task explicitly assigns cross-cutting work.
+- Treat `../docs/plans/01-BASE-admin-portal.md` as the base REST contract and later numbered feature plans as scoped extensions. Do not silently compensate for an API-contract mismatch in the UI; report and coordinate it with the backend/root role.
+- `../deploy/`, `../docs/tasks/**`, root/shared memory, and release coordination are owned by the root role. Change them only when the task explicitly assigns cross-cutting work. Do not write to root `../tasks.md`; it is legacy/frozen.
 - Preserve unrelated user changes. Do not perform dependency upgrades, an Angular standalone migration, a routing-mode change, or a DevExtreme redesign as incidental work.
 
 ## Existing architecture
@@ -88,6 +88,6 @@ Production builds, IIS builds/packages and deployment are not normal frontend ve
 ## Durable memory and handoff
 
 - After a material frontend change, update `../.agents/frontend/MEMORY.md` with the date, durable decision/current state, affected contract or files, exact verification commands/results, risks, and next action.
-- Update shared memory through the root role when auth/API/deployment behavior changes across stacks. Detailed chronological activity belongs in `../tasks.md`, not in role memory.
+- Update shared memory through the root role when auth/API/deployment behavior changes across stacks. Detailed chronological activity belongs in `../docs/tasks/**`, not in role memory.
 - Replace stale current-state facts instead of appending chat transcripts. Explicitly distinguish a historical baseline from tests run in the current session.
 - Never put passwords, credential-bearing connection strings, JWT keys, access/refresh/CSRF tokens, cookies, private keys, personal data, `.env` contents, or deployed secret values in source, logs, tests, screenshots, or memory.

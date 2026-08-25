@@ -227,8 +227,8 @@ Tài liệu/handoff:
 
 - `ui/README.md`
 - `.agents/frontend/MEMORY.md`
-- `tasks.md`
-- `plans/README.md`
+- `docs/tasks/**`
+- `docs/plans/README.md`
 
 Không dự kiến đổi endpoint URL, auth, Student schedule contract hoặc global `styles.scss`.
 

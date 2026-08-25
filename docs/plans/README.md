@@ -1,6 +1,6 @@
 # Danh mục kế hoạch phát triển
 
-Các file được đánh số theo thứ tự phụ thuộc và triển khai. Mã ở tên file là mã epic dùng trong `tasks.md` và commit Git.
+Các file được đánh số theo thứ tự phụ thuộc và triển khai. Mã ở tên file là mã epic dùng trong `docs/tasks/**` và commit Git.
 
 | Thứ tự | Mã | Kế hoạch | Trạng thái | Phụ thuộc |
 |---:|---|---|---|---|
@@ -10,7 +10,7 @@ Các file được đánh số theo thứ tự phụ thuộc và triển khai. M
 | 04 | `SCH` | [`04-SCH-student-groups-study-schedule.md`](04-SCH-student-groups-study-schedule.md) | Đã triển khai | `BASE`, `ATT` |
 | 05 | `AUI` | [`05-AUI-attendance-compact-cards.md`](05-AUI-attendance-compact-cards.md) | Đã triển khai | `ATT`, `SCH` |
 | 06 | `DX19` | [`06-DX19-devextreme-19-2-5-angular-12-migration.md`](06-DX19-devextreme-19-2-5-angular-12-migration.md) | Đã triển khai; smoke một phần theo user-waiver | `BASE`, `ATT`, `TCH`, `SCH`, `AUI` |
-| 07 | `ASH` | [`07-ASH-assessment-sheet.md`](07-ASH-assessment-sheet.md) | Chưa triển khai | `BASE` |
+| 07 | `ASH` | [`07-ASH-assessment-sheet.md`](07-ASH-assessment-sheet.md) | Đang triển khai từng phần; xem [`../tasks/07-ASH/status.md`](../tasks/07-ASH/status.md) | `BASE` |
 
 ## Quy ước đặt tên
 
@@ -21,6 +21,6 @@ NN-CODE-ten-tinh-nang.md
 - `NN`: thứ tự hai chữ số, thể hiện kế hoạch làm trước/làm sau.
 - `CODE`: mã epic ổn định để dùng cho task, branch và commit.
 - Khi thêm kế hoạch mới, cấp số tiếp theo; không đổi số/mã của kế hoạch đã triển khai.
-- Trạng thái chi tiết và execution log vẫn được theo dõi tại [`../tasks.md`](../tasks.md).
+- Trạng thái chi tiết và execution log được theo dõi tại [`../tasks/README.md`](../tasks/README.md).
 
 Production build, đóng gói và deploy IIS không phải một plan tính năng trong thư mục này; chỉ thực hiện khi người dùng gọi `$gv-portal-production`.

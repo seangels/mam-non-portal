@@ -4,7 +4,7 @@
 
 - **Epic:** `ASH` — Assessment Sheet.
 - **Thứ tự:** `07`.
-- **Trạng thái:** Chưa triển khai.
+- **Trạng thái:** Đang triển khai theo từng phần; dashboard hiện hành ở [`docs/tasks/07-ASH/status.md`](../tasks/07-ASH/status.md).
 - **Ngày lập:** 2026-08-20. Cập nhật entity/contract theo source thật: 2026-08-20 (nhiều lần trong ngày). Cập nhật cơ chế Google Sheet (file riêng theo `AssessmentSheet`) và tách `AssessmentRecord.Grade` thành `PlanGrade`/`PlanNote` + `FinalGrade`/`FinalNote` theo xác nhận/source thật mới nhất của người dùng: 2026-08-20.
 - **Phạm vi:** .NET 10 REST API, PostgreSQL 17, tích hợp Google Sheets/Drive hiện có, và Angular/DevExtreme UI cho giáo viên.
 - **Phụ thuộc:** [`01-BASE-admin-portal.md`](01-BASE-admin-portal.md) (auth, Student). Kế thừa trực tiếp kho `Assessment`/`AssessmentGroup` và `GoogleSheetsService` đã có trong source (không có plan riêng — được thêm ad hoc, xem mục 4).
@@ -81,9 +81,9 @@ Việc đầu tiên của backend agent là đối chiếu lại các file trên
 
 - `AssessmentRecord` giữ nguyên 4 field như mục 4: `PlanGrade`/`PlanNote`/`FinalGrade`/`FinalNote` — không gộp lại thành một field. `PlanGrade` khởi tạo từ `AssessmentRecordLatest.LatestGrade` tương ứng tại thời điểm tạo `AssessmentRecord` (logic ở Application layer, `ASH-BE-02` — chưa code), sau đó mutable trực tiếp qua bước sửa plan (mục 7). `FinalGrade`/`FinalNote` để trống tới khi nhập kết quả (mục 9), độc lập với `PlanGrade`.
 - **Đã thêm field `AssessmentSheet.AssessmentSheetSpreadsheetId`** (`string?`): lưu Drive file id của file `[F01]` riêng — copy từ file mẫu `gen_assessment_sheet`. Null cho tới khi hành động đầu tiên cần `[F01]` được gọi.
-- `AssessmentSheetLatest`/`AssessmentRecordLatest`: đã có EF configuration + migration (`ASH-BE-01`); job đồng bộ ghi vào chúng vẫn là việc của `ASH-BE-03` (chưa code) — không có API tạo/sửa/xoá trực tiếp nào cho cặp bảng này ngoài luồng đồng bộ.
-- **Phát hiện kỹ thuật quan trọng khi triển khai `ASH-BE-01`:** EF Core (kể cả khi complex type được map qua `ComplexProperty(...).ToJson()` thành một cột jsonb) **không hỗ trợ** tạo index trực tiếp trên một sub-property của complex type đã map JSON (ví dụ `x.AssessmentSnapshot.Code`) — `dotnet-ef migrations add` báo lỗi rõ ràng khi thử. Giải pháp áp dụng: thêm field scalar riêng **`AssessmentRecordLatest.AssessmentCode`** (`string`, bắt buộc, `maxLength 50`) song song với `AssessmentSnapshot` jsonb, dùng riêng cho mục đích index/upsert — khớp với pattern denormalize-cột-phẳng-bên-cạnh-snapshot đã có sẵn trong codebase (ví dụ `AttendanceRecord.StudentCodeSnapshot`). **`ASH-BE-03` khi viết luồng đồng bộ (mục 6.5) phải nhớ set `AssessmentCode` = giá trị mã mục đánh giá khi upsert `AssessmentRecordLatest`, không chỉ set `AssessmentSnapshot`.**
-- Khoá upsert khi đồng bộ (`ASH-DEC-05`) đã áp dụng trong migration: `AssessmentSheetLatest` unique index trên `StudentId`; `AssessmentRecordLatest` unique index trên (`AssessmentSheetLatestId`, `AssessmentCode`) — cột scalar mới, không phải sub-property JSON.
+- `AssessmentSheetLatest`/`AssessmentRecordLatest`: đã có EF configuration + migration (`ASH-BE-01`) và luồng đồng bộ `sync-assessments` hiện đã nạp lại cả `Assessment`, `AssessmentSheetLatest`, `AssessmentRecordLatest` từ Google Sheet. Không có API tạo/sửa/xoá trực tiếp nào cho cặp bảng này ngoài luồng đồng bộ.
+- **Đính chính kỹ thuật 2026-08-25:** bản trung gian từng dùng field scalar `AssessmentRecordLatest.AssessmentCode` để index/upsert vì EF không index được sub-property JSON. Source hiện tại đã đổi sang liên kết trực tiếp `AssessmentRecordLatest.AssessmentId`/`Assessment` và unique index (`AssessmentSheetLatestId`, `AssessmentId`). Các đoạn/log cũ nhắc `AssessmentCode` chỉ còn giá trị lịch sử, không phải contract hiện hành.
+- Khoá upsert khi đồng bộ (`ASH-DEC-05`) đã áp dụng trong migration hiện hành: `AssessmentSheetLatest` unique index trên `StudentId`; `AssessmentRecordLatest` unique index trên (`AssessmentSheetLatestId`, `AssessmentId`).
 - `ClosedDate` trên `AssessmentSheetLatest` đã bỏ (`ASH-DEC-03`, áp dụng đầy đủ — trước đó chỉ `AssessmentSheet` đã bỏ, giờ cả hai).
 - Đã thêm `AssessmentSheetTemplateFileId = "12ClFCOFCfUJJ1i8QstHweNaSdLfY-1MB2eaCuigqWwQ"` vào `GoogleSheetsSettings`/`IGoogleSheetsSettings` và `appsettings.json` (mục `GoogleSheets`) — giải quyết `ASH-DEC-04`.
 - Giữ nguyên nguyên tắc: sửa `AssessmentRecord`/`AssessmentSheet` không được ghi ngược `AssessmentSheetLatest`/`AssessmentRecordLatest`/`Assessment` gốc; và ngược lại, luồng đồng bộ nạp lại không được sửa `AssessmentRecord` đã snapshot trong các `AssessmentSheet` đang tồn tại.
@@ -120,7 +120,7 @@ Việc đầu tiên của backend agent là đối chiếu lại các file trên
 
 ### 6.5 Nạp lại `Assessment`/`AssessmentSheetLatest`/`AssessmentRecordLatest` từ `[F0.data_DG]`
 
-- Mở rộng `SyncAssessmentsAsync` để, ngoài việc thay thế `Assessment`, đọc thêm cột kết quả để **upsert** `AssessmentSheetLatest` (một dòng mirror mỗi học sinh, unique index theo `StudentId` — đã tạo ở `ASH-BE-01`) và các `AssessmentRecordLatest` con (`LatestGrade` đơn = kết quả đọc được — không tách Plan/Final ở bảng này). **Quan trọng:** ngoài `AssessmentSnapshot` (jsonb), phải set cả field scalar **`AssessmentCode`** bằng đúng mã mục đánh giá — đây là cột dùng cho unique index (`AssessmentSheetLatestId`, `AssessmentCode`) đã tạo ở `ASH-BE-01`, vì EF Core không hỗ trợ index trực tiếp trên sub-property của complex type map JSON (xem mục 5). Cân nhắc đổi tên DTO mẫu có sẵn `AssessmentLastResultGoogleSheetResponse` trong `GoogleSheetsModels.cs` cho khớp ngữ cảnh mới khi code.
+- Mở rộng `SyncAssessmentsAsync` để, ngoài việc thay thế `Assessment`, đọc thêm cột kết quả để nạp lại `AssessmentSheetLatest` (một dòng mirror mỗi học sinh, unique index theo `StudentId`) và các `AssessmentRecordLatest` con (`LatestGrade` đơn = kết quả đọc được — không tách Plan/Final ở bảng này). Record latest liên kết tới mục đánh giá bằng `AssessmentId`/`Assessment`, không dùng `AssessmentCode` trong source hiện hành. Cân nhắc đổi tên DTO mẫu có sẵn `AssessmentLastResultGoogleSheetResponse` trong `GoogleSheetsModels.cs` cho khớp ngữ cảnh mới khi code.
 - Đổi quyền: `Teacher`/`Admin`/`SuperAdmin` đều gọi được `POST /api/v1/google-sheets/sync-assessments`. **Không đổi định nghĩa policy `PortalManagers`** (sẽ vô tình mở quyền Student/Group/Teacher/User cho `Teacher`) — thêm role-check riêng tại handler (`EnsureAssessmentSyncRole`), theo `ASH-DEC-02`.
 - `AssessmentSheetLatest`/`AssessmentRecordLatest` là bảng chỉ-đọc: không service nào khác ngoài luồng đồng bộ này được phép ghi vào chúng. Luồng này hoàn toàn tách biệt khỏi cơ chế file `[F01]` ở mục 6.1–6.4 — không liên quan tới nhau.
 
@@ -155,7 +155,7 @@ POST   /api/v1/google-sheets/sync-assessments
 - `PUT /{id}/status`: đổi `Open`↔`Done`, set/clear `DoneDate`.
 - `export-to-sheet`, `sync-to-sheet`, `generate-plan-pdf`, `generate-result-pdf`, `submit-results` (ghi `[F0.ĐG]` bằng `FinalGrade` + set `SubmissionDate`) đều là action endpoint riêng, không gộp vào `PUT` chính, đúng với việc mỗi bước là thao tác nút bấm độc lập. 4 action đầu đều tự đảm bảo `[F01]` tồn tại (mục 6.1) — không bắt buộc gọi đúng thứ tự.
 - Response của `AssessmentSheet` nên có thể expose `AssessmentSheetSpreadsheetId` (hoặc một link Drive dựng sẵn từ id đó) để UI có thể cho người dùng mở trực tiếp file `[F01]` nếu cần — quyết định UI cụ thể thuộc `ASH-FE-02`/`ASH-FE-03`.
-- Danh sách/`GET` hỗ trợ filter chọn plan (theo `studentId`, ngưỡng `LatestGrade` đọc từ `AssessmentRecordLatest`, `groupLv1/2/3Name`) — có thể tái dùng `AssessmentListQuery` hiện có mở rộng thêm tham số join sang `AssessmentRecordLatest` theo `studentId`.
+- `GET /api/v1/assessments` hỗ trợ query `studentId` không bắt buộc. Khi có `studentId`, API vẫn trả đủ `Assessment` theo filter/sort/paging hiện tại và left join sang `AssessmentSheetLatest`/`AssessmentRecordLatest` để bổ sung `latestGrade`/`latestNote` nullable; nếu chưa có sheet latest hoặc record latest thì không làm mất dòng assessment. Field `note` hiện hữu vẫn là ghi chú gốc của `Assessment`, không phải ghi chú latest.
 - Toàn bộ theo quy ước REST/error/pagination đã có trong [requirements/07](../requirements/07-api-bao-mat-va-van-hanh.md); không cần tài liệu hoá lại ở đây.
 
 ## 9. Test & smoke — phạm vi đã được người dùng giới hạn
@@ -205,7 +205,7 @@ Tài liệu/handoff:
 
 - `api/README.md`, `api/requests.http` (endpoint mới).
 - `.agents/backend/MEMORY.md`, `.agents/frontend/MEMORY.md`, `.agents/shared/MEMORY.md` (quyết định kỹ thuật, đặc biệt mục 6.1 và 7, và việc tách `Plan*`/`Final*`).
-- `tasks.md`, `plans/README.md` (thêm dòng `ASH`).
+- `docs/tasks/**`, `docs/plans/README.md` (thêm dòng `ASH`).
 
 ## 11. Mã đợt triển khai
 
@@ -243,7 +243,7 @@ Tài liệu/handoff:
 - Mỗi `AssessmentSheet` chỉ tạo đúng một file `[F01]` (không copy trùng khi bấm lại nút nhiều lần); file mẫu `gen_assessment_sheet` không bị chỉnh sửa bởi bất kỳ luồng nào.
 - Sửa `PlanGrade`/`FinalGrade`/plan trên một `AssessmentSheet` không ghi ngược `AssessmentSheetLatest`/`AssessmentRecordLatest`/`Assessment` gốc; hai bảng `*Latest` chỉ bị ghi bởi đúng một luồng đồng bộ (mục 12 requirements 09), không bởi bất kỳ API nào khác. Sửa `FinalGrade` không làm đổi `PlanGrade` và ngược lại.
 - `Done` khoá đúng các field theo mục 4 của requirements 09; `Open` mở lại được bởi mọi vai trò, không cần lý do.
-- README/`requests.http`/`tasks.md`/`plans/README.md`/memory được cập nhật.
+- README/`requests.http`/`docs/tasks/**`/`docs/plans/README.md`/memory được cập nhật.
 - Không chạy production/IIS build trong phạm vi plan này.
 
 ## 13. Quyết định cần user khoá
@@ -256,6 +256,6 @@ Cả 5 quyết định dưới đây **đã được chốt**. `ASH-DEC-03`/`04`
 | `ASH-DEC-02` | Cách mở quyền `Teacher` cho `sync-assessments` | Thêm role check `Teacher`/`Admin`/`SuperAdmin` ngay tại handler `sync-assessments`, giữ nguyên định nghĩa policy `PortalManagers` dùng chung cho các API quản trị khác (mục 6.5) — tránh mở nhầm quyền Student/Group/Teacher/User cho `Teacher`. | Chưa — chờ `ASH-BE-03` |
 | `ASH-DEC-03` | Giữ hay bỏ field `ClosedDate` trên `AssessmentSheetLatest` | Bỏ, vì bảng chỉ-đọc/prefill không có ý nghĩa dùng field này (đã bỏ trên `AssessmentSheet` từ trước). | **Đã code** — field đã xoá khỏi `AssessmentSheetLatest.cs`, migration không tạo cột `closed_date`. |
 | `ASH-DEC-04` | Spreadsheet nguồn cho `[F01]` | File mẫu `gen_assessment_sheet`, id `12ClFCOFCfUJJ1i8QstHweNaSdLfY-1MB2eaCuigqWwQ`, cấu hình vào setting `AssessmentSheetTemplateFileId`. | **Đã code** — thêm vào `GoogleSheetsSettings`/`IGoogleSheetsSettings` và `appsettings.json`. Còn một điều kiện tiên quyết vận hành (không phải code): xác nhận service account đã có quyền đọc file mẫu để copy và tạo file mới trong Drive hay chưa. |
-| `ASH-DEC-05` | Khoá upsert khi đồng bộ `AssessmentSheetLatest`/`AssessmentRecordLatest` | `AssessmentSheetLatest` unique theo `StudentId`; `AssessmentRecordLatest` unique theo (`AssessmentSheetLatestId`, mã mục đánh giá). | **Đã code** — migration tạo cả 2 unique index. Lưu ý: mã mục đánh giá được lưu ở field scalar mới **`AssessmentCode`** trên `AssessmentRecordLatest`, không phải sub-property của `AssessmentSnapshot` (EF không hỗ trợ index JSON sub-property — xem mục 5). |
+| `ASH-DEC-05` | Khoá upsert khi đồng bộ `AssessmentSheetLatest`/`AssessmentRecordLatest` | `AssessmentSheetLatest` unique theo `StudentId`; `AssessmentRecordLatest` unique theo (`AssessmentSheetLatestId`, mục đánh giá). | **Đã code** — migration hiện hành tạo unique index theo (`AssessmentSheetLatestId`, `AssessmentId`). Bản trung gian `AssessmentCode` đã bị thay thế, chỉ còn trong log lịch sử. |
 
 Đây là các quyết định kỹ thuật có thể đảo ngược nếu phát hiện vấn đề khi code, không phải quyết định nghiệp vụ (nghiệp vụ đã chốt xong trong requirements 09).

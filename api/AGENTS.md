@@ -4,8 +4,8 @@
 
 File này áp dụng cho toàn bộ cây `api/`. Agent `backend` sở hữu implementation .NET, database schema/migration, API contract, test backend và tài liệu vận hành trong `api/`.
 
-- Giữ thay đổi trong `api/` trừ khi nhiệm vụ hiện tại giao rõ phạm vi tích hợp khác. Không tự sửa `ui/`, `deploy/`, `release/` hoặc section của agent khác trong `tasks.md`.
-- Khi API contract thay đổi, phải nêu tác động cho root/frontend trước khi coi công việc hoàn tất. Đồng bộ plan liên quan trong `../plans/`, `api/README.md`, `api/requests.http` và test khi chúng nằm trong phạm vi nhiệm vụ.
+- Giữ thay đổi trong `api/` trừ khi nhiệm vụ hiện tại giao rõ phạm vi tích hợp khác. Không tự sửa `ui/`, `deploy/`, `release/` hoặc section của agent khác trong `../docs/tasks/**`.
+- Khi API contract thay đổi, phải nêu tác động cho root/frontend trước khi coi công việc hoàn tất. Đồng bộ plan liên quan trong `../docs/plans/`, `api/README.md`, `api/requests.http` và test khi chúng nằm trong phạm vi nhiệm vụ.
 - Workspace dùng chung: đọc `git status`/`git diff` trước khi sửa, bảo toàn thay đổi của người dùng và agent khác, không reset/checkout/xóa thay đổi ngoài nhiệm vụ.
 - Không coi artifact trong `artifacts/` hoặc `release/` là source of truth. Chúng phải được build lại sau thay đổi backend có ảnh hưởng runtime.
 
@@ -15,7 +15,7 @@ File này áp dụng cho toàn bộ cây `api/`. Agent `backend` sở hữu impl
 
 1. File này.
 2. `../.agents/backend/MEMORY.md` để lấy handoff bền vững.
-3. `../plans/README.md`, `../plans/01-BASE-admin-portal.md`, feature plan liên quan, `README.md` (contract vận hành) và phần Backend/Integration/Deploy liên quan trong `../tasks.md`.
+3. `../docs/plans/README.md`, `../docs/plans/01-BASE-admin-portal.md`, `../docs/requirements/README.md`, feature plan/requirement liên quan, `README.md` (contract vận hành), `../docs/tasks/README.md` và phần Backend/Integration/Deploy liên quan trong `../docs/tasks/**`.
 4. Source, config, migration và test trực tiếp liên quan đến nhiệm vụ.
 5. `git status --short` và diff trong `api/` để nhận diện thay đổi chưa bàn giao.
 
@@ -74,7 +74,7 @@ dotnet test tests/AdminPortal.UnitTests --no-restore
 dotnet test tests/AdminPortal.IntegrationTests --no-restore
 ```
 
-- Integration test dùng PostgreSQL thật qua Testcontainers nên Docker engine phải chạy. Nếu bị chặn bởi môi trường, ghi chính xác blocker; không đánh dấu pass và không thay bằng provider khác.
+- Integration test dùng PostgreSQL thật qua Testcontainers nên Docker engine phải chạy. Nếu bị chặn bởi môi trường, ghi chính xác blocker; không đánh dấu pass và không thay bằng provider khác. Nếu user chủ động giới hạn checkpoint là build/unit/no DB runtime, bỏ qua integration trong checkpoint đó và ghi rõ "not run/skipped", không ghi là pass.
 - Với thay đổi auth/setup/persistence/API contract, ưu tiên chạy cả integration suite từ database sạch. Với model change, chạy thêm `migrations has-pending-model-changes`.
 - Không dùng `--no-build` nếu chưa build đúng configuration trong cùng lượt kiểm tra. Ghi lại command, configuration và số test pass/fail trong handoff.
 
@@ -94,7 +94,7 @@ Cuối mỗi nhiệm vụ có thay đổi hoặc phát hiện quan trọng:
 
 1. Cập nhật `../.agents/backend/MEMORY.md`: ngày, trạng thái hiện tại, quyết định/bất biến mới, file chính, lệnh kiểm tra và kết quả, blocker/next step.
 2. Thay thế thông tin lỗi thời thay vì nối log dài vô hạn. Phân biệt rõ “đã xác minh trong lượt này” với baseline cũ.
-3. Nếu nhiệm vụ cho phép cập nhật `tasks.md`, chỉ cập nhật phần Backend hoặc log tích hợp được root giao; không sửa trạng thái agent khác.
+3. Nếu nhiệm vụ cho phép cập nhật task, chỉ cập nhật phần Backend hoặc log tích hợp được root giao trong `../docs/tasks/**`; không sửa trạng thái agent khác. Không ghi vào root `../tasks.md` vì file đó đã legacy/frozen.
 4. Bàn giao rõ thay đổi contract/migration/deploy cần root hoặc frontend xử lý.
 
 Không bao giờ lưu vào `AGENTS.md`, memory, task log hoặc source control: mật khẩu, JWT signing key, refresh/access/CSRF token, connection string có credential, certificate private key hay secret từ environment. Chỉ ghi tên biến và placeholder không nhạy cảm.

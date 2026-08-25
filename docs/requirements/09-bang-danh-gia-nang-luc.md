@@ -18,6 +18,7 @@
 - `Teacher`, `Admin`, `SuperAdmin` đều được tạo, xem và thao tác `AssessmentSheet` cho **bất kỳ học sinh nào**; không giới hạn theo nhóm đang phụ trách (khác với Điểm danh — xem [05](05-diem-danh.md) — vốn giới hạn Teacher theo nhóm).
 - Đồng bộ dữ liệu gốc từ Google Sheets (`Assessment`, `AssessmentSheetLatest`/`AssessmentRecordLatest` từ `[F0.data_DG]`) mở cho cả `SuperAdmin`, `Admin`, `Teacher`. Chính sách `PortalManagers` đang áp cho endpoint `sync-assessments` hiện có (giới hạn `Admin`/`SuperAdmin`) sẽ được điều chỉnh để cho phép `Teacher` cùng chạy đồng bộ này; đây là thay đổi chung của endpoint, không tạo endpoint riêng.
 - Xem danh mục `Assessment`/`AssessmentGroup` để chọn plan vẫn mở cho cả `SuperAdmin`, `Admin`, `Teacher` như hiện tại.
+- Khi danh mục `Assessment` được đọc kèm dữ liệu gần nhất theo `studentId`, dữ liệu latest là dữ liệu gắn với học sinh cụ thể: `Admin`/`SuperAdmin` xem được mọi học sinh; `Teacher` chỉ xem được latest của học sinh thuộc nhóm hiện đang phụ trách. Danh sách trả về vẫn phải có đủ mục đánh giá theo filter, kể cả khi học sinh chưa có `AssessmentSheetLatest` hoặc mục đó chưa có `AssessmentRecordLatest`.
 
 ## 3. Thuật ngữ
 
@@ -62,7 +63,7 @@
 - Giáo viên chọn một học sinh (bất kỳ, không giới hạn theo nhóm phụ trách) và đặt `Name` cho đợt đánh giá.
 - Hệ thống snapshot thông tin học sinh tại thời điểm tạo (`StudentSnapshot`: mã học sinh, họ tên, tên gọi, ngày sinh, giới tính) để `AssessmentSheet` không đổi theo khi hồ sơ học sinh gốc thay đổi sau này.
 - Giáo viên chọn các mục đánh giá (`plan`) từ kho `Assessment` để đưa vào bảng. Màn hình chọn plan hỗ trợ các bộ lọc sau (kết hợp được với nhau):
-  - **Theo học sinh:** mặc định chỉ hiển thị/tính `LatestGrade` gợi ý dựa trên `AssessmentRecordLatest` (đọc-only, đã fetch từ Google Sheet) của đúng học sinh đang tạo bảng.
+  - **Theo học sinh:** lấy thêm `LatestGrade`/ghi chú latest gợi ý dựa trên `AssessmentRecordLatest` (đọc-only, đã fetch từ Google Sheet) của đúng học sinh đang tạo bảng. Việc thiếu dữ liệu latest không được làm ẩn mất mục đánh giá; các field latest để trống/null.
   - **Theo mức grade:** ví dụ lọc các mục có kết quả gần nhất `LatestGrade >= B`, dùng thang xếp hạng đã chốt `A > B > C > D` (`A` cao nhất, `D` thấp nhất); dùng để khoanh vùng các mục học sinh đã đạt mức nhất định hoặc ngược lại cần cải thiện.
   - **Theo nhóm phân cấp:** lọc theo `GroupLv1Name`, `GroupLv2Name`, `GroupLv3Name` của `Assessment`.
 - Với mỗi mục được chọn, hệ thống:
@@ -167,7 +168,7 @@ Cấu trúc mirror theo hình dạng `AssessmentSheet`/`AssessmentRecord` (theo 
 
 - Chỉ được ghi bởi luồng đồng bộ ở mục 12; không có API/UI nào cho phép sửa trực tiếp.
 - `AssessmentRecordLatest.LatestGrade` là **field đơn** (không tách plan/final vì đây chỉ là dữ liệu nguồn tham chiếu) — dùng để prefill `PlanGrade` khi tạo `AssessmentRecord` mới (mục 5).
-- `AssessmentRecordLatest` có thêm field kỹ thuật `AssessmentCode` (mã mục đánh giá, tách riêng khỏi snapshot JSON) — dùng để xác định đúng dòng khi đồng bộ ghi đè theo từng học sinh + mục đánh giá; không phải field nghiệp vụ hiển thị cho người dùng.
+- `AssessmentRecordLatest` liên kết trực tiếp tới `Assessment` bằng `AssessmentId`/`Assessment`; khoá duy nhất theo `AssessmentSheetLatestId` + `AssessmentId` để xác định đúng dòng khi đồng bộ ghi đè theo từng học sinh + mục đánh giá. Bản trung gian từng có field kỹ thuật `AssessmentCode` đã lỗi thời và không còn là contract hiện hành.
 - Không có `SubmissionDate`, `AssessmentSheetSpreadsheetId`, `PlanFileLinkPdf`, `ResultFileLinkPdf` — các field gắn với vòng đời làm việc/file `[F01]` của một `AssessmentSheet` thật không áp dụng cho bảng chỉ-đọc này.
 - Bị ghi đè mỗi lần đồng bộ lại; không phải nơi lưu lịch sử theo thời gian, chỉ phản ánh trạng thái tại lần fetch gần nhất.
 

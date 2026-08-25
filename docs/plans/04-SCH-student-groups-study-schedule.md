@@ -523,4 +523,4 @@ Ngày 2026-08-12, yêu cầu `Thực thi plan SCH` được xác nhận là ch�
 - Nếu `SCH-DEC-01` chọn operational schedule, context/Missing/POST dùng cùng scheduled roster và Saved sheet bất biến.
 - Migration fresh/upgrade/backfill, database constraints và EF snapshot đều sạch.
 - Audit không chứa dữ liệu cá nhân/note thô; authorization nằm ở application service.
-- Backend/frontend regression đều pass và `tasks.md`/memory/docs được cập nhật.
+- Backend/frontend regression đều pass và `docs/tasks/**`/memory/docs được cập nhật.

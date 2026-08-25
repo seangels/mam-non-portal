@@ -4,7 +4,7 @@ This file applies to the entire `api-portal` workspace and is the durable entry 
 
 ## Roles and ownership
 
-- Orchestrator/root owns cross-cutting work: `AGENTS.md`, `.agents/`, `tasks.md`, `deploy/`, release coordination, and API/UI contract decisions.
+- Orchestrator/root owns cross-cutting work: `AGENTS.md`, `.agents/`, `docs/tasks/`, `deploy/`, release coordination, and API/UI contract decisions.
 - Backend subagent owns `api/`. Read and follow `api/AGENTS.md` before changing backend files.
 - Frontend subagent owns `ui/`. Read and follow `ui/AGENTS.md` before changing frontend files.
 - Do not edit another role's owned folder unless the task explicitly requires a coordinated contract change. Record contract changes in shared memory before handing off.
@@ -22,9 +22,9 @@ Runtime subagent processes do not survive a new chat. Recreate the `backend` and
 
 1. Read this file.
 2. Read `.agents/README.md` and `.agents/shared/MEMORY.md`.
-3. Backend work: read `api/AGENTS.md`, `.agents/backend/MEMORY.md`, `plans/01-BASE-admin-portal.md`, and the relevant feature plan in `plans/`.
-4. Frontend work: read `ui/AGENTS.md`, `.agents/frontend/MEMORY.md`, and the relevant contract sections in `plans/` used by the UI.
-5. Read the relevant current section and recent log entries in `tasks.md`.
+3. Backend work: read `api/AGENTS.md`, `.agents/backend/MEMORY.md`, `docs/plans/01-BASE-admin-portal.md`, `docs/requirements/README.md`, and the relevant feature plan/requirement in `docs/`.
+4. Frontend work: read `ui/AGENTS.md`, `.agents/frontend/MEMORY.md`, `docs/requirements/README.md`, and the relevant contract sections in `docs/plans/` used by the UI.
+5. Read `docs/tasks/README.md`, then the relevant feature `status.md`/`log.md` under `docs/tasks/`.
 6. Recheck runtime facts such as running processes, containers, ports, database contents, IIS state, and generated artifacts. Never treat ephemeral state in memory as guaranteed current.
 
 ## Durable memory protocol
@@ -33,17 +33,18 @@ Runtime subagent processes do not survive a new chat. Recreate the `backend` and
 - `.agents/backend/MEMORY.md` and `.agents/frontend/MEMORY.md` contain role-specific architecture, commands, known risks, and last verification.
 - Update the appropriate memory file after a material implementation, contract change, deployment change, new known risk, or verification result.
 - Keep memory concise and evidence-based. Update the current-state sections instead of pasting chat transcripts or endlessly appending logs.
-- Put detailed chronological execution status in `tasks.md`; memory should explain what a future agent must know to continue safely.
+- Put detailed chronological execution status in `docs/tasks/**`; memory should explain what a future agent must know to continue safely.
 - Include the date, affected files/contracts, verification commands/results, and any genuine next action.
 - Never store passwords, connection strings with credentials, JWT keys, tokens, cookies, private keys, personal data, or `.env` contents in memory.
 
 ## Shared engineering rules
 
-- `plans/01-BASE-admin-portal.md` is the base REST contract; numbered feature plans in `plans/` extend it in dependency order. Coordinate contract changes between backend and frontend.
+- `docs/plans/01-BASE-admin-portal.md` is the base REST contract; numbered feature plans in `docs/plans/` extend it in dependency order. Coordinate contract changes between backend and frontend.
+- Product requirements live under `docs/requirements/`, indexed by `docs/requirements/README.md`. New or changed requirements must be added there, not in root files.
 - Preserve user changes and the dirty worktree. Do not reset or overwrite unrelated files.
 - Use `apply_patch` for source/document edits.
 - Keep code clean, small, readable, and aligned with the existing architecture. Do not add abstractions without a concrete need.
-- Update `tasks.md` continuously for multi-step implementation work.
+- Update the relevant `docs/tasks/<NN-CODE>/status.md` and `log.md` continuously for multi-step implementation work.
 - Run verification proportional to the change and record the result in the owning memory file.
 - Generated `artifacts/` and `release/` are ignored; rebuild and verify them rather than assuming they exist in another clone.
 
@@ -75,3 +76,11 @@ Frontend:
     npm --prefix ui run test:ci
 
 Production/IIS verification is intentionally excluded from the default gate. Invoke `$gv-portal-production` when it is required.
+
+If the user explicitly limits a checkpoint to build/unit verification and no DB runtime, do not run backend integration tests for that checkpoint. Record integration as skipped/not run rather than passed. Otherwise, API contract and persistence changes should include the integration suite.
+
+## Legacy task file
+
+- Root `tasks.md` is frozen legacy material only. Do not add to it or edit it for new work.
+- The archived reference copy is `docs/tasks/archive/root-tasks-legacy-2026-08-25.md`.
+- New task dashboards/logs belong under `docs/tasks/`, indexed by `docs/tasks/README.md`.

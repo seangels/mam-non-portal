@@ -7,15 +7,17 @@ The live backend/frontend subagent processes exist only inside one chat thread. 
 - `shared/MEMORY.md`: cross-stack contracts, deployment decisions, current handoff, and workspace-wide risks.
 - `backend/MEMORY.md`: backend architecture, security invariants, database/API state, commands, and backend verification.
 - `frontend/MEMORY.md`: frontend architecture, auth/setup behavior, environment configuration, commands, and frontend verification.
-- `../tasks.md`: detailed chronological status and execution log.
-- `../plans/README.md`: ordered plan index; `../plans/01-BASE-admin-portal.md` is the base REST contract and later numbered plans extend it.
+- `../docs/tasks/README.md`: current task dashboard index. Feature task dashboards/logs live under `../docs/tasks/<NN-CODE>/`.
+- `../docs/tasks/archive/root-tasks-legacy-2026-08-25.md`: frozen backup of the old root `tasks.md`, for historical lookup only.
+- `../docs/plans/README.md`: ordered plan index; `../docs/plans/01-BASE-admin-portal.md` is the base REST contract and later numbered plans extend it.
+- `../docs/requirements/README.md`: product requirement index; feature requirement files live under `../docs/requirements/`.
 
 ## How to resume in a new chat
 
 1. Start from the workspace root so root `AGENTS.md` is in scope.
 2. Codex loads the project custom-agent definitions from `../.codex/agents/backend.toml` and `../.codex/agents/frontend.toml` when the project is trusted.
 3. Recreate the named `backend` subagent for `api/` and the named `frontend` subagent for `ui/` when their work is requested.
-4. Each custom agent is already instructed to read its nested `AGENTS.md`, role memory, shared memory, and relevant `tasks.md` entries before acting.
+4. Each custom agent is already instructed to read its nested `AGENTS.md`, role memory, shared memory, `../docs/tasks/README.md`, and relevant feature task entries before acting.
 5. Recheck all runtime state. Containers, local processes, IIS bindings, ports, certificates, databases, ignored artifacts, and release ZIP files may have changed or may not exist in a fresh clone.
 
 ## Maintenance rules
@@ -24,4 +26,5 @@ The live backend/frontend subagent processes exist only inside one chat thread. 
 - Keep the `Last updated` date and `Last verified` section accurate.
 - Replace obsolete current-state facts and preserve only decisions that still constrain implementation.
 - Put secrets nowhere in `.agents/`. Refer to the configuration key name or secret store, never its value.
-- If backend and frontend disagree, update `shared/MEMORY.md` and the relevant numbered plan in `../plans/` as part of resolving the contract.
+- If backend and frontend disagree, update `shared/MEMORY.md` and the relevant numbered plan in `../docs/plans/` as part of resolving the contract.
+- Do not write new status to the root `../tasks.md`; it is legacy-only. Use `../docs/tasks/**`.

@@ -11,7 +11,7 @@ Khép lại phần frontend: chạy gate mặc định của repo, đồng bộ 
 ## Nội dung cụ thể cần làm
 
 - Chạy default verification gate theo `AGENTS.md`: `npm --prefix ui run build -- --configuration development`, `npm --prefix ui run test:ci`.
-- Cập nhật tài liệu/handoff: `.agents/frontend/MEMORY.md`, `tasks.md` (dòng liên quan nếu có), `plans/README.md` nếu cần.
+- Cập nhật tài liệu/handoff: `.agents/frontend/MEMORY.md`, `docs/tasks/**` (dòng liên quan nếu có), `docs/plans/README.md` nếu cần.
 - Phối hợp `ASH-QA-01`: chạy trọn 10 bước smoke test golden path qua UI thật (không chỉ qua API như `ASH-BE-05` đã làm riêng phần backend), đặc biệt các bước liên quan UI: 1, 2, 4, 6, 8, 10 trong [`13-ASH-QA-01.md`](13-ASH-QA-01.md).
 - Không thêm hạng mục kiểm thử ngoài phạm vi đã giới hạn (không responsive/accessibility matrix, không performance/load).
 

@@ -292,7 +292,7 @@ dotnet test tests/AdminPortal.UnitTests --no-restore
 dotnet test tests/AdminPortal.IntegrationTests --no-restore
 ```
 
-Integration test dùng PostgreSQL thật qua Testcontainers nên Docker engine phải chạy.
+Integration test dùng PostgreSQL thật qua Testcontainers nên Docker engine phải chạy. Nếu một checkpoint được user giới hạn rõ là chỉ build/unit/no DB runtime, ghi integration là not run/skipped thay vì pass.
 
 ## Deploy IIS local HTTPS
 
