@@ -1,8 +1,5 @@
 import { of } from 'rxjs';
-import {
-  ASSESSMENT_GROUP_LV2_COLORS,
-  ASSESSMENT_GROUP_LV2_DISPLAY_ORDER
-} from '../../core/models/api.models.assessment-sheets';
+import { ASSESSMENT_GROUP_LV2_CONFIGS } from '../../core/models/api.models.assessment-sheets';
 import { AssessmentPickerComponent } from './assessment-picker.component';
 import {
   AssessmentSheetFormComponent,
@@ -217,8 +214,8 @@ describe('Assessment sheet records table layout', () => {
   } as any);
 
   it('maps fixed groupLv2 colors with Vietnamese-insensitive names', () => {
-    expect(ASSESSMENT_GROUP_LV2_COLORS['Tiền tiểu học']).toBe('#DCC1CF');
-    expect(ASSESSMENT_GROUP_LV2_COLORS['Cá nhân và xã hội']).toBe('#D0E0E3');
+    expect(ASSESSMENT_GROUP_LV2_CONFIGS.find(config => config.key === 'Tiền tiểu học')?.bgcolor).toBe('#DCC1CF');
+    expect(ASSESSMENT_GROUP_LV2_CONFIGS.find(config => config.key === 'Cá nhân và xã hội')?.bgcolor).toBe('#D0E0E3');
     expect(assessmentGroupLv2Color(' Tiền tiểu học ')).toBe('#DCC1CF');
     expect(assessmentGroupLv2Color('PHAT TRIEN THE CHAT')).toBe('#C9DAF8');
     expect(assessmentGroupLv2Color('Nhóm khác')).toBe('#FFFFFF');
@@ -289,12 +286,16 @@ describe('Assessment sheet records table layout', () => {
       record('record-5', 'Cá nhân và xã hội', 'Xã hội', 5)
     ]);
 
-    expect(ASSESSMENT_GROUP_LV2_DISPLAY_ORDER).toEqual([
-      'Phát triển thể chất',
-      'Phát triển nhận thức',
-      'Phát triển ngôn ngữ',
-      'Cá nhân và xã hội',
-      'Tiền tiểu học'
+    expect(ASSESSMENT_GROUP_LV2_CONFIGS.map(config => ({
+      key: config.key,
+      displayOrder: config.displayOrder,
+      bgcolor: config.bgcolor
+    }))).toEqual([
+      { key: 'Phát triển thể chất', displayOrder: 1, bgcolor: '#C9DAF8' },
+      { key: 'Phát triển nhận thức', displayOrder: 2, bgcolor: '#C7B7D2' },
+      { key: 'Phát triển ngôn ngữ', displayOrder: 3, bgcolor: '#C9DAF8' },
+      { key: 'Cá nhân và xã hội', displayOrder: 4, bgcolor: '#D0E0E3' },
+      { key: 'Tiền tiểu học', displayOrder: 5, bgcolor: '#DCC1CF' }
     ]);
     expect(rows.map(row => row.record.id)).toEqual([
       'record-4',

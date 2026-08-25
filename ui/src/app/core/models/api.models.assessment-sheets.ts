@@ -9,28 +9,20 @@ export const ASSESSMENT_SHEET_STATUS_OPTIONS: { value: AssessmentSheetStatus; te
   { value: 'Done', text: 'Hoàn tất' }
 ];
 
-export const ASSESSMENT_GRADE_OPTIONS: { value: AssessmentGrade; text: string }[] = [
-  { value: 'A', text: 'Đạt +' },
-  { value: 'B', text: 'Chưa đạt -' },
-  { value: 'C', text: 'Hỗ trợ +' },
-  { value: 'D', text: 'Hỗ trợ -' }
+export const ASSESSMENT_GRADE_OPTIONS: { value: AssessmentGrade; text: string, color: string, bgcolor: string }[] = [
+  { value: 'A', text: 'Đạt +', color: '#11734b', bgcolor: '#d4edbc' },
+  { value: 'B', text: 'Chưa đạt -', color: '#b10202', bgcolor: '#ffcfc9' },
+  { value: 'C', text: 'Hỗ trợ +', color: '#473821', bgcolor: '#ffe5a0' },
+  { value: 'D', text: 'Hỗ trợ -', color: '#000', bgcolor: '#e8eaed' }
 ];
 
-export const ASSESSMENT_GROUP_LV2_DISPLAY_ORDER = [
-  'Phát triển thể chất',
-  'Phát triển nhận thức',
-  'Phát triển ngôn ngữ',
-  'Cá nhân và xã hội',
-  'Tiền tiểu học'
-] as const;
-
-export const ASSESSMENT_GROUP_LV2_COLORS: Record<string, string> = {
-  'Tiền tiểu học': '#DCC1CF',
-  'Cá nhân và xã hội': '#D0E0E3',
-  'Phát triển ngôn ngữ': '#C9DAF8',
-  'Phát triển nhận thức': '#C7B7D2',
-  'Phát triển thể chất': '#C9DAF8'
-};
+export const ASSESSMENT_GROUP_LV2_CONFIGS: { key: string; displayOrder: number; bgcolor: string }[] = [
+  { key: 'Phát triển thể chất', displayOrder: 1, bgcolor: '#C9DAF8' },
+  { key: 'Phát triển nhận thức', displayOrder: 2, bgcolor: '#C7B7D2' },
+  { key: 'Phát triển ngôn ngữ', displayOrder: 3, bgcolor: '#C9DAF8' },
+  { key: 'Cá nhân và xã hội', displayOrder: 4, bgcolor: '#D0E0E3' },
+  { key: 'Tiền tiểu học', displayOrder: 5, bgcolor: '#DCC1CF' }
+];
 
 export interface AssessmentSheetListQuery extends ListQuery {
   studentId?: string;

@@ -14,8 +14,7 @@ import {
   AssessmentSheetRecord,
   AssessmentSheetStatus,
   ASSESSMENT_GRADE_OPTIONS,
-  ASSESSMENT_GROUP_LV2_COLORS,
-  ASSESSMENT_GROUP_LV2_DISPLAY_ORDER,
+  ASSESSMENT_GROUP_LV2_CONFIGS,
   ASSESSMENT_SHEET_STATUS_OPTIONS,
   CreateAssessmentSheetRequest,
   AssessmentSheetRecordRequest,
@@ -34,10 +33,10 @@ import { AssessmentPickerComponent } from './assessment-picker.component';
 const ASSESSMENT_CACHE_PAGE_SIZE = 100;
 const UNGROUPED_LABEL = 'Chưa phân nhóm';
 const GROUP_LV2_COLORS = new Map(
-  Object.entries(ASSESSMENT_GROUP_LV2_COLORS).map(([name, color]) => [normalizeVietnamese(name), color] as const)
+  ASSESSMENT_GROUP_LV2_CONFIGS.map(config => [normalizeVietnamese(config.key), config.bgcolor] as const)
 );
 const GROUP_LV2_DISPLAY_ORDER_INDEX = new Map(
-  ASSESSMENT_GROUP_LV2_DISPLAY_ORDER.map((name, index) => [normalizeVietnamese(name), index] as const)
+  ASSESSMENT_GROUP_LV2_CONFIGS.map(config => [normalizeVietnamese(config.key), config.displayOrder] as const)
 );
 
 export interface AssessmentSheetEditor {
@@ -847,7 +846,7 @@ function normalizeGroupName(value: string | null | undefined): string {
 }
 
 function groupLv2DisplayOrder(groupLv2Name: string): number {
-  return GROUP_LV2_DISPLAY_ORDER_INDEX.get(normalizeVietnamese(groupLv2Name)) ?? ASSESSMENT_GROUP_LV2_DISPLAY_ORDER.length;
+  return GROUP_LV2_DISPLAY_ORDER_INDEX.get(normalizeVietnamese(groupLv2Name)) ?? Number.MAX_SAFE_INTEGER;
 }
 
 function countFollowingRows(

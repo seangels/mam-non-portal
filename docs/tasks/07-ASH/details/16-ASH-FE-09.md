@@ -62,8 +62,8 @@ Các màu dưới đây là cố định theo tên nhóm `groupLv2`; không ph�
 | Phát triển thể chất | `#C9DAF8` |
 
 - ✅ Áp màu nền cho toàn bộ dòng hoặc vùng group tương ứng để người dùng nhìn thấy ranh giới nhóm.
-- ✅ Cấu hình màu nằm chung trong `core/models/api.models.assessment-sheets` để các màn khác có thể tái sử dụng.
-- ✅ Cấu hình thứ tự hiển thị `groupLv2` cũng nằm trong `core/models/api.models.assessment-sheets`, theo thứ tự: `Phát triển thể chất`, `Phát triển nhận thức`, `Phát triển ngôn ngữ`, `Cá nhân và xã hội`, `Tiền tiểu học`.
+- ✅ Cấu hình màu và thứ tự hiển thị `groupLv2` nằm chung trong một const `ASSESSMENT_GROUP_LV2_CONFIGS` tại `core/models/api.models.assessment-sheets`, dạng `{ key: string, displayOrder: number, bgcolor: string }`.
+- ✅ Thứ tự cấu hình: `Phát triển thể chất`, `Phát triển nhận thức`, `Phát triển ngôn ngữ`, `Cá nhân và xã hội`, `Tiền tiểu học`.
 - ✅ So khớp tên nhóm bằng normalize tiếng Việt: trim, không nhạy hoa/thường và không nhạy dấu.
 - ✅ Nhóm chưa nằm trong danh sách cố định dùng màu mặc định trung tính, không tự sinh màu ngẫu nhiên.
 
