@@ -167,7 +167,7 @@ export class AssessmentSheetFormComponent implements OnInit {
     valueExpr: 'value',
     displayExpr: 'text',
     searchEnabled: false,
-    readOnly: this.isCreate,
+    readOnly: true,
     inputAttr: { 'aria-label': 'Trạng thái' }
   };
   readonly dateEditorOptions: Record<string, unknown> = {
@@ -222,6 +222,7 @@ export class AssessmentSheetFormComponent implements OnInit {
 
   ngOnInit(): void {
     this.isCreate = this.route.snapshot.data['mode'] === 'create';
+    this.statusEditorOptions['readOnly'] = this.isCreate;
     if (this.isCreate) {
       this.editor = this.emptyEditor();
       this.baseline = this.serialize(this.editor);

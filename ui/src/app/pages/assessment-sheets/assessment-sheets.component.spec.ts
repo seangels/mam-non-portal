@@ -72,13 +72,13 @@ describe('Assessment sheet form request mapping', () => {
 });
 
 describe('Assessment sheet form DevExtreme option stability', () => {
-  const createComponent = (): AssessmentSheetFormComponent =>
+  const createComponent = (mode = 'create'): AssessmentSheetFormComponent =>
     new AssessmentSheetFormComponent(
       {} as any,
       { user: { role: 'Admin' } } as any,
       {} as any,
       {} as any,
-      { snapshot: { data: { mode: 'create' }, paramMap: { get: () => null } } } as any,
+      { snapshot: { data: { mode }, paramMap: { get: () => null } } } as any,
       {} as any
     );
 
@@ -91,6 +91,16 @@ describe('Assessment sheet form DevExtreme option stability', () => {
     expect(component.dateEditorOptions).toBe(component.dateEditorOptions);
     expect(component.noteEditorOptions).toBe(component.noteEditorOptions);
     expect(component.formColCountByScreen).toBe(component.formColCountByScreen);
+  });
+
+  it('keeps status readonly on create and editable on edit', () => {
+    const createMode = createComponent('create');
+    createMode.ngOnInit();
+    expect(createMode.statusEditorOptions['readOnly']).toBeTrue();
+
+    const editMode = createComponent('edit');
+    editMode.ngOnInit();
+    expect(editMode.statusEditorOptions['readOnly']).toBeFalse();
   });
 
   it('reports selected assessment count for create and edit modes', () => {
