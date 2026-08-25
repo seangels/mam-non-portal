@@ -1,6 +1,6 @@
 # Shared workspace memory
 
-Last updated: 2026-08-14
+Last updated: 2026-08-25
 
 ## Product and ownership
 
@@ -21,6 +21,7 @@ Last updated: 2026-08-14
 - Teacher management is canonical at `/teachers` for Admin/SuperAdmin. `Teacher` stores editable user-entered `teacherCode`, nullable `note`, aggregate `version`, attendance policy and timestamps; account fields remain in `User`. Full PUT, policy PUT and DELETE use `expectedVersion`. Group assignment/policy UI remain under `student-groups`; User CRUD only manages Admin accounts, while Teacher password changes still use `/users/{userId}/password`.
 - Teacher list search is accent/case-insensitive literal substring search in the .NET API after structured DB filters and before exact total/paging. Do not install PostgreSQL `unaccent` or add search schema for v1; the confirmed scale is below 50 Teachers.
 - Student schedule is required `FullDay|OneToOne` plus one to six weekdays Monday–Saturday. Student full PUT, group command and delete use one optimistic `version/expectedVersion`; group assignment remains a separate command. Missing attendance filters the active roster by business weekday and defaults FullDay to `Present`, OneToOne to `OneToOneHour`/60; Saved sheets and manual recovery never re-filter current schedules.
+- Student read contract: `GET /students` and `GET /students/{id}` allow `Teacher` as well as `Admin`/`SuperAdmin`. Teacher reads are scoped to current groups where `Student.Group.ResponsibleTeacher.UserId == actor.UserId`; direct get outside scope returns 404. Student mutations remain `PortalManagers` only, so Teacher still cannot create, edit, assign group, or delete students.
 
 ## Deployment decision
 
@@ -64,5 +65,6 @@ Last updated: 2026-08-14
 - Student group/schedule epic `SCH` at `plans/04-SCH-student-groups-study-schedule.md` is implemented and verified. `/students/{id}/group` remains the only group mutation. Student schedule is required `FullDay|OneToOne` plus one to six weekdays Monday–Saturday, protected by Student optimistic versioning. Current schedule derives Missing attendance roster/defaults while Saved sheets and manual historical recovery remain unchanged. PostgreSQL Student row locks use `FOR NO KEY UPDATE` so concurrent schedule mutation remains serialized without deadlocking AttendanceRecord foreign-key checks.
 - Attendance compact-card epic `AUI` at `plans/05-AUI-attendance-compact-cards.md` is implemented and verified. It adds persisted `AttendanceStatus.Unmarked`; keeps Missing defaults Present/OneToOneHour by schedule; new AbsentHalfDay writes omit `halfDayPart` but retain excused/unexcused; Saved legacy Morning/Afternoon survives an unchanged half-day status and clears when status changes. Main daily cards identify only `nickname · studentCode`; recovery keeps its existing layout but writes the new half-day semantics. UI notes max is 200 while the API remains 2,000, and unchanged longer legacy values are preserved. The grid is fluid and verified at five cards per row for a 1,036 px content area at 1366 px, with responsive single-column mobile cards, accessible design tokens and keyboard-operable native controls. Migration `20260811201427_AddAttendanceUnmarkedStatus` preserves legacy rows.
 - DevExtreme/Angular migration epic `DX19` at `plans/06-DX19-devextreme-19-2-5-angular-12-migration.md` is implemented with the user-approved smoke-test waiver. UI tooling is pinned to Node 14.21.3/npm 8.19.4, Angular 12.2.17, TypeScript 4.3.5, RxJS 7.4.0 and DevExtreme 19.2.5. Automated regression/build/dependency guards pass, but browser smoke was not completed; preserve the accepted sidebar `internalFields` runtime risk until a later cycle fixes or explicitly closes it. No backend/API, hash routing, auth flow, IIS environment, production build or deployment change was made.
+- Assessment-sheets UI `ASM` opened route/navigation for `Teacher`, and the backend now supports Teacher student dropdowns through scoped read-only `/students`. Managers keep full student management; Teachers only read students in their current responsible groups.
 - Runtime subagent processes must be recreated in a new chat, then resume from these repository files.
 - Future backend/frontend agents should update their role memory and this file if they change a cross-stack contract or deployment behavior.

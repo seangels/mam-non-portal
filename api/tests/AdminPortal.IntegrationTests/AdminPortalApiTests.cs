@@ -5,6 +5,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using AdminPortal.Application.Auth;
 using AdminPortal.Application.Common.Models;
+using AdminPortal.Application.StudentGroups;
 using AdminPortal.Application.Students;
 using AdminPortal.Application.Teachers;
 using AdminPortal.Application.Users;
@@ -220,12 +221,73 @@ public sealed class AdminPortalApiTests(ApiFactory factory) : IClassFixture<ApiF
             note = (string?)null
         });
         Assert.Equal(HttpStatusCode.Created, createTeacher.StatusCode);
+        var teacherDetail = await createTeacher.Content.ReadFromJsonAsync<TeacherDetailResponse>(JsonOptions);
+        Assert.NotNull(teacherDetail);
+
+        var assignedGroup = await CreateGroupAsync(anonymousClient, $"G-{Guid.NewGuid():N}"[..20]);
+        var otherGroup = await CreateGroupAsync(anonymousClient, $"G-{Guid.NewGuid():N}"[..20]);
+        var assignTeacher = await anonymousClient.PutAsJsonAsync(
+            $"/api/v1/student-groups/{assignedGroup.Id}/responsible-teacher",
+            new { teacherId = teacherDetail.Id });
+        assignTeacher.EnsureSuccessStatusCode();
+        var assignedStudent = await CreateStudentAsync(anonymousClient, $"AS-{Guid.NewGuid():N}"[..20], "Assigned Student");
+        var otherStudent = await CreateStudentAsync(anonymousClient, $"OS-{Guid.NewGuid():N}"[..20], "Other Student");
+        var unassignedStudent = await CreateStudentAsync(anonymousClient, $"US-{Guid.NewGuid():N}"[..20], "Unassigned Student");
+        assignedStudent = await AssignStudentGroupAsync(anonymousClient, assignedStudent, assignedGroup.Id);
+        otherStudent = await AssignStudentGroupAsync(anonymousClient, otherStudent, otherGroup.Id);
 
         using var teacherClient = CreateClient();
         var teacher = await LoginAsync(teacherClient, teacherEmail, "StrongTeacherPassword1!");
         teacherClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", teacher.AccessToken);
-        var forbidden = await teacherClient.GetAsync("/api/v1/students");
-        Assert.Equal(HttpStatusCode.Forbidden, forbidden.StatusCode);
+        var scopedListResponse = await teacherClient.GetAsync("/api/v1/students?page=1&pageSize=20&sortBy=studentCode&sortOrder=asc");
+        scopedListResponse.EnsureSuccessStatusCode();
+        var scopedList = await scopedListResponse.Content.ReadFromJsonAsync<PagedResponse<StudentResponse>>(JsonOptions);
+        Assert.NotNull(scopedList);
+        Assert.Contains(scopedList.Items, student => student.Id == assignedStudent.Id);
+        Assert.DoesNotContain(scopedList.Items, student => student.Id == otherStudent.Id);
+        Assert.DoesNotContain(scopedList.Items, student => student.Id == unassignedStudent.Id);
+
+        var scopedGet = await teacherClient.GetAsync($"/api/v1/students/{assignedStudent.Id}");
+        scopedGet.EnsureSuccessStatusCode();
+        var outsideScopeGet = await teacherClient.GetAsync($"/api/v1/students/{otherStudent.Id}");
+        Assert.Equal(HttpStatusCode.NotFound, outsideScopeGet.StatusCode);
+
+        var createForbidden = await teacherClient.PostAsJsonAsync("/api/v1/students", new
+        {
+            studentCode = $"TF-{Guid.NewGuid():N}"[..20],
+            fullName = "Teacher Forbidden",
+            nickName = "Forbidden",
+            dateOfBirth = "2021-01-02",
+            status = "Active",
+            studySchedule = FullWeekSchedule
+        });
+        Assert.Equal(HttpStatusCode.Forbidden, createForbidden.StatusCode);
+
+        var updateForbidden = await teacherClient.PutAsJsonAsync($"/api/v1/students/{assignedStudent.Id}", new
+        {
+            assignedStudent.StudentCode,
+            assignedStudent.FullName,
+            assignedStudent.NickName,
+            assignedStudent.DateOfBirth,
+            assignedStudent.Gender,
+            assignedStudent.Status,
+            assignedStudent.GuardianName,
+            assignedStudent.GuardianPhone,
+            assignedStudent.Note,
+            assignedStudent.DriveFolderId,
+            studySchedule = new { mode = "FullDay", weekdays = MondayThursday },
+            expectedVersion = assignedStudent.Version
+        }, JsonOptions);
+        Assert.Equal(HttpStatusCode.Forbidden, updateForbidden.StatusCode);
+
+        var groupForbidden = await teacherClient.PutAsJsonAsync(
+            $"/api/v1/students/{assignedStudent.Id}/group",
+            new { groupId = (Guid?)null, expectedVersion = assignedStudent.Version });
+        Assert.Equal(HttpStatusCode.Forbidden, groupForbidden.StatusCode);
+
+        var deleteForbidden = await teacherClient.DeleteAsync(
+            $"/api/v1/students/{assignedStudent.Id}?expectedVersion={assignedStudent.Version}");
+        Assert.Equal(HttpStatusCode.Forbidden, deleteForbidden.StatusCode);
     }
 
     [Fact]
@@ -431,7 +493,7 @@ public sealed class AdminPortalApiTests(ApiFactory factory) : IClassFixture<ApiF
             ?? throw new InvalidOperationException("Create user response was empty.");
     }
 
-    private static async Task CreateStudentAsync(HttpClient client, string code, string fullName)
+    private static async Task<StudentResponse> CreateStudentAsync(HttpClient client, string code, string fullName)
     {
         var response = await client.PostAsJsonAsync("/api/v1/students", new
         {
@@ -443,6 +505,34 @@ public sealed class AdminPortalApiTests(ApiFactory factory) : IClassFixture<ApiF
             studySchedule = FullWeekSchedule
         });
         response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<StudentResponse>(JsonOptions)
+            ?? throw new InvalidOperationException("Create student response was empty.");
+    }
+
+    private static async Task<StudentGroupResponse> CreateGroupAsync(HttpClient client, string code)
+    {
+        var response = await client.PostAsJsonAsync("/api/v1/student-groups", new
+        {
+            code,
+            name = $"Group {code}",
+            status = "Active"
+        });
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<StudentGroupResponse>(JsonOptions)
+            ?? throw new InvalidOperationException("Create group response was empty.");
+    }
+
+    private static async Task<StudentResponse> AssignStudentGroupAsync(
+        HttpClient client,
+        StudentResponse student,
+        Guid groupId)
+    {
+        var response = await client.PutAsJsonAsync(
+            $"/api/v1/students/{student.Id}/group",
+            new { groupId, expectedVersion = student.Version });
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<StudentResponse>(JsonOptions)
+            ?? throw new InvalidOperationException("Assign student group response was empty.");
     }
 
     private static object FullWeekSchedule => new

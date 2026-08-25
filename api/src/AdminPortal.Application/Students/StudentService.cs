@@ -18,8 +18,9 @@ public sealed class StudentService(
 {
     public async Task<PagedResponse<StudentResponse>> ListAsync(StudentListQuery query, CancellationToken cancellationToken)
     {
-        AuthorizationRules.EnsurePortalManager(currentActor.GetRequired());
-        var students = dbContext.Students.AsNoTracking();
+        var actor = currentActor.GetRequired();
+        EnsureStudentReadRole(actor);
+        var students = BuildReadableStudentsQuery(actor);
         if (!string.IsNullOrWhiteSpace(query.Search))
         {
             var search = query.Search.Trim().ToLowerInvariant();
@@ -68,8 +69,10 @@ public sealed class StudentService(
 
     public async Task<StudentResponse> GetAsync(Guid id, CancellationToken cancellationToken)
     {
-        AuthorizationRules.EnsurePortalManager(currentActor.GetRequired());
-        var row = await ProjectRows(dbContext.Students.AsNoTracking().Where(student => student.Id == id))
+        var actor = currentActor.GetRequired();
+        EnsureStudentReadRole(actor);
+        var students = BuildReadableStudentsQuery(actor);
+        var row = await ProjectRows(students.Where(student => student.Id == id))
             .SingleOrDefaultAsync(cancellationToken)
             ?? throw StudentNotFound();
         return Map(row);
@@ -433,6 +436,24 @@ public sealed class StudentService(
             student.Version,
             student.CreatedAt,
             student.UpdatedAt));
+
+    private static void EnsureStudentReadRole(ActorContext actor)
+    {
+        if (actor.Role is not (UserRole.SuperAdmin or UserRole.Admin or UserRole.Teacher))
+            throw new ForbiddenException("Tài khoản không có quyền xem học sinh.");
+    }
+
+    private IQueryable<Student> BuildReadableStudentsQuery(ActorContext actor)
+    {
+        var students = dbContext.Students.AsNoTracking();
+        if (actor.Role != UserRole.Teacher)
+            return students;
+
+        return students.Where(student =>
+            student.Group != null &&
+            student.Group.ResponsibleTeacher != null &&
+            student.Group.ResponsibleTeacher.UserId == actor.UserId);
+    }
 
     private static void EnsureVersion(Student student, int expectedVersion)
     {

@@ -210,6 +210,8 @@ Enum được gửi/nhận dưới dạng chuỗi. `StudentStatus` chỉ có `Ac
 
 ### Quản lý học sinh và lịch học
 
+- `GET /students` và `GET /students/{id}` cho phép `SuperAdmin`, `Admin` và `Teacher`. Với `Teacher`, API chỉ trả học sinh thuộc các nhóm mà Teacher hiện đang được gán phụ trách; học sinh ngoài scope trả `StudentNotFound`/404 như không tồn tại.
+- Các mutation `POST /students`, `PUT /students/{id}`, `PUT /students/{id}/group` và `DELETE /students/{id}` vẫn chỉ dành cho `Admin`/`SuperAdmin` qua policy `PortalManagers`; `Teacher` nhận 403.
 - `StudentResponse` trả `studySchedule: { mode, weekdays }` và `version`; weekday luôn canonical từ `Monday` đến `Saturday`, không expose bit mask PostgreSQL.
 - Create/full PUT bắt buộc `studySchedule`. `mode` là `OneToOne|FullDay`; `weekdays` có 1–6 ngày unique, không có Chủ nhật. Full PUT thêm `expectedVersion` và luôn tăng version một, kể cả payload no-op.
 - List nhận thêm `studyMode`, `studyWeekday`; filter được áp dụng trước `totalItems`/paging tại PostgreSQL.

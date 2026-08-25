@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace AdminPortal.Api.Controllers;
 
 [ApiController]
-[Authorize(Policy = "PortalManagers")]
+[Authorize]
 [Route("api/v1/students")]
 public sealed class StudentsController(IStudentService studentService) : ControllerBase
 {
@@ -24,6 +24,7 @@ public sealed class StudentsController(IStudentService studentService) : Control
         Ok(await studentService.GetAsync(id, cancellationToken));
 
     [HttpPost]
+    [Authorize(Policy = "PortalManagers")]
     [ProducesResponseType<StudentResponse>(StatusCodes.Status201Created)]
     public async Task<ActionResult<StudentResponse>> Create(
         CreateStudentRequest request,
@@ -34,6 +35,7 @@ public sealed class StudentsController(IStudentService studentService) : Control
     }
 
     [HttpPut("{id:guid}")]
+    [Authorize(Policy = "PortalManagers")]
     [ProducesResponseType<StudentResponse>(StatusCodes.Status200OK)]
     public async Task<ActionResult<StudentResponse>> Update(
         Guid id,
@@ -42,6 +44,7 @@ public sealed class StudentsController(IStudentService studentService) : Control
         Ok(await studentService.UpdateAsync(id, request, cancellationToken));
 
     [HttpPut("{id:guid}/group")]
+    [Authorize(Policy = "PortalManagers")]
     [ProducesResponseType<StudentResponse>(StatusCodes.Status200OK)]
     public async Task<ActionResult<StudentResponse>> AssignGroup(
         Guid id,
@@ -50,6 +53,7 @@ public sealed class StudentsController(IStudentService studentService) : Control
         Ok(await studentService.AssignGroupAsync(id, request, cancellationToken));
 
     [HttpDelete("{id:guid}")]
+    [Authorize(Policy = "PortalManagers")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> Delete(
         Guid id,

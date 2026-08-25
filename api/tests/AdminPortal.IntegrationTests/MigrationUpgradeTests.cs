@@ -114,6 +114,7 @@ public sealed class MigrationUpgradeTests : IAsyncLifetime
                 TRUE, NULL, {"legacy attendance note"}, {teacherUserId}, {now}, {now})
             """);
         await migrator.MigrateAsync(AttendanceUiMigration);
+        await migrator.MigrateAsync();
         dbContext.ChangeTracker.Clear();
 
         Assert.Equal(7, profile.AttendanceEditWindowDays);
@@ -125,6 +126,7 @@ public sealed class MigrationUpgradeTests : IAsyncLifetime
         var legacyStudent = await dbContext.Students.AsNoTracking().SingleAsync(x => x.Id == studentId);
         Assert.Equal("LEGACY-001", legacyStudent.StudentCode);
         Assert.Equal("legacy note", legacyStudent.Note);
+        Assert.Null(legacyStudent.DriveFolderId);
         Assert.Equal(groupId, legacyStudent.GroupId);
         Assert.Equal(StudyMode.FullDay, legacyStudent.StudyMode);
         Assert.Equal(63, legacyStudent.StudyWeekdayMask);
