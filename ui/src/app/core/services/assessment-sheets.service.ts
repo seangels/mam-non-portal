@@ -9,6 +9,7 @@ import {
   AssessmentSheetDetail,
   AssessmentSheetListQuery,
   CreateAssessmentSheetRequest,
+  ReplaceAssessmentSheetRecordsRequest,
   UpdateAssessmentSheetRequest,
   UpdateAssessmentSheetStatusRequest
 } from '../models/api.models.assessment-sheets';
@@ -31,6 +32,10 @@ export class AssessmentSheetsService {
 
   update(id: string, request: UpdateAssessmentSheetRequest): Observable<AssessmentSheetDetail> {
     return this.api.put<AssessmentSheetDetail>(`assessment-sheets/${id}`, request);
+  }
+
+  replaceRecords(id: string, request: ReplaceAssessmentSheetRecordsRequest): Observable<AssessmentSheetDetail> {
+    return this.api.put<AssessmentSheetDetail>(`assessment-sheets/${id}/records`, request);
   }
 
   updateStatus(id: string, request: UpdateAssessmentSheetStatusRequest): Observable<AssessmentSheetDetail> {

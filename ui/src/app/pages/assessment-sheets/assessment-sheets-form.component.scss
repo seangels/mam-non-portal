@@ -12,6 +12,7 @@
 .records-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
 .records-heading h3 { margin: 0; font-size: 16px; }
 .records-heading span { color: #667085; }
+.records-heading-actions { display: flex; align-items: center; gap: 10px; }
 .empty-records { padding: 14px; border: 1px dashed #c8d0dc; border-radius: 8px; color: #667085; text-align: center; }
 .records-list { display: grid; gap: 10px; }
 .record-card { display: flex; justify-content: space-between; gap: 14px; padding: 12px 14px; border: 1px solid #e3e8ef; border-radius: 8px; background: #fff; }

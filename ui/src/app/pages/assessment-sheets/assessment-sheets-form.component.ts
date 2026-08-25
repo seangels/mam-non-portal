@@ -6,7 +6,7 @@ import { confirm } from 'devextreme/ui/dialog';
 import notify from 'devextreme/ui/notify';
 import { DxFormComponent } from 'devextreme-angular/ui/form';
 import { ApiError } from '../../core/models/api-error';
-import { Student, Teacher } from '../../core/models/api.models';
+import { Assessment, Student, Teacher } from '../../core/models/api.models';
 import { asLegacyWidgetDataSource } from '../../core/models/devextreme-legacy.types';
 import {
   AssessmentGrade,
@@ -16,6 +16,7 @@ import {
   ASSESSMENT_GRADE_OPTIONS,
   ASSESSMENT_SHEET_STATUS_OPTIONS,
   CreateAssessmentSheetRequest,
+  ReplaceAssessmentSheetRecordsRequest,
   UpdateAssessmentSheetRequest
 } from '../../core/models/api.models.assessment-sheets';
 import { AssessmentSheetsService } from '../../core/services/assessment-sheets.service';
@@ -76,6 +77,55 @@ export function buildUpdateAssessmentSheetRequest(editor: AssessmentSheetEditor)
   };
 }
 
+export function buildReplaceAssessmentSheetRecordsRequest(
+  currentRecords: AssessmentSheetRecord[],
+  assessmentToAdd: Assessment,
+  availableAssessments: Assessment[]
+): ReplaceAssessmentSheetRecordsRequest {
+  const assessmentByCode = new Map(
+    availableAssessments
+      .map(assessment => [normalizeCode(assessment.code), assessment] as const)
+      .filter((entry): entry is readonly [string, Assessment] => !!entry[0])
+  );
+  const existingCodes = new Set(
+    currentRecords
+      .map(record => normalizeCode(record.assessment.code))
+      .filter((code): code is string => !!code)
+  );
+  const addedCode = normalizeCode(assessmentToAdd.code);
+  if (!addedCode) {
+    throw new Error('Mục đánh giá được chọn chưa có mã hợp lệ.');
+  }
+  if (existingCodes.has(addedCode)) {
+    throw new Error('Mục đánh giá này đã có trong bảng đánh giá.');
+  }
+
+  const records = currentRecords.map(record => {
+    const code = normalizeCode(record.assessment.code);
+    const assessment = code ? assessmentByCode.get(code) : null;
+    if (!assessment) {
+      throw new Error(`Không thể xác định assessmentId cho mục ${record.assessment.code || record.assessment.name}. Vui lòng đồng bộ/tải lại danh sách mục đánh giá trước khi thêm.`);
+    }
+    return {
+      assessmentId: assessment.id,
+      planGrade: record.planGrade ?? null,
+      planNote: record.planNote ?? null,
+      finalGrade: record.finalGrade ?? null,
+      finalNote: record.finalNote ?? null
+    };
+  });
+
+  records.push({
+    assessmentId: assessmentToAdd.id,
+    planGrade: normalizeAssessmentGrade(assessmentToAdd.latestGrade),
+    planNote: normalizeOptional(assessmentToAdd.latestNote),
+    finalGrade: null,
+    finalNote: null
+  });
+
+  return { records };
+}
+
 @Component({
   selector: 'app-assessment-sheets-form',
   templateUrl: './assessment-sheets-form.component.html',
@@ -126,8 +176,11 @@ export class AssessmentSheetFormComponent implements OnInit {
   studentSummary = '';
   responsibleTeacherSummary = '';
   records: AssessmentSheetRecord[] = [];
+  existingAssessmentCodes: string[] = [];
+  showAddAssessmentPicker = false;
   loading = false;
   saving = false;
+  addingRecord = false;
   loadError = '';
   formError = '';
   conflict = false;
@@ -254,7 +307,7 @@ export class AssessmentSheetFormComponent implements OnInit {
 
   async save(event?: Event): Promise<void> {
     event?.preventDefault();
-    if (this.saving || this.loading) {
+    if (this.saving || this.addingRecord || this.loading) {
       return;
     }
 
@@ -314,6 +367,55 @@ export class AssessmentSheetFormComponent implements OnInit {
     void this.router.navigate(['/assessment-sheets']);
   }
 
+  toggleAddAssessmentPicker(): void {
+    if (this.originalStatus === 'Done') {
+      this.formError = 'Bảng đánh giá đã hoàn tất. Vui lòng chuyển trạng thái khỏi Hoàn tất trước khi thêm mục đánh giá.';
+      return;
+    }
+    this.showAddAssessmentPicker = !this.showAddAssessmentPicker;
+  }
+
+  async addAssessmentToSheet(assessment: Assessment): Promise<void> {
+    if (this.addingRecord || this.saving || this.loading || this.originalStatus === 'Done') {
+      return;
+    }
+    const accepted = await confirm(
+      `Thêm mục đánh giá "${assessment.code} · ${assessment.name}" vào bảng đánh giá này?`,
+      'Xác nhận thêm'
+    );
+    if (!accepted) {
+      return;
+    }
+
+    let request: ReplaceAssessmentSheetRecordsRequest;
+    try {
+      request = buildReplaceAssessmentSheetRecordsRequest(
+        this.records,
+        assessment,
+        this.assessmentPicker?.getCachedAssessments() ?? []
+      );
+    } catch (error) {
+      this.formError = error instanceof Error ? error.message : 'Không thể thêm mục đánh giá. Vui lòng thử lại.';
+      return;
+    }
+
+    this.addingRecord = true;
+    this.formError = '';
+    this.conflict = false;
+    try {
+      const saved = await firstValueFrom(this.assessmentSheets.replaceRecords(this.assessmentSheetId, request));
+      this.applyAssessmentSheet(saved);
+      this.showAddAssessmentPicker = true;
+      notify('Đã thêm mục đánh giá.', 'success', 2000);
+    } catch (error) {
+      const apiError = ApiError.from(error);
+      this.formError = this.withTrace(apiError);
+      this.conflict = apiError.code === 'AssessmentSheetDone' || apiError.code === 'AssessmentSheetVersionConflict';
+    } finally {
+      this.addingRecord = false;
+    }
+  }
+
   private async saveExisting(): Promise<AssessmentSheetDetail> {
     let saved: AssessmentSheetDetail;
     if (this.originalStatus === 'Done' && this.editor.status !== 'Done') {
@@ -362,6 +464,9 @@ export class AssessmentSheetFormComponent implements OnInit {
     this.studentSummary = this.buildStudentSummary(sheet);
     this.responsibleTeacherSummary = sheet.responsibleTeacherFullName ?? 'Chưa chọn giáo viên phụ trách';
     this.records = sheet.records ?? [];
+    this.existingAssessmentCodes = this.records
+      .map(record => record.assessment.code)
+      .filter(Boolean);
     this.baseline = this.serialize(this.editor);
   }
 
@@ -439,4 +544,9 @@ function normalizeOptional(value: string | null | undefined): string | null {
 
 function normalizeAssessmentGrade(value: string | null | undefined): AssessmentGrade | null {
   return value === 'A' || value === 'B' || value === 'C' || value === 'D' ? value : null;
+}
+
+function normalizeCode(value: string | null | undefined): string | null {
+  const code = value?.trim().toLocaleLowerCase('vi');
+  return code || null;
 }

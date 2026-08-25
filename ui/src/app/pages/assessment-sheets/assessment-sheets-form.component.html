@@ -38,7 +38,7 @@
       </div>
     </div>
 
-    <dx-form #form [formData]="editor" [disabled]="saving" labelLocation="top"
+    <dx-form #form [formData]="editor" [disabled]="saving || addingRecord" labelLocation="top"
       [colCountByScreen]="formColCountByScreen">
       <dxi-item dataField="studentId" editorType="dxSelectBox"  [colSpan]="2" [visible]="isCreate"
         [editorOptions]="studentEditorOptions">
@@ -80,7 +80,17 @@
     <section *ngIf="!isCreate" class="records-panel" aria-labelledby="assessment-records-heading">
       <div class="records-heading">
         <h3 id="assessment-records-heading">Danh mục đánh giá đã chọn</h3>
-        <span>{{ records.length }} mục</span>
+        <div class="records-heading-actions">
+          <span>{{ records.length }} mục</span>
+          <dx-button
+            [text]="showAddAssessmentPicker ? 'Ẩn chọn mục' : 'Thêm mục đánh giá'"
+            icon="add"
+            stylingMode="outlined"
+            type="default"
+            [disabled]="saving || addingRecord || originalStatus === 'Done'"
+            (onClick)="toggleAddAssessmentPicker()">
+          </dx-button>
+        </div>
       </div>
 
       <div *ngIf="!hasRecords" class="empty-records">Chưa có mục đánh giá trong kế hoạch này.</div>
@@ -110,15 +120,24 @@
     [(selectedIds)]="editor.assessmentIds">
   </app-assessment-picker>
 
+  <app-assessment-picker
+    *ngIf="!isCreate && showAddAssessmentPicker"
+    mode="add"
+    [studentId]="editor.studentId || null"
+    [existingCodes]="existingAssessmentCodes"
+    [addDisabled]="saving || addingRecord || originalStatus === 'Done'"
+    (assessmentAdd)="addAssessmentToSheet($event)">
+  </app-assessment-picker>
+
   <div class="form-actions">
     <span class="action-summary" aria-live="polite">
       <strong>{{ selectedAssessmentCount }}</strong> mục đánh giá đã chọn
       <small *ngIf="dirty">Có thay đổi chưa lưu</small>
     </span>
     <div class="form-action-buttons">
-      <dx-button text="Hủy" stylingMode="outlined" [disabled]="saving" (onClick)="cancel()"></dx-button>
+      <dx-button text="Hủy" stylingMode="outlined" [disabled]="saving || addingRecord" (onClick)="cancel()"></dx-button>
       <dx-button [text]="isCreate ? 'Tạo bảng đánh giá' : 'Lưu thay đổi'" icon="save" type="default"
-        [disabled]="saving" (onClick)="save()"></dx-button>
+        [disabled]="saving || addingRecord" (onClick)="save()"></dx-button>
     </div>
   </div>
 </div>

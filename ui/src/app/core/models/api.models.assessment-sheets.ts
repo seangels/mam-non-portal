@@ -72,6 +72,18 @@ export interface AssessmentSheetRecord {
   updatedAt: string;
 }
 
+export interface ReplaceAssessmentSheetRecordsRequest {
+  records: AssessmentSheetRecordRequest[];
+}
+
+export interface AssessmentSheetRecordRequest {
+  assessmentId: string;
+  planGrade?: AssessmentGrade | null;
+  planNote?: string | null;
+  finalGrade?: AssessmentGrade | null;
+  finalNote?: string | null;
+}
+
 export interface AssessmentSheetDetail extends AssessmentSheet {
   studentSnapshot: AssessmentSheetStudentSnapshot;
   note?: string | null;

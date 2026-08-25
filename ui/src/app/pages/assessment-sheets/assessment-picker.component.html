@@ -82,7 +82,7 @@
       </div>
 
       <div class="filter-row buttons-row">
-        <label class="select-all-checkbox">
+        <label *ngIf="isSelectMode" class="select-all-checkbox">
           <input
             type="checkbox"
             [checked]="selectAllVisibleChecked"
@@ -93,6 +93,7 @@
           <span>{{ selectAllVisibleText }}</span>
         </label>
         <dx-select-box
+          *ngIf="isSelectMode"
           class="view-mode-input"
           [(value)]="viewMode"
           [dataSource]="viewModeOptions"
@@ -160,9 +161,19 @@
       <dxo-sorting mode="single"></dxo-sorting>
 
       <dxi-column
+        [visible]="isSelectMode"
         caption=""
         cellTemplate="selectCell"
         [width]="52"
+        [allowSorting]="false"
+        [allowHiding]="false"
+        [showInColumnChooser]="false">
+      </dxi-column>
+      <dxi-column
+        [visible]="isAddMode"
+        caption="Thao tác"
+        cellTemplate="addCell"
+        [width]="110"
         [allowSorting]="false"
         [allowHiding]="false"
         [showInColumnChooser]="false">
@@ -182,6 +193,19 @@
           [hint]="selectCheckboxHint(cell.data)"
           (onValueChanged)="onSelectCheckboxChanged(cell.data.id, $event)">
         </dx-check-box>
+      </div>
+      <div *dxTemplate="let cell of 'addCell'" class="add-cell">
+        <span *ngIf="isExistingAssessment(cell.data)" class="existing-badge">Đã có</span>
+        <dx-button
+          *ngIf="!isExistingAssessment(cell.data)"
+          text="Thêm"
+          icon="add"
+          stylingMode="outlined"
+          type="default"
+          [disabled]="addDisabled"
+          [hint]="addButtonHint(cell.data)"
+          (onClick)="onAddAssessmentClick(cell.data)">
+        </dx-button>
       </div>
       <div *dxTemplate="let cell of 'latestGradeCell'" class="latest-grade-cell">
         {{ latestGradeText(cell.data.latestGrade) }}

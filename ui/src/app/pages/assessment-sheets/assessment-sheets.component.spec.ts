@@ -4,6 +4,7 @@ import {
   AssessmentSheetFormComponent,
   AssessmentSheetEditor,
   buildCreateAssessmentSheetRequest,
+  buildReplaceAssessmentSheetRecordsRequest,
   buildUpdateAssessmentSheetRequest
 } from './assessment-sheets-form.component';
 
@@ -68,6 +69,58 @@ describe('Assessment sheet form request mapping', () => {
       dueDate: '2026-08-30',
       feedback: 'Nhận xét cuối kỳ'
     });
+  });
+
+  it('builds replace-records request by preserving current records and adding latest data', () => {
+    const request = buildReplaceAssessmentSheetRecordsRequest([
+      {
+        assessment: { code: 'A01', name: 'Ngôn ngữ' },
+        planGrade: 'B',
+        planNote: 'Kế hoạch cũ',
+        finalGrade: 'C',
+        finalNote: 'Kết quả cũ'
+      } as any
+    ], {
+      id: 'assessment-2',
+      code: 'A02',
+      name: 'Vận động',
+      latestGrade: 'A',
+      latestNote: 'Ghi chú gần nhất'
+    } as any, [
+      { id: 'assessment-1', code: 'A01' } as any,
+      { id: 'assessment-2', code: 'A02' } as any
+    ]);
+
+    expect(request).toEqual({
+      records: [
+        {
+          assessmentId: 'assessment-1',
+          planGrade: 'B',
+          planNote: 'Kế hoạch cũ',
+          finalGrade: 'C',
+          finalNote: 'Kết quả cũ'
+        },
+        {
+          assessmentId: 'assessment-2',
+          planGrade: 'A',
+          planNote: 'Ghi chú gần nhất',
+          finalGrade: null,
+          finalNote: null
+        }
+      ]
+    });
+  });
+
+  it('stops replace-records request when an existing record cannot be mapped safely', () => {
+    expect(() => buildReplaceAssessmentSheetRecordsRequest([
+      { assessment: { code: 'MISSING', name: 'Không còn trong cache' } } as any
+    ], {
+      id: 'assessment-2',
+      code: 'A02',
+      name: 'Vận động'
+    } as any, [
+      { id: 'assessment-2', code: 'A02' } as any
+    ])).toThrowError(/Không thể xác định assessmentId/);
   });
 });
 
@@ -159,6 +212,22 @@ describe('Assessment picker filter and selection', () => {
     expect(emitted).toEqual([['assessment-1', 'assessment-2'], ['assessment-2']]);
     expect(component.isSelected('assessment-2')).toBeTrue();
     expect(component.isSelected('assessment-1')).toBeFalse();
+  });
+
+  it('emits add action only for rows not already in the sheet', () => {
+    const { component } = createPicker();
+    const emitted: string[] = [];
+    component.mode = 'add';
+    component.existingCodes = ['A01'];
+    component.ngOnChanges({ existingCodes: {} as any });
+    component.assessmentAdd.subscribe(value => emitted.push(value.id));
+
+    component.onSelectCheckboxChanged('assessment-2', { value: true, event: {} });
+    component.onAddAssessmentClick(assessment({ id: 'assessment-1', code: 'A01' }));
+    component.onAddAssessmentClick(assessment({ id: 'assessment-2', code: 'A02' }));
+
+    expect(emitted).toEqual(['assessment-2']);
+    expect(component.isExistingAssessment(assessment({ code: 'A01' }))).toBeTrue();
   });
 
   it('ignores programmatic checkbox value changes from grid rendering', () => {

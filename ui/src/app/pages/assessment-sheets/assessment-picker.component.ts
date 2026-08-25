@@ -13,6 +13,7 @@ import { includesVietnamese } from '../../core/utils/vietnamese-search';
 const SELECTED_ROW_CLASS = 'assessment-picker-selected-row';
 const ASSESSMENT_CACHE_PAGE_SIZE = 100;
 type AssessmentPickerViewMode = 'all' | 'selected';
+type AssessmentPickerMode = 'select' | 'add';
 type LatestGradeFilterValue = AssessmentGrade | 'none';
 
 @Component({
@@ -22,9 +23,13 @@ type LatestGradeFilterValue = AssessmentGrade | 'none';
 })
 export class AssessmentPickerComponent implements OnChanges, OnInit, OnDestroy {
   @ViewChild(DxDataGridComponent) grid?: DxDataGridComponent;
+  @Input() mode: AssessmentPickerMode = 'select';
   @Input() selectedIds: string[] = [];
   @Input() studentId: string | null = null;
+  @Input() existingCodes: string[] = [];
+  @Input() addDisabled = false;
   @Output() selectedIdsChange = new EventEmitter<string[]>();
+  @Output() assessmentAdd = new EventEmitter<Assessment>();
 
   search = '';
   groupLv1Name: string | null = null;
@@ -47,6 +52,7 @@ export class AssessmentPickerComponent implements OnChanges, OnInit, OnDestroy {
   visibleAssessmentIds: string[] = [];
   private searchTimer?: number;
   private selectedIdSet = new Set<string>();
+  private existingCodeSet = new Set<string>();
   private selectedViewSnapshotIdSet = new Set<string>();
   private initialized = false;
   private loadedStudentId: string | null = null;
@@ -78,6 +84,9 @@ export class AssessmentPickerComponent implements OnChanges, OnInit, OnDestroy {
     if (changes['selectedIds']) {
       this.refreshSelectedSet();
     }
+    if (changes['existingCodes']) {
+      this.refreshExistingCodeSet();
+    }
     if (changes['studentId'] && this.initialized) {
       const nextStudentId = this.normalizeOptionalId(this.studentId);
       if (nextStudentId !== this.loadedStudentId) {
@@ -88,6 +97,7 @@ export class AssessmentPickerComponent implements OnChanges, OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.refreshSelectedSet();
+    this.refreshExistingCodeSet();
     this.initialized = true;
     void this.loadAssessmentsFromServer();
   }
@@ -107,6 +117,18 @@ export class AssessmentPickerComponent implements OnChanges, OnInit, OnDestroy {
     return this.selectedIds
       .map(id => assessmentById.get(id))
       .filter((assessment): assessment is Assessment => !!assessment);
+  }
+
+  getCachedAssessments(): Assessment[] {
+    return this.allAssessments;
+  }
+
+  get isSelectMode(): boolean {
+    return this.mode !== 'add';
+  }
+
+  get isAddMode(): boolean {
+    return this.mode === 'add';
   }
 
   scheduleSearch(): void {
@@ -191,6 +213,15 @@ export class AssessmentPickerComponent implements OnChanges, OnInit, OnDestroy {
     return assessment ? `Chọn mục ${assessment.code} · ${assessment.name}` : 'Chọn mục đánh giá';
   }
 
+  addButtonHint(assessment: Assessment | null | undefined): string {
+    return assessment ? `Thêm mục ${assessment.code} · ${assessment.name}` : 'Thêm mục đánh giá';
+  }
+
+  isExistingAssessment(assessment: Assessment | null | undefined): boolean {
+    const code = this.normalizeCode(assessment?.code);
+    return code ? this.existingCodeSet.has(code) : false;
+  }
+
   latestGradeText(value: string | null | undefined): string {
     if (!value) {
       return '-';
@@ -199,6 +230,9 @@ export class AssessmentPickerComponent implements OnChanges, OnInit, OnDestroy {
   }
 
   onSelectCheckboxChanged(id: unknown, event: { value?: boolean; event?: unknown }): void {
+    if (!this.isSelectMode) {
+      return;
+    }
     if (!event.event) {
       return;
     }
@@ -213,6 +247,13 @@ export class AssessmentPickerComponent implements OnChanges, OnInit, OnDestroy {
       next.delete(normalizedId);
     }
     this.emitSelectedIds(next);
+  }
+
+  onAddAssessmentClick(assessment: Assessment | null | undefined): void {
+    if (!assessment || this.addDisabled || this.isExistingAssessment(assessment)) {
+      return;
+    }
+    this.assessmentAdd.emit(assessment);
   }
 
   onSelectAllVisibleChanged(event: Event): void {
@@ -435,8 +476,22 @@ export class AssessmentPickerComponent implements OnChanges, OnInit, OnDestroy {
     return id || null;
   }
 
+  private normalizeCode(value: string | null | undefined): string | null {
+    const code = value?.trim().toLocaleLowerCase('vi');
+    return code || null;
+  }
+
   private refreshSelectedSet(): void {
     this.selectedIdSet = new Set(this.normalizeSelectedIds(this.selectedIds));
+    this.grid?.instance.repaint();
+  }
+
+  private refreshExistingCodeSet(): void {
+    this.existingCodeSet = new Set(
+      this.existingCodes
+        .map(code => this.normalizeCode(code))
+        .filter((code): code is string => !!code)
+    );
     this.grid?.instance.repaint();
   }
 
