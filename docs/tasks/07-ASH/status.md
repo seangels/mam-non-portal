@@ -34,6 +34,7 @@ Theo mục 13 của plan. Cả 5 quyết định đã được khoá. `ASH-DEC-0
 | Planning | 1 | 0 | 0 | 1 | 0 |
 | Backend | 6 | 0 | 3 | 3 | 0 |
 | Frontend | 6 | 5 | 0 | 1 | 0 |
+| Contract delta | 1 | 0 | 0 | 1 | 0 |
 | QA | 1 | 1 | 0 | 0 | 0 |
 
 Cập nhật bảng này mỗi khi đổi trạng thái một dòng bên dưới.
@@ -70,6 +71,12 @@ Cập nhật bảng này mỗi khi đổi trạng thái một dòng bên dưới
 | Status | Mã | Việc cần làm | Phụ thuộc |
 |---|---|---|---|
 | `[x]` | `ASH-FE-05` | Picker thêm TagBox lọc `Kết quả gần nhất` ở đầu panel filter, gồm lựa chọn `Chưa có`; filter chạy local trên snapshot `viewMode` | `ASM-LST-03` |
+
+## Contract delta — owner: `root` / phối hợp backend + frontend
+
+| Status | Mã | Việc cần làm | Phụ thuộc |
+|---|---|---|---|
+| `[x]` | `ASH-CR-01` | `POST /assessment-sheets` đổi payload tạo mới từ `assessmentIds[]` sang `records[]` gồm `assessmentId`, `latestGrade`, `note`; backend lưu vào `PlanGrade`/`PlanNote`, UI picker gửi dữ liệu latest đang hiển thị | `ASH-FE-05`, latest contract `/assessments?studentId=...` |
 
 ## QA — owner: chưa có agent QA riêng (root điều phối, backend/frontend tự chạy phần của mình)
 

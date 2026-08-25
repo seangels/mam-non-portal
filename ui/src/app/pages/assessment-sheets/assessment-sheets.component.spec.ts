@@ -20,12 +20,15 @@ describe('Assessment sheet form request mapping', () => {
     ...override
   });
 
-  it('builds create request with trimmed optional fields and distinct assessment ids', () => {
+  it('builds create request with trimmed optional fields and assessment record seeds', () => {
     const request = buildCreateAssessmentSheetRequest(editor({
       responsibleTeacherId: 'teacher-1',
       note: '  Ghi chú tạo mới  ',
       assessmentIds: ['assessment-1', 'assessment-2', 'assessment-1', '']
-    }));
+    }), [
+      { id: 'assessment-1', latestGrade: 'A', latestNote: '  Ghi chú gần nhất  ' },
+      { id: 'assessment-2', latestGrade: null, latestNote: '   ' }
+    ]);
 
     expect(request).toEqual({
       studentId: 'student-1',
@@ -33,8 +36,21 @@ describe('Assessment sheet form request mapping', () => {
       note: 'Ghi chú tạo mới',
       startDate: '2026-08-25',
       dueDate: '2026-08-30',
-      assessmentIds: ['assessment-1', 'assessment-2']
+      records: [
+        { assessmentId: 'assessment-1', latestGrade: 'A', note: 'Ghi chú gần nhất' },
+        { assessmentId: 'assessment-2', latestGrade: null, note: null }
+      ]
     });
+  });
+
+  it('keeps selected create records even when picker cache misses latest data', () => {
+    const request = buildCreateAssessmentSheetRequest(editor({
+      assessmentIds: ['assessment-1']
+    }));
+
+    expect(request.records).toEqual([
+      { assessmentId: 'assessment-1', latestGrade: null, note: null }
+    ]);
   });
 
   it('builds update request without student id or assessment ids', () => {
@@ -251,6 +267,25 @@ describe('Assessment picker filter and selection', () => {
 
     expect(assessments.list).toHaveBeenCalledTimes(2);
     expect(component.filteredAssessments).toEqual([]);
+  });
+
+  it('returns selected assessment details from the client cache', () => {
+    const { component } = createPicker();
+    component.allAssessments = [
+      assessment({ id: 'assessment-1', latestGrade: 'A', latestNote: 'Ghi chú 1' }),
+      assessment({ id: 'assessment-2', latestGrade: 'B', latestNote: 'Ghi chú 2' })
+    ];
+    component.selectedIds = ['assessment-2', 'missing', 'assessment-1'];
+    component.ngOnChanges({ selectedIds: {} as any });
+
+    expect(component.getSelectedAssessments().map(item => ({
+      id: item.id,
+      latestGrade: item.latestGrade,
+      latestNote: item.latestNote
+    }))).toEqual([
+      { id: 'assessment-2', latestGrade: 'B', latestNote: 'Ghi chú 2' },
+      { id: 'assessment-1', latestGrade: 'A', latestNote: 'Ghi chú 1' }
+    ]);
   });
 
   it('passes selected student id when loading the assessment cache', async () => {

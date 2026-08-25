@@ -9,6 +9,7 @@ import { ApiError } from '../../core/models/api-error';
 import { Student, Teacher } from '../../core/models/api.models';
 import { asLegacyWidgetDataSource } from '../../core/models/devextreme-legacy.types';
 import {
+  AssessmentGrade,
   AssessmentSheetDetail,
   AssessmentSheetRecord,
   AssessmentSheetStatus,
@@ -35,14 +36,33 @@ export interface AssessmentSheetEditor {
   assessmentIds: string[];
 }
 
-export function buildCreateAssessmentSheetRequest(editor: AssessmentSheetEditor): CreateAssessmentSheetRequest {
+export interface AssessmentSheetCreateRecordSeed {
+  id: string;
+  latestGrade?: string | null;
+  latestNote?: string | null;
+}
+
+export function buildCreateAssessmentSheetRequest(
+  editor: AssessmentSheetEditor,
+  selectedAssessments: AssessmentSheetCreateRecordSeed[] = []
+): CreateAssessmentSheetRequest {
+  const assessmentById = new Map(selectedAssessments.map(assessment => [assessment.id, assessment]));
+  const assessmentIds = Array.from(new Set(editor.assessmentIds.filter(Boolean)));
+
   return {
     studentId: editor.studentId,
     responsibleTeacherId: editor.responsibleTeacherId || null,
     note: editor.note.trim() || null,
     startDate: toDateOnly(editor.startDate) ?? null,
     dueDate: toDateOnly(editor.dueDate) ?? null,
-    assessmentIds: Array.from(new Set(editor.assessmentIds.filter(Boolean)))
+    records: assessmentIds.map(assessmentId => {
+      const assessment = assessmentById.get(assessmentId);
+      return {
+        assessmentId,
+        latestGrade: normalizeAssessmentGrade(assessment?.latestGrade),
+        note: normalizeOptional(assessment?.latestNote)
+      };
+    })
   };
 }
 
@@ -244,7 +264,10 @@ export class AssessmentSheetFormComponent implements OnInit {
       firstRule?.validator?.focus?.();
       return;
     }
-    if (this.isCreate && buildCreateAssessmentSheetRequest(this.editor).assessmentIds.length === 0) {
+    const createRequest = this.isCreate
+      ? buildCreateAssessmentSheetRequest(this.editor, this.assessmentPicker?.getSelectedAssessments() ?? [])
+      : null;
+    if (this.isCreate && createRequest?.records.length === 0) {
       this.formError = 'Vui lòng chọn ít nhất một mục đánh giá.';
       this.assessmentPicker?.focus();
       return;
@@ -255,7 +278,7 @@ export class AssessmentSheetFormComponent implements OnInit {
     this.conflict = false;
     try {
       const saved = this.isCreate
-        ? await firstValueFrom(this.assessmentSheets.create(buildCreateAssessmentSheetRequest(this.editor)))
+        ? await firstValueFrom(this.assessmentSheets.create(createRequest!))
         : await this.saveExisting();
 
       this.applyAssessmentSheet(saved);
@@ -347,7 +370,7 @@ export class AssessmentSheetFormComponent implements OnInit {
       return;
     }
     const field = key.charAt(0).toLowerCase() + key.slice(1);
-    if (field === 'assessmentIds') {
+    if (field === 'assessmentIds' || field === 'records') {
       this.assessmentPicker?.focus();
       return;
     }
@@ -406,4 +429,13 @@ export class AssessmentSheetFormComponent implements OnInit {
   private withTrace(error: ApiError): string {
     return error.traceId ? `${error.message} Mã tra cứu: ${error.traceId}` : error.message;
   }
+}
+
+function normalizeOptional(value: string | null | undefined): string | null {
+  const normalized = value?.trim();
+  return normalized || null;
+}
+
+function normalizeAssessmentGrade(value: string | null | undefined): AssessmentGrade | null {
+  return value === 'A' || value === 'B' || value === 'C' || value === 'D' ? value : null;
 }

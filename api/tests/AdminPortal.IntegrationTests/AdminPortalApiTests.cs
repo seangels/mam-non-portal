@@ -4,6 +4,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using AdminPortal.Application.Assessments;
+using AdminPortal.Application.AssessmentSheets;
 using AdminPortal.Application.Auth;
 using AdminPortal.Application.Common.Models;
 using AdminPortal.Application.StudentGroups;
@@ -172,6 +173,85 @@ public sealed class AdminPortalApiTests(ApiFactory factory) : IClassFixture<ApiF
             Assert.Null(item.LatestGrade);
             Assert.Null(item.LatestNote);
         });
+    }
+
+    [Fact]
+    public async Task AssessmentSheetCreatePersistsPlanSeedFromSubmittedRecords()
+    {
+        using var client = CreateClient();
+        var auth = await LoginAsync(client, ApiFactory.SuperAdminEmail, ApiFactory.SuperAdminPassword);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", auth.AccessToken);
+        var marker = Guid.NewGuid().ToString("N")[..8];
+        var student = await CreateStudentAsync(client, $"AC-{marker}", $"Create Sheet {marker}");
+        var firstAssessmentId = Guid.NewGuid();
+        var secondAssessmentId = Guid.NewGuid();
+        var now = DateTimeOffset.UtcNow;
+
+        using (var scope = factory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<AdminPortalDbContext>();
+            var actor = await dbContext.Users.AsNoTracking()
+                .SingleAsync(x => x.Email == ApiFactory.SuperAdminEmail);
+            await dbContext.Assessments.AddRangeAsync(
+                new Assessment
+                {
+                    Id = firstAssessmentId,
+                    Code = $"ASC-{marker}-001",
+                    Name = $"Create Assessment {marker} A",
+                    RowIndex = 1,
+                    UpdatedByUserId = actor.Id,
+                    CreatedAt = now,
+                    UpdatedAt = now
+                },
+                new Assessment
+                {
+                    Id = secondAssessmentId,
+                    Code = $"ASC-{marker}-002",
+                    Name = $"Create Assessment {marker} B",
+                    RowIndex = 2,
+                    UpdatedByUserId = actor.Id,
+                    CreatedAt = now,
+                    UpdatedAt = now
+                });
+            await dbContext.SaveChangesAsync();
+        }
+
+        var create = await client.PostAsJsonAsync("/api/v1/assessment-sheets", new
+        {
+            studentId = student.Id,
+            responsibleTeacherId = (Guid?)null,
+            note = "  ghi chú sheet  ",
+            startDate = "2026-08-25T00:00:00+07:00",
+            dueDate = "2026-08-31T00:00:00+07:00",
+            records = new[]
+            {
+                new { assessmentId = firstAssessmentId, latestGrade = (AssessmentGrade?)AssessmentGrade.C, note = "  cần hỗ trợ vận động  " },
+                new { assessmentId = secondAssessmentId, latestGrade = (AssessmentGrade?)null, note = "   " }
+            }
+        }, JsonOptions);
+        create.EnsureSuccessStatusCode();
+
+        var sheet = await create.Content.ReadFromJsonAsync<AssessmentSheetDetailResponse>(JsonOptions);
+        Assert.NotNull(sheet);
+        Assert.Equal("ghi chú sheet", sheet.Note);
+        Assert.Collection(
+            sheet.Records,
+            first =>
+            {
+                Assert.Equal($"ASC-{marker}-001", first.Assessment.Code);
+                Assert.Equal(AssessmentGrade.C, first.PlanGrade);
+                Assert.Equal("cần hỗ trợ vận động", first.PlanNote);
+                Assert.Null(first.FinalGrade);
+                Assert.Null(first.FinalNote);
+            },
+            second =>
+            {
+                Assert.Equal($"ASC-{marker}-002", second.Assessment.Code);
+                Assert.Null(second.PlanGrade);
+                Assert.Null(second.PlanNote);
+                Assert.Null(second.FinalGrade);
+                Assert.Null(second.FinalNote);
+            });
     }
 
     [Fact]

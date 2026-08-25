@@ -50,10 +50,10 @@ internal sealed class AssessmentGroupSync
 
 public class GoogleSheetsService : IGoogleSheetsService, IDisposable
 {
-    private readonly SheetsService _sheetsService;
-    private readonly DriveService _driveService;
-    private readonly GoogleCredential _credential;
-    private readonly HttpClient _httpClient;
+    private readonly Lazy<GoogleCredential> _credential;
+    private readonly Lazy<SheetsService> _sheetsService;
+    private readonly Lazy<DriveService> _driveService;
+    private readonly Lazy<HttpClient> _httpClient;
 
     private bool _disposed;
     private readonly IApplicationDbContext dbContext;
@@ -89,28 +89,37 @@ public class GoogleSheetsService : IGoogleSheetsService, IDisposable
         this.timeProvider = timeProvider;
         this.googleSheetsSettings = configuration.Value;
 
-        var credentialPath = googleSheetsSettings.CredentialFilePath ?? "google-credentials.json";
-
-        using (var stream = new FileStream(credentialPath, FileMode.Open, FileAccess.Read))
-        {
-#pragma warning disable CS0618 // Type or member is obsolete
-            _credential = GoogleCredential.FromStream(stream)
-                                         .CreateScoped(SheetsService.Scope.Spreadsheets, DriveService.Scope.Drive);
-#pragma warning restore CS0618 // Type or member is obsolete
-        }
-
-        _sheetsService = new SheetsService(new BaseClientService.Initializer()
-        {
-            HttpClientInitializer = _credential,
-            ApplicationName = "CleanArchGoogleSheets"
-        });
-        _driveService = new DriveService(new BaseClientService.Initializer()
-        {
-            HttpClientInitializer = _credential,
-            ApplicationName = "CleanArchGoogleSheets"
-        });
-        _httpClient = new HttpClient();
+        _credential = new Lazy<GoogleCredential>(CreateCredential);
+        _sheetsService = new Lazy<SheetsService>(CreateSheetsService);
+        _driveService = new Lazy<DriveService>(CreateDriveService);
+        _httpClient = new Lazy<HttpClient>(() => new HttpClient());
     }
+
+    private GoogleCredential CreateCredential()
+    {
+        var credentialPath = string.IsNullOrWhiteSpace(googleSheetsSettings.CredentialFilePath)
+            ? "google-credentials.json"
+            : googleSheetsSettings.CredentialFilePath;
+
+        using var stream = new FileStream(credentialPath, FileMode.Open, FileAccess.Read);
+#pragma warning disable CS0618 // Type or member is obsolete
+        return GoogleCredential.FromStream(stream)
+            .CreateScoped(SheetsService.Scope.Spreadsheets, DriveService.Scope.Drive);
+#pragma warning restore CS0618 // Type or member is obsolete
+    }
+
+    private SheetsService CreateSheetsService() => new(new BaseClientService.Initializer
+    {
+        HttpClientInitializer = _credential.Value,
+        ApplicationName = "CleanArchGoogleSheets"
+    });
+
+    private DriveService CreateDriveService() => new(new BaseClientService.Initializer
+    {
+        HttpClientInitializer = _credential.Value,
+        ApplicationName = "CleanArchGoogleSheets"
+    });
+
     // 2. Hiện thực hàm Dispose để giải phóng _sheetsService
     public void Dispose()
     {
@@ -135,12 +144,12 @@ public class GoogleSheetsService : IGoogleSheetsService, IDisposable
     async Task<Dictionary<string, string>> GetSheetConfig(SpreadsheetConfig settings, CancellationToken cancellationToken)
     {
 
-        var requestConfigLastRow = _sheetsService.Spreadsheets.Values
+        var requestConfigLastRow = _sheetsService.Value.Spreadsheets.Values
             .Get(settings.SpreadsheetId, settings.SheetConfigLastRow);
         var responseConfigLastRow = await requestConfigLastRow.ExecuteAsync(cancellationToken);
         var configValuesLastRow = responseConfigLastRow.Values;
         var _SheetConfigRange = settings.SheetConfigRange.Replace("{{lastRow}}", configValuesLastRow[0][0].ToString());
-        var requestConfig = _sheetsService.Spreadsheets.Values
+        var requestConfig = _sheetsService.Value.Spreadsheets.Values
             .Get(settings.SpreadsheetId, _SheetConfigRange);
         var responseConfig = await requestConfig.ExecuteAsync(cancellationToken);
         var configValues = responseConfig.Values
@@ -161,7 +170,7 @@ public class GoogleSheetsService : IGoogleSheetsService, IDisposable
     async Task<Dictionary<string, int>> ReadHeaderMappingsAsync(string headerRange, List<string> headerNames, CancellationToken cancellationToken)
     {
         var headerMappings = new Dictionary<string, int>();
-        var requestHeader = _sheetsService.Spreadsheets.Values.Get(googleSheetsSettings.SpreadsheetId, headerRange);
+        var requestHeader = _sheetsService.Value.Spreadsheets.Values.Get(googleSheetsSettings.SpreadsheetId, headerRange);
         var responseHeader = await requestHeader.ExecuteAsync(cancellationToken);
         var headerValues = responseHeader.Values;
         for (int i = 0; i < headerValues[0].Count; i++)
@@ -204,7 +213,7 @@ public class GoogleSheetsService : IGoogleSheetsService, IDisposable
         var headerNames = headerNamesString.Split(",").ToList();
         var headerMappings = await ReadHeaderMappingsAsync(headerRange, headerNames, cancellationToken);
 
-        var request = _sheetsService.Spreadsheets.Values.Get(_spreadsheetId, dataRange);
+        var request = _sheetsService.Value.Spreadsheets.Values.Get(_spreadsheetId, dataRange);
         var response = await request.ExecuteAsync(cancellationToken);
         var values = response.Values;
 
@@ -278,7 +287,7 @@ public class GoogleSheetsService : IGoogleSheetsService, IDisposable
         var headerNames = headerNamesString.Split(",").ToList();
         var headerMappings = await ReadHeaderMappingsAsync(headerRange, headerNames, cancellationToken);
 
-        var request = _sheetsService.Spreadsheets.Values.Get(_spreadsheetId, dataRange);
+        var request = _sheetsService.Value.Spreadsheets.Values.Get(_spreadsheetId, dataRange);
         var response = await request.ExecuteAsync(cancellationToken);
         var values = response.Values;
 
@@ -334,9 +343,9 @@ public class GoogleSheetsService : IGoogleSheetsService, IDisposable
             if (disposing)
             {
                 // Giải phóng đối tượng SheetsService của Google
-                _sheetsService?.Dispose();
-                _driveService?.Dispose();
-                _httpClient?.Dispose();
+                if (_sheetsService.IsValueCreated) _sheetsService.Value.Dispose();
+                if (_driveService.IsValueCreated) _driveService.Value.Dispose();
+                if (_httpClient.IsValueCreated) _httpClient.Value.Dispose();
             }
             _disposed = true;
         }
@@ -513,7 +522,7 @@ public class GoogleSheetsService : IGoogleSheetsService, IDisposable
                 Name = $"{sheet.StudentSnapshot.StudentCode}.{sheet.StudentSnapshot.FullName}_{sheet.StartDate}_{sheet.DueDate}",
                 Parents = folderId is null ? null : [folderId]
             };
-            copy = await _driveService.Files.Copy(body, _assessmentSheetTemplateFileId).ExecuteAsync(cancellationToken);
+            copy = await _driveService.Value.Files.Copy(body, _assessmentSheetTemplateFileId).ExecuteAsync(cancellationToken);
         }
         catch (Exception ex)
         {
@@ -601,14 +610,14 @@ public class GoogleSheetsService : IGoogleSheetsService, IDisposable
         _ = int.TryParse(_resultSource_FirstDataRowString, out int _resultSource_FirstDataRow);
         try
         {
-            var itemCodesResponse = await _sheetsService.Spreadsheets.Values
+            var itemCodesResponse = await _sheetsService.Value.Spreadsheets.Values
                 .Get(_spreadsheetId, _resultSource_AssessmentCodeRange)
                 .ExecuteAsync(cancellationToken);
             itemCodes = (itemCodesResponse.Values ?? [])
                 .Select(row => row.Count > 0 ? row[0]?.ToString() : null)
                 .ToList();
 
-            var studentCodesResponse = await _sheetsService.Spreadsheets.Values
+            var studentCodesResponse = await _sheetsService.Value.Spreadsheets.Values
                 .Get(_spreadsheetId, _resultSource_StudentCodeRange)
                 .ExecuteAsync(cancellationToken);
             var studentRow = studentCodesResponse.Values?.FirstOrDefault() ?? [];
@@ -652,7 +661,7 @@ public class GoogleSheetsService : IGoogleSheetsService, IDisposable
                 ValueInputOption = "USER_ENTERED",
                 Data = updates
             };
-            await _sheetsService.Spreadsheets.Values.BatchUpdate(batchRequest, _spreadsheetId).ExecuteAsync(cancellationToken);
+            await _sheetsService.Value.Spreadsheets.Values.BatchUpdate(batchRequest, _spreadsheetId).ExecuteAsync(cancellationToken);
         }
         catch (Exception ex)
         {
@@ -694,11 +703,11 @@ public class GoogleSheetsService : IGoogleSheetsService, IDisposable
 
         try
         {
-            await _sheetsService.Spreadsheets.Values
+            await _sheetsService.Value.Spreadsheets.Values
                 .Clear(new Google.Apis.Sheets.v4.Data.ClearValuesRequest(), spreadsheetId, $"{sheetName}!A1:Z2000")
                 .ExecuteAsync(cancellationToken);
 
-            var updateRequest = _sheetsService.Spreadsheets.Values.Update(
+            var updateRequest = _sheetsService.Value.Spreadsheets.Values.Update(
                 new Google.Apis.Sheets.v4.Data.ValueRange { Values = rows }, spreadsheetId, $"{sheetName}!A1");
             updateRequest.ValueInputOption = SpreadsheetsResource.ValuesResource.UpdateRequest.ValueInputOptionEnum.USERENTERED;
             await updateRequest.ExecuteAsync(cancellationToken);
@@ -721,12 +730,12 @@ public class GoogleSheetsService : IGoogleSheetsService, IDisposable
     {
         try
         {
-            var accessToken = await ((ITokenAccess)_credential).GetAccessTokenForRequestAsync(cancellationToken: cancellationToken);
+            var accessToken = await ((ITokenAccess)_credential.Value).GetAccessTokenForRequestAsync(cancellationToken: cancellationToken);
             using var request = new HttpRequestMessage(
                 HttpMethod.Get,
                 $"https://docs.google.com/spreadsheets/d/{spreadsheetId}/export?format=pdf&gid={gid}&portrait=true&size=A4");
             request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
-            using var response = await _httpClient.SendAsync(request, cancellationToken);
+            using var response = await _httpClient.Value.SendAsync(request, cancellationToken);
             response.EnsureSuccessStatusCode();
             return await response.Content.ReadAsByteArrayAsync(cancellationToken);
         }
@@ -750,7 +759,7 @@ public class GoogleSheetsService : IGoogleSheetsService, IDisposable
 
             if (existingFileId is not null)
             {
-                var updateRequest = _driveService.Files.Update(new Google.Apis.Drive.v3.Data.File(), existingFileId, stream, "application/pdf");
+                var updateRequest = _driveService.Value.Files.Update(new Google.Apis.Drive.v3.Data.File(), existingFileId, stream, "application/pdf");
                 updateRequest.Fields = "id, webViewLink";
                 var progress = await updateRequest.UploadAsync(cancellationToken);
                 if (progress.Status != Google.Apis.Upload.UploadStatus.Completed)
@@ -766,7 +775,7 @@ public class GoogleSheetsService : IGoogleSheetsService, IDisposable
                     MimeType = "application/pdf",
                     Parents = folderId is null ? null : [folderId]
                 };
-                var createRequest = _driveService.Files.Create(metadata, stream, "application/pdf");
+                var createRequest = _driveService.Value.Files.Create(metadata, stream, "application/pdf");
                 createRequest.Fields = "id, webViewLink";
                 var progress = await createRequest.UploadAsync(cancellationToken);
                 if (progress.Status != Google.Apis.Upload.UploadStatus.Completed)

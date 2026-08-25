@@ -5,7 +5,7 @@
 ## 1. Mục tiêu và phạm vi
 
 - Cho phép giáo viên tạo một **Bảng đánh giá năng lực** (`AssessmentSheet`) cho một học sinh trong một đợt đánh giá cụ thể, dựa trên kho mục đánh giá (`Assessment`) và dữ liệu kết quả gần nhất đọc từ Google Sheet (`AssessmentSheetLatest`/`AssessmentRecordLatest`).
-- Bảng đánh giá gồm nhiều mục đánh giá được chọn (`AssessmentRecord`), mỗi mục có **hai cặp field tách biệt**: `PlanGrade`/`PlanNote` (giai đoạn lập kế hoạch — `PlanGrade` khởi tạo bằng `LatestGrade` đọc từ `AssessmentRecordLatest`) và `FinalGrade`/`FinalNote` (kết quả đánh giá cuối cùng, nhập sau). Hai cặp này độc lập với nhau — sửa `FinalGrade` không đổi `PlanGrade`, và ngược lại.
+- Bảng đánh giá gồm nhiều mục đánh giá được chọn (`AssessmentRecord`), mỗi mục có **hai cặp field tách biệt**: `PlanGrade`/`PlanNote` (giai đoạn lập kế hoạch — khởi tạo từ `latestGrade`/`note` mà UI gửi kèm mỗi mục được chọn) và `FinalGrade`/`FinalNote` (kết quả đánh giá cuối cùng, nhập sau). Hai cặp này độc lập với nhau — sửa `FinalGrade` không đổi `PlanGrade`, và ngược lại.
 - Toàn bộ vòng đời gắn với 3 loại tài liệu ngoài hệ thống:
   - **[F01]** — file Google Sheet **riêng của từng `AssessmentSheet`**, tạo ra bằng cách **copy toàn bộ file mẫu `gen_assessment_sheet`** (không phải tạo/copy từng sheet lẻ trong một file dùng chung). File `[F01]` này đã có sẵn 3 sheet ngay từ lúc copy: `data`, `khcn_template` (kế hoạch cá nhân — dùng `PlanGrade`/`PlanNote`), `KQ_template` (kết quả — dùng `FinalGrade`/`FinalNote`) — vì đó là bản sao nguyên vẹn của file mẫu. Mọi thao tác cập nhật dữ liệu, sinh PDF đều diễn ra trên `[F01]`, **không bao giờ đụng trực tiếp vào file mẫu `gen_assessment_sheet`**.
   - **[F02]** file PDF kế hoạch cá nhân, sinh từ sheet `khcn_template` trong `[F01]` (dữ liệu `PlanGrade`/`PlanNote`).
@@ -24,9 +24,9 @@
 
 - **Đợt đánh giá:** một chu kỳ đánh giá năng lực có tên riêng (`AssessmentSheet.Name`, ví dụ `8.9.10.26` cho đợt tháng 8–9–10/2026).
 - **Kho mục đánh giá (`Assessment`):** danh mục mục đánh giá dùng chung, có `Code`, `Name`, `GroupLv1Name`/`GroupLv2Name`/`GroupLv3Name` (phân cấp độ tuổi/nhóm kỹ năng), `RowIndex`; được đồng bộ từ `[F0.data_DG]`.
-- **Kết quả gần nhất, chỉ đọc (`AssessmentSheetLatest`/`AssessmentRecordLatest`):** một cặp bảng mirror — `AssessmentSheetLatest` (theo học sinh) chứa `AssessmentRecordLatest` (theo từng mục đánh giá, có `LatestGrade` — **một field duy nhất**, không tách plan/final vì đây chỉ là dữ liệu nguồn tham chiếu) — được nạp/ghi đè **duy nhất** bởi luồng đồng bộ từ `[F0.data_DG]` (mục 12). Không có thao tác nào khác trong hệ thống được phép ghi vào 2 bảng này; chúng chỉ tồn tại để **hỗ trợ prefill giá trị** khi giáo viên tạo `AssessmentSheet`/`AssessmentRecord` mới.
+- **Kết quả gần nhất, chỉ đọc (`AssessmentSheetLatest`/`AssessmentRecordLatest`):** một cặp bảng mirror — `AssessmentSheetLatest` (theo học sinh) chứa `AssessmentRecordLatest` (theo từng mục đánh giá, có `LatestGrade`/ghi chú latest — không tách plan/final vì đây chỉ là dữ liệu nguồn tham chiếu) — được nạp/ghi đè **duy nhất** bởi luồng đồng bộ từ `[F0.data_DG]` (mục 12). Không có thao tác nào khác trong hệ thống được phép ghi vào 2 bảng này; chúng chỉ tồn tại để **hiển thị gợi ý gần nhất trên UI**, rồi UI gửi kèm dữ liệu đó khi tạo `AssessmentSheet`/`AssessmentRecord` mới.
 - **Mục đánh giá trong bảng (`AssessmentRecord`):** một dòng trong `AssessmentSheet`, snapshot lại thông tin mục đánh giá (`AssessmentSnapshot`: mã, tên, nhóm, `RowIndex`) và có **hai cặp field độc lập**:
-  - `PlanGrade`/`PlanNote` — giai đoạn lập kế hoạch. `PlanGrade` khởi tạo bằng `LatestGrade` đọc từ `AssessmentRecordLatest` tương ứng tại thời điểm tạo record (mục 5), sau đó giáo viên có thể sửa lại trong lúc hoàn thiện plan (mục 7). Phục vụ sheet `khcn_template`/PDF `[F02]`.
+  - `PlanGrade`/`PlanNote` — giai đoạn lập kế hoạch. Hai field này khởi tạo từ `latestGrade`/`note` mà UI gửi trong request tạo mới cho từng mục đã chọn (dữ liệu UI lấy từ cột kết quả/ghi chú gần nhất), sau đó giáo viên có thể sửa lại trong lúc hoàn thiện plan (mục 7). Phục vụ sheet `khcn_template`/PDF `[F02]`.
   - `FinalGrade`/`FinalNote` — kết quả đánh giá thật, nhập ở bước riêng sau khi đánh giá xong (mục 9), độc lập hoàn toàn với `PlanGrade` (sửa cái này không đổi cái kia). Phục vụ sheet `KQ_template`/PDF `[F03]` và là giá trị ghi vào `[F0.ĐG]` (mục 11).
 - **Bảng đánh giá năng lực (`AssessmentSheet`):** hồ sơ một đợt đánh giá của một học sinh, gồm danh sách `AssessmentRecord` đã chọn, trạng thái, mốc thời gian, `AssessmentSheetSpreadsheetId` (id file `[F01]` riêng của bảng này) và liên kết tới `[F02]`/`[F03]`.
 - **`[F0]`:** file Google Sheet nguồn hiện có (sheet `_data_DG_only_item`), là nơi `Assessment` được đồng bộ vào hệ thống; `[F0.data_DG]` là vùng dữ liệu dùng để nạp lại `Assessment`/`AssessmentSheetLatest`/`AssessmentRecordLatest`; `[F0.ĐG]` là sheet `ĐG` trong cùng file dùng để ghi kết quả đánh giá đã hoàn tất.
@@ -67,9 +67,10 @@
   - **Theo mức grade:** ví dụ lọc các mục có kết quả gần nhất `LatestGrade >= B`, dùng thang xếp hạng đã chốt `A > B > C > D` (`A` cao nhất, `D` thấp nhất); dùng để khoanh vùng các mục học sinh đã đạt mức nhất định hoặc ngược lại cần cải thiện.
   - **Theo kết quả gần nhất trên UI:** TagBox đứng đầu panel filter, cho chọn nhiều giá trị gồm `Chưa có`, `Đạt +`, `Chưa đạt -`, `Hỗ trợ +`, `Hỗ trợ -`. `Chưa có` đại diện cho mục chưa có `LatestGrade`. Filter này chạy trên dữ liệu đã tải về client và trên snapshot hiện hành của chế độ xem (`Xem tất cả` hoặc `Chỉ những mục đã chọn`), không tự gọi lại server.
   - **Theo nhóm phân cấp:** lọc theo `GroupLv1Name`, `GroupLv2Name`, `GroupLv3Name` của `Assessment`.
-- Với mỗi mục được chọn, hệ thống:
+- Khi bấm tạo mới, UI gửi danh sách `records`, mỗi phần tử gồm `assessmentId`, `latestGrade`, `note`; không chỉ gửi mỗi `assessmentId`. Với mỗi mục được chọn, hệ thống:
   - Snapshot thông tin mục đánh giá vào `AssessmentRecord.AssessmentSnapshot` (mã, tên, các cấp nhóm, `RowIndex`).
-  - Khởi tạo `PlanGrade` của `AssessmentRecord` bằng `LatestGrade` hiện có trong `AssessmentRecordLatest` của học sinh cho đúng mục đánh giá đó (nếu chưa có dữ liệu tương ứng, `PlanGrade` để trống).
+  - Khởi tạo `PlanGrade` của `AssessmentRecord` bằng `latestGrade` trong request; nếu UI gửi `null` thì `PlanGrade` để trống.
+  - Khởi tạo `PlanNote` bằng `note` trong request; nếu UI gửi trống/null thì `PlanNote` để trống.
   - `FinalGrade`/`FinalNote` để trống — chỉ được nhập sau ở bước riêng (mục 9).
 - Sau bước khởi tạo, `PlanGrade` là field mutable mà giáo viên có thể sửa tiếp khi hoàn thiện plan (mục 7); sửa `PlanGrade` không ảnh hưởng ngược tới `AssessmentRecordLatest`.
 - Một `AssessmentSheet` có thể có nhiều `AssessmentRecord`; không giới hạn số lượng mục tối thiểu/tối đa.
@@ -139,7 +140,7 @@
 
 - `Teacher`, `Admin`, `SuperAdmin` đều được chạy đồng bộ (thao tác thủ công, không tự động) để nạp lại `Assessment` (kho mục đánh giá) và `AssessmentSheetLatest`/`AssessmentRecordLatest` (kết quả gần nhất theo học sinh, chỉ-đọc) từ vùng dữ liệu `[F0.data_DG]`, qua chính endpoint `sync-assessments` hiện có sau khi mở rộng chính sách quyền (mục 2).
 - Hành vi kế thừa cơ chế `sync-assessments` hiện có cho `Assessment` (đọc toàn bộ, thay thế dữ liệu hiện tại); với `AssessmentSheetLatest`/`AssessmentRecordLatest`, đồng bộ đọc và **ghi đè hoàn toàn** dữ liệu đọc-only theo học sinh + mục đánh giá — không được suy diễn chi tiết thuật toán trong tài liệu này.
-- Đây là **bảng chỉ đọc dành riêng cho mục đích prefill**: không service/luồng nào khác trong hệ thống được phép ghi vào `AssessmentSheetLatest`/`AssessmentRecordLatest` ngoài luồng đồng bộ này.
+- Đây là **bảng chỉ đọc dành riêng cho mục đích hiển thị dữ liệu gần nhất/prefill trên UI**: không service/luồng nào khác trong hệ thống được phép ghi vào `AssessmentSheetLatest`/`AssessmentRecordLatest` ngoài luồng đồng bộ này.
 - Đồng bộ nguồn không được tự ý sửa `AssessmentRecord` đã snapshot trong các `AssessmentSheet` đang tồn tại (đảm bảo nguyên tắc "không đổi giá trị gốc" ở mục 7 vẫn đúng theo chiều ngược lại).
 
 ## 13. Trường dữ liệu chính của AssessmentSheet
@@ -161,14 +162,14 @@
 | `Feedback` | Không | Nhận xét tổng cho toàn đợt. |
 | `Note` | Không | Ghi chú nội bộ. |
 
-Mỗi `AssessmentRecord` trong `AssessmentSheet` có: snapshot mục đánh giá (`AssessmentSnapshot`), `PlanGrade`/`PlanNote` (giai đoạn kế hoạch — `PlanGrade` khởi tạo từ `LatestGrade` lúc tạo, sau đó giáo viên chỉnh sửa trực tiếp khi hoàn thiện plan), `FinalGrade`/`FinalNote` (kết quả đánh giá thật, nhập ở bước riêng sau — mục 9). Hai cặp field độc lập, không cặp nào ghi đè cặp còn lại.
+Mỗi `AssessmentRecord` trong `AssessmentSheet` có: snapshot mục đánh giá (`AssessmentSnapshot`), `PlanGrade`/`PlanNote` (giai đoạn kế hoạch — khởi tạo từ `latestGrade`/`note` mà UI gửi kèm record tạo mới, sau đó giáo viên chỉnh sửa trực tiếp khi hoàn thiện plan), `FinalGrade`/`FinalNote` (kết quả đánh giá thật, nhập ở bước riêng sau — mục 9). Hai cặp field độc lập, không cặp nào ghi đè cặp còn lại.
 
 ### Cặp bảng chỉ-đọc AssessmentSheetLatest / AssessmentRecordLatest
 
 Cấu trúc mirror theo hình dạng `AssessmentSheet`/`AssessmentRecord` (theo học sinh → theo từng mục đánh giá), nhưng:
 
 - Chỉ được ghi bởi luồng đồng bộ ở mục 12; không có API/UI nào cho phép sửa trực tiếp.
-- `AssessmentRecordLatest.LatestGrade` là **field đơn** (không tách plan/final vì đây chỉ là dữ liệu nguồn tham chiếu) — dùng để prefill `PlanGrade` khi tạo `AssessmentRecord` mới (mục 5).
+- `AssessmentRecordLatest.LatestGrade` là **field đơn** (không tách plan/final vì đây chỉ là dữ liệu nguồn tham chiếu) — dùng để UI hiển thị/lọc kết quả gần nhất và gửi lại trong `records[].latestGrade` khi tạo `AssessmentRecord` mới (mục 5).
 - `AssessmentRecordLatest` liên kết trực tiếp tới `Assessment` bằng `AssessmentId`/`Assessment`; khoá duy nhất theo `AssessmentSheetLatestId` + `AssessmentId` để xác định đúng dòng khi đồng bộ ghi đè theo từng học sinh + mục đánh giá. Bản trung gian từng có field kỹ thuật `AssessmentCode` đã lỗi thời và không còn là contract hiện hành.
 - Không có `SubmissionDate`, `AssessmentSheetSpreadsheetId`, `PlanFileLinkPdf`, `ResultFileLinkPdf` — các field gắn với vòng đời làm việc/file `[F01]` của một `AssessmentSheet` thật không áp dụng cho bảng chỉ-đọc này.
 - Bị ghi đè mỗi lần đồng bộ lại; không phải nơi lưu lịch sử theo thời gian, chỉ phản ánh trạng thái tại lần fetch gần nhất.
@@ -192,7 +193,7 @@ Các quyết định nghiệp vụ đã được chốt và áp dụng xuyên su
 - Mỗi `AssessmentSheet` có file `[F01]` riêng, tạo bằng cách copy toàn bộ file mẫu `gen_assessment_sheet` (id `12ClFCOFCfUJJ1i8QstHweNaSdLfY-1MB2eaCuigqWwQ`) — việc copy chỉ xảy ra một lần (lazy, tự động khi cần), lưu id vào `AssessmentSheetSpreadsheetId`. 3 sheet bên trong giữ tên cố định `data`/`khcn_template`/`KQ_template` (`gid` cố định `0`/`1320805599`/`1903920808`).
 - "Xuất sang Google Sheet" và "Đồng bộ" chỉ ghi vào sheet `data` của `[F01]`. Sheet `khcn_template`/`KQ_template` chỉ được điền dữ liệu tại đúng thời điểm bấm "Sinh PDF" tương ứng.
 - PDF `[F02]`/`[F03]` sinh theo nút bấm, chỉ giữ bản mới nhất; `[F03]` được phép sinh dù còn mục thiếu `FinalGrade`.
-- **`AssessmentRecord` có hai cặp field độc lập: `PlanGrade`/`PlanNote` và `FinalGrade`/`FinalNote`** — đây là thiết kế đã khôi phục đúng theo quyết định "giữ lại giá trị khởi tạo phục vụ đối chiếu/audit" ban đầu (khác một phiên bản trung gian của tài liệu này từng gộp chung thành một field `Grade` duy nhất — phiên bản đó đã lỗi thời). `PlanGrade` khởi tạo từ `LatestGrade` của `AssessmentRecordLatest` lúc tạo, dùng cho `[F02]`; `FinalGrade` nhập riêng sau, dùng cho `[F03]` và `[F0.ĐG]`.
+- **`AssessmentRecord` có hai cặp field độc lập: `PlanGrade`/`PlanNote` và `FinalGrade`/`FinalNote`** — đây là thiết kế đã khôi phục đúng theo quyết định "giữ lại giá trị khởi tạo phục vụ đối chiếu/audit" ban đầu (khác một phiên bản trung gian của tài liệu này từng gộp chung thành một field `Grade` duy nhất — phiên bản đó đã lỗi thời). Khi tạo mới, UI gửi `records[].latestGrade`/`records[].note` theo dữ liệu gần nhất đang hiển thị để backend lưu vào `PlanGrade`/`PlanNote`, dùng cho `[F02]`; `FinalGrade` nhập riêng sau, dùng cho `[F03]` và `[F0.ĐG]`.
 - Ghi `[F0.ĐG]` (dùng `FinalGrade`) và nạp lại `AssessmentSheetLatest`/`AssessmentRecordLatest`/`Assessment` từ `[F0.data_DG]` là hai thao tác thủ công tách biệt; ghi `[F0.ĐG]` tự set `SubmissionDate`.
 - **Đã xác nhận vị trí ghi `[F0.ĐG]`:** cột `E16:E` = mã mục đánh giá (dò dòng), hàng `H16:16` = mã học sinh (dò cột), ghi tại ô giao nhau; giá trị ghi là nhãn theo bảng mapping ở mục 11 (không phải chữ cái `A/B/C/D`).
 - Mỗi đợt–học sinh ứng với đúng một `AssessmentSheet`/`Name`; không giới hạn số lượng `AssessmentRecord`.

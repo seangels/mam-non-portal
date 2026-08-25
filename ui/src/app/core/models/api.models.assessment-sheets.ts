@@ -85,7 +85,13 @@ export interface CreateAssessmentSheetRequest {
   note?: string | null;
   startDate?: string | null;
   dueDate?: string | null;
-  assessmentIds: string[];
+  records: CreateAssessmentSheetRecordRequest[];
+}
+
+export interface CreateAssessmentSheetRecordRequest {
+  assessmentId: string;
+  latestGrade?: AssessmentGrade | null;
+  note?: string | null;
 }
 
 export interface UpdateAssessmentSheetRequest {

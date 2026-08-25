@@ -68,15 +68,14 @@ public static class AssessmentSheetRules
     public static List<AssessmentRecord> BuildRecords(
         Guid sheetId,
         IReadOnlyCollection<Assessment> assessments,
-        IReadOnlyDictionary<string, AssessmentGrade?> latestGrades,
-        IReadOnlyList<Guid> assessmentIds,
+        IReadOnlyList<CreateAssessmentSheetRecordRequest> requestRecords,
         DateTimeOffset now,
         Guid actorUserId)
     {
         var assessmentById = assessments.ToDictionary(x => x.Id);
-        return assessmentIds.Select(assessmentId =>
+        return requestRecords.Select(requestRecord =>
         {
-            var assessment = assessmentById[assessmentId];
+            var assessment = assessmentById[requestRecord.AssessmentId];
             return new AssessmentRecord
             {
                 Id = Guid.NewGuid(),
@@ -92,8 +91,8 @@ public static class AssessmentSheetRules
                     GroupLv3Name = assessment.GroupLv3Name,
                     RowIndex = assessment.RowIndex
                 },
-                PlanGrade = latestGrades.GetValueOrDefault(assessment.Code),
-                PlanNote = null,
+                PlanGrade = requestRecord.LatestGrade,
+                PlanNote = NormalizeOptional(requestRecord.Note),
                 FinalGrade = null,
                 FinalNote = null,
                 UpdatedByUserId = actorUserId,

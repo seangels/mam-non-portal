@@ -47,18 +47,18 @@ public sealed class AssessmentSheetRulesTests
 
     [Fact]
     public void EmptyIdListIsRejected() =>
-        Assert.Throws<AppValidationException>(() => AssessmentSheetRules.EnsureDistinctIds([], "assessmentIds"));
+        Assert.Throws<AppValidationException>(() => AssessmentSheetRules.EnsureDistinctIds([], "records"));
 
     [Fact]
     public void EmptyGuidInListIsRejected() =>
         Assert.Throws<AppValidationException>(() =>
-            AssessmentSheetRules.EnsureDistinctIds([Guid.NewGuid(), Guid.Empty], "assessmentIds"));
+            AssessmentSheetRules.EnsureDistinctIds([Guid.NewGuid(), Guid.Empty], "records"));
 
     [Fact]
     public void DuplicateIdsAreRejected()
     {
         var id = Guid.NewGuid();
-        Assert.Throws<AppValidationException>(() => AssessmentSheetRules.EnsureDistinctIds([id, id], "assessmentIds"));
+        Assert.Throws<AppValidationException>(() => AssessmentSheetRules.EnsureDistinctIds([id, id], "records"));
     }
 
     [Fact]
@@ -113,40 +113,49 @@ public sealed class AssessmentSheetRulesTests
     };
 
     [Fact]
-    public void BuildRecordsPrefillsPlanGradeFromLatestGradesByCode()
+    public void BuildRecordsPrefillsPlanGradeAndPlanNoteFromCreateRequest()
     {
         var a = CreateAssessment("A01");
         var b = CreateAssessment("A02");
-        var latestGrades = new Dictionary<string, AssessmentGrade?>(StringComparer.Ordinal)
-        {
-            ["A01"] = AssessmentGrade.B
-        };
         var sheetId = Guid.NewGuid();
         var actorId = Guid.NewGuid();
         var now = new DateTimeOffset(2026, 8, 20, 0, 0, 0, TimeSpan.Zero);
 
         var records = AssessmentSheetRules.BuildRecords(
-            sheetId, [a, b], latestGrades, [a.Id, b.Id], now, actorId);
+            sheetId,
+            [a, b],
+            [
+                new CreateAssessmentSheetRecordRequest(a.Id, AssessmentGrade.B, "  cần quan sát thêm  "),
+                new CreateAssessmentSheetRecordRequest(b.Id, null, "   ")
+            ],
+            now,
+            actorId);
 
         var recordA = records.Single(x => x.AssessmentSnapshot.Code == "A01");
         var recordB = records.Single(x => x.AssessmentSnapshot.Code == "A02");
         Assert.Equal(AssessmentGrade.B, recordA.PlanGrade);
+        Assert.Equal("cần quan sát thêm", recordA.PlanNote);
         Assert.Null(recordB.PlanGrade);
+        Assert.Null(recordB.PlanNote);
     }
 
     [Fact]
     public void BuildRecordsAlwaysLeavesFinalGradeAndFinalNoteEmpty()
     {
         var a = CreateAssessment("A01");
-        var latestGrades = new Dictionary<string, AssessmentGrade?>(StringComparer.Ordinal) { ["A01"] = AssessmentGrade.A };
 
         var records = AssessmentSheetRules.BuildRecords(
-            Guid.NewGuid(), [a], latestGrades, [a.Id], DateTimeOffset.UtcNow, Guid.NewGuid());
+            Guid.NewGuid(),
+            [a],
+            [new CreateAssessmentSheetRecordRequest(a.Id, AssessmentGrade.A, "ghi chú gần nhất")],
+            DateTimeOffset.UtcNow,
+            Guid.NewGuid());
 
         var record = Assert.Single(records);
         Assert.Null(record.FinalGrade);
         Assert.Null(record.FinalNote);
-        Assert.Null(record.PlanNote);
+        Assert.Equal(AssessmentGrade.A, record.PlanGrade);
+        Assert.Equal("ghi chú gần nhất", record.PlanNote);
     }
 
     [Fact]

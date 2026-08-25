@@ -99,7 +99,12 @@ public sealed record CreateAssessmentSheetRequest(
     [param: MaxLength(2000)] string? Note,
     DateTimeOffset? StartDate,
     DateTimeOffset? DueDate,
-    [param: Required, MinLength(1), MaxLength(5000)] IReadOnlyList<Guid> AssessmentIds);
+    [param: Required, MinLength(1), MaxLength(5000)] IReadOnlyList<CreateAssessmentSheetRecordRequest> Records);
+
+public sealed record CreateAssessmentSheetRecordRequest(
+    Guid AssessmentId,
+    AssessmentGrade? LatestGrade,
+    [param: MaxLength(2000)] string? Note);
 
 public sealed record UpdateAssessmentSheetRequest(
     Guid? ResponsibleTeacherId,

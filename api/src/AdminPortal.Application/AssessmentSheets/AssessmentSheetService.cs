@@ -22,11 +22,13 @@ public sealed class AssessmentSheetService(
     {
         AssessmentSheetRules.EnsureAssessmentSheetRole(currentActor.GetRequired());
 
+        var dateFrom = NormalizeTimestamp(query.DateFrom);
+        var dateTo = NormalizeTimestamp(query.DateTo);
         var sheets = dbContext.AssessmentSheets.AsNoTracking();
         if (query.StudentId is not null) sheets = sheets.Where(x => x.StudentId == query.StudentId);
         if (query.Status is not null) sheets = sheets.Where(x => x.AssessmentSheetStatus == query.Status);
-        if(query.DateFrom is not null) sheets = sheets.Where(x => x.StartDate <= query.DateFrom && query.DateFrom <= x.DueDate);
-        if(query.DateTo is not null) sheets = sheets.Where(x => x.StartDate <= query.DateTo && query.DateTo >= x.DueDate);
+        if(dateFrom is not null) sheets = sheets.Where(x => x.StartDate <= dateFrom && dateFrom <= x.DueDate);
+        if(dateTo is not null) sheets = sheets.Where(x => x.StartDate <= dateTo && dateTo >= x.DueDate);
 
         var descending = query.SortOrder.Equals("desc", StringComparison.OrdinalIgnoreCase);
         var ordered = ApplySheetSort(sheets, query.SortBy, descending);
@@ -69,7 +71,8 @@ public sealed class AssessmentSheetService(
     {
         var actor = currentActor.GetRequired();
         AssessmentSheetRules.EnsureAssessmentSheetRole(actor);
-        AssessmentSheetRules.EnsureDistinctIds(request.AssessmentIds, "assessmentIds");
+        var assessmentIds = request.Records.Select(x => x.AssessmentId).ToArray();
+        AssessmentSheetRules.EnsureDistinctIds(assessmentIds, "records");
 
         var student = await dbContext.Students.AsNoTracking()
             .SingleOrDefaultAsync(x => x.Id == request.StudentId, cancellationToken)
@@ -78,8 +81,7 @@ public sealed class AssessmentSheetService(
             throw new ConflictException("Không thể tạo bảng đánh giá cho học sinh ngừng hoạt động.", ProblemCodes.StudentInactive);
 
         var responsibleTeacher = await LoadResponsibleTeacherAsync(request.ResponsibleTeacherId, cancellationToken);
-        var assessments = await LoadAssessmentsByIdsAsync(request.AssessmentIds, cancellationToken);
-        var latestGrades = await LoadLatestGradesAsync(student.Id, cancellationToken);
+        var assessments = await LoadAssessmentsByIdsAsync(assessmentIds, cancellationToken);
         var now = timeProvider.GetUtcNow();
         var sheet = new AssessmentSheet
         {
@@ -90,8 +92,8 @@ public sealed class AssessmentSheetService(
             ResponsibleTeacherId = responsibleTeacher?.Id,
             ResponsibleTeacherFullNameSnapshot = responsibleTeacher?.User.FullName,
             Note = NormalizeOptional(request.Note),
-            StartDate = request.StartDate,
-            DueDate = request.DueDate,
+            StartDate = NormalizeTimestamp(request.StartDate),
+            DueDate = NormalizeTimestamp(request.DueDate),
             Feedback = null,
             UpdatedByUserId = actor.UserId,
             CreatedAt = now,
@@ -100,9 +102,9 @@ public sealed class AssessmentSheetService(
 
         dbContext.AssessmentSheets.Add(sheet);
         await dbContext.AssessmentRecords.AddRangeAsync(
-            AssessmentSheetRules.BuildRecords(sheet.Id, assessments, latestGrades, request.AssessmentIds, now, actor.UserId),
+            AssessmentSheetRules.BuildRecords(sheet.Id, assessments, request.Records, now, actor.UserId),
             cancellationToken);
-        AddAudit(actor, "AssessmentSheet.Created", sheet.Id, null, new { sheet.StudentId, RecordCount = request.AssessmentIds.Count });
+        AddAudit(actor, "AssessmentSheet.Created", sheet.Id, null, new { sheet.StudentId, RecordCount = request.Records.Count });
         await dbContext.SaveChangesAsync(cancellationToken);
         return await BuildDetailAsync(sheet.Id, cancellationToken);
     }
@@ -123,8 +125,8 @@ public sealed class AssessmentSheetService(
         sheet.ResponsibleTeacherId = responsibleTeacher?.Id;
         sheet.ResponsibleTeacherFullNameSnapshot = responsibleTeacher?.User.FullName;
         sheet.Note = NormalizeOptional(request.Note);
-        sheet.StartDate = request.StartDate;
-        sheet.DueDate = request.DueDate;
+        sheet.StartDate = NormalizeTimestamp(request.StartDate);
+        sheet.DueDate = NormalizeTimestamp(request.DueDate);
         sheet.Feedback = NormalizeOptional(request.Feedback);
         sheet.UpdatedByUserId = actor.UserId;
         sheet.UpdatedAt = now;
@@ -339,34 +341,16 @@ public sealed class AssessmentSheetService(
     }
 
     private async Task<List<Assessment>> LoadAssessmentsByIdsAsync(
-        IReadOnlyCollection<Guid> assessmentIds,
+        Guid[] assessmentIds,
         CancellationToken cancellationToken)
     {
         var assessments = await dbContext.Assessments.AsNoTracking()
             .Where(x => assessmentIds.Contains(x.Id))
             .ToListAsync(cancellationToken);
-        if (assessments.Count != assessmentIds.Count)
+        if (assessments.Count != assessmentIds.Length)
             throw new NotFoundException("Không tìm thấy đủ mục đánh giá.", ProblemCodes.AssessmentNotFound);
 
         return assessments;
-    }
-
-    private async Task<Dictionary<string, AssessmentGrade?>> LoadLatestGradesAsync(
-        Guid studentId,
-        CancellationToken cancellationToken)
-    {
-        var latestSheetId = await dbContext.AssessmentSheetLatests.AsNoTracking()
-            .Where(x => x.StudentId == studentId)
-            .Select(x => (Guid?)x.Id)
-            .SingleOrDefaultAsync(cancellationToken);
-        if (latestSheetId is null)
-            return new Dictionary<string, AssessmentGrade?>(StringComparer.Ordinal);
-
-        return await dbContext.AssessmentRecordLatests
-            .Include(x=>x.Assessment)
-            .AsNoTracking()
-            .Where(x => x.AssessmentSheetLatestId == latestSheetId)
-            .ToDictionaryAsync(x => x.Assessment.Code, x => x.LatestGrade, StringComparer.Ordinal, cancellationToken);
     }
 
     private void AddAudit(ActorContext actor, string action, Guid entityId, object? oldValue, object? newValue) =>
@@ -437,6 +421,9 @@ public sealed class AssessmentSheetService(
 
     private static string? NormalizeOptional(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private static DateTimeOffset? NormalizeTimestamp(DateTimeOffset? value) =>
+        value?.ToUniversalTime();
 
     private static StudentSnapshot Snapshot(Student student) => new()
     {

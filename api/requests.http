@@ -296,13 +296,18 @@ Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
 {
-  "name": "8.9.10.26",
   "studentId": "{{studentId}}",
   "responsibleTeacherId": null,
   "note": null,
   "startDate": "2026-08-20T00:00:00+07:00",
   "dueDate": "2026-10-31T00:00:00+07:00",
-  "assessmentIds": ["{{assessmentId}}"]
+  "records": [
+    {
+      "assessmentId": "{{assessmentId}}",
+      "latestGrade": "A",
+      "note": "Ghi chú gần nhất"
+    }
+  ]
 }
 
 ###

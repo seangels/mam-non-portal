@@ -102,6 +102,13 @@ export class AssessmentPickerComponent implements OnChanges, OnInit, OnDestroy {
     (this.grid?.instance as unknown as { focus?: () => void } | undefined)?.focus?.();
   }
 
+  getSelectedAssessments(): Assessment[] {
+    const assessmentById = new Map(this.allAssessments.map(assessment => [assessment.id, assessment]));
+    return this.selectedIds
+      .map(id => assessmentById.get(id))
+      .filter((assessment): assessment is Assessment => !!assessment);
+  }
+
   scheduleSearch(): void {
     if (this.searchTimer !== undefined) {
       window.clearTimeout(this.searchTimer);
