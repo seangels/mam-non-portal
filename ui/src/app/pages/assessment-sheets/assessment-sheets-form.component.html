@@ -147,7 +147,7 @@
               <td class="number-cell">{{ row.rowNumber }}</td>
               <td *ngIf="showCodeColumn" class="code-cell">{{ row.record.assessment.code }}</td>
               <td class="content-cell">
-                <strong>{{ row.record.assessment.name }}</strong>
+                {{ row.record.assessment.name }}
               </td>
               <td *ngIf="showPlanColumn" class="plan-cell">
                 {{ gradeText(row.record.planGrade) }}

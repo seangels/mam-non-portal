@@ -18,25 +18,25 @@
 .records-table { width: 100%; min-width: 940px; border-collapse: collapse; font-size: small; }
 .records-table th, .records-table td { border: 1px dotted #1f2937; vertical-align: middle; }
 .records-table th { position: sticky; top: 0; z-index: 2; padding: 7px 8px; background: #fff; color: #111827; font-weight: 700; text-align: center; }
-.records-table td { padding: 4px 6px; }
+.records-table td { padding: 0px 2px; }
 .action-column { width: 42px; }
 .group-lv2-column { width: 142px; }
-.group-lv3-column { width: 150px; }
-.number-column { width: 48px; }
-.code-column { width: 78px; }
-.plan-column { width: 116px; }
-.grade-column { width: 174px; }
+.group-lv3-column { width: 180px; }
+.number-column { width: 40px; }
+.code-column { width: 40px; }
+.plan-column { width: 80px; }
+.grade-column { width: 120px; }
 .note-column { width: 220px; }
 .action-cell, .number-cell, .code-cell, .plan-cell, .grade-cell { text-align: center; }
 .action-cell { background: #ffffff80; }
-.group-cell { padding: 8px 6px; color: #111827; font-weight: 700; text-align: center; }
+.group-cell { padding: 0px 2px; color: #111827; font-weight: 700; text-align: center; }
 .group-cell span { display: inline-block; line-height: 1.25; letter-spacing: .01em; }
 .group-cell.single-row-group { font-size: smaller; }
 .group-lv2-cell { text-transform: uppercase; }
 .content-cell { min-width: 330px; }
 .content-cell strong { display: block; font-weight: 500; }
-.code-cell { color: #111827; font-weight: 700; white-space: nowrap; }
-.plan-cell { color: #344054; font-weight: 600; }
+.code-cell { color: #111827; white-space: nowrap; }
+.plan-cell { color: #344054; }
 .content-header,
 .grade-header { display: flex; flex-direction: column; align-items: center; gap: 4px; }
 .code-toggle,
