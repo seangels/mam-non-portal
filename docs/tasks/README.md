@@ -15,6 +15,11 @@
   - `⬜` chưa làm
   - `⚠️` bị chặn/cần quyết định
   Không cần tạo bảng riêng trong file detail; chỉ thêm icon vào từng bullet.
+- Từ 2026-08-26, mỗi file task detail mới hoặc khi cập nhật đáng kể phải có section `Tóm tắt ngắn` ở gần đầu file, trước phần phạm vi/nội dung dài:
+  - Viết ngắn, dễ đọc, ưu tiên danh sách đánh số.
+  - Nêu đủ các yêu cầu/quyết định chính của task, không bỏ ý quan trọng chỉ vì đã có trong phần chi tiết.
+  - Mỗi bullet/sub-bullet vẫn gắn icon trạng thái (`⬜`, `🔄`, `✅`, `⚠️`) để nhìn nhanh tiến độ.
+  - Phần chi tiết bên dưới vẫn giữ để mô tả điều kiện biên, DoD và kiểm thử.
 - Khi đổi trạng thái, cập nhật `status.md` và thêm log tương ứng vào `log.md`.
 - Memory agent chỉ giữ handoff ngắn gọn; log chi tiết nằm ở đây.
 

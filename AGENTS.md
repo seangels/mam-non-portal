@@ -45,6 +45,7 @@ Runtime subagent processes do not survive a new chat. Recreate the `backend` and
 - Use `apply_patch` for source/document edits.
 - Keep code clean, small, readable, and aligned with the existing architecture. Do not add abstractions without a concrete need.
 - Update the relevant `docs/tasks/<NN-CODE>/status.md` and `log.md` continuously for multi-step implementation work.
+- New task detail files under `docs/tasks/**/details/` must include a short, easy-to-read `Tóm tắt ngắn` section near the top before detailed scope/checklists. The summary should list every main requirement/decision in concise numbered bullets, each with the status icon (`⬜`, `🔄`, `✅`, `⚠️`) used by detail checklists.
 - Run verification proportional to the change and record the result in the owning memory file.
 - Generated `artifacts/` and `release/` are ignored; rebuild and verify them rather than assuming they exist in another clone.
 
