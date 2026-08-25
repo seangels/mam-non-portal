@@ -9,6 +9,12 @@
   - `status.md`: dashboard trạng thái hiện tại.
   - `log.md`: lịch sử thực hiện theo thời gian.
   - `details/`: mô tả chi tiết từng mã task nếu cần.
+- Từ 2026-08-25, mỗi file trong `details/` phải gắn icon trạng thái ngay trước từng mục công việc/kết quả để nhìn nhanh mục nào đã xong:
+  - `✅` đã xong
+  - `🔄` đang làm
+  - `⬜` chưa làm
+  - `⚠️` bị chặn/cần quyết định
+  Không cần tạo bảng riêng trong file detail; chỉ thêm icon vào từng bullet.
 - Khi đổi trạng thái, cập nhật `status.md` và thêm log tương ứng vào `log.md`.
 - Memory agent chỉ giữ handoff ngắn gọn; log chi tiết nằm ở đây.
 
