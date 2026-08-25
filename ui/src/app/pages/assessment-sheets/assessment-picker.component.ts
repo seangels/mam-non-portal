@@ -1,18 +1,16 @@
 import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
-import CustomStore from 'devextreme/data/custom_store';
 import { custom } from 'devextreme/ui/dialog';
 import notify from 'devextreme/ui/notify';
 import { DxDataGridComponent } from 'devextreme-angular/ui/data-grid';
 import { ApiError } from '../../core/models/api-error';
 import { Assessment, AssessmentGroup } from '../../core/models/api.models';
-import { asLegacyWidgetDataSource, LegacyWidgetDataSource } from '../../core/models/devextreme-legacy.types';
-import { AssessmentGroupsService } from '../../core/services/assessment-groups.service';
 import { AssessmentsService } from '../../core/services/assessments.service';
 import { GoogleSheetsService } from '../../core/services/google-sheets.service';
+import { includesVietnamese } from '../../core/utils/vietnamese-search';
 
-const ASSESSMENT_PICKER_SORT_FIELDS = new Set(['code', 'name', 'rowindex']);
 const SELECTED_ROW_CLASS = 'assessment-picker-selected-row';
+const ASSESSMENT_CACHE_PAGE_SIZE = 100;
 
 @Component({
   selector: 'app-assessment-picker',
@@ -33,68 +31,27 @@ export class AssessmentPickerComponent implements OnChanges, OnInit, OnDestroy {
   groupLv3Placeholder = 'Nhóm 3';
   filtersExpanded = true;
   loadError = '';
+  loading = false;
   saving = false;
-  groupLv2DataSource: LegacyWidgetDataSource | [] = [];
-  groupLv3DataSource: LegacyWidgetDataSource | [] = [];
+  allAssessments: Assessment[] = [];
+  filteredAssessments: Assessment[] = [];
+  groupLv1DataSource: AssessmentGroup[] = [];
+  groupLv2DataSource: AssessmentGroup[] = [];
+  groupLv3DataSource: AssessmentGroup[] = [];
   visibleAssessmentIds: string[] = [];
   private searchTimer?: number;
   private selectedIdSet = new Set<string>();
-  readonly gridRemoteOperations = { paging: true, sorting: true };
+  readonly gridRemoteOperations = false;
   readonly gridPageSizes = [20, 50, 100];
   readonly searchInputAttr = { 'aria-label': 'Tìm mục đánh giá theo mã, tên' };
   readonly groupLv1InputAttr = { 'aria-label': 'Lọc theo nhóm tuổi' };
   readonly groupLv2InputAttr = { 'aria-label': 'Lọc theo nhóm 2' };
   readonly groupLv3InputAttr = { 'aria-label': 'Lọc theo nhóm 3' };
 
-  readonly groupLv1DataSource = asLegacyWidgetDataSource(new CustomStore({
-    key: 'id',
-    byKey: key => firstValueFrom(this.groups.get(String(key))),
-    load: options => {
-      const pageSize = Math.min(options.take ?? 100, 100);
-      return firstValueFrom(this.groups.list({
-        level: 1,
-        page: Math.floor((options.skip ?? 0) / pageSize) + 1,
-        pageSize,
-        search: typeof options.searchValue === 'string' ? options.searchValue.trim() || undefined : undefined,
-        sortBy: 'name',
-        sortOrder: 'asc'
-      })).then(result => {
-        this.groupLv1Placeholder = `Nhóm tuổi (${result.pagination.totalItems})`;
-        return { data: result.items, totalCount: result.pagination.totalItems };
-      }).catch(error => {
-        this.groupLv1Placeholder = 'Nhóm tuổi: Lỗi tải dữ liệu';
-        return this.rejectLoad(error);
-      });
-    }
-  }));
-
-  readonly dataSource = asLegacyWidgetDataSource(new CustomStore({
-    key: 'id',
-    byKey: key => firstValueFrom(this.assessments.get(String(key))),
-    load: options => {
-      const pageSize = Math.min(options.take ?? 20, 100);
-      const sort = this.readSort(options.sort);
-      return firstValueFrom(this.assessments.list({
-        page: Math.floor((options.skip ?? 0) / pageSize) + 1,
-        pageSize,
-        search: this.search.trim() || undefined,
-        groupLv1Name: this.groupLv1Name ?? undefined,
-        groupLv2Name: this.groupLv2Name ?? undefined,
-        groupLv3Name: this.groupLv3Name ?? undefined,
-        sortBy: sort.field,
-        sortOrder: sort.order
-      })).then(result => {
-        this.loadError = '';
-        return { data: result.items, totalCount: result.pagination.totalItems };
-      }).catch(error => this.rejectLoad(error));
-    }
-  }));
-
   readonly groupDisplay = (group: AssessmentGroup | null): string => group ? `${group.name}` : '';
 
   constructor(
     private readonly assessments: AssessmentsService,
-    private readonly groups: AssessmentGroupsService,
     private readonly googleSheet: GoogleSheetsService
   ) {}
 
@@ -106,8 +63,7 @@ export class AssessmentPickerComponent implements OnChanges, OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.refreshSelectedSet();
-    this.loadLv2DataSource();
-    this.loadLv3DataSource();
+    void this.loadAssessmentsFromServer();
   }
 
   ngOnDestroy(): void {
@@ -132,12 +88,13 @@ export class AssessmentPickerComponent implements OnChanges, OnInit, OnDestroy {
       window.clearTimeout(this.searchTimer);
       this.searchTimer = undefined;
     }
+    this.filteredAssessments = this.allAssessments.filter(assessment => this.matchesCurrentFilters(assessment));
     this.grid?.instance.pageIndex(0);
-    void this.grid?.instance.refresh();
+    this.grid?.instance.repaint();
   }
 
   retryLoad(): void {
-    void this.grid?.instance.refresh();
+    void this.loadAssessmentsFromServer();
   }
 
   resetFilters(): void {
@@ -145,8 +102,7 @@ export class AssessmentPickerComponent implements OnChanges, OnInit, OnDestroy {
     this.groupLv1Name = null;
     this.groupLv2Name = null;
     this.groupLv3Name = null;
-    this.loadLv2DataSource();
-    this.loadLv3DataSource();
+    this.refreshGroupOptions();
     this.applyFilters();
   }
 
@@ -162,14 +118,13 @@ export class AssessmentPickerComponent implements OnChanges, OnInit, OnDestroy {
   onGroupLv1Changed(): void {
     this.groupLv2Name = null;
     this.groupLv3Name = null;
-    this.loadLv2DataSource();
-    this.loadLv3DataSource();
+    this.refreshGroupOptions();
     this.applyFilters();
   }
 
   onGroupLv2Changed(): void {
     this.groupLv3Name = null;
-    this.loadLv3DataSource();
+    this.refreshGroupOptions();
     this.applyFilters();
   }
 
@@ -241,7 +196,7 @@ export class AssessmentPickerComponent implements OnChanges, OnInit, OnDestroy {
   }
 
   get saveDisabled(): boolean {
-    return this.saving;
+    return this.saving || this.loading;
   }
 
   get saveButtonText(): string {
@@ -301,7 +256,7 @@ export class AssessmentPickerComponent implements OnChanges, OnInit, OnDestroy {
       }).show();
       if (resultConfirm) {
         const result = await firstValueFrom(this.googleSheet.syncFromGoogleSheets({}));
-        this.retryLoad();
+        await this.loadAssessmentsFromServer();
         notify(`Đã đồng bộ dữ liệu từ GGSheet. Thêm mới [${result.insertedRows}] dòng`, 'success', 2500);
       }
     } catch (error) {
@@ -313,65 +268,75 @@ export class AssessmentPickerComponent implements OnChanges, OnInit, OnDestroy {
     }
   }
 
-  private loadLv2DataSource(): void {
-    this.groupLv2DataSource = asLegacyWidgetDataSource(new CustomStore({
-      key: 'id',
-      byKey: key => firstValueFrom(this.groups.get(String(key))),
-      load: options => {
-        const pageSize = Math.min(options.take ?? 100, 100);
-        return firstValueFrom(this.groups.list({
-          level: 2,
-          parentName: this.groupLv1Name ?? undefined,
-          search: typeof options.searchValue === 'string' ? options.searchValue.trim() || undefined : undefined,
-          page: Math.floor((options.skip ?? 0) / pageSize) + 1,
-          pageSize,
-          sortBy: 'name',
+  async loadAssessmentsFromServer(): Promise<void> {
+    if (this.loading) {
+      return;
+    }
+    this.loading = true;
+    this.loadError = '';
+    try {
+      const loaded: Assessment[] = [];
+      let page = 1;
+      let totalPages = 1;
+      do {
+        const result = await firstValueFrom(this.assessments.list({
+          page,
+          pageSize: ASSESSMENT_CACHE_PAGE_SIZE,
+          sortBy: 'rowindex',
           sortOrder: 'asc'
-        })).then(result => {
-          this.groupLv2Placeholder = `Nhóm 2 (${result.pagination.totalItems})`;
-          return { data: result.items, totalCount: result.pagination.totalItems };
-        }).catch(error => {
-          this.groupLv2Placeholder = 'Nhóm 2: Lỗi tải dữ liệu';
-          return this.rejectLoad(error);
-        });
-      }
-    }));
+        }));
+        loaded.push(...result.items);
+        totalPages = Math.max(1, result.pagination.totalPages || Math.ceil(result.pagination.totalItems / ASSESSMENT_CACHE_PAGE_SIZE));
+        page += 1;
+      } while (page <= totalPages);
+
+      this.allAssessments = loaded;
+      this.refreshGroupOptions();
+      this.applyFilters();
+      this.loadError = '';
+    } catch (error) {
+      const apiError = ApiError.from(error);
+      this.loadError = this.withTrace(apiError);
+      this.notifyError(apiError);
+    } finally {
+      this.loading = false;
+    }
   }
 
-  private loadLv3DataSource(): void {
-    this.groupLv3DataSource = asLegacyWidgetDataSource(new CustomStore({
-      key: 'id',
-      byKey: key => firstValueFrom(this.groups.get(String(key))),
-      load: options => {
-        const pageSize = Math.min(options.take ?? 100, 100);
-        return firstValueFrom(this.groups.list({
-          level: 3,
-          page: Math.floor((options.skip ?? 0) / pageSize) + 1,
-          parentName: this.groupLv2Name ?? undefined,
-          parentParentName: this.groupLv1Name ?? undefined,
-          search: typeof options.searchValue === 'string' ? options.searchValue.trim() || undefined : undefined,
-          pageSize,
-          sortBy: 'name',
-          sortOrder: 'asc'
-        })).then(result => {
-          this.groupLv3Placeholder = `Nhóm 3 (${result.pagination.totalItems})`;
-          return { data: result.items, totalCount: result.pagination.totalItems };
-        }).catch(error => {
-          this.groupLv3Placeholder = 'Nhóm 3: Lỗi tải dữ liệu';
-          return this.rejectLoad(error);
-        });
-      }
-    }));
+  private refreshGroupOptions(): void {
+    this.groupLv1DataSource = this.buildGroupOptions(
+      1,
+      this.allAssessments.map(assessment => assessment.groupLv1Name)
+    );
+    this.groupLv2DataSource = this.buildGroupOptions(
+      2,
+      this.allAssessments
+        .filter(assessment => !this.groupLv1Name || assessment.groupLv1Name === this.groupLv1Name)
+        .map(assessment => assessment.groupLv2Name)
+    );
+    this.groupLv3DataSource = this.buildGroupOptions(
+      3,
+      this.allAssessments
+        .filter(assessment => !this.groupLv1Name || assessment.groupLv1Name === this.groupLv1Name)
+        .filter(assessment => !this.groupLv2Name || assessment.groupLv2Name === this.groupLv2Name)
+        .map(assessment => assessment.groupLv3Name)
+    );
+    this.groupLv1Placeholder = `Nhóm tuổi (${this.groupLv1DataSource.length})`;
+    this.groupLv2Placeholder = `Nhóm 2 (${this.groupLv2DataSource.length})`;
+    this.groupLv3Placeholder = `Nhóm 3 (${this.groupLv3DataSource.length})`;
   }
 
-  private readSort(sortValue: unknown): { field: string; order: 'asc' | 'desc' } {
-    const sort = Array.isArray(sortValue) ? sortValue[0] : sortValue;
-    const config = sort && typeof sort === 'object' ? sort as { selector?: unknown; desc?: boolean } : undefined;
-    const requested = typeof config?.selector === 'string' ? config.selector.toLowerCase() : 'rowindex';
-    return {
-      field: ASSESSMENT_PICKER_SORT_FIELDS.has(requested) ? requested : 'rowindex',
-      order: config?.desc ? 'desc' : 'asc'
-    };
+  private buildGroupOptions(level: number, values: string[]): AssessmentGroup[] {
+    return Array.from(new Set(values.filter(value => value && value.trim())))
+      .sort((left, right) => left.localeCompare(right, 'vi'))
+      .map(name => ({ id: `${level}:${name}`, name, level }));
+  }
+
+  private matchesCurrentFilters(assessment: Assessment): boolean {
+    return includesVietnamese([assessment.code, assessment.name], this.search)
+      && (!this.groupLv1Name || assessment.groupLv1Name === this.groupLv1Name)
+      && (!this.groupLv2Name || assessment.groupLv2Name === this.groupLv2Name)
+      && (!this.groupLv3Name || assessment.groupLv3Name === this.groupLv3Name);
   }
 
   private normalizeSelectedIds(keys: unknown[]): string[] {

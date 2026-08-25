@@ -91,6 +91,17 @@ describe('Assessment sheet form DevExtreme option stability', () => {
 });
 
 describe('Assessment picker filter and selection', () => {
+  const assessment = (override: any) => ({
+    id: 'assessment-1',
+    code: 'A01',
+    name: 'Ngôn ngữ',
+    rowIndex: 1,
+    groupLv1Name: '3-4 tuổi',
+    groupLv2Name: 'Phát triển nhận thức',
+    groupLv3Name: 'Toán',
+    ...override
+  });
+
   const createPicker = () => {
     const assessments = {
       list: jasmine.createSpy('list').and.returnValue(of({
@@ -99,19 +110,12 @@ describe('Assessment picker filter and selection', () => {
       })),
       get: jasmine.createSpy('get').and.returnValue(of({}))
     };
-    const groups = {
-      list: jasmine.createSpy('list').and.returnValue(of({
-        items: [],
-        pagination: { page: 1, pageSize: 100, totalItems: 0, totalPages: 0 }
-      })),
-      get: jasmine.createSpy('get').and.returnValue(of({}))
-    };
     const googleSheet = {
       syncFromGoogleSheets: jasmine.createSpy('syncFromGoogleSheets')
     };
 
     return {
-      component: new AssessmentPickerComponent(assessments as any, groups as any, googleSheet as any),
+      component: new AssessmentPickerComponent(assessments as any, googleSheet as any),
       assessments
     };
   };
@@ -197,28 +201,83 @@ describe('Assessment picker filter and selection', () => {
     expect(unselectedRow.classList.contains('assessment-picker-selected-row')).toBeFalse();
   });
 
-  it('loads assessments with text and group filters like the assessment list', async () => {
+  it('loads all assessments into a client cache and filters locally', async () => {
     const { component, assessments } = createPicker();
-    component.search = 'ngôn ngữ';
+    assessments.list.and.returnValues(
+      of({
+        items: [
+          assessment({ id: 'assessment-1', code: 'NN01', name: 'Ngôn ngữ', groupLv1Name: '3-4 tuổi' }),
+          assessment({ id: 'assessment-2', code: 'TC01', name: 'Thể chất', groupLv1Name: '4-5 tuổi', groupLv2Name: 'Vận động' })
+        ],
+        pagination: { page: 1, pageSize: 100, totalItems: 3, totalPages: 2 }
+      }),
+      of({
+        items: [
+          assessment({ id: 'assessment-3', code: 'TM01', name: 'Thẩm mỹ', groupLv1Name: '3-4 tuổi', groupLv2Name: 'Nghệ thuật' })
+        ],
+        pagination: { page: 2, pageSize: 100, totalItems: 3, totalPages: 2 }
+      })
+    );
+
+    await component.loadAssessmentsFromServer();
+
+    expect(assessments.list.calls.allArgs()).toEqual([
+      [{
+        page: 1,
+        pageSize: 100,
+        sortBy: 'rowindex',
+        sortOrder: 'asc'
+      }],
+      [{
+        page: 2,
+        pageSize: 100,
+        sortBy: 'rowindex',
+        sortOrder: 'asc'
+      }]
+    ]);
+    expect(component.allAssessments.length).toBe(3);
+    expect(component.groupLv1DataSource.map(group => group.name)).toEqual(['3-4 tuổi', '4-5 tuổi']);
+
+    component.search = 'ngon ngu';
     component.groupLv1Name = '3-4 tuổi';
-    component.groupLv2Name = 'Phát triển nhận thức';
-    component.groupLv3Name = 'Toán';
+    component.applyFilters();
 
-    await (component.dataSource as any).load({
-      skip: 20,
-      take: 20,
-      sort: [{ selector: 'rowIndex', desc: true }]
-    });
+    expect(assessments.list).toHaveBeenCalledTimes(2);
+    expect(component.filteredAssessments.map(item => item.id)).toEqual(['assessment-1']);
+  });
 
-    expect(assessments.list).toHaveBeenCalledWith({
-      page: 2,
-      pageSize: 20,
-      search: 'ngôn ngữ',
-      groupLv1Name: '3-4 tuổi',
-      groupLv2Name: 'Phát triển nhận thức',
-      groupLv3Name: 'Toán',
-      sortBy: 'rowindex',
-      sortOrder: 'desc'
-    });
+  it('updates dependent group filter options from the client cache', () => {
+    const { component } = createPicker();
+    component.allAssessments = [
+      assessment({ id: 'assessment-1', groupLv1Name: '3-4 tuổi', groupLv2Name: 'Nhóm B', groupLv3Name: 'Chủ đề 2' }),
+      assessment({ id: 'assessment-2', groupLv1Name: '4-5 tuổi', groupLv2Name: 'Nhóm A', groupLv3Name: 'Chủ đề 1' })
+    ];
+
+    component.onGroupLv1Changed();
+    component.groupLv1Name = '3-4 tuổi';
+    component.onGroupLv1Changed();
+
+    expect(component.groupLv2DataSource.map(group => group.name)).toEqual(['Nhóm B']);
+    expect(component.groupLv3DataSource.map(group => group.name)).toEqual(['Chủ đề 2']);
+  });
+
+  it('retries loading the client cache from the server', async () => {
+    const { component, assessments } = createPicker();
+    assessments.list.and.returnValue(of({
+      items: [assessment({ id: 'assessment-1' })],
+      pagination: { page: 1, pageSize: 100, totalItems: 1, totalPages: 1 }
+    }));
+
+    await component.loadAssessmentsFromServer();
+    component.search = 'không khớp';
+    component.applyFilters();
+    expect(component.filteredAssessments.length).toBe(0);
+
+    component.retryLoad();
+    await Promise.resolve();
+
+    expect(assessments.list).toHaveBeenCalledTimes(2);
+    expect(component.filteredAssessments.length).toBe(0);
+    expect(component.allAssessments.length).toBe(1);
   });
 });
