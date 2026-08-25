@@ -4,6 +4,18 @@
 
 Chuẩn hóa hành vi chỉnh sửa trên màn edit AssessmentSheet theo trạng thái: `Open` cho thao tác đầy đủ, `Planed` chỉ khóa thêm/xóa Assessment Record nhưng vẫn cho nhập kết quả/ghi chú cuối, đồng thời đổi ô ghi chú từng dòng record sang DevExtreme `dxTextArea` cho đồng bộ UI.
 
+## Tóm tắt ngắn
+
+1. ⬜ `Planed` chỉ khóa:
+   - ⬜ Thêm Assessment Record.
+   - ⬜ Xóa Assessment Record.
+2. ⬜ `Planed` vẫn cho:
+   - ⬜ Nhập/sửa `FinalGrade`.
+   - ⬜ Nhập/sửa `FinalNote`.
+   - ⬜ Đổi giáo viên phụ trách nếu form/user role hiện tại có quyền.
+3. ⬜ `Done` giữ khóa như hiện tại.
+4. ⬜ Vẫn là UI-only, không đổi BE/REST contract.
+
 ## Phạm vi
 
 - ⬜ Chỉ thay đổi frontend UI trong màn edit AssessmentSheet.
