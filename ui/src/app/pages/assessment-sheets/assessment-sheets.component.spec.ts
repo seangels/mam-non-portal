@@ -264,21 +264,26 @@ describe('Assessment picker filter and selection', () => {
   it('keeps the current selected-only view stable when rows are unchecked', () => {
     const { component, assessments } = createPicker();
     component.allAssessments = [
-      assessment({ id: 'assessment-1', code: 'NN01' }),
-      assessment({ id: 'assessment-2', code: 'TC01' })
+      assessment({ id: 'assessment-1', code: 'NN01', name: 'Ngôn ngữ' }),
+      assessment({ id: 'assessment-2', code: 'TC01', name: 'Thể chất' })
     ];
-    component.selectedIds = ['assessment-2'];
+    component.selectedIds = ['assessment-1', 'assessment-2'];
     component.ngOnChanges({ selectedIds: {} as any });
 
     component.viewMode = 'selected';
     component.onViewModeChanged();
 
-    expect(component.filteredAssessments.map(item => item.id)).toEqual(['assessment-2']);
+    expect(component.filteredAssessments.map(item => item.id)).toEqual(['assessment-1', 'assessment-2']);
 
     component.onSelectCheckboxChanged('assessment-2', { value: false, event: {} });
 
-    expect(component.filteredAssessments.map(item => item.id)).toEqual(['assessment-2']);
+    expect(component.filteredAssessments.map(item => item.id)).toEqual(['assessment-1', 'assessment-2']);
     expect(component.isSelected('assessment-2')).toBeFalse();
+
+    component.search = 'the chat';
+    component.applyFilters();
+
+    expect(component.filteredAssessments.map(item => item.id)).toEqual(['assessment-2']);
     expect(assessments.list).not.toHaveBeenCalled();
 
     component.onViewModeChanged();

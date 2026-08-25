@@ -43,6 +43,7 @@ export class AssessmentPickerComponent implements OnChanges, OnInit, OnDestroy {
   visibleAssessmentIds: string[] = [];
   private searchTimer?: number;
   private selectedIdSet = new Set<string>();
+  private selectedViewSnapshotIdSet = new Set<string>();
   readonly gridRemoteOperations = false;
   readonly gridPageSizes = [20, 50, 100];
   readonly searchInputAttr = { 'aria-label': 'Tìm mục đánh giá theo mã, tên' };
@@ -95,7 +96,10 @@ export class AssessmentPickerComponent implements OnChanges, OnInit, OnDestroy {
       window.clearTimeout(this.searchTimer);
       this.searchTimer = undefined;
     }
-    this.filteredAssessments = this.allAssessments.filter(assessment => this.matchesCurrentFilters(assessment));
+    const source = this.viewMode === 'selected'
+      ? this.allAssessments.filter(assessment => this.isInSelectedViewSnapshot(assessment.id))
+      : this.allAssessments;
+    this.filteredAssessments = source.filter(assessment => this.matchesCurrentFilters(assessment));
     this.grid?.instance.pageIndex(0);
     this.grid?.instance.repaint();
   }
@@ -140,6 +144,11 @@ export class AssessmentPickerComponent implements OnChanges, OnInit, OnDestroy {
   }
 
   onViewModeChanged(): void {
+    if (this.viewMode === 'selected') {
+      this.selectedViewSnapshotIdSet = new Set(this.selectedIdSet);
+    } else {
+      this.selectedViewSnapshotIdSet.clear();
+    }
     this.applyFilters();
   }
 
@@ -347,8 +356,12 @@ export class AssessmentPickerComponent implements OnChanges, OnInit, OnDestroy {
     return includesVietnamese([assessment.code, assessment.name], this.search)
       && (!this.groupLv1Name || assessment.groupLv1Name === this.groupLv1Name)
       && (!this.groupLv2Name || assessment.groupLv2Name === this.groupLv2Name)
-      && (!this.groupLv3Name || assessment.groupLv3Name === this.groupLv3Name)
-      && (this.viewMode !== 'selected' || this.isSelected(assessment.id));
+      && (!this.groupLv3Name || assessment.groupLv3Name === this.groupLv3Name);
+  }
+
+  private isInSelectedViewSnapshot(id: unknown): boolean {
+    const normalizedId = this.normalizeSelectedId(id);
+    return normalizedId ? this.selectedViewSnapshotIdSet.has(normalizedId) : false;
   }
 
   private normalizeSelectedIds(keys: unknown[]): string[] {
