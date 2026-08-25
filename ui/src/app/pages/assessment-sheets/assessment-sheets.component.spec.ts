@@ -261,6 +261,26 @@ describe('Assessment picker filter and selection', () => {
     expect(component.groupLv3DataSource.map(group => group.name)).toEqual(['Chủ đề 2']);
   });
 
+  it('filters the client cache to selected assessments only', () => {
+    const { component, assessments } = createPicker();
+    component.allAssessments = [
+      assessment({ id: 'assessment-1', code: 'NN01' }),
+      assessment({ id: 'assessment-2', code: 'TC01' })
+    ];
+    component.selectedIds = ['assessment-2'];
+    component.ngOnChanges({ selectedIds: {} as any });
+
+    component.viewMode = 'selected';
+    component.onViewModeChanged();
+
+    expect(component.filteredAssessments.map(item => item.id)).toEqual(['assessment-2']);
+
+    component.onSelectCheckboxChanged('assessment-2', { value: false, event: {} });
+
+    expect(component.filteredAssessments).toEqual([]);
+    expect(assessments.list).not.toHaveBeenCalled();
+  });
+
   it('retries loading the client cache from the server', async () => {
     const { component, assessments } = createPicker();
     assessments.list.and.returnValue(of({

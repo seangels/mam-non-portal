@@ -11,6 +11,7 @@ import { includesVietnamese } from '../../core/utils/vietnamese-search';
 
 const SELECTED_ROW_CLASS = 'assessment-picker-selected-row';
 const ASSESSMENT_CACHE_PAGE_SIZE = 100;
+type AssessmentPickerViewMode = 'all' | 'selected';
 
 @Component({
   selector: 'app-assessment-picker',
@@ -26,6 +27,7 @@ export class AssessmentPickerComponent implements OnChanges, OnInit, OnDestroy {
   groupLv1Name: string | null = null;
   groupLv2Name: string | null = null;
   groupLv3Name: string | null = null;
+  viewMode: AssessmentPickerViewMode = 'all';
   groupLv1Placeholder = 'Nhóm tuổi';
   groupLv2Placeholder = 'Nhóm 2';
   groupLv3Placeholder = 'Nhóm 3';
@@ -47,6 +49,11 @@ export class AssessmentPickerComponent implements OnChanges, OnInit, OnDestroy {
   readonly groupLv1InputAttr = { 'aria-label': 'Lọc theo nhóm tuổi' };
   readonly groupLv2InputAttr = { 'aria-label': 'Lọc theo nhóm 2' };
   readonly groupLv3InputAttr = { 'aria-label': 'Lọc theo nhóm 3' };
+  readonly viewModeInputAttr = { 'aria-label': 'Chế độ xem mục đánh giá' };
+  readonly viewModeOptions: Array<{ value: AssessmentPickerViewMode; text: string }> = [
+    { value: 'all', text: 'Xem tất cả' },
+    { value: 'selected', text: 'Chỉ những mục đã chọn' }
+  ];
 
   readonly groupDisplay = (group: AssessmentGroup | null): string => group ? `${group.name}` : '';
 
@@ -129,6 +136,10 @@ export class AssessmentPickerComponent implements OnChanges, OnInit, OnDestroy {
   }
 
   onGroupLv3Changed(): void {
+    this.applyFilters();
+  }
+
+  onViewModeChanged(): void {
     this.applyFilters();
   }
 
@@ -336,7 +347,8 @@ export class AssessmentPickerComponent implements OnChanges, OnInit, OnDestroy {
     return includesVietnamese([assessment.code, assessment.name], this.search)
       && (!this.groupLv1Name || assessment.groupLv1Name === this.groupLv1Name)
       && (!this.groupLv2Name || assessment.groupLv2Name === this.groupLv2Name)
-      && (!this.groupLv3Name || assessment.groupLv3Name === this.groupLv3Name);
+      && (!this.groupLv3Name || assessment.groupLv3Name === this.groupLv3Name)
+      && (this.viewMode !== 'selected' || this.isSelected(assessment.id));
   }
 
   private normalizeSelectedIds(keys: unknown[]): string[] {
@@ -355,6 +367,9 @@ export class AssessmentPickerComponent implements OnChanges, OnInit, OnDestroy {
 
   private refreshSelectedSet(): void {
     this.selectedIdSet = new Set(this.normalizeSelectedIds(this.selectedIds));
+    if (this.viewMode === 'selected') {
+      this.applyFilters();
+    }
     this.grid?.instance.repaint();
   }
 
@@ -363,6 +378,9 @@ export class AssessmentPickerComponent implements OnChanges, OnInit, OnDestroy {
     this.selectedIds = selectedIds;
     this.selectedIdSet = selectedIdSet;
     this.selectedIdsChange.emit(selectedIds);
+    if (this.viewMode === 'selected') {
+      this.applyFilters();
+    }
     this.grid?.instance.repaint();
   }
 

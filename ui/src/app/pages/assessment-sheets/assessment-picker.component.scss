@@ -6,6 +6,7 @@
 .filter-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
 .filter-row > * { flex: 1 1 190px; min-width: 0; }
 .filter-row .search-input { flex-basis: 260px; }
+.filter-row .view-mode-input { flex: 0 1 210px; }
 .buttons-row { justify-content: flex-end; }
 .buttons-row > * { flex: 0 0 auto; }
 .select-all-checkbox { display: inline-flex; min-height: 34px; align-items: center; gap: 8px; margin-right: auto; color: #344054; cursor: pointer; }

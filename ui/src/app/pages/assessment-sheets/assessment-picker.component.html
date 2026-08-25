@@ -20,6 +20,18 @@
         </dx-text-box>
 
         <dx-select-box
+          class="view-mode-input"
+          [(value)]="viewMode"
+          [dataSource]="viewModeOptions"
+          valueExpr="value"
+          displayExpr="text"
+          [searchEnabled]="false"
+          [showClearButton]="false"
+          [inputAttr]="viewModeInputAttr"
+          (onValueChanged)="onViewModeChanged()">
+        </dx-select-box>
+
+        <dx-select-box
           class="lv1-input"
           [(value)]="groupLv1Name"
           [dataSource]="groupLv1DataSource"
