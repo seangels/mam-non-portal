@@ -102,7 +102,19 @@
               <th class="group-lv2-column" scope="col">Nhóm lớn</th>
               <th class="group-lv3-column" scope="col">Nhóm nhỏ</th>
               <th class="number-column" scope="col">STT</th>
-              <th scope="col">Nội dung đánh giá</th>
+              <th *ngIf="showCodeColumn" class="code-column" scope="col">Mã</th>
+              <th scope="col">
+                <div class="content-header">
+                  <span>Nội dung đánh giá</span>
+                  <label class="code-toggle">
+                    <input
+                      type="checkbox"
+                      [(ngModel)]="showCodeColumn"
+                      [ngModelOptions]="standaloneNgModelOptions" />
+                    <span>Hiện mã</span>
+                  </label>
+                </div>
+              </th>
               <th *ngIf="showPlanColumn" class="plan-column" scope="col">Kế hoạch</th>
               <th class="grade-column" scope="col">
                 <div class="grade-header">
@@ -133,8 +145,9 @@
                 <span>{{ row.groupLv3Name }}</span>
               </td>
               <td class="number-cell">{{ row.rowNumber }}</td>
+              <td *ngIf="showCodeColumn" class="code-cell">{{ row.record.assessment.code }}</td>
               <td class="content-cell">
-                <strong>{{ row.record.assessment.code }}. {{ row.record.assessment.name }}</strong>
+                <strong>{{ row.record.assessment.name }}</strong>
               </td>
               <td *ngIf="showPlanColumn" class="plan-cell">
                 {{ gradeText(row.record.planGrade) }}
@@ -153,7 +166,7 @@
               </td>
               <td class="note-cell">
                 <textarea
-                  rows="2"
+                  rows="1"
                   maxlength="2000"
                   [disabled]="saving || recordMutationInProgress || originalStatus === 'Done'"
                   [ngModel]="row.record.finalNote || ''"

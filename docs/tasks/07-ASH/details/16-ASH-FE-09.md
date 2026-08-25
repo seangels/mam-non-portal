@@ -4,6 +4,8 @@
 
 Thiết kế lại section `records-panel` trên màn edit AssessmentSheet từ dạng card sang dạng table giống mẫu người dùng cung cấp, giúp giáo viên/admin xem và nhập kết quả đánh giá theo nhóm rõ hơn, ít cuộn ngang/dọc lộn xộn hơn và dễ đối chiếu theo từng nhóm năng lực.
 
+Các điều chỉnh sau feedback tập trung giảm diện tích mỗi hàng: font nhỏ hơn, chữ nhóm hiển thị ngang, cột xóa nằm cuối, tách cột `Mã`, có toggle ẩn/hiện các cột phụ và ghi chú chỉ cao khoảng một hàng mặc định.
+
 ## Phạm vi
 
 - ✅ Chỉ thay đổi UI/UX của `records-panel` trong màn edit AssessmentSheet.
@@ -27,21 +29,24 @@ Thiết kế lại section `records-panel` trên màn edit AssessmentSheet từ 
   1. ✅ Nhóm lớn `groupLv2`.
   2. ✅ Nhóm nhỏ `groupLv3`.
   3. ✅ `STT`.
-  4. ✅ `Nội dung đánh giá`.
-  5. ✅ `Kế hoạch`.
-  6. ✅ `Kết quả hiện tại`.
-  7. ✅ `Ghi chú`.
-  8. ✅ Thao tác xóa.
+  4. ✅ `Mã`.
+  5. ✅ `Nội dung đánh giá`.
+  6. ✅ `Kế hoạch`.
+  7. ✅ `Kết quả hiện tại`.
+  8. ✅ `Ghi chú`.
+  9. ✅ Thao tác xóa.
 - ✅ `groupLv2` và `groupLv3` cần hiển thị dạng nhóm dễ nhìn:
   - ✅ Dùng `rowspan` theo các nhóm liên tiếp để nhìn gần mẫu bảng.
   - ✅ Không cần fallback lặp text vì rowspan build/test đã ổn trên Angular 12.
   - ✅ Chữ nhóm hiển thị ngang bình thường, không xoay dọc để tránh tốn diện tích theo chiều cao.
 - ✅ `STT` reset theo từng nhóm nhỏ `groupLv3` liên tiếp.
-- ✅ `Nội dung đánh giá` hiển thị `assessment.code` + `assessment.name`, ví dụ `B97. Đứng một chân trong 3 giây`.
+- ✅ `Mã` hiển thị `assessment.code` thành cột riêng nằm trước `Nội dung đánh giá`.
+- ✅ Header `Nội dung đánh giá` có checkbox `Hiện mã` để bật/ẩn cột `Mã`.
+- ✅ `Nội dung đánh giá` chỉ hiển thị `assessment.name` để giảm chiều rộng nội dung.
 - ✅ `Kế hoạch` hiển thị `planGrade` thành cột riêng nằm trước `Kết quả hiện tại`.
 - ✅ Header `Kết quả hiện tại` có checkbox `Hiện kế hoạch` để bật/ẩn cột `Kế hoạch`.
 - ✅ `Kết quả hiện tại` dùng dropdown grade hiện có, hiển thị tiếng Việt.
-- ✅ `Ghi chú` dùng textarea gọn trong cell, giới hạn 2.000 ký tự theo backend `FinalNote`.
+- ✅ `Ghi chú` dùng textarea gọn trong cell, mặc định cao khoảng một hàng, giới hạn 2.000 ký tự theo backend `FinalNote`.
 
 ## Màu sắc cố định theo `groupLv2`
 

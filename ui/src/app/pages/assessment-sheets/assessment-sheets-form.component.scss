@@ -23,10 +23,11 @@
 .group-lv2-column { width: 142px; }
 .group-lv3-column { width: 150px; }
 .number-column { width: 48px; }
+.code-column { width: 78px; }
 .plan-column { width: 116px; }
 .grade-column { width: 174px; }
 .note-column { width: 220px; }
-.action-cell, .number-cell, .plan-cell, .grade-cell { text-align: center; }
+.action-cell, .number-cell, .code-cell, .plan-cell, .grade-cell { text-align: center; }
 .action-cell { background: #ffffff80; }
 .group-cell { padding: 8px 6px; color: #111827; font-weight: 700; text-align: center; }
 .group-cell span { display: inline-block; line-height: 1.25; letter-spacing: .01em; }
@@ -34,13 +35,17 @@
 .group-lv2-cell { text-transform: uppercase; }
 .content-cell { min-width: 330px; }
 .content-cell strong { display: block; font-weight: 500; }
+.code-cell { color: #111827; font-weight: 700; white-space: nowrap; }
 .plan-cell { color: #344054; font-weight: 600; }
+.content-header,
 .grade-header { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.code-toggle,
 .plan-toggle { display: inline-flex; align-items: center; gap: 4px; color: #667085; font-size: smaller; font-weight: 500; white-space: nowrap; cursor: pointer; }
+.code-toggle input,
 .plan-toggle input { width: 13px; height: 13px; margin: 0; cursor: pointer; }
 .grade-select, .note-cell textarea { width: 100%; border: 1px solid transparent; background: #ffffffc7; color: #111827; font: inherit; }
 .grade-select { min-height: 28px; padding: 3px 28px 3px 10px; border-radius: 999px; }
-.note-cell textarea { min-height: 44px; padding: 6px 8px; resize: vertical; }
+.note-cell textarea { min-height: 28px; padding: 4px 8px; resize: vertical; }
 .grade-select:focus, .note-cell textarea:focus { border-color: #2f80ed; background: #fff; outline: none; box-shadow: 0 0 0 2px #2f80ed26; }
 .grade-select:disabled, .note-cell textarea:disabled { opacity: .65; cursor: not-allowed; }
 .form-actions { position: sticky; z-index: 5; bottom: 12px; display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-top: 16px; padding: 12px 16px; border: 1px solid #d0d5dd; border-radius: 9px; background: #fff; box-shadow: 0 5px 20px #1018282e; }
