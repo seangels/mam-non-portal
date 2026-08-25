@@ -1,8 +1,8 @@
 <div class="content-block page-toolbar">
   <div>
     <dx-button text="Quay lại" icon="arrowleft" stylingMode="text" (onClick)="cancel()"></dx-button>
-    <h1 class="page-title">{{ title }}</h1>
-    <p class="page-subtitle">{{ subtitle }}</p>
+    <!-- <h1 class="page-title">{{ title }}</h1>
+    <p class="page-subtitle">{{ subtitle }}</p> -->
   </div>
 </div>
 
@@ -24,7 +24,7 @@
   </div>
 
   <form class="dx-card assessment-sheets-form" (submit)="save($event)" aria-labelledby="assessment-sheets-form-heading">
-    <h2 id="assessment-sheets-form-heading">Thông tin kế hoạch cá nhân</h2>
+    <h2 id="assessment-sheets-form-heading">{{title}} thông tin kế hoạch cá nhân</h2>
     <p class="helper-text">Các trường có dấu <span aria-hidden="true">*</span> là bắt buộc.</p>
 
     <div *ngIf="!isCreate" class="snapshot-panel" aria-label="Thông tin snapshot">
@@ -40,7 +40,7 @@
 
     <dx-form #form [formData]="editor" [disabled]="saving" labelLocation="top"
       [colCountByScreen]="formColCountByScreen">
-      <dxi-item dataField="studentId" editorType="dxSelectBox" [visible]="isCreate" [colSpan]="2"
+      <dxi-item dataField="studentId" editorType="dxSelectBox"  [colSpan]="2" [visible]="isCreate"
         [editorOptions]="studentEditorOptions">
         <dxo-label text="Học sinh *"></dxo-label>
         <dxi-validation-rule type="required" message="Vui lòng chọn học sinh"></dxi-validation-rule>
@@ -51,7 +51,7 @@
         <dxo-label text="Giáo viên phụ trách"></dxo-label>
       </dxi-item>
 
-      <dxi-item dataField="status" editorType="dxSelectBox" [visible]="!isCreate" [editorOptions]="statusEditorOptions">
+      <dxi-item dataField="status" editorType="dxSelectBox" [editorOptions]="statusEditorOptions">
         <dxo-label text="Trạng thái *"></dxo-label>
         <dxi-validation-rule type="required" message="Vui lòng chọn trạng thái"></dxi-validation-rule>
       </dxi-item>
@@ -64,21 +64,21 @@
         <dxo-label text="Hạn hoàn thành"></dxo-label>
       </dxi-item>
 
-      <dxi-item dataField="assessmentIds" editorType="dxTagBox" [visible]="isCreate" [colSpan]="2"
-        [editorOptions]="assessmentEditorOptions">
-        <dxo-label text="Mục đánh giá *"></dxo-label>
-      </dxi-item>
-
-      <dxi-item dataField="note" editorType="dxTextArea" [colSpan]="2"
+      <dxi-item dataField="note" editorType="dxTextArea" [colSpan]="3"
         [editorOptions]="noteEditorOptions">
         <dxo-label text="Ghi chú"></dxo-label>
         <dxi-validation-rule type="stringLength" [max]="2000" message="Ghi chú tối đa 2.000 ký tự"></dxi-validation-rule>
       </dxi-item>
 
-      <dxi-item dataField="feedback" editorType="dxTextArea" [visible]="!isCreate" [colSpan]="2"
+      <dxi-item dataField="feedback" editorType="dxTextArea" [colSpan]="3"
         [editorOptions]="noteEditorOptions">
         <dxo-label text="Nhận xét kết quả"></dxo-label>
         <dxi-validation-rule type="stringLength" [max]="2000" message="Nhận xét tối đa 2.000 ký tự"></dxi-validation-rule>
+      </dxi-item>
+
+      <dxi-item dataField="assessmentIds" editorType="dxTagBox" [visible]="isCreate" [colSpan]="6"
+        [editorOptions]="assessmentEditorOptions">
+        <dxo-label text="Mục đánh giá *"></dxo-label>
       </dxi-item>
     </dx-form>
 
@@ -108,11 +108,17 @@
       Bảng đánh giá đã hoàn tất. Nếu cần sửa thông tin chung, hãy chuyển trạng thái khỏi “Hoàn tất” rồi lưu.
     </p>
 
-    <div class="form-actions">
-      <span *ngIf="dirty" class="dirty-indicator" role="status">Có thay đổi chưa lưu</span>
-      <dx-button text="Hủy" stylingMode="outlined" [disabled]="saving" (onClick)="cancel()"></dx-button>
-      <dx-button [text]="isCreate ? 'Tạo bảng đánh giá' : 'Lưu thay đổi'" type="default" [useSubmitBehavior]="true"
-        [disabled]="saving"></dx-button>
-    </div>
   </form>
+
+  <div class="form-actions">
+    <span class="action-summary" aria-live="polite">
+      <strong>{{ selectedAssessmentCount }}</strong> mục đánh giá đã chọn
+      <small *ngIf="dirty">Có thay đổi chưa lưu</small>
+    </span>
+    <div class="form-action-buttons">
+      <dx-button text="Hủy" stylingMode="outlined" [disabled]="saving" (onClick)="cancel()"></dx-button>
+      <dx-button [text]="isCreate ? 'Tạo bảng đánh giá' : 'Lưu thay đổi'" icon="save" type="default"
+        [disabled]="saving" (onClick)="save()"></dx-button>
+    </div>
+  </div>
 </div>

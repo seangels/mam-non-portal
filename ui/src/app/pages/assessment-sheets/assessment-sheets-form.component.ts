@@ -138,7 +138,7 @@ export class AssessmentSheetFormComponent implements OnInit {
     ? `${assessment.code} · ${assessment.name}`
     : '';
 
-  readonly formColCountByScreen = { xs: 1, sm: 1, md: 2, lg: 2 };
+  readonly formColCountByScreen = { xs: 1, sm: 2, md: 4, lg: 6 };
   readonly studentEditorOptions: Record<string, unknown> = {
     dataSource: this.studentDataSource,
     valueExpr: 'id',
@@ -166,6 +166,7 @@ export class AssessmentSheetFormComponent implements OnInit {
     valueExpr: 'value',
     displayExpr: 'text',
     searchEnabled: false,
+    readOnly: this.isCreate,
     inputAttr: { 'aria-label': 'Trạng thái' }
   };
   readonly assessmentEditorOptions: Record<string, unknown> = {
@@ -186,17 +187,17 @@ export class AssessmentSheetFormComponent implements OnInit {
   readonly dateEditorOptions: Record<string, unknown> = {
     type: 'date',
     displayFormat: 'dd/MM/yyyy',
-    showClearButton: true
+    showClearButton: true,
+    pickerType: "calendar",
   };
   readonly noteEditorOptions: Record<string, unknown> = {
     maxLength: 2000,
-    minHeight: 110,
     autoResizeEnabled: true,
     valueChangeEvent: 'input'
   };
 
   get title(): string {
-    return this.isCreate ? 'Thêm bảng đánh giá' : 'Chỉnh sửa bảng đánh giá';
+    return this.isCreate ? 'Tạo' : 'Chỉnh sửa';
   }
 
   get subtitle(): string {
@@ -213,6 +214,12 @@ export class AssessmentSheetFormComponent implements OnInit {
     return this.records.length > 0;
   }
 
+  get selectedAssessmentCount(): number {
+    return this.isCreate
+      ? new Set(this.editor.assessmentIds.filter(Boolean)).size
+      : this.records.length;
+  }
+
   get canUseManagerLookups(): boolean {
     const role = this.auth.user?.role;
     return role === 'SuperAdmin' || role === 'Admin';
@@ -226,7 +233,7 @@ export class AssessmentSheetFormComponent implements OnInit {
     private readonly teachers: TeachersService,
     private readonly route: ActivatedRoute,
     private readonly router: Router
-  ) {}
+  ) { }
 
   ngOnInit(): void {
     this.isCreate = this.route.snapshot.data['mode'] === 'create';
@@ -259,8 +266,8 @@ export class AssessmentSheetFormComponent implements OnInit {
     return confirm('Bạn có thay đổi chưa lưu. Rời trang và bỏ các thay đổi này?', 'Xác nhận rời trang');
   }
 
-  async save(event: Event): Promise<void> {
-    event.preventDefault();
+  async save(event?: Event): Promise<void> {
+    event?.preventDefault();
     if (this.saving || this.loading) {
       return;
     }

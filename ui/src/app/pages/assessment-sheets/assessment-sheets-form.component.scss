@@ -1,5 +1,5 @@
-:host { display: block; }
-.form-shell { max-width: 980px; margin-right: auto; margin-left: auto; }
+:host { display: block; padding-bottom: 88px; }
+.form-shell { margin-right: 40px; margin-left: 40px; }
 .assessment-sheets-form { padding: 22px; }
 .assessment-sheets-form h2 { margin: 0 0 4px; font-size: 20px; }
 .helper-text { color: #667085; }
@@ -18,18 +18,23 @@
 .record-main { display: flex; flex-direction: column; gap: 4px; }
 .record-main small, .record-grades { color: #667085; }
 .record-grades { display: flex; flex-direction: column; gap: 4px; min-width: 150px; text-align: right; }
-.form-actions { position: sticky; bottom: 0; display: flex; align-items: center; justify-content: flex-end; gap: 10px; margin: 20px -22px -22px; padding: 14px 22px; border-top: 1px solid #e3e8ef; background: #fff; z-index: 2; }
-.dirty-indicator { margin-right: auto; color: #a34b00; font-weight: 600; }
+.form-actions { position: sticky; z-index: 5; bottom: 12px; display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-top: 16px; padding: 12px 16px; border: 1px solid #d0d5dd; border-radius: 9px; background: #fff; box-shadow: 0 5px 20px #1018282e; }
+.form-action-buttons { display: flex; justify-content: flex-end; gap: 10px; margin-left: auto; }
+.action-summary { display: flex; flex-direction: column; color: #344054; }
+.action-summary strong { font-size: 18px; }
+.action-summary small { color: #a34b00; font-weight: 600; }
 .state-panel { display: flex; min-height: 180px; align-items: center; justify-content: center; gap: 12px; color: #667085; }
 .state-panel.error { flex-direction: column; color: #8a1c16; text-align: center; }
 @media (max-width: 700px) {
+  :host { padding-bottom: 74px; }
   .page-toolbar { align-items: stretch; flex-direction: column; }
   .assessment-sheets-form { padding: 16px; }
   .snapshot-panel { grid-template-columns: 1fr; }
   .record-card { flex-direction: column; }
   .record-grades { min-width: 0; text-align: left; }
   .form-error, .form-actions { align-items: stretch; flex-direction: column; }
-  .form-actions { margin: 18px -16px -16px; padding: 12px 16px max(12px, env(safe-area-inset-bottom)); }
-  .dirty-indicator { margin-right: 0; text-align: center; }
+  .form-actions { position: fixed; right: 8px; bottom: 8px; left: 8px; margin: 0; padding: 12px 16px; }
+  .form-action-buttons { flex-direction: column; margin-left: 0; }
+  .action-summary { text-align: center; }
   .form-actions dx-button { width: 100%; }
 }

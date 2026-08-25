@@ -54,8 +54,8 @@ describe('Assessment sheet form request mapping', () => {
 });
 
 describe('Assessment sheet form DevExtreme option stability', () => {
-  it('keeps editor option object references stable across change detection reads', () => {
-    const component = new AssessmentSheetFormComponent(
+  const createComponent = (): AssessmentSheetFormComponent =>
+    new AssessmentSheetFormComponent(
       {} as any,
       {} as any,
       { user: { role: 'Admin' } } as any,
@@ -65,6 +65,9 @@ describe('Assessment sheet form DevExtreme option stability', () => {
       {} as any
     );
 
+  it('keeps editor option object references stable across change detection reads', () => {
+    const component = createComponent();
+
     expect(component.studentEditorOptions).toBe(component.studentEditorOptions);
     expect(component.teacherEditorOptions).toBe(component.teacherEditorOptions);
     expect(component.statusEditorOptions).toBe(component.statusEditorOptions);
@@ -72,5 +75,16 @@ describe('Assessment sheet form DevExtreme option stability', () => {
     expect(component.dateEditorOptions).toBe(component.dateEditorOptions);
     expect(component.noteEditorOptions).toBe(component.noteEditorOptions);
     expect(component.formColCountByScreen).toBe(component.formColCountByScreen);
+  });
+
+  it('reports selected assessment count for create and edit modes', () => {
+    const component = createComponent();
+
+    component.editor.assessmentIds = ['assessment-1', 'assessment-2', 'assessment-1', ''];
+    expect(component.selectedAssessmentCount).toBe(2);
+
+    component.isCreate = false;
+    component.records = [{ id: 'record-1' } as any, { id: 'record-2' } as any, { id: 'record-3' } as any];
+    expect(component.selectedAssessmentCount).toBe(3);
   });
 });
