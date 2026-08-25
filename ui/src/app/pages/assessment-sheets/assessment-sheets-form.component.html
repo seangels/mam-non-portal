@@ -87,7 +87,8 @@
             icon="add"
             stylingMode="outlined"
             type="default"
-            [disabled]="saving || recordMutationInProgress || originalStatus === 'Done'"
+            [disabled]="!canMutateRecords"
+            [hint]="recordMutationLockHint"
             (onClick)="toggleAddAssessmentPicker()">
           </dx-button>
         </div>
@@ -168,7 +169,7 @@
               >
                 <div
                   class="grade-select-shell"
-                  [class.disabled]="saving || recordMutationInProgress || originalStatus === 'Done'"
+                  [class.disabled]="recordValueControlsDisabled"
                   >
                   <dx-select-box
                     class="grade-select-box"
@@ -178,7 +179,7 @@
                     [dataSource]="gradeSelectOptions"
                     valueExpr="value"
                     displayExpr="text"
-                    [disabled]="saving || recordMutationInProgress || originalStatus === 'Done'"
+                    [disabled]="recordValueControlsDisabled"
                     [value]="row.record.finalGrade ?? row.record.planGrade ?? null"
                     (onValueChanged)="updateRecordFinalGrade(row.record, $event.value)"
                     [attr.aria-label]="'Kết quả hiện tại của ' + row.record.assessment.code"
@@ -200,22 +201,23 @@
                 </div>
               </td>
               <td class="note-cell">
-                <textarea
-                  rows="1"
-                  maxlength="2000"
-                  [disabled]="saving || recordMutationInProgress || originalStatus === 'Done'"
-                  [ngModel]="row.record.finalNote || ''"
-                  [ngModelOptions]="standaloneNgModelOptions"
-                  (ngModelChange)="updateRecordFinalNote(row.record, $event)"
+                <dx-text-area
+                  class="record-note-textarea"
+                  [height]="28"
+                  [maxLength]="2000"
+                  [disabled]="recordValueControlsDisabled"
+                  [value]="row.record.finalNote || ''"
+                  (onValueChanged)="updateRecordFinalNote(row.record, $event.value)"
                   [attr.aria-label]="'Ghi chú của ' + row.record.assessment.code"
-                  placeholder="Ghi chú"></textarea>
+                  placeholder="Ghi chú">
+                </dx-text-area>
               </td>
               <td class="action-cell">
                 <dx-button
                   icon="trash"
                   stylingMode="text"
                   type="danger"
-                  [disabled]="saving || recordMutationInProgress || originalStatus === 'Done' || records.length <= 1"
+                  [disabled]="!canMutateRecords || records.length <= 1"
                   [hint]="removeRecordHint(row.record)"
                   (onClick)="removeAssessmentRecord(row.record)">
                 </dx-button>
@@ -242,7 +244,7 @@
     mode="add"
     [studentId]="editor.studentId || null"
     [existingCodes]="existingAssessmentCodes"
-    [addDisabled]="saving || recordMutationInProgress || originalStatus === 'Done'"
+    [addDisabled]="!canMutateRecords"
     (assessmentAdd)="addAssessmentToSheet($event)">
   </app-assessment-picker>
 

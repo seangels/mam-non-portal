@@ -14,6 +14,8 @@ import {
   buildReplaceAssessmentSheetRecordsRequest,
   buildSaveAssessmentSheetRecordsRequest,
   buildUpdateAssessmentSheetRequest,
+  canEditAssessmentSheetRecordValues,
+  canMutateAssessmentSheetRecords,
   initializeAssessmentSheetRecords
 } from './assessment-sheets-form.component';
 
@@ -346,6 +348,22 @@ describe('Assessment sheet records table layout', () => {
   });
 });
 
+describe('Assessment sheet edit permissions', () => {
+  it('allows record structure changes only while the selected status is Open', () => {
+    expect(canMutateAssessmentSheetRecords('Open')).toBeTrue();
+    expect(canMutateAssessmentSheetRecords('Planed')).toBeFalse();
+    expect(canMutateAssessmentSheetRecords('Done')).toBeFalse();
+    expect(canMutateAssessmentSheetRecords(null)).toBeFalse();
+  });
+
+  it('keeps final grade and final note editable for Planed but locked for Done', () => {
+    expect(canEditAssessmentSheetRecordValues('Open')).toBeTrue();
+    expect(canEditAssessmentSheetRecordValues('Planed')).toBeTrue();
+    expect(canEditAssessmentSheetRecordValues('Done')).toBeFalse();
+    expect(canEditAssessmentSheetRecordValues(null)).toBeFalse();
+  });
+});
+
 describe('Assessment sheet form DevExtreme option stability', () => {
   const createComponent = (mode = 'create'): AssessmentSheetFormComponent =>
     new AssessmentSheetFormComponent(
@@ -388,6 +406,23 @@ describe('Assessment sheet form DevExtreme option stability', () => {
     component.isCreate = false;
     component.records = [{ id: 'record-1' } as any, { id: 'record-2' } as any, { id: 'record-3' } as any];
     expect(component.selectedAssessmentCount).toBe(3);
+  });
+
+  it('locks add and remove immediately from the currently selected status while keeping Planed record values editable', () => {
+    const component = createComponent('edit');
+    component.isCreate = false;
+    component.editor.status = 'Open';
+    expect(component.canMutateRecords).toBeTrue();
+    expect(component.recordValueControlsDisabled).toBeFalse();
+
+    component.editor.status = 'Planed';
+    expect(component.canMutateRecords).toBeFalse();
+    expect(component.recordValueControlsDisabled).toBeFalse();
+    expect(component.recordMutationLockHint).toContain('Kế hoạch');
+
+    component.editor.status = 'Done';
+    expect(component.canMutateRecords).toBeFalse();
+    expect(component.recordValueControlsDisabled).toBeTrue();
   });
 
 });

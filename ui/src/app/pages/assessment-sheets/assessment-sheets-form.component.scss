@@ -47,12 +47,13 @@
 .grade-select-box {
   display: block; width: 100%; color: inherit;
 }
-.note-cell textarea { width: 100%; border: 1px solid transparent; background: #ffffffc7; color: #111827; font: inherit; }
-.note-cell textarea { min-height: 28px; padding: 4px 8px; resize: vertical; }
-.note-cell textarea:focus { border-color: #2f80ed; background: #fff; outline: none; box-shadow: 0 0 0 2px #2f80ed26; }
-.grade-select-shell.disabled, .note-cell textarea:disabled { opacity: .65; cursor: not-allowed; }
+.record-note-textarea { display: block; width: 100%; }
+.grade-select-shell.disabled, :host ::ng-deep .record-note-textarea.dx-state-disabled { opacity: .65; cursor: not-allowed; }
 :host ::ng-deep .grade-select-box.dx-texteditor, :host ::ng-deep .grade-select-box .dx-texteditor { color: inherit; }
 :host ::ng-deep .grade-select-box .dx-texteditor-input { color: inherit; text-align: center; }
+:host ::ng-deep .record-note-textarea.dx-texteditor { border: 1px solid transparent; background: #ffffffc7; color: #111827; font: inherit; }
+:host ::ng-deep .record-note-textarea .dx-texteditor-input { min-height: 28px; padding: 4px 8px; color: #111827; font: inherit; resize: vertical; }
+:host ::ng-deep .record-note-textarea.dx-state-focused { border-color: #2f80ed; background: #fff; outline: none; box-shadow: 0 0 0 2px #2f80ed26; }
 .grade-select-box-item {
   display: flex;
   justify-content: center;

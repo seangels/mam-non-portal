@@ -1,8 +1,10 @@
 # Frontend role memory
 
-Last updated: 2026-08-25
+Last updated: 2026-08-26
 
 ## Resume here
+
+- 2026-08-26: Implemented AssessmentSheet edit rule cleanup (`ASH-FE-10`) and left the task status `[~]` only because manual browser smoke has not been run. `records-panel` now uses DevExtreme `dxTextArea` for each record `FinalNote` with compact one-row height, Vietnamese placeholder, 2,000-character limit, and no new template object literal editor options. Record structure mutations are centralized through `canMutateAssessmentSheetRecords`: `Open` allows add/remove, `Planed` and `Done` lock add/remove immediately based on the currently selected form `editor.status` even before save. Record value editing is centralized through `canEditAssessmentSheetRecordValues`: `Open` and `Planed` allow `FinalGrade`/`FinalNote`; `Done` locks them as before. Responsible Teacher form behavior was not changed. Verification: sandbox npm still hits `EPERM lstat C:\Users\sangn`; outside sandbox `npm --prefix ui run test:ci` passed 109/109 and `npm --prefix ui run build -- --configuration development` passed hash `2cdd3e9076b4c5566eb0` with known DevExtreme/CommonJS warnings. No backend/REST contract change, auth/routing/environment change, production/IIS build, or deploy.
 
 - 2026-08-25: Switched DevExtreme ThemeBuilder metadata to Generic Light Compact for the base theme and Generic Dark Moon Compact for the additional navigation/sidebar swatch. Affected files are `ui/src/themes/metadata.base.json`, `ui/src/themes/metadata.additional.json`, and regenerated `ui/src/themes/generated/theme.base.css`, `theme.additional.css`, `variables.base.scss`, `variables.additional.scss` via `npm --prefix ui run build-themes` using DevExtreme ThemeBuilder 19.2.5. No Angular source, API/REST contract, auth/routing/environment, production/IIS build or deploy change. Sandbox npm still hits `EPERM lstat C:\Users\sangn`; the theme build, development build and tests were run outside sandbox after approval. Verification: `npm --prefix ui run build-themes` pass; `npm --prefix ui run build -- --configuration development` pass hash `2f6f2812b37c69d8e06b`, initial total 11.97 MB, with known DevExtreme/CommonJS warnings; `npm --prefix ui run test:ci` pass 106/106 in Chrome Headless 151; `git diff --check -- ui` pass with Git line-ending warnings only.
 

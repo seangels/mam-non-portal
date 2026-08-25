@@ -108,6 +108,14 @@ export function buildUpdateAssessmentSheetRequest(editor: AssessmentSheetEditor)
   };
 }
 
+export function canMutateAssessmentSheetRecords(status: AssessmentSheetStatus | null | undefined): boolean {
+  return status === 'Open';
+}
+
+export function canEditAssessmentSheetRecordValues(status: AssessmentSheetStatus | null | undefined): boolean {
+  return status === 'Open' || status === 'Planed';
+}
+
 export function buildReplaceAssessmentSheetRecordsRequest(
   currentRecords: AssessmentSheetRecord[],
   assessmentToAdd: Assessment,
@@ -428,6 +436,23 @@ export class AssessmentSheetFormComponent implements OnInit {
     return this.addingRecord || !!this.removingRecordId;
   }
 
+  get canMutateRecords(): boolean {
+    return !this.loading
+      && !this.saving
+      && !this.recordMutationInProgress
+      && canMutateAssessmentSheetRecords(this.editor.status);
+  }
+
+  get recordValueControlsDisabled(): boolean {
+    return this.saving
+      || this.recordMutationInProgress
+      || !canEditAssessmentSheetRecordValues(this.editor.status);
+  }
+
+  get recordMutationLockHint(): string {
+    return this.recordStructureLockedMessage();
+  }
+
   constructor(
     private readonly assessmentSheets: AssessmentSheetsService,
     private readonly assessments: AssessmentsService,
@@ -533,15 +558,15 @@ export class AssessmentSheetFormComponent implements OnInit {
   }
 
   toggleAddAssessmentPicker(): void {
-    if (this.originalStatus === 'Done') {
-      this.formError = 'Bảng đánh giá đã hoàn tất. Vui lòng chuyển trạng thái khỏi Hoàn tất trước khi thêm mục đánh giá.';
+    if (!canMutateAssessmentSheetRecords(this.editor.status)) {
+      this.formError = this.recordStructureLockedMessage();
       return;
     }
     this.showAddAssessmentPicker = !this.showAddAssessmentPicker;
   }
 
   async addAssessmentToSheet(assessment: Assessment): Promise<void> {
-    if (this.recordMutationInProgress || this.saving || this.loading || this.originalStatus === 'Done') {
+    if (!this.canMutateRecords) {
       return;
     }
     const accepted = await confirm(
@@ -582,6 +607,10 @@ export class AssessmentSheetFormComponent implements OnInit {
   }
 
   removeRecordHint(record: AssessmentSheetRecord): string {
+    const lockHint = this.recordStructureLockedMessage();
+    if (lockHint) {
+      return lockHint;
+    }
     if (this.records.length <= 1) {
       return 'Bảng đánh giá cần giữ ít nhất một mục đánh giá';
     }
@@ -589,7 +618,7 @@ export class AssessmentSheetFormComponent implements OnInit {
   }
 
   async removeAssessmentRecord(record: AssessmentSheetRecord): Promise<void> {
-    if (this.recordMutationInProgress || this.saving || this.loading || this.originalStatus === 'Done') {
+    if (!this.canMutateRecords) {
       return;
     }
     if (this.records.length <= 1) {
@@ -636,8 +665,18 @@ export class AssessmentSheetFormComponent implements OnInit {
     record.finalGrade = value ?? null;
   }
 
-  updateRecordFinalNote(record: AssessmentSheetRecord, value: string): void {
-    record.finalNote = value;
+  updateRecordFinalNote(record: AssessmentSheetRecord, value: string | null): void {
+    record.finalNote = value ?? '';
+  }
+
+  private recordStructureLockedMessage(): string {
+    if (this.editor.status === 'Planed') {
+      return 'Bảng đánh giá đang ở trạng thái Kế hoạch nên không thể thêm hoặc xóa mục đánh giá.';
+    }
+    if (this.editor.status === 'Done') {
+      return 'Bảng đánh giá đã hoàn tất. Vui lòng chuyển trạng thái khỏi Hoàn tất trước khi thêm hoặc xóa mục đánh giá.';
+    }
+    return '';
   }
 
   private async loadAssessmentCache(): Promise<Assessment[]> {
