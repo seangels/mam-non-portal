@@ -14,12 +14,30 @@
 .records-heading span { color: #667085; }
 .records-heading-actions { display: flex; align-items: center; gap: 10px; }
 .empty-records { padding: 14px; border: 1px dashed #c8d0dc; border-radius: 8px; color: #667085; text-align: center; }
-.records-list { display: grid; gap: 10px; }
-.record-card { display: flex; justify-content: space-between; gap: 14px; padding: 12px 14px; border: 1px solid #e3e8ef; border-radius: 8px; background: #fff; }
-.record-main { display: flex; flex-direction: column; gap: 4px; }
-.record-main small, .record-grades { color: #667085; }
-.record-grades { display: flex; flex-direction: column; gap: 4px; min-width: 150px; text-align: right; }
-.record-actions { display: flex; align-items: flex-start; justify-content: flex-end; }
+.records-table-wrapper { overflow: auto; border: 1px solid #1f2937; border-radius: 2px; background: #fff; }
+.records-table { width: 100%; min-width: 940px; border-collapse: collapse; font-size: 14px; }
+.records-table th, .records-table td { border: 1px dotted #1f2937; vertical-align: middle; }
+.records-table th { position: sticky; top: 0; z-index: 2; padding: 7px 8px; background: #fff; color: #111827; font-weight: 700; text-align: center; }
+.records-table td { padding: 4px 6px; }
+.action-column { width: 42px; }
+.group-lv2-column { width: 94px; }
+.group-lv3-column { width: 118px; }
+.number-column { width: 48px; }
+.grade-column { width: 174px; }
+.note-column { width: 220px; }
+.action-cell, .number-cell, .grade-cell { text-align: center; }
+.action-cell { background: #ffffff80; }
+.group-cell { padding: 8px 4px; color: #111827; font-weight: 700; text-align: center; }
+.group-cell span { display: inline-block; max-height: 180px; line-height: 1.25; writing-mode: vertical-rl; transform: rotate(180deg); letter-spacing: .03em; }
+.group-lv2-cell { text-transform: uppercase; }
+.content-cell { min-width: 330px; }
+.content-cell strong { display: block; font-weight: 500; }
+.content-cell small { display: block; margin-top: 3px; color: #667085; }
+.grade-select, .note-cell textarea { width: 100%; border: 1px solid transparent; background: #ffffffc7; color: #111827; font: inherit; }
+.grade-select { min-height: 28px; padding: 3px 28px 3px 10px; border-radius: 999px; }
+.note-cell textarea { min-height: 44px; padding: 6px 8px; resize: vertical; }
+.grade-select:focus, .note-cell textarea:focus { border-color: #2f80ed; background: #fff; outline: none; box-shadow: 0 0 0 2px #2f80ed26; }
+.grade-select:disabled, .note-cell textarea:disabled { opacity: .65; cursor: not-allowed; }
 .form-actions { position: sticky; z-index: 5; bottom: 12px; display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-top: 16px; padding: 12px 16px; border: 1px solid #d0d5dd; border-radius: 9px; background: #fff; box-shadow: 0 5px 20px #1018282e; }
 .form-action-buttons { display: flex; justify-content: flex-end; gap: 10px; margin-left: auto; }
 .action-summary { display: flex; flex-direction: column; color: #344054; }
@@ -32,9 +50,7 @@
   .page-toolbar { align-items: stretch; flex-direction: column; }
   .assessment-sheets-form { padding: 16px; }
   .snapshot-panel { grid-template-columns: 1fr; }
-  .record-card { flex-direction: column; }
-  .record-grades { min-width: 0; text-align: left; }
-  .record-actions { justify-content: flex-start; }
+  .records-table-wrapper { margin-right: -8px; margin-left: -8px; border-right: 0; border-left: 0; border-radius: 0; }
   .form-error, .form-actions { align-items: stretch; flex-direction: column; }
   .form-actions { position: fixed; right: 8px; bottom: 8px; left: 8px; margin: 0; padding: 12px 16px; }
   .form-action-buttons { flex-direction: column; margin-left: 0; }

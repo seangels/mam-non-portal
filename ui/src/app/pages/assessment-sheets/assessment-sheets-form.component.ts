@@ -26,9 +26,18 @@ import { AuthStateService } from '../../core/services/auth-state.service';
 import { StudentsService } from '../../core/services/students.service';
 import { TeachersService } from '../../core/services/teachers.service';
 import { toDateOnly } from '../../core/utils/date-only';
+import { normalizeVietnamese } from '../../core/utils/vietnamese-search';
 import { AssessmentPickerComponent } from './assessment-picker.component';
 
 const ASSESSMENT_CACHE_PAGE_SIZE = 100;
+const UNGROUPED_LABEL = 'Chưa phân nhóm';
+const GROUP_LV2_COLORS: Record<string, string> = {
+  'tien tieu hoc': '#DCC1CF',
+  'ca nhan va xa hoi': '#D0E0E3',
+  'phat trien ngon ngu': '#C9DAF8',
+  'phat trien nhan thuc': '#C7B7D2',
+  'phat trien the chat': '#C9DAF8'
+};
 
 export interface AssessmentSheetEditor {
   studentId: string;
@@ -45,6 +54,18 @@ export interface AssessmentSheetCreateRecordSeed {
   id: string;
   latestGrade?: string | null;
   latestNote?: string | null;
+}
+
+export interface AssessmentSheetRecordTableRow {
+  record: AssessmentSheetRecord;
+  groupLv2Name: string;
+  groupLv3Name: string;
+  groupColor: string;
+  showGroupLv2: boolean;
+  showGroupLv3: boolean;
+  groupLv2RowSpan: number;
+  groupLv3RowSpan: number;
+  rowNumber: number;
 }
 
 export function buildCreateAssessmentSheetRequest(
@@ -166,6 +187,62 @@ export function buildRemoveAssessmentSheetRecordRequest(
   return { records };
 }
 
+export function buildSaveAssessmentSheetRecordsRequest(
+  currentRecords: AssessmentSheetRecord[],
+  availableAssessments: Assessment[]
+): ReplaceAssessmentSheetRecordsRequest {
+  const assessmentByCode = buildAssessmentByCode(availableAssessments);
+  const records: AssessmentSheetRecordRequest[] = currentRecords.map(record => buildRecordRequestFromRecord(
+    record,
+    assessmentByCode,
+    'lưu'
+  ));
+
+  return { records };
+}
+
+export function assessmentGroupLv2Color(groupLv2Name: string | null | undefined): string {
+  const key = normalizeVietnamese(groupLv2Name ?? '');
+  return GROUP_LV2_COLORS[key] ?? '#FFFFFF';
+}
+
+export function buildAssessmentSheetRecordRows(records: AssessmentSheetRecord[]): AssessmentSheetRecordTableRow[] {
+  const rows = records.map(record => ({
+    record,
+    groupLv2Name: normalizeGroupName(record.assessment.groupLv2Name),
+    groupLv3Name: normalizeGroupName(record.assessment.groupLv3Name),
+    groupColor: assessmentGroupLv2Color(record.assessment.groupLv2Name),
+    showGroupLv2: false,
+    showGroupLv3: false,
+    groupLv2RowSpan: 1,
+    groupLv3RowSpan: 1,
+    rowNumber: 1
+  }));
+
+  let groupLv3Counter = 0;
+  rows.forEach((row, index) => {
+    const previous = rows[index - 1];
+    const startsLv2Group = !previous || previous.groupLv2Name !== row.groupLv2Name;
+    const startsLv3Group = startsLv2Group || previous.groupLv3Name !== row.groupLv3Name;
+
+    row.showGroupLv2 = startsLv2Group;
+    row.showGroupLv3 = startsLv3Group;
+    groupLv3Counter = startsLv3Group ? 1 : groupLv3Counter + 1;
+    row.rowNumber = groupLv3Counter;
+
+    if (startsLv2Group) {
+      row.groupLv2RowSpan = countFollowingRows(rows, index, current => current.groupLv2Name === row.groupLv2Name);
+    }
+    if (startsLv3Group) {
+      row.groupLv3RowSpan = countFollowingRows(rows, index, current =>
+        current.groupLv2Name === row.groupLv2Name && current.groupLv3Name === row.groupLv3Name
+      );
+    }
+  });
+
+  return rows;
+}
+
 @Component({
   selector: 'app-assessment-sheets-form',
   templateUrl: './assessment-sheets-form.component.html',
@@ -216,6 +293,7 @@ export class AssessmentSheetFormComponent implements OnInit {
   studentSummary = '';
   responsibleTeacherSummary = '';
   records: AssessmentSheetRecord[] = [];
+  recordRows: AssessmentSheetRecordTableRow[] = [];
   existingAssessmentCodes: string[] = [];
   showAddAssessmentPicker = false;
   loading = false;
@@ -277,6 +355,7 @@ export class AssessmentSheetFormComponent implements OnInit {
     autoResizeEnabled: true,
     valueChangeEvent: 'input'
   };
+  readonly standaloneNgModelOptions = { standalone: true };
 
   get title(): string {
     return this.isCreate ? 'Tạo' : 'Chỉnh sửa';
@@ -515,6 +594,14 @@ export class AssessmentSheetFormComponent implements OnInit {
     }
   }
 
+  updateRecordFinalGrade(record: AssessmentSheetRecord, value: AssessmentGrade | null): void {
+    record.finalGrade = value ?? null;
+  }
+
+  updateRecordFinalNote(record: AssessmentSheetRecord, value: string): void {
+    record.finalNote = value;
+  }
+
   private async loadAssessmentCache(): Promise<Assessment[]> {
     const pickerCache = this.assessmentPicker?.getCachedAssessments() ?? [];
     if (pickerCache.length > 0) {
@@ -556,6 +643,7 @@ export class AssessmentSheetFormComponent implements OnInit {
 
   private async saveExisting(): Promise<AssessmentSheetDetail> {
     let saved: AssessmentSheetDetail;
+    const shouldReplaceRecords = this.recordsDirty();
     if (this.originalStatus === 'Done' && this.editor.status !== 'Done') {
       saved = await firstValueFrom(this.assessmentSheets.updateStatus(this.assessmentSheetId, { status: this.editor.status }));
       this.originalStatus = saved.status;
@@ -565,6 +653,14 @@ export class AssessmentSheetFormComponent implements OnInit {
       this.assessmentSheetId,
       buildUpdateAssessmentSheetRequest(this.editor)
     ));
+
+    if (shouldReplaceRecords) {
+      const availableAssessments = await this.loadAssessmentCache();
+      saved = await firstValueFrom(this.assessmentSheets.replaceRecords(
+        this.assessmentSheetId,
+        buildSaveAssessmentSheetRecordsRequest(this.records, availableAssessments)
+      ));
+    }
 
     if (saved.status !== this.editor.status) {
       saved = await firstValueFrom(this.assessmentSheets.updateStatus(this.assessmentSheetId, { status: this.editor.status }));
@@ -602,6 +698,7 @@ export class AssessmentSheetFormComponent implements OnInit {
     this.studentSummary = this.buildStudentSummary(sheet);
     this.responsibleTeacherSummary = sheet.responsibleTeacherFullName ?? 'Chưa chọn giáo viên phụ trách';
     this.records = sheet.records ?? [];
+    this.recordRows = buildAssessmentSheetRecordRows(this.records);
     this.existingAssessmentCodes = this.records
       .map(record => record.assessment.code)
       .filter(Boolean);
@@ -643,8 +740,25 @@ export class AssessmentSheetFormComponent implements OnInit {
       status: editor.status,
       note: editor.note,
       feedback: editor.feedback,
-      assessmentIds: this.isCreate ? Array.from(new Set(editor.assessmentIds.filter(Boolean))).sort() : []
+      assessmentIds: this.isCreate ? Array.from(new Set(editor.assessmentIds.filter(Boolean))).sort() : [],
+      records: this.isCreate ? [] : this.serializeRecords(this.records)
     });
+  }
+
+  private recordsDirty(): boolean {
+    const parsedBaseline = JSON.parse(this.baseline) as { records?: unknown };
+    return JSON.stringify(parsedBaseline.records ?? []) !== JSON.stringify(this.serializeRecords(this.records));
+  }
+
+  private serializeRecords(records: AssessmentSheetRecord[]): unknown[] {
+    return records.map(record => ({
+      id: record.id,
+      code: record.assessment.code,
+      planGrade: record.planGrade ?? null,
+      planNote: record.planNote ?? null,
+      finalGrade: record.finalGrade ?? null,
+      finalNote: record.finalNote ?? ''
+    }));
   }
 
   gradeText(value: string | null | undefined): string {
@@ -687,4 +801,50 @@ function normalizeAssessmentGrade(value: string | null | undefined): AssessmentG
 function normalizeCode(value: string | null | undefined): string | null {
   const code = value?.trim().toLocaleLowerCase('vi');
   return code || null;
+}
+
+function buildAssessmentByCode(availableAssessments: Assessment[]): Map<string, Assessment> {
+  return new Map(
+    availableAssessments
+      .map(assessment => [normalizeCode(assessment.code), assessment] as const)
+      .filter((entry): entry is readonly [string, Assessment] => !!entry[0])
+  );
+}
+
+function buildRecordRequestFromRecord(
+  record: AssessmentSheetRecord,
+  assessmentByCode: Map<string, Assessment>,
+  action: 'thêm' | 'xóa' | 'lưu'
+): AssessmentSheetRecordRequest {
+  const code = normalizeCode(record.assessment.code);
+  const assessment = code ? assessmentByCode.get(code) : null;
+  if (!assessment) {
+    throw new Error(`Không thể xác định assessmentId cho mục ${record.assessment.code || record.assessment.name}. Vui lòng đồng bộ/tải lại danh sách mục đánh giá trước khi ${action}.`);
+  }
+  return {
+    assessmentId: assessment.id,
+    planGrade: record.planGrade ?? null,
+    planNote: record.planNote ?? null,
+    finalGrade: record.finalGrade ?? null,
+    finalNote: record.finalNote ?? null
+  };
+}
+
+function normalizeGroupName(value: string | null | undefined): string {
+  return value?.trim() || UNGROUPED_LABEL;
+}
+
+function countFollowingRows(
+  rows: AssessmentSheetRecordTableRow[],
+  startIndex: number,
+  predicate: (row: AssessmentSheetRecordTableRow) => boolean
+): number {
+  let count = 0;
+  for (let index = startIndex; index < rows.length; index += 1) {
+    if (!predicate(rows[index])) {
+      break;
+    }
+    count += 1;
+  }
+  return count;
 }

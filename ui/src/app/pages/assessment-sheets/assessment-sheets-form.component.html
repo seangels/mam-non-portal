@@ -95,27 +95,70 @@
 
       <div *ngIf="!hasRecords" class="empty-records">Chưa có mục đánh giá trong kế hoạch này.</div>
 
-      <div *ngIf="hasRecords" class="records-list">
-        <article *ngFor="let record of records" class="record-card">
-          <div class="record-main">
-            <strong>{{ record.assessment.code }} · {{ record.assessment.name }}</strong>
-            <small>{{ recordGroupText(record) }}</small>
-          </div>
-          <div class="record-grades" aria-label="Kết quả đánh giá">
-            <span>Kế hoạch: {{ gradeText(record.planGrade) }}</span>
-            <span>Kết quả: {{ gradeText(record.finalGrade) }}</span>
-          </div>
-          <div class="record-actions">
-            <dx-button
-              icon="trash"
-              stylingMode="text"
-              type="danger"
-              [disabled]="saving || recordMutationInProgress || originalStatus === 'Done' || records.length <= 1"
-              [hint]="removeRecordHint(record)"
-              (onClick)="removeAssessmentRecord(record)">
-            </dx-button>
-          </div>
-        </article>
+      <div *ngIf="hasRecords" class="records-table-wrapper">
+        <table class="records-table">
+          <thead>
+            <tr>
+              <th class="action-column" scope="col" aria-label="Thao tác"></th>
+              <th class="group-lv2-column" scope="col">Nhóm lớn</th>
+              <th class="group-lv3-column" scope="col">Nhóm nhỏ</th>
+              <th class="number-column" scope="col">STT</th>
+              <th scope="col">Nội dung đánh giá</th>
+              <th class="grade-column" scope="col">Kết quả hiện tại</th>
+              <th class="note-column" scope="col">Ghi chú</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let row of recordRows" [style.backgroundColor]="row.groupColor">
+              <td class="action-cell">
+                <dx-button
+                  icon="trash"
+                  stylingMode="text"
+                  type="danger"
+                  [disabled]="saving || recordMutationInProgress || originalStatus === 'Done' || records.length <= 1"
+                  [hint]="removeRecordHint(row.record)"
+                  (onClick)="removeAssessmentRecord(row.record)">
+                </dx-button>
+              </td>
+              <td *ngIf="row.showGroupLv2" class="group-cell group-lv2-cell"
+                [attr.rowspan]="row.groupLv2RowSpan">
+                <span>{{ row.groupLv2Name }}</span>
+              </td>
+              <td *ngIf="row.showGroupLv3" class="group-cell group-lv3-cell"
+                [attr.rowspan]="row.groupLv3RowSpan">
+                <span>{{ row.groupLv3Name }}</span>
+              </td>
+              <td class="number-cell">{{ row.rowNumber }}</td>
+              <td class="content-cell">
+                <strong>{{ row.record.assessment.code }}. {{ row.record.assessment.name }}</strong>
+                <small>Kế hoạch: {{ gradeText(row.record.planGrade) }}</small>
+              </td>
+              <td class="grade-cell">
+                <select
+                  class="grade-select"
+                  [disabled]="saving || recordMutationInProgress || originalStatus === 'Done'"
+                  [ngModel]="row.record.finalGrade ?? null"
+                  [ngModelOptions]="standaloneNgModelOptions"
+                  (ngModelChange)="updateRecordFinalGrade(row.record, $event)"
+                  [attr.aria-label]="'Kết quả hiện tại của ' + row.record.assessment.code">
+                  <option [ngValue]="null">Chưa có</option>
+                  <option *ngFor="let grade of grades" [ngValue]="grade.value">{{ grade.text }}</option>
+                </select>
+              </td>
+              <td class="note-cell">
+                <textarea
+                  rows="2"
+                  maxlength="2000"
+                  [disabled]="saving || recordMutationInProgress || originalStatus === 'Done'"
+                  [ngModel]="row.record.finalNote || ''"
+                  [ngModelOptions]="standaloneNgModelOptions"
+                  (ngModelChange)="updateRecordFinalNote(row.record, $event)"
+                  [attr.aria-label]="'Ghi chú của ' + row.record.assessment.code"
+                  placeholder="Ghi chú"></textarea>
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </section>
 

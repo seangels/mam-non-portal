@@ -3,9 +3,12 @@ import { AssessmentPickerComponent } from './assessment-picker.component';
 import {
   AssessmentSheetFormComponent,
   AssessmentSheetEditor,
+  assessmentGroupLv2Color,
+  buildAssessmentSheetRecordRows,
   buildCreateAssessmentSheetRequest,
   buildRemoveAssessmentSheetRecordRequest,
   buildReplaceAssessmentSheetRecordsRequest,
+  buildSaveAssessmentSheetRecordsRequest,
   buildUpdateAssessmentSheetRequest
 } from './assessment-sheets-form.component';
 
@@ -167,6 +170,108 @@ describe('Assessment sheet form request mapping', () => {
     ], recordToRemove, [
       { id: 'assessment-1', code: 'A01' } as any
     ])).toThrowError(/ít nhất một mục/);
+  });
+
+  it('builds save-records request for edited current results', () => {
+    const request = buildSaveAssessmentSheetRecordsRequest([
+      {
+        id: 'record-1',
+        assessment: { code: 'A01', name: 'Ngôn ngữ' },
+        planGrade: 'B',
+        planNote: 'Kế hoạch',
+        finalGrade: 'A',
+        finalNote: 'Đã đạt'
+      } as any
+    ], [
+      { id: 'assessment-1', code: 'A01' } as any
+    ]);
+
+    expect(request).toEqual({
+      records: [
+        {
+          assessmentId: 'assessment-1',
+          planGrade: 'B',
+          planNote: 'Kế hoạch',
+          finalGrade: 'A',
+          finalNote: 'Đã đạt'
+        }
+      ]
+    });
+  });
+});
+
+describe('Assessment sheet records table layout', () => {
+  const record = (id: string, groupLv2Name: string, groupLv3Name: string, rowIndex: number) => ({
+    id,
+    assessment: {
+      code: `A${rowIndex}`,
+      name: `Mục ${rowIndex}`,
+      groupLv2Name,
+      groupLv3Name,
+      rowIndex
+    }
+  } as any);
+
+  it('maps fixed groupLv2 colors with Vietnamese-insensitive names', () => {
+    expect(assessmentGroupLv2Color(' Tiền tiểu học ')).toBe('#DCC1CF');
+    expect(assessmentGroupLv2Color('PHAT TRIEN THE CHAT')).toBe('#C9DAF8');
+    expect(assessmentGroupLv2Color('Nhóm khác')).toBe('#FFFFFF');
+  });
+
+  it('builds grouped table rows with rowspans and row numbers per groupLv3', () => {
+    const rows = buildAssessmentSheetRecordRows([
+      record('record-1', 'Phát triển thể chất', 'Vận động thô', 1),
+      record('record-2', 'Phát triển thể chất', 'Vận động thô', 2),
+      record('record-3', 'Phát triển thể chất', 'Vận động tinh', 3),
+      record('record-4', 'Phát triển nhận thức', 'Làm quen toán', 4)
+    ]);
+
+    expect(rows.map(row => ({
+      id: row.record.id,
+      showGroupLv2: row.showGroupLv2,
+      groupLv2RowSpan: row.groupLv2RowSpan,
+      showGroupLv3: row.showGroupLv3,
+      groupLv3RowSpan: row.groupLv3RowSpan,
+      rowNumber: row.rowNumber,
+      groupColor: row.groupColor
+    }))).toEqual([
+      {
+        id: 'record-1',
+        showGroupLv2: true,
+        groupLv2RowSpan: 3,
+        showGroupLv3: true,
+        groupLv3RowSpan: 2,
+        rowNumber: 1,
+        groupColor: '#C9DAF8'
+      },
+      {
+        id: 'record-2',
+        showGroupLv2: false,
+        groupLv2RowSpan: 1,
+        showGroupLv3: false,
+        groupLv3RowSpan: 1,
+        rowNumber: 2,
+        groupColor: '#C9DAF8'
+      },
+      {
+        id: 'record-3',
+        showGroupLv2: false,
+        groupLv2RowSpan: 1,
+        showGroupLv3: true,
+        groupLv3RowSpan: 1,
+        rowNumber: 1,
+        groupColor: '#C9DAF8'
+      },
+      {
+        id: 'record-4',
+        showGroupLv2: true,
+        groupLv2RowSpan: 1,
+        showGroupLv3: true,
+        groupLv3RowSpan: 1,
+        rowNumber: 1,
+        groupColor: '#C7B7D2'
+      }
+    ]);
   });
 });
 
