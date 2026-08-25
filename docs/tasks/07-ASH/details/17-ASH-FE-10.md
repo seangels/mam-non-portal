@@ -6,15 +6,16 @@ Chuẩn hóa hành vi chỉnh sửa trên màn edit AssessmentSheet theo trạng
 
 ## Tóm tắt ngắn
 
-1. ⬜ `Planed` chỉ khóa:
+1. ⬜ Ghi chú mỗi dòng trong `records-panel` đổi từ native `<textarea>` sang DevExtreme `dxTextArea`.
+2. ⬜ `Planed` chỉ khóa:
    - ⬜ Thêm Assessment Record.
    - ⬜ Xóa Assessment Record.
-2. ⬜ `Planed` vẫn cho:
+3. ⬜ `Planed` vẫn cho:
    - ⬜ Nhập/sửa `FinalGrade`.
    - ⬜ Nhập/sửa `FinalNote`.
    - ⬜ Đổi giáo viên phụ trách nếu form/user role hiện tại có quyền.
-3. ⬜ `Done` giữ khóa như hiện tại.
-4. ⬜ Vẫn là UI-only, không đổi BE/REST contract.
+4. ⬜ `Done` giữ khóa như hiện tại.
+5. ⬜ Vẫn là UI-only, không đổi BE/REST contract.
 
 ## Phạm vi
 
