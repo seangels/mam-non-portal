@@ -367,9 +367,6 @@ export class AssessmentPickerComponent implements OnChanges, OnInit, OnDestroy {
 
   private refreshSelectedSet(): void {
     this.selectedIdSet = new Set(this.normalizeSelectedIds(this.selectedIds));
-    if (this.viewMode === 'selected') {
-      this.applyFilters();
-    }
     this.grid?.instance.repaint();
   }
 
@@ -378,9 +375,6 @@ export class AssessmentPickerComponent implements OnChanges, OnInit, OnDestroy {
     this.selectedIds = selectedIds;
     this.selectedIdSet = selectedIdSet;
     this.selectedIdsChange.emit(selectedIds);
-    if (this.viewMode === 'selected') {
-      this.applyFilters();
-    }
     this.grid?.instance.repaint();
   }
 

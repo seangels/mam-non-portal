@@ -261,7 +261,7 @@ describe('Assessment picker filter and selection', () => {
     expect(component.groupLv3DataSource.map(group => group.name)).toEqual(['Chủ đề 2']);
   });
 
-  it('filters the client cache to selected assessments only', () => {
+  it('keeps the current selected-only view stable when rows are unchecked', () => {
     const { component, assessments } = createPicker();
     component.allAssessments = [
       assessment({ id: 'assessment-1', code: 'NN01' }),
@@ -277,8 +277,13 @@ describe('Assessment picker filter and selection', () => {
 
     component.onSelectCheckboxChanged('assessment-2', { value: false, event: {} });
 
-    expect(component.filteredAssessments).toEqual([]);
+    expect(component.filteredAssessments.map(item => item.id)).toEqual(['assessment-2']);
+    expect(component.isSelected('assessment-2')).toBeFalse();
     expect(assessments.list).not.toHaveBeenCalled();
+
+    component.onViewModeChanged();
+
+    expect(component.filteredAssessments).toEqual([]);
   });
 
   it('retries loading the client cache from the server', async () => {
