@@ -14,6 +14,8 @@ import {
   AssessmentSheetRecord,
   AssessmentSheetStatus,
   ASSESSMENT_GRADE_OPTIONS,
+  ASSESSMENT_GROUP_LV2_COLORS,
+  ASSESSMENT_GROUP_LV2_DISPLAY_ORDER,
   ASSESSMENT_SHEET_STATUS_OPTIONS,
   CreateAssessmentSheetRequest,
   AssessmentSheetRecordRequest,
@@ -31,13 +33,12 @@ import { AssessmentPickerComponent } from './assessment-picker.component';
 
 const ASSESSMENT_CACHE_PAGE_SIZE = 100;
 const UNGROUPED_LABEL = 'Chưa phân nhóm';
-const GROUP_LV2_COLORS: Record<string, string> = {
-  'tien tieu hoc': '#DCC1CF',
-  'ca nhan va xa hoi': '#D0E0E3',
-  'phat trien ngon ngu': '#C9DAF8',
-  'phat trien nhan thuc': '#C7B7D2',
-  'phat trien the chat': '#C9DAF8'
-};
+const GROUP_LV2_COLORS = new Map(
+  Object.entries(ASSESSMENT_GROUP_LV2_COLORS).map(([name, color]) => [normalizeVietnamese(name), color] as const)
+);
+const GROUP_LV2_DISPLAY_ORDER_INDEX = new Map(
+  ASSESSMENT_GROUP_LV2_DISPLAY_ORDER.map((name, index) => [normalizeVietnamese(name), index] as const)
+);
 
 export interface AssessmentSheetEditor {
   studentId: string;
@@ -203,21 +204,30 @@ export function buildSaveAssessmentSheetRecordsRequest(
 
 export function assessmentGroupLv2Color(groupLv2Name: string | null | undefined): string {
   const key = normalizeVietnamese(groupLv2Name ?? '');
-  return GROUP_LV2_COLORS[key] ?? '#FFFFFF';
+  return GROUP_LV2_COLORS.get(key) ?? '#FFFFFF';
 }
 
 export function buildAssessmentSheetRecordRows(records: AssessmentSheetRecord[]): AssessmentSheetRecordTableRow[] {
-  const rows = records.map(record => ({
-    record,
-    groupLv2Name: normalizeGroupName(record.assessment.groupLv2Name),
-    groupLv3Name: normalizeGroupName(record.assessment.groupLv3Name),
-    groupColor: assessmentGroupLv2Color(record.assessment.groupLv2Name),
-    showGroupLv2: false,
-    showGroupLv3: false,
-    groupLv2RowSpan: 1,
-    groupLv3RowSpan: 1,
-    rowNumber: 1
-  }));
+  const rows = records
+    .map((record, originalIndex) => ({
+      row: {
+        record,
+        groupLv2Name: normalizeGroupName(record.assessment.groupLv2Name),
+        groupLv3Name: normalizeGroupName(record.assessment.groupLv3Name),
+        groupColor: assessmentGroupLv2Color(record.assessment.groupLv2Name),
+        showGroupLv2: false,
+        showGroupLv3: false,
+        groupLv2RowSpan: 1,
+        groupLv3RowSpan: 1,
+        rowNumber: 1
+      },
+      originalIndex
+    }))
+    .sort((left, right) => {
+      const orderDelta = groupLv2DisplayOrder(left.row.groupLv2Name) - groupLv2DisplayOrder(right.row.groupLv2Name);
+      return orderDelta || left.originalIndex - right.originalIndex;
+    })
+    .map(item => item.row);
 
   let groupLv3Counter = 0;
   rows.forEach((row, index) => {
@@ -834,6 +844,10 @@ function buildRecordRequestFromRecord(
 
 function normalizeGroupName(value: string | null | undefined): string {
   return value?.trim() || UNGROUPED_LABEL;
+}
+
+function groupLv2DisplayOrder(groupLv2Name: string): number {
+  return GROUP_LV2_DISPLAY_ORDER_INDEX.get(normalizeVietnamese(groupLv2Name)) ?? ASSESSMENT_GROUP_LV2_DISPLAY_ORDER.length;
 }
 
 function countFollowingRows(

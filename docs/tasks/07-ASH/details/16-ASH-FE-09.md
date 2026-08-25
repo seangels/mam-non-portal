@@ -21,6 +21,7 @@ Các điều chỉnh sau feedback tập trung giảm diện tích mỗi hàng: f
 ## Bố cục table cần làm
 
 - ✅ Section `records-panel` hiển thị records bằng table thay cho list card.
+- ✅ Records trong table được sort theo thứ tự `groupLv2` dùng chung từ `core/models/api.models.assessment-sheets`.
 - ✅ Cột chứa nút xóa nằm sau cột `Ghi chú`.
   - ✅ Dùng icon-only trash giống `ASH-FE-08`.
   - ✅ Vẫn dùng confirm trước khi xóa.
@@ -61,6 +62,8 @@ Các màu dưới đây là cố định theo tên nhóm `groupLv2`; không ph�
 | Phát triển thể chất | `#C9DAF8` |
 
 - ✅ Áp màu nền cho toàn bộ dòng hoặc vùng group tương ứng để người dùng nhìn thấy ranh giới nhóm.
+- ✅ Cấu hình màu nằm chung trong `core/models/api.models.assessment-sheets` để các màn khác có thể tái sử dụng.
+- ✅ Cấu hình thứ tự hiển thị `groupLv2` cũng nằm trong `core/models/api.models.assessment-sheets`, theo thứ tự: `Phát triển thể chất`, `Phát triển nhận thức`, `Phát triển ngôn ngữ`, `Cá nhân và xã hội`, `Tiền tiểu học`.
 - ✅ So khớp tên nhóm bằng normalize tiếng Việt: trim, không nhạy hoa/thường và không nhạy dấu.
 - ✅ Nhóm chưa nằm trong danh sách cố định dùng màu mặc định trung tính, không tự sinh màu ngẫu nhiên.
 

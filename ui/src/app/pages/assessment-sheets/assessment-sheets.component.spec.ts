@@ -1,4 +1,8 @@
 import { of } from 'rxjs';
+import {
+  ASSESSMENT_GROUP_LV2_COLORS,
+  ASSESSMENT_GROUP_LV2_DISPLAY_ORDER
+} from '../../core/models/api.models.assessment-sheets';
 import { AssessmentPickerComponent } from './assessment-picker.component';
 import {
   AssessmentSheetFormComponent,
@@ -213,6 +217,8 @@ describe('Assessment sheet records table layout', () => {
   } as any);
 
   it('maps fixed groupLv2 colors with Vietnamese-insensitive names', () => {
+    expect(ASSESSMENT_GROUP_LV2_COLORS['Tiền tiểu học']).toBe('#DCC1CF');
+    expect(ASSESSMENT_GROUP_LV2_COLORS['Cá nhân và xã hội']).toBe('#D0E0E3');
     expect(assessmentGroupLv2Color(' Tiền tiểu học ')).toBe('#DCC1CF');
     expect(assessmentGroupLv2Color('PHAT TRIEN THE CHAT')).toBe('#C9DAF8');
     expect(assessmentGroupLv2Color('Nhóm khác')).toBe('#FFFFFF');
@@ -271,6 +277,31 @@ describe('Assessment sheet records table layout', () => {
         rowNumber: 1,
         groupColor: '#C7B7D2'
       }
+    ]);
+  });
+
+  it('sorts rows by the shared groupLv2 display order before grouping', () => {
+    const rows = buildAssessmentSheetRecordRows([
+      record('record-1', 'Tiền tiểu học', 'Chuẩn bị', 1),
+      record('record-2', 'Phát triển ngôn ngữ', 'Ngôn ngữ', 2),
+      record('record-3', 'Nhóm ngoài cấu hình', 'Khác', 3),
+      record('record-4', 'Phát triển thể chất', 'Vận động', 4),
+      record('record-5', 'Cá nhân và xã hội', 'Xã hội', 5)
+    ]);
+
+    expect(ASSESSMENT_GROUP_LV2_DISPLAY_ORDER).toEqual([
+      'Phát triển thể chất',
+      'Phát triển nhận thức',
+      'Phát triển ngôn ngữ',
+      'Cá nhân và xã hội',
+      'Tiền tiểu học'
+    ]);
+    expect(rows.map(row => row.record.id)).toEqual([
+      'record-4',
+      'record-2',
+      'record-5',
+      'record-1',
+      'record-3'
     ]);
   });
 });

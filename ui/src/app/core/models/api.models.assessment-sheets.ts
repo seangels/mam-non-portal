@@ -16,6 +16,22 @@ export const ASSESSMENT_GRADE_OPTIONS: { value: AssessmentGrade; text: string }[
   { value: 'D', text: 'Hỗ trợ -' }
 ];
 
+export const ASSESSMENT_GROUP_LV2_DISPLAY_ORDER = [
+  'Phát triển thể chất',
+  'Phát triển nhận thức',
+  'Phát triển ngôn ngữ',
+  'Cá nhân và xã hội',
+  'Tiền tiểu học'
+] as const;
+
+export const ASSESSMENT_GROUP_LV2_COLORS: Record<string, string> = {
+  'Tiền tiểu học': '#DCC1CF',
+  'Cá nhân và xã hội': '#D0E0E3',
+  'Phát triển ngôn ngữ': '#C9DAF8',
+  'Phát triển nhận thức': '#C7B7D2',
+  'Phát triển thể chất': '#C9DAF8'
+};
+
 export interface AssessmentSheetListQuery extends ListQuery {
   studentId?: string;
   status?: AssessmentSheetStatus;
