@@ -6,7 +6,7 @@ import { confirm } from 'devextreme/ui/dialog';
 import notify from 'devextreme/ui/notify';
 import { DxFormComponent } from 'devextreme-angular/ui/form';
 import { ApiError } from '../../core/models/api-error';
-import { Assessment, Student, Teacher } from '../../core/models/api.models';
+import { Student, Teacher } from '../../core/models/api.models';
 import { asLegacyWidgetDataSource } from '../../core/models/devextreme-legacy.types';
 import {
   AssessmentSheetDetail,
@@ -18,11 +18,11 @@ import {
   UpdateAssessmentSheetRequest
 } from '../../core/models/api.models.assessment-sheets';
 import { AssessmentSheetsService } from '../../core/services/assessment-sheets.service';
-import { AssessmentsService } from '../../core/services/assessments.service';
 import { AuthStateService } from '../../core/services/auth-state.service';
 import { StudentsService } from '../../core/services/students.service';
 import { TeachersService } from '../../core/services/teachers.service';
 import { toDateOnly } from '../../core/utils/date-only';
+import { AssessmentPickerComponent } from './assessment-picker.component';
 
 export interface AssessmentSheetEditor {
   studentId: string;
@@ -63,6 +63,7 @@ export function buildUpdateAssessmentSheetRequest(editor: AssessmentSheetEditor)
 })
 export class AssessmentSheetFormComponent implements OnInit {
   @ViewChild(DxFormComponent) form?: DxFormComponent;
+  @ViewChild(AssessmentPickerComponent) assessmentPicker?: AssessmentPickerComponent;
 
   readonly statuses = ASSESSMENT_SHEET_STATUS_OPTIONS;
   readonly grades = ASSESSMENT_GRADE_OPTIONS;
@@ -98,22 +99,6 @@ export class AssessmentSheetFormComponent implements OnInit {
         .catch(error => this.rejectPickerLoad(error));
     }
   }));
-  readonly assessmentDataSource = asLegacyWidgetDataSource(new CustomStore({
-    key: 'id',
-    byKey: key => firstValueFrom(this.assessments.get(String(key))),
-    load: options => {
-      const pageSize = Math.min(options.take ?? 100, 100);
-      return firstValueFrom(this.assessments.list({
-        page: Math.floor((options.skip ?? 0) / pageSize) + 1,
-        pageSize,
-        search: typeof options.searchValue === 'string' ? options.searchValue.trim() || undefined : undefined,
-        sortBy: 'rowindex',
-        sortOrder: 'asc'
-      })).then(result => ({ data: result.items, totalCount: result.pagination.totalItems }))
-        .catch(error => this.rejectPickerLoad(error));
-    }
-  }));
-
   isCreate = true;
   assessmentSheetId = '';
   originalStatus: AssessmentSheetStatus = 'Open';
@@ -134,10 +119,6 @@ export class AssessmentSheetFormComponent implements OnInit {
   readonly teacherDisplay = (teacher: Teacher | null): string => teacher
     ? `${teacher.teacherCode} · ${teacher.fullName}`
     : '';
-  readonly assessmentDisplay = (assessment: Assessment | null): string => assessment
-    ? `${assessment.code} · ${assessment.name}`
-    : '';
-
   readonly formColCountByScreen = { xs: 1, sm: 2, md: 4, lg: 6 };
   readonly studentEditorOptions: Record<string, unknown> = {
     dataSource: this.studentDataSource,
@@ -168,21 +149,6 @@ export class AssessmentSheetFormComponent implements OnInit {
     searchEnabled: false,
     readOnly: this.isCreate,
     inputAttr: { 'aria-label': 'Trạng thái' }
-  };
-  readonly assessmentEditorOptions: Record<string, unknown> = {
-    dataSource: this.assessmentDataSource,
-    valueExpr: 'id',
-    displayExpr: this.assessmentDisplay,
-    searchEnabled: true,
-    searchMode: 'contains',
-    showSelectionControls: true,
-    applyValueMode: 'useButtons',
-    placeholder: 'Chọn mục đánh giá',
-    noDataText: 'Không có mục đánh giá phù hợp',
-    selectAllText: 'Chọn tất cả',
-    maxDisplayedTags: 4,
-    showMultiTagOnly: false,
-    inputAttr: { 'aria-label': 'Mục đánh giá' }
   };
   readonly dateEditorOptions: Record<string, unknown> = {
     type: 'date',
@@ -227,7 +193,6 @@ export class AssessmentSheetFormComponent implements OnInit {
 
   constructor(
     private readonly assessmentSheets: AssessmentSheetsService,
-    private readonly assessments: AssessmentsService,
     private readonly auth: AuthStateService,
     private readonly students: StudentsService,
     private readonly teachers: TeachersService,
@@ -281,7 +246,7 @@ export class AssessmentSheetFormComponent implements OnInit {
     }
     if (this.isCreate && buildCreateAssessmentSheetRequest(this.editor).assessmentIds.length === 0) {
       this.formError = 'Vui lòng chọn ít nhất một mục đánh giá.';
-      this.form?.instance.getEditor('assessmentIds')?.focus();
+      this.assessmentPicker?.focus();
       return;
     }
 
@@ -382,6 +347,10 @@ export class AssessmentSheetFormComponent implements OnInit {
       return;
     }
     const field = key.charAt(0).toLowerCase() + key.slice(1);
+    if (field === 'assessmentIds') {
+      this.assessmentPicker?.focus();
+      return;
+    }
     this.form?.instance.getEditor(field)?.focus();
   }
 

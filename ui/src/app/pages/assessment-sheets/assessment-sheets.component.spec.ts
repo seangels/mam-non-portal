@@ -1,3 +1,5 @@
+import { of } from 'rxjs';
+import { AssessmentPickerComponent } from './assessment-picker.component';
 import {
   AssessmentSheetFormComponent,
   AssessmentSheetEditor,
@@ -57,7 +59,6 @@ describe('Assessment sheet form DevExtreme option stability', () => {
   const createComponent = (): AssessmentSheetFormComponent =>
     new AssessmentSheetFormComponent(
       {} as any,
-      {} as any,
       { user: { role: 'Admin' } } as any,
       {} as any,
       {} as any,
@@ -71,7 +72,6 @@ describe('Assessment sheet form DevExtreme option stability', () => {
     expect(component.studentEditorOptions).toBe(component.studentEditorOptions);
     expect(component.teacherEditorOptions).toBe(component.teacherEditorOptions);
     expect(component.statusEditorOptions).toBe(component.statusEditorOptions);
-    expect(component.assessmentEditorOptions).toBe(component.assessmentEditorOptions);
     expect(component.dateEditorOptions).toBe(component.dateEditorOptions);
     expect(component.noteEditorOptions).toBe(component.noteEditorOptions);
     expect(component.formColCountByScreen).toBe(component.formColCountByScreen);
@@ -86,5 +86,68 @@ describe('Assessment sheet form DevExtreme option stability', () => {
     component.isCreate = false;
     component.records = [{ id: 'record-1' } as any, { id: 'record-2' } as any, { id: 'record-3' } as any];
     expect(component.selectedAssessmentCount).toBe(3);
+  });
+
+});
+
+describe('Assessment picker filter and selection', () => {
+  const createPicker = () => {
+    const assessments = {
+      list: jasmine.createSpy('list').and.returnValue(of({
+        items: [],
+        pagination: { page: 1, pageSize: 20, totalItems: 0, totalPages: 0 }
+      })),
+      get: jasmine.createSpy('get').and.returnValue(of({}))
+    };
+    const groups = {
+      list: jasmine.createSpy('list').and.returnValue(of({
+        items: [],
+        pagination: { page: 1, pageSize: 100, totalItems: 0, totalPages: 0 }
+      })),
+      get: jasmine.createSpy('get').and.returnValue(of({}))
+    };
+    const googleSheet = {
+      syncFromGoogleSheets: jasmine.createSpy('syncFromGoogleSheets')
+    };
+
+    return {
+      component: new AssessmentPickerComponent(assessments as any, groups as any, googleSheet as any),
+      assessments
+    };
+  };
+
+  it('updates selected assessment ids from the grid selection', () => {
+    const { component } = createPicker();
+    const emitted: string[][] = [];
+    component.selectedIdsChange.subscribe(value => emitted.push(value));
+
+    component.onSelectionChanged({ selectedRowKeys: ['assessment-1', 2, null, undefined, ''] });
+
+    expect(emitted).toEqual([['assessment-1', '2']]);
+  });
+
+  it('loads assessments with text and group filters like the assessment list', async () => {
+    const { component, assessments } = createPicker();
+    component.search = 'ngôn ngữ';
+    component.groupLv1Name = '3-4 tuổi';
+    component.groupLv2Name = 'Phát triển nhận thức';
+    component.groupLv3Name = 'Toán';
+
+    await (component.dataSource as any).load({
+      skip: 20,
+      take: 20,
+      sort: [{ selector: 'rowIndex', desc: true }]
+    });
+
+    expect(assessments.list).toHaveBeenCalledWith({
+      page: 2,
+      pageSize: 20,
+      search: 'ngôn ngữ',
+      groupLv1Name: '3-4 tuổi',
+      groupLv2Name: 'Phát triển nhận thức',
+      groupLv3Name: 'Toán',
+      sortBy: 'rowindex',
+      sortOrder: 'desc'
+    });
   });
 });

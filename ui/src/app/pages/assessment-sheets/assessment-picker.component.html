@@ -1,0 +1,132 @@
+<section class="assessment-picker" aria-labelledby="assessment-picker-heading">
+  <section class="dx-card filter-card assessment-picker-filter" aria-labelledby="assessment-picker-filter-heading">
+    <button class="filter-toggle" type="button" (click)="filtersExpanded = !filtersExpanded"
+      [attr.aria-expanded]="filtersExpanded" aria-controls="assessment-picker-filters">
+      <span id="assessment-picker-filter-heading">Bộ lọc mục đánh giá</span>
+      <span aria-hidden="true">{{ filtersExpanded ? '−' : '+' }}</span>
+    </button>
+
+    <div *ngIf="filtersExpanded" id="assessment-picker-filters" class="filters assessment-picker-filters">
+      <div class="filter-row inputs-row">
+        <dx-text-box
+          class="search-input"
+          [(value)]="search"
+          valueChangeEvent="input"
+          placeholder="Mã, tên"
+          [showClearButton]="true"
+          [inputAttr]="searchInputAttr"
+          (onValueChanged)="scheduleSearch()"
+          (onEnterKey)="applyFilters()">
+        </dx-text-box>
+
+        <dx-select-box
+          class="lv1-input"
+          [(value)]="groupLv1Name"
+          [dataSource]="groupLv1DataSource"
+          valueExpr="name"
+          [displayExpr]="groupDisplay"
+          [searchEnabled]="true"
+          searchMode="contains"
+          [placeholder]="groupLv1Placeholder"
+          [showClearButton]="true"
+          noDataText="Không có nhóm phù hợp"
+          [inputAttr]="groupLv1InputAttr"
+          (onValueChanged)="onGroupLv1Changed()">
+        </dx-select-box>
+
+        <dx-select-box
+          class="lv2-input"
+          [(value)]="groupLv2Name"
+          [dataSource]="groupLv2DataSource"
+          valueExpr="name"
+          [displayExpr]="groupDisplay"
+          [searchEnabled]="true"
+          searchMode="contains"
+          [placeholder]="groupLv2Placeholder"
+          [showClearButton]="true"
+          noDataText="Không có nhóm phù hợp"
+          [inputAttr]="groupLv2InputAttr"
+          (onValueChanged)="onGroupLv2Changed()">
+        </dx-select-box>
+
+        <dx-select-box
+          class="lv3-input"
+          [(value)]="groupLv3Name"
+          [dataSource]="groupLv3DataSource"
+          valueExpr="name"
+          [displayExpr]="groupDisplay"
+          [searchEnabled]="true"
+          searchMode="contains"
+          [placeholder]="groupLv3Placeholder"
+          [showClearButton]="true"
+          noDataText="Không có nhóm phù hợp"
+          [inputAttr]="groupLv3InputAttr"
+          (onValueChanged)="onGroupLv3Changed()">
+        </dx-select-box>
+      </div>
+
+      <div class="filter-row buttons-row">
+        <dx-button
+          class="sync-btn"
+          stylingMode="outlined"
+          hint="Đồng bộ dữ liệu từ GGSheet"
+          [text]="saveButtonText"
+          icon="save"
+          type="default"
+          [disabled]="saveDisabled"
+          (onClick)="syncAssessmentsFromGGSheet()">
+        </dx-button>
+
+        <dx-button
+          text="Đặt lại"
+          icon="revert"
+          stylingMode="outlined"
+          hint="Xóa toàn bộ bộ lọc"
+          (onClick)="resetFilters()">
+        </dx-button>
+
+        <dx-button
+          text="Ẩn/Hiện cột"
+          icon="column-chooser"
+          stylingMode="outlined"
+          hint="Ẩn/Hiện cột"
+          (onClick)="showDialogColumnChooser()">
+        </dx-button>
+      </div>
+    </div>
+  </section>
+
+  <div *ngIf="loadError" class="picker-error" role="alert">
+    <span>{{ loadError }}</span>
+    <dx-button text="Thử lại" icon="refresh" stylingMode="outlined" (onClick)="retryLoad()"></dx-button>
+  </div>
+
+  <div class="dx-card assessment-picker-grid">
+    <dx-data-grid
+      #grid
+      [dataSource]="dataSource"
+      [remoteOperations]="gridRemoteOperations"
+      [selectedRowKeys]="selectedIds"
+      [showBorders]="true"
+      [columnAutoWidth]="true"
+      [columnHidingEnabled]="true"
+      [wordWrapEnabled]="true"
+      [rowAlternationEnabled]="true"
+      [hoverStateEnabled]="true"
+      noDataText="Không có mục đánh giá phù hợp"
+      (onSelectionChanged)="onSelectionChanged($event)">
+      <dxo-selection mode="multiple" showCheckBoxesMode="always"></dxo-selection>
+      <dxo-load-panel [enabled]="true" text="Đang tải ..."></dxo-load-panel>
+      <dxo-paging [pageSize]="20"></dxo-paging>
+      <dxo-pager [showInfo]="true" [showPageSizeSelector]="true" [allowedPageSizes]="gridPageSizes"></dxo-pager>
+      <dxo-sorting mode="single"></dxo-sorting>
+
+      <dxi-column dataField="groupLv1Name" caption="Nhóm tuổi" [minWidth]="160"></dxi-column>
+      <dxi-column [visible]="false" dataField="groupLv2Name" caption="Nhóm 2" [minWidth]="180"></dxi-column>
+      <dxi-column [visible]="false" dataField="groupLv3Name" caption="Nhóm 3" [minWidth]="220"></dxi-column>
+      <dxi-column dataField="code" caption="Mã" [width]="90"></dxi-column>
+      <dxi-column dataField="name" caption="Nội dung" [minWidth]="320"></dxi-column>
+      <dxi-column dataField="rowIndex" caption="RowIndex" sortOrder="asc" [width]="100"></dxi-column>
+    </dx-data-grid>
+  </div>
+</section>

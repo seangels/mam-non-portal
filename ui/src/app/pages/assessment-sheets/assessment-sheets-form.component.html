@@ -75,11 +75,6 @@
         <dxo-label text="Nhận xét kết quả"></dxo-label>
         <dxi-validation-rule type="stringLength" [max]="2000" message="Nhận xét tối đa 2.000 ký tự"></dxi-validation-rule>
       </dxi-item>
-
-      <dxi-item dataField="assessmentIds" editorType="dxTagBox" [visible]="isCreate" [colSpan]="6"
-        [editorOptions]="assessmentEditorOptions">
-        <dxo-label text="Mục đánh giá *"></dxo-label>
-      </dxi-item>
     </dx-form>
 
     <section *ngIf="!isCreate" class="records-panel" aria-labelledby="assessment-records-heading">
@@ -107,8 +102,9 @@
     <p *ngIf="!isCreate && originalStatus === 'Done'" class="helper-text warning-text">
       Bảng đánh giá đã hoàn tất. Nếu cần sửa thông tin chung, hãy chuyển trạng thái khỏi “Hoàn tất” rồi lưu.
     </p>
-
   </form>
+
+  <app-assessment-picker *ngIf="isCreate" [(selectedIds)]="editor.assessmentIds"></app-assessment-picker>
 
   <div class="form-actions">
     <span class="action-summary" aria-live="polite">
