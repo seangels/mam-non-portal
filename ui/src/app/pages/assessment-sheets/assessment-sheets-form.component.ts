@@ -296,6 +296,7 @@ export class AssessmentSheetFormComponent implements OnInit {
   recordRows: AssessmentSheetRecordTableRow[] = [];
   existingAssessmentCodes: string[] = [];
   showAddAssessmentPicker = false;
+  showPlanColumn = true;
   loading = false;
   saving = false;
   addingRecord = false;

@@ -28,15 +28,18 @@ Thiết kế lại section `records-panel` trên màn edit AssessmentSheet từ 
   2. ✅ Nhóm nhỏ `groupLv3`.
   3. ✅ `STT`.
   4. ✅ `Nội dung đánh giá`.
-  5. ✅ `Kết quả hiện tại`.
-  6. ✅ `Ghi chú`.
-  7. ✅ Thao tác xóa.
+  5. ✅ `Kế hoạch`.
+  6. ✅ `Kết quả hiện tại`.
+  7. ✅ `Ghi chú`.
+  8. ✅ Thao tác xóa.
 - ✅ `groupLv2` và `groupLv3` cần hiển thị dạng nhóm dễ nhìn:
   - ✅ Dùng `rowspan` theo các nhóm liên tiếp để nhìn gần mẫu bảng.
   - ✅ Không cần fallback lặp text vì rowspan build/test đã ổn trên Angular 12.
   - ✅ Chữ nhóm hiển thị ngang bình thường, không xoay dọc để tránh tốn diện tích theo chiều cao.
 - ✅ `STT` reset theo từng nhóm nhỏ `groupLv3` liên tiếp.
 - ✅ `Nội dung đánh giá` hiển thị `assessment.code` + `assessment.name`, ví dụ `B97. Đứng một chân trong 3 giây`.
+- ✅ `Kế hoạch` hiển thị `planGrade` thành cột riêng nằm trước `Kết quả hiện tại`.
+- ✅ Header `Kết quả hiện tại` có checkbox `Hiện kế hoạch` để bật/ẩn cột `Kế hoạch`.
 - ✅ `Kết quả hiện tại` dùng dropdown grade hiện có, hiển thị tiếng Việt.
 - ✅ `Ghi chú` dùng textarea gọn trong cell, giới hạn 2.000 ký tự theo backend `FinalNote`.
 

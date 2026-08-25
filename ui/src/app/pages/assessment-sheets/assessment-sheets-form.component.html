@@ -103,7 +103,19 @@
               <th class="group-lv3-column" scope="col">Nhóm nhỏ</th>
               <th class="number-column" scope="col">STT</th>
               <th scope="col">Nội dung đánh giá</th>
-              <th class="grade-column" scope="col">Kết quả hiện tại</th>
+              <th *ngIf="showPlanColumn" class="plan-column" scope="col">Kế hoạch</th>
+              <th class="grade-column" scope="col">
+                <div class="grade-header">
+                  <span>Kết quả hiện tại</span>
+                  <label class="plan-toggle">
+                    <input
+                      type="checkbox"
+                      [(ngModel)]="showPlanColumn"
+                      [ngModelOptions]="standaloneNgModelOptions" />
+                    <span>Hiện kế hoạch</span>
+                  </label>
+                </div>
+              </th>
               <th class="note-column" scope="col">Ghi chú</th>
               <th class="action-column" scope="col" aria-label="Thao tác"></th>
             </tr>
@@ -123,7 +135,9 @@
               <td class="number-cell">{{ row.rowNumber }}</td>
               <td class="content-cell">
                 <strong>{{ row.record.assessment.code }}. {{ row.record.assessment.name }}</strong>
-                <small>Kế hoạch: {{ gradeText(row.record.planGrade) }}</small>
+              </td>
+              <td *ngIf="showPlanColumn" class="plan-cell">
+                {{ gradeText(row.record.planGrade) }}
               </td>
               <td class="grade-cell">
                 <select

@@ -23,9 +23,10 @@
 .group-lv2-column { width: 142px; }
 .group-lv3-column { width: 150px; }
 .number-column { width: 48px; }
+.plan-column { width: 116px; }
 .grade-column { width: 174px; }
 .note-column { width: 220px; }
-.action-cell, .number-cell, .grade-cell { text-align: center; }
+.action-cell, .number-cell, .plan-cell, .grade-cell { text-align: center; }
 .action-cell { background: #ffffff80; }
 .group-cell { padding: 8px 6px; color: #111827; font-weight: 700; text-align: center; }
 .group-cell span { display: inline-block; line-height: 1.25; letter-spacing: .01em; }
@@ -33,7 +34,10 @@
 .group-lv2-cell { text-transform: uppercase; }
 .content-cell { min-width: 330px; }
 .content-cell strong { display: block; font-weight: 500; }
-.content-cell small { display: block; margin-top: 3px; color: #667085; }
+.plan-cell { color: #344054; font-weight: 600; }
+.grade-header { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.plan-toggle { display: inline-flex; align-items: center; gap: 4px; color: #667085; font-size: smaller; font-weight: 500; white-space: nowrap; cursor: pointer; }
+.plan-toggle input { width: 13px; height: 13px; margin: 0; cursor: pointer; }
 .grade-select, .note-cell textarea { width: 100%; border: 1px solid transparent; background: #ffffffc7; color: #111827; font: inherit; }
 .grade-select { min-height: 28px; padding: 3px 28px 3px 10px; border-radius: 999px; }
 .note-cell textarea { min-height: 44px; padding: 6px 8px; resize: vertical; }
