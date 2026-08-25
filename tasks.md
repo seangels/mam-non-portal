@@ -502,3 +502,18 @@ QA/Integration:
 - `BASE` là contract nền; các plan có số lớn hơn chỉ mở rộng hoặc override trong phạm vi epic của mình.
 - Không để stub tại đường dẫn cũ trong `api/`; mọi tài liệu/agent phải đọc qua `plans/README.md` và đường dẫn mới.
 - Đây là thay đổi tổ chức Markdown/TOML, không thay đổi runtime source; không chạy product build/test hoặc production skill.
+
+## Epic UI kế hoạch cá nhân `ASM` — owner: `frontend`
+
+- [x] `ASM-FE-01`. Nối list `assessment-sheets` với REST contract hiện tại, filter/search/date/status, paging/sort server và nút tạo/sửa
+- [x] `ASM-FE-02`. Thêm form tạo mới bảng đánh giá: chọn học sinh, giáo viên phụ trách, ngày, ghi chú và danh mục đánh giá
+- [x] `ASM-FE-03`. Thêm form chỉnh sửa bảng đánh giá: cập nhật thông tin chung, trạng thái, nhận xét và hiển thị record snapshot đọc
+- [x] `ASM-FE-04`. Mở route/navigation `assessment-sheets` cho `Teacher` theo yêu cầu mới
+- [x] `ASM-FE-05`. Chạy development build và ChromeHeadlessCI
+
+### Assessment-sheets UI log
+
+- `ASM-FE-01..04` (2026-08-25): UI `/#/assessment-sheets` đã chuyển sang màn hình “Kế hoạch cá nhân”, dùng service/model `assessment-sheets`, list phân trang 20/50/100, filter theo học sinh/trạng thái/khoảng ngày, search mã/tên học sinh, tạo mới và chỉnh sửa qua route riêng. `Teacher` nay được route-guard vào list/new/edit giống `SuperAdmin`/`Admin`.
+- Form create/edit (2026-08-25): thêm `AssessmentSheetFormComponent` vào đúng `AssessmentSheetsModule`, tạo template tiếng Việt, dirty guard, submit lock, conflict reload, request mapping create/update/status và record snapshot đọc trên edit. Form edit không cần gọi `/students`/`/teachers` chỉ để hiển thị dữ liệu snapshot; dropdown giáo viên phụ trách chỉ hiện với `SuperAdmin`/`Admin`.
+- Verification (2026-08-25): `NG_BUILD_MAX_WORKERS=1; npm --prefix ui run build -- --configuration development` pass, initial 11.95 MB, hash `ee835295acefff1df892`, chỉ có DevExtreme/CommonJS warnings đã biết và thêm `tag_box` vì dùng `DxTagBox`. `npm --prefix ui run test:ci` pass 77/77 sau khi cập nhật route/navigation/request mapping specs. Không chạy production build/IIS/deploy.
+- Known contract gap (2026-08-25): nếu cần `Teacher` tự tạo mới end-to-end bằng dropdown học sinh, backend cần thêm endpoint student-candidate/scoped lookup hoặc mở contract tương đương; `/students` hiện vẫn bị giới hạn `PortalManagers`.

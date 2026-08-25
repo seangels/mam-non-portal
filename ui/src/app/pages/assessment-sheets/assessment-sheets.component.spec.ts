@@ -1,59 +1,53 @@
-import { of } from 'rxjs';
-import { Router } from '@angular/router';
-import { StudentGroupsService } from '../../core/services/student-groups.service';
-import { TeachersService } from '../../core/services/teachers.service';
-import { TeachersComponent } from './teachers.component';
+import {
+  AssessmentSheetEditor,
+  buildCreateAssessmentSheetRequest,
+  buildUpdateAssessmentSheetRequest
+} from './assessment-sheets-form.component';
 
-describe('TeachersComponent remote list', () => {
-  let teachers: jasmine.SpyObj<TeachersService>;
-  let groups: jasmine.SpyObj<StudentGroupsService>;
-  let router: jasmine.SpyObj<Router>;
-  let component: TeachersComponent;
+describe('Assessment sheet form request mapping', () => {
+  const editor = (override: Partial<AssessmentSheetEditor> = {}): AssessmentSheetEditor => ({
+    studentId: 'student-1',
+    responsibleTeacherId: null,
+    startDate: '2026-08-25',
+    dueDate: '2026-08-30',
+    status: 'Open',
+    note: '',
+    feedback: '',
+    assessmentIds: [],
+    ...override
+  });
 
-  beforeEach(() => {
-    teachers = jasmine.createSpyObj<TeachersService>('TeachersService', ['list', 'get', 'delete']);
-    groups = jasmine.createSpyObj<StudentGroupsService>('StudentGroupsService', ['list', 'get']);
-    router = jasmine.createSpyObj<Router>('Router', ['navigate']);
-    teachers.list.and.returnValue(of({
-      items: [],
-      pagination: { page: 2, pageSize: 20, totalItems: 37, totalPages: 2 }
+  it('builds create request with trimmed optional fields and distinct assessment ids', () => {
+    const request = buildCreateAssessmentSheetRequest(editor({
+      responsibleTeacherId: 'teacher-1',
+      note: '  Ghi chú tạo mới  ',
+      assessmentIds: ['assessment-1', 'assessment-2', 'assessment-1', '']
     }));
-    component = new TeachersComponent(teachers, groups, router);
+
+    expect(request).toEqual({
+      studentId: 'student-1',
+      responsibleTeacherId: 'teacher-1',
+      note: 'Ghi chú tạo mới',
+      startDate: '2026-08-25',
+      dueDate: '2026-08-30',
+      assessmentIds: ['assessment-1', 'assessment-2']
+    });
   });
 
-  it('maps DevExtreme paging/filter/sort and trusts the server total', async () => {
-    component.search = ' Nguyễn ';
-    component.statusFilter = 'Active';
-    component.groupId = 'group-1';
+  it('builds update request without student id or assessment ids', () => {
+    const request = buildUpdateAssessmentSheetRequest(editor({
+      responsibleTeacherId: '',
+      note: '   ',
+      feedback: '  Nhận xét cuối kỳ  ',
+      assessmentIds: ['ignored']
+    }));
 
-    const result = await (component.dataSource as any).load({
-      skip: 20,
-      take: 20,
-      sort: [{ selector: 'teacherCode', desc: true }]
+    expect(request).toEqual({
+      responsibleTeacherId: null,
+      note: null,
+      startDate: '2026-08-25',
+      dueDate: '2026-08-30',
+      feedback: 'Nhận xét cuối kỳ'
     });
-
-    expect(teachers.list).toHaveBeenCalledWith({
-      page: 2,
-      pageSize: 20,
-      search: 'Nguyễn',
-      status: 'Active',
-      groupId: 'group-1',
-      unassigned: undefined,
-      sortBy: 'teacherCode',
-      sortOrder: 'desc'
-    });
-    expect(result.totalCount).toBe(37);
-  });
-
-  it('never sends groupId together with unassigned=true', () => {
-    component.groupId = 'group-1';
-    component.unassigned = true;
-    component.onUnassignedChanged();
-    expect(component.groupId).toBeNull();
-
-    component.unassigned = true;
-    component.groupId = 'group-2';
-    component.onGroupChanged();
-    expect(component.unassigned).toBeFalse();
   });
 });

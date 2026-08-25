@@ -1,6 +1,20 @@
-import { ListQuery } from "./api.models";
+import { Gender, ListQuery } from './api.models';
 
-export type AssessmentSheetStatus = 'Open' | 'Done';
+export type AssessmentSheetStatus = 'Open' | 'Planed' | 'Done';
+export type AssessmentGrade = 'A' | 'B' | 'C' | 'D';
+
+export const ASSESSMENT_SHEET_STATUS_OPTIONS: { value: AssessmentSheetStatus; text: string }[] = [
+  { value: 'Open', text: 'Đang mở' },
+  { value: 'Planed', text: 'Đã lập kế hoạch' },
+  { value: 'Done', text: 'Hoàn tất' }
+];
+
+export const ASSESSMENT_GRADE_OPTIONS: { value: AssessmentGrade; text: string }[] = [
+  { value: 'A', text: 'Đạt +' },
+  { value: 'B', text: 'Chưa đạt -' },
+  { value: 'C', text: 'Hỗ trợ +' },
+  { value: 'D', text: 'Hỗ trợ -' }
+];
 
 export interface AssessmentSheetListQuery extends ListQuery {
   studentId?: string;
@@ -9,52 +23,79 @@ export interface AssessmentSheetListQuery extends ListQuery {
   dateTo?: string;
 }
 
-
 export interface AssessmentSheet {
   id: string;
-  name: string;
-  assessmentSheetStatus: AssessmentSheetStatus;
-
+  status: AssessmentSheetStatus;
+  studentId: string;
   studentCode?: string | null;
   studentFullName?: string | null;
-  studentNickName?: string | null;
-  studentDateOfBirth?: string | null;
+  responsibleTeacherId?: string | null;
   responsibleTeacherFullName?: string | null;
-
-  note?: string | null;
-
   startDate?: string | null;
   dueDate?: string | null;
   doneDate?: string | null;
   submissionDate?: string | null;
-
-  feedback?: string | null;
+  assessmentSheetSpreadsheetId?: string | null;
   planFileLinkPdf?: string | null;
   resultFileLinkPdf?: string | null;
-  assessmentSheetSpreadsheetId?: string | null;
-
-  updatedByUserName?: string | null;
   createdAt: string;
   updatedAt: string;
 }
 
+export interface AssessmentSheetStudentSnapshot {
+  studentCode?: string | null;
+  fullName?: string | null;
+  nickName?: string | null;
+  dateOfBirth?: string | null;
+  gender?: Gender | null;
+}
+
+export interface AssessmentSnapshot {
+  code: string;
+  name: string;
+  groupLv1Name?: string | null;
+  groupLv2Name?: string | null;
+  groupLv3Name?: string | null;
+  rowIndex?: number | null;
+}
+
+export interface AssessmentSheetRecord {
+  id: string;
+  assessmentSheetId: string;
+  assessmentRowIndex?: number | null;
+  assessment: AssessmentSnapshot;
+  planGrade?: AssessmentGrade | null;
+  planNote?: string | null;
+  finalGrade?: AssessmentGrade | null;
+  finalNote?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
 
 export interface AssessmentSheetDetail extends AssessmentSheet {
+  studentSnapshot: AssessmentSheetStudentSnapshot;
+  note?: string | null;
+  feedback?: string | null;
+  records: AssessmentSheetRecord[];
 }
 
 export interface CreateAssessmentSheetRequest {
-  name: string;
   studentId: string;
-  responsibleTeacherId: string;
+  responsibleTeacherId?: string | null;
+  note?: string | null;
   startDate?: string | null;
   dueDate?: string | null;
+  assessmentIds: string[];
 }
 
 export interface UpdateAssessmentSheetRequest {
-  name: string;
-  assessmentSheetStatus: AssessmentSheetStatus;
-  studentId: string;
-  responsibleTeacherId: string;
+  responsibleTeacherId?: string | null;
+  note?: string | null;
   startDate?: string | null;
   dueDate?: string | null;
+  feedback?: string | null;
+}
+
+export interface UpdateAssessmentSheetStatusRequest {
+  status: AssessmentSheetStatus;
 }

@@ -1,21 +1,25 @@
-import { CommonModule } from '@angular/common';
 import { Component, OnDestroy, ViewChild } from '@angular/core';
 import { Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import CustomStore from 'devextreme/data/custom_store';
-import { confirm, custom } from 'devextreme/ui/dialog';
+import { custom } from 'devextreme/ui/dialog';
 import notify from 'devextreme/ui/notify';
 import { DxDataGridComponent } from 'devextreme-angular/ui/data-grid';
 import { ApiError } from '../../core/models/api-error';
-import { AssessmentGroup, Assessment } from '../../core/models/api.models';
-import { asLegacyWidgetDataSource, LegacyWidgetDataSource } from '../../core/models/devextreme-legacy.types';
-import { USER_STATUS_LABELS } from '../../core/i18n/ui-labels';
-import { AssessmentGroupsService } from '../../core/services/assessment-groups.service';
-import { AssessmentsService } from '../../core/services/assessments.service';
-import { GoogleSheetsService } from 'src/app/core/services/google-sheets.service';
+import { AssessmentSheet, AssessmentSheetStatus, ASSESSMENT_SHEET_STATUS_OPTIONS } from '../../core/models/api.models.assessment-sheets';
+import { Student } from '../../core/models/api.models';
+import { asLegacyWidgetDataSource } from '../../core/models/devextreme-legacy.types';
+import { AssessmentSheetsService } from '../../core/services/assessment-sheets.service';
+import { GoogleSheetsService } from '../../core/services/google-sheets.service';
+import { StudentsService } from '../../core/services/students.service';
+import { formatDateOnly, toDateOnly } from '../../core/utils/date-only';
 
-const ASSESSMENT_SORT_FIELDS = new Set([
-  'code', 'name', 'rowindex'
+const ASSESSMENT_SHEET_SORT_FIELDS = new Set([
+  'status',
+  'startDate',
+  'dueDate',
+  'updatedAt',
+  'createdAt'
 ]);
 
 @Component({
@@ -25,109 +29,56 @@ const ASSESSMENT_SORT_FIELDS = new Set([
 })
 export class AssessmentSheetsComponent implements OnDestroy {
   @ViewChild(DxDataGridComponent) grid?: DxDataGridComponent;
+
   search = '';
-  saving = false;
-  groupLv1Name: string | null = null;
-  groupLv2Name: string | null = null;
-  groupLv3Name: string | null = null;
-  groupLv1Placeholder: string = 'Nhóm tuổi';
-  groupLv2Placeholder: string = 'Nhóm 2';
-  groupLv3Placeholder: string = 'Nhóm 3';
+  syncing = false;
+  status: AssessmentSheetStatus | null = null;
+  studentId: string | null = null;
+  dateFrom: Date | string | number = '';
+  dateTo: Date | string | number = '';
   filtersExpanded = true;
   loadError = '';
   private searchTimer?: number;
-  groupLv2DataSource: LegacyWidgetDataSource | [] = [];
-  groupLv3DataSource: LegacyWidgetDataSource | [] = [];
 
-  readonly groupLv1DataSource = asLegacyWidgetDataSource(new CustomStore({
+  readonly statuses = ASSESSMENT_SHEET_STATUS_OPTIONS;
+  readonly rowButtons = [
+    {
+      hint: 'Chỉnh sửa',
+      icon: 'edit',
+      onClick: (event: any) => this.openEdit(event.row.data as AssessmentSheet)
+    }
+  ];
+
+  readonly studentDataSource = asLegacyWidgetDataSource(new CustomStore({
     key: 'id',
-    byKey: key => firstValueFrom(this.groups.get(String(key))),
+    byKey: key => firstValueFrom(this.students.get(String(key))),
     load: options => {
-      const pageSize = Math.min(options.take ?? 100, 100);
-      return firstValueFrom(this.groups.list({
-        level: 1,
+      const pageSize = Math.min(options.take ?? 20, 100);
+      return firstValueFrom(this.students.list({
         page: Math.floor((options.skip ?? 0) / pageSize) + 1,
         pageSize,
         search: typeof options.searchValue === 'string' ? options.searchValue.trim() || undefined : undefined,
-        sortBy: 'name',
+        status: 'Active',
+        sortBy: 'fullName',
         sortOrder: 'asc'
-      })).then(result => {
-        this.groupLv1Placeholder = `Nhóm tuổi (${result.pagination.totalItems})`;
-        return { data: result.items, totalCount: result.pagination.totalItems };
-      })
-        .catch(error => {
-          this.groupLv1Placeholder = 'Nhóm tuổi: Lỗi tải dữ liệu';
-          return this.rejectLoad(error)
-        });
+      })).then(result => ({ data: result.items, totalCount: result.pagination.totalItems }))
+        .catch(error => this.rejectLoad(error));
     }
   }));
-  private loadLv2DataSouce(): void {
-    this.groupLv2DataSource = asLegacyWidgetDataSource(new CustomStore({
-      key: 'id',
-      byKey: key => firstValueFrom(this.groups.get(String(key))),
-      load: options => {
-        const pageSize = Math.min(options.take ?? 100, 100);
-        return firstValueFrom(this.groups.list({
-          level: 2,
-          parentName: this.groupLv1Name ?? undefined,
-          search: typeof options.searchValue === 'string' ? options.searchValue.trim() || undefined : undefined,
-          page: Math.floor((options.skip ?? 0) / pageSize) + 1,
-          pageSize,
-          sortBy: 'name',
-          sortOrder: 'asc'
-        })).then(result => {
-          this.groupLv2Placeholder = `Nhóm 2 (${result.pagination.totalItems})`;
-          return { data: result.items, totalCount: result.pagination.totalItems };
-        })
-          .catch(error => {
-            this.groupLv2Placeholder = 'Nhóm 2: Lỗi tải dữ liệu';
-            return this.rejectLoad(error)
-          });
-      }
-    }));
-  }
-  private loadLv3DataSouce(): void {
-    console.log({ lv1: this.groupLv1Name, lv2: this.groupLv2Name })
-    this.groupLv3DataSource = asLegacyWidgetDataSource(new CustomStore({
-      key: 'id',
-      byKey: key => firstValueFrom(this.groups.get(String(key))),
-      load: options => {
-        const pageSize = Math.min(options.take ?? 100, 100);
-        return firstValueFrom(this.groups.list({
-          level: 3,
-          page: Math.floor((options.skip ?? 0) / pageSize) + 1,
-          parentName: this.groupLv2Name ?? undefined,
-          parentParentName: this.groupLv1Name ?? undefined,
-          search: typeof options.searchValue === 'string' ? options.searchValue.trim() || undefined : undefined,
-          pageSize,
-          sortBy: 'name',
-          sortOrder: 'asc'
-        }))
-          .then(result => {
-            this.groupLv3Placeholder = `Nhóm 3 (${result.pagination.totalItems})`;
-            return { data: result.items, totalCount: result.pagination.totalItems };
-          })
-          .catch(error => {
-            this.groupLv3Placeholder = 'Nhóm 3: Lỗi tải dữ liệu';
-            return this.rejectLoad(error)
-          })
-          ;
-      }
-    }));
-  }
 
   readonly dataSource = asLegacyWidgetDataSource(new CustomStore({
     key: 'id',
     load: options => {
-      const pageSize = Math.min(options.take ?? 5000, 5000);
+      const pageSize = Math.min(options.take ?? 20, 100);
       const sort = this.readSort(options.sort);
-      return firstValueFrom(this.assessments.list({
+      return firstValueFrom(this.assessmentSheets.list({
         page: Math.floor((options.skip ?? 0) / pageSize) + 1,
         pageSize,
         search: this.search.trim() || undefined,
-        groupLv1Name: this.groupLv1Name ?? undefined,
-        groupLv2Name: this.groupLv2Name ?? undefined,
-        groupLv3Name: this.groupLv3Name ?? undefined,
+        studentId: this.studentId ?? undefined,
+        status: this.status ?? undefined,
+        dateFrom: toDateOnly(this.dateFrom),
+        dateTo: toDateOnly(this.dateTo),
         sortBy: sort.field,
         sortOrder: sort.order
       })).then(result => {
@@ -137,19 +88,17 @@ export class AssessmentSheetsComponent implements OnDestroy {
     }
   }));
 
-  readonly groupDisplay = (group: AssessmentGroup | null): string => group ? `${group.name}` : '';
+  readonly studentDisplay = (student: Student | null): string => student
+    ? `${student.studentCode} · ${student.fullName}${student.nickName ? ` (${student.nickName})` : ''}`
+    : '';
 
   constructor(
-    private readonly assessments: AssessmentsService,
-    private readonly groups: AssessmentGroupsService,
+    private readonly assessmentSheets: AssessmentSheetsService,
+    private readonly students: StudentsService,
     private readonly googleSheet: GoogleSheetsService,
     public readonly router: Router
-  ) { }
-  ngOnInit(): void {
-    this.loadLv2DataSouce();
-    this.loadLv3DataSouce();
+  ) {}
 
-  }
   ngOnDestroy(): void {
     if (this.searchTimer !== undefined) {
       window.clearTimeout(this.searchTimer);
@@ -178,52 +127,79 @@ export class AssessmentSheetsComponent implements OnDestroy {
 
   resetFilters(): void {
     this.search = '';
-    this.groupLv1Name = null;
-    this.groupLv2Name = null;
-    this.groupLv3Name = null;
+    this.status = null;
+    this.studentId = null;
+    this.dateFrom = '';
+    this.dateTo = '';
     this.applyFilters();
   }
 
-  private isColumnChooserOpen(): boolean {
-    if (this.grid && this.grid?.instance) {
-      const gridInstance: any = this.grid?.instance;
-      // 1. Lấy controller quản lý Column Chooser của v19.2
-      const columnChooserController = gridInstance.getController('columnChooser');
-      const isShow = columnChooserController?.component?._views?.columnChooserView?._popupContainer?._options?.visible
-      return isShow;
-    }
-    return false; // Mặc định là đang đóng nếu chưa load xong lưới
+  openCreate(): void {
+    void this.router.navigate(['/assessment-sheets/new']);
   }
-  showDialogColumnChooser():void {
+
+  openEdit(sheet: AssessmentSheet): void {
+    void this.router.navigate(['/assessment-sheets', sheet.id, 'edit']);
+  }
+
+  showDialogColumnChooser(): void {
     this.grid?.instance.option('columnChooser.mode', 'select');
-    const currentState = this.isColumnChooserOpen();
-    console.log(currentState);
-    if(!currentState) this.grid?.instance.showColumnChooser();
-    else this.grid?.instance.hideColumnChooser();
+    const gridInstance: any = this.grid?.instance;
+    const chooser = gridInstance?.getController?.('columnChooser');
+    const visible = chooser?.component?._views?.columnChooserView?._popupContainer?._options?.visible;
+    if (visible) {
+      this.grid?.instance.hideColumnChooser();
+    } else {
+      this.grid?.instance.showColumnChooser();
+    }
   }
 
-  onGroupLv1Changed(): void {
-    this.groupLv2Name = null;
-    this.groupLv3Name = null;
-    this.loadLv2DataSouce();
-    this.loadLv3DataSouce();
+  async syncAssessmentsFromGoogleSheets(): Promise<void> {
+    if (this.syncing) {
+      return;
+    }
+
+    const accepted = await custom({
+      title: 'Xác nhận',
+      messageHtml: '<i>Đồng bộ dữ liệu đánh giá từ Google Sheets?</i>',
+      buttons: [
+        { text: 'Không', onClick: () => false },
+        { text: 'Có', onClick: () => true }
+      ]
+    }).show();
+    if (!accepted) {
+      return;
+    }
+
+    this.syncing = true;
+    this.loadError = '';
+    try {
+      const result = await firstValueFrom(this.googleSheet.syncFromGoogleSheets({}));
+      await this.grid?.instance.refresh();
+      notify(`Đã đồng bộ Google Sheets. Thêm mới ${result.insertedRows} dòng.`, 'success', 2500);
+    } catch (error) {
+      const apiError = ApiError.from(error);
+      this.loadError = this.withTrace(apiError);
+      notify(this.loadError, 'error', 3500);
+    } finally {
+      this.syncing = false;
+    }
   }
 
-  onGroupLv2Changed(): void {
-    this.groupLv3Name = null;
-    this.loadLv3DataSouce();
+  statusText(status: AssessmentSheetStatus): string {
+    return this.statuses.find(item => item.value === status)?.text ?? 'Không xác định';
   }
 
-  onGroupLv3Changed(): void {
+  dateText(value: string | null | undefined): string {
+    return value ? formatDateOnly(toDateOnly(value) ?? value.substring(0, 10)) : '—';
   }
-
 
   private readSort(sortValue: unknown): { field: string; order: 'asc' | 'desc' } {
     const sort = Array.isArray(sortValue) ? sortValue[0] : sortValue;
     const config = sort && typeof sort === 'object' ? sort as { selector?: unknown; desc?: boolean } : undefined;
-    const requested = typeof config?.selector === 'string' ? config.selector : 'rowindex';
+    const requested = typeof config?.selector === 'string' ? config.selector : 'updatedAt';
     return {
-      field: ASSESSMENT_SORT_FIELDS.has(requested) ? requested : 'rowindex',
+      field: ASSESSMENT_SHEET_SORT_FIELDS.has(requested) ? requested : 'updatedAt',
       order: config?.desc ? 'desc' : 'asc'
     };
   }
@@ -231,58 +207,19 @@ export class AssessmentSheetsComponent implements OnDestroy {
   private rejectLoad(error: unknown): Promise<never> {
     const apiError = ApiError.from(error);
     this.loadError = this.withTrace(apiError);
-    this.notifyError(apiError);
+    notify(this.loadError, 'error', 3500);
     return Promise.reject(apiError);
-  }
-
-  private notifyError(error: ApiError): void {
-    notify(this.withTrace(error), 'error', 3500);
   }
 
   private withTrace(error: ApiError): string {
     return error.traceId ? `${error.message} Mã tra cứu: ${error.traceId}` : error.message;
   }
 
-  get saveDisabled(): boolean {
-    if (this.saving) return true;
-    return false;
+  get syncDisabled(): boolean {
+    return this.syncing;
   }
 
-  get saveButtonText(): string {
-    return this.saving ? 'Đang đồng bộ…' : 'Đồng bộ GGSheet';
-  }
-  async syncAssessmentsFromGGSheet(): Promise<void> {
-    this.saving = true;
-    this.loadError = '';
-    try {
-      const resultConfirm = await custom({
-        title: "Xác nhận",
-        messageHtml: "<i>Yêu cầu đồng bộ dữ liệu từ Google Sheets?</i>",
-        buttons: [
-          {
-            text: "Không",
-            onClick: () => false,
-            focusStateEnabled: true,
-            elementAttr: { class: "dx-button-focused" }
-          },
-          {
-            text: "Có",
-            onClick: () => true,
-            elementAttr: { class: "dx-button-danger" }
-          }
-        ]
-      }).show();
-      if (resultConfirm) {
-        const result = await firstValueFrom(this.googleSheet.syncFromGoogleSheets({}));
-        this.retryLoad()
-        notify(`Đã đồng bộ dữ liệu từ GGSheet. Thêm mới [${result.insertedRows}] dòng`, 'success', 2500);
-      }
-    } catch (error) {
-      const apiError = ApiError.from(error);
-      this.loadError = this.withTrace(apiError);
-      this.notifyError(apiError);
-    } finally {
-      this.saving = false;
-    }
+  get syncButtonText(): string {
+    return this.syncing ? 'Đang đồng bộ...' : 'Đồng bộ Google Sheets';
   }
 }

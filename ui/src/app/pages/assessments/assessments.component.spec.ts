@@ -2,7 +2,7 @@ import { of } from 'rxjs';
 import { Router } from '@angular/router';
 import { StudentGroupsService } from '../../core/services/student-groups.service';
 import { TeachersService } from '../../core/services/teachers.service';
-import { TeachersComponent } from './teachers.component';
+import { TeachersComponent } from '../teachers/teachers.component';
 
 describe('TeachersComponent remote list', () => {
   let teachers: jasmine.SpyObj<TeachersService>;

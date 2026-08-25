@@ -17,6 +17,9 @@ import { TeachersModule } from './pages/teachers/teachers.module';
 import { PendingChangesGuard } from './core/guards/pending-changes.guard';
 import { AssessmentsComponent } from './pages/assessments/assessments.component';
 import { AssessmentsModule } from './pages/assessments/assessments.module';
+import { AssessmentSheetsComponent } from './pages/assessment-sheets/assessment-sheets.component';
+import { AssessmentSheetsModule } from './pages/assessment-sheets/assessment-sheets.module';
+import { AssessmentSheetFormComponent } from './pages/assessment-sheets/assessment-sheets-form.component';
 
 export const APP_ROUTES: Routes = [
   {
@@ -82,6 +85,26 @@ export const APP_ROUTES: Routes = [
     data: { roles: ['SuperAdmin', 'Admin', 'Teacher'] }
   },
   {
+    path: 'assessment-sheets',
+    component: AssessmentSheetsComponent,
+    canActivate: [SetupCompletedGuard, AuthGuardService, RoleGuard],
+    data: { roles: ['SuperAdmin', 'Admin', 'Teacher'] }
+  },
+  {
+    path: 'assessment-sheets/new',
+    component: AssessmentSheetFormComponent,
+    canActivate: [SetupCompletedGuard, AuthGuardService, RoleGuard],
+    canDeactivate: [PendingChangesGuard],
+    data: { roles: ['SuperAdmin', 'Admin', 'Teacher'], mode: 'create' }
+  },
+  {
+    path: 'assessment-sheets/:id/edit',
+    component: AssessmentSheetFormComponent,
+    canActivate: [SetupCompletedGuard, AuthGuardService, RoleGuard],
+    canDeactivate: [PendingChangesGuard],
+    data: { roles: ['SuperAdmin', 'Admin', 'Teacher'], mode: 'edit' }
+  },
+  {
     path: 'profile',
     component: ProfileComponent,
     canActivate: [SetupCompletedGuard, AuthGuardService]
@@ -111,6 +134,8 @@ export const APP_ROUTES: Routes = [
     StudentGroupsModule,
     AttendanceModule,
     TeachersModule,
+    AssessmentsModule,
+    AssessmentSheetsModule,
     SetupFormModule
   ],
   providers: [AuthGuardService],

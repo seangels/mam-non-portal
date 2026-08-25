@@ -13,4 +13,12 @@ describe('APP_ROUTES teacher permissions', () => {
     const usersRoute = APP_ROUTES.find(route => route.path === 'users');
     expect(usersRoute?.data?.['roles']).toEqual(['SuperAdmin']);
   });
+
+  it('allows Teacher to open assessment sheet list and create/edit forms', () => {
+    const assessmentSheetRoutes = APP_ROUTES.filter(route => route.path?.startsWith('assessment-sheets'));
+    expect(assessmentSheetRoutes.map(route => route.path)).toEqual([
+      'assessment-sheets', 'assessment-sheets/new', 'assessment-sheets/:id/edit'
+    ]);
+    assessmentSheetRoutes.forEach(route => expect(route.data?.['roles']).toEqual(['SuperAdmin', 'Admin', 'Teacher']));
+  });
 });

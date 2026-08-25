@@ -4,7 +4,14 @@ import {
   PagedResponse,
 } from '../models/api.models';
 import { ApiClient } from './api-client.service';
-import { AssessmentSheet, AssessmentSheetDetail, AssessmentSheetListQuery, CreateAssessmentSheetRequest, UpdateAssessmentSheetRequest } from '../models/api.models.assessment-sheets';
+import {
+  AssessmentSheet,
+  AssessmentSheetDetail,
+  AssessmentSheetListQuery,
+  CreateAssessmentSheetRequest,
+  UpdateAssessmentSheetRequest,
+  UpdateAssessmentSheetStatusRequest
+} from '../models/api.models.assessment-sheets';
 
 @Injectable({ providedIn: 'root' })
 export class AssessmentSheetsService {
@@ -24,6 +31,10 @@ export class AssessmentSheetsService {
 
   update(id: string, request: UpdateAssessmentSheetRequest): Observable<AssessmentSheetDetail> {
     return this.api.put<AssessmentSheetDetail>(`assessment-sheets/${id}`, request);
+  }
+
+  updateStatus(id: string, request: UpdateAssessmentSheetStatusRequest): Observable<AssessmentSheetDetail> {
+    return this.api.put<AssessmentSheetDetail>(`assessment-sheets/${id}/status`, request);
   }
 
   delete(id: string): Observable<void> {

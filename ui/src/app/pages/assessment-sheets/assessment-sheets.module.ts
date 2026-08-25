@@ -9,13 +9,17 @@ import { DxFormModule } from 'devextreme-angular/ui/form';
 import { DxLoadIndicatorModule } from 'devextreme-angular/ui/load-indicator';
 import { DxPopupModule } from 'devextreme-angular/ui/popup';
 import { DxSelectBoxModule } from 'devextreme-angular/ui/select-box';
+import { DxTagBoxModule } from 'devextreme-angular/ui/tag-box';
 import { DxTextAreaModule } from 'devextreme-angular/ui/text-area';
 import { DxTextBoxModule } from 'devextreme-angular/ui/text-box';
+import { DxDateBoxModule } from 'devextreme-angular/ui/date-box';
 import { AssessmentSheetsComponent } from './assessment-sheets.component';
+import { AssessmentSheetFormComponent } from './assessment-sheets-form.component';
 
 @NgModule({
   declarations: [
-    AssessmentSheetsComponent
+    AssessmentSheetsComponent,
+    AssessmentSheetFormComponent
   ],
   imports: [
     CommonModule,
@@ -28,9 +32,11 @@ import { AssessmentSheetsComponent } from './assessment-sheets.component';
     DxLoadIndicatorModule,
     DxPopupModule,
     DxSelectBoxModule,
+    DxTagBoxModule,
     DxTextAreaModule,
-    DxTextBoxModule
+    DxTextBoxModule,
+    DxDateBoxModule
   ],
-  exports: [AssessmentSheetsComponent]
+  exports: [AssessmentSheetsComponent, AssessmentSheetFormComponent]
 })
 export class AssessmentSheetsModule {}

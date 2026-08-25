@@ -11,7 +11,8 @@ export function buildNavigation(role?: UserRole): NavigationItem[] {
   const items: NavigationItem[] = [
     { text: 'Tổng quan', path: '/home', icon: 'home' },
     { text: 'Điểm danh', path: '/attendance', icon: 'check' },
-    { text: 'DS Đánh giá', path: '/assessments', icon: 'paste' }
+    { text: 'DS Đánh giá', path: '/assessments', icon: 'paste' },
+    { text: 'KH cá nhân', path: '/assessment-sheets', icon: 'paste' }
   ];
 
   if (role === 'SuperAdmin' || role === 'Admin') {

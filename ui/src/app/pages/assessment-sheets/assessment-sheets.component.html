@@ -1,117 +1,84 @@
-<!-- <div class="content-block page-toolbar">
+<div class="content-block page-toolbar">
   <div>
-    <h1 class="page-title">Quản lý Đánh giá</h1>
-    <p class="page-subtitle">Quản lý các nội dung đánh giá.</p>
+    <h1 class="page-title">Kế hoạch cá nhân</h1>
+    <p class="page-subtitle">Quản lý bảng đánh giá năng lực của học sinh.</p>
   </div>
-</div> -->
+</div>
 
-<section class="content-block dx-card filter-card" aria-labelledby="assessment-filter-heading">
+<section class="content-block dx-card filter-card" aria-labelledby="assessment-sheets-filter-heading">
   <button class="filter-toggle" type="button" (click)="filtersExpanded = !filtersExpanded"
-    [attr.aria-expanded]="filtersExpanded" aria-controls="assessment-filters">
-    <span id="assessment-filter-heading">Bộ lọc đánh giá</span>
+    [attr.aria-expanded]="filtersExpanded" aria-controls="assessment-sheets-filters">
+    <span id="assessment-sheets-filter-heading">Bộ lọc bảng đánh giá</span>
     <span aria-hidden="true">{{ filtersExpanded ? '−' : '+' }}</span>
   </button>
-  <div *ngIf="filtersExpanded" id="assessment-filters" class="filters assessment-filters-container">
 
-    <!-- ROW 1: CHỨA CÁC INPUT SEARCH -->
+  <div *ngIf="filtersExpanded" id="assessment-sheets-filters" class="filters assessment-sheets-filters-container">
     <div class="filter-row inputs-row">
       <dx-text-box
         class="search-input"
         [(value)]="search"
         valueChangeEvent="input"
-        placeholder="Mã, tên"
+        placeholder="Tìm mã hoặc tên học sinh"
         [showClearButton]="true"
-        [inputAttr]="{ 'aria-label': 'Tìm đánh giá theo mã, tên' }"
+        [inputAttr]="{ 'aria-label': 'Tìm theo mã hoặc tên học sinh' }"
         (onValueChanged)="scheduleSearch()"
         (onEnterKey)="applyFilters()">
       </dx-text-box>
 
       <dx-select-box
-        class="lv1-input"
-        [(value)]="groupLv1Name"
-        [dataSource]="groupLv1DataSource"
-        valueExpr="name"
-        [displayExpr]="groupDisplay"
+        class="student-input"
+        [(value)]="studentId"
+        [dataSource]="studentDataSource"
+        valueExpr="id"
+        [displayExpr]="studentDisplay"
         [searchEnabled]="true"
         searchMode="contains"
-        [placeholder]="groupLv1Placeholder"
+        placeholder="Chọn học sinh"
         [showClearButton]="true"
-        noDataText="Không có nhóm phù hợp"
-        [inputAttr]="{ 'aria-label': 'Lọc theo nhóm tuổi' }"
-        (onValueChanged)="onGroupLv1Changed()">
+        noDataText="Không có học sinh phù hợp"
+        [inputAttr]="{ 'aria-label': 'Lọc theo học sinh' }"
+        (onValueChanged)="applyFilters()">
       </dx-select-box>
 
-      <dx-select-box
-        class="lv2-input"
-        [(value)]="groupLv2Name"
-        [dataSource]="groupLv2DataSource"
-        valueExpr="name"
-        [displayExpr]="groupDisplay"
-        [searchEnabled]="true"
-        searchMode="contains"
-        [placeholder]="groupLv2Placeholder"
-        [showClearButton]="true"
-        noDataText="Không có nhóm phù hợp"
-        [inputAttr]="{ 'aria-label': 'Lọc theo nhóm 2' }"
-        (onValueChanged)="onGroupLv2Changed()">
-      </dx-select-box>
+      <dx-date-box type="date" displayFormat="dd/MM/yyyy" [showClearButton]="true" [(value)]="dateFrom"
+        [inputAttr]="{ 'aria-label': 'Từ ngày' }" placeholder="Từ ngày" (onValueChanged)="applyFilters()">
+      </dx-date-box>
+
+      <dx-date-box type="date" displayFormat="dd/MM/yyyy" [showClearButton]="true" [(value)]="dateTo"
+        [inputAttr]="{ 'aria-label': 'Đến ngày' }" placeholder="Đến ngày" (onValueChanged)="applyFilters()">
+      </dx-date-box>
 
       <dx-select-box
-        class="lv3-input"
-        [(value)]="groupLv3Name"
-        [dataSource]="groupLv3DataSource"
-        valueExpr="name"
-        [displayExpr]="groupDisplay"
-        [searchEnabled]="true"
-        searchMode="contains"
-        [placeholder]="groupLv3Placeholder"
+        class="status-input"
+        [(value)]="status"
+        [dataSource]="statuses"
+        valueExpr="value"
+        displayExpr="text"
+        placeholder="Trạng thái"
         [showClearButton]="true"
-        noDataText="Không có nhóm phù hợp"
-        [inputAttr]="{ 'aria-label': 'Lọc theo nhóm 3' }"
-        (onValueChanged)="onGroupLv3Changed()">
+        [inputAttr]="{ 'aria-label': 'Lọc theo trạng thái' }"
+        (onValueChanged)="applyFilters()">
       </dx-select-box>
     </div>
 
-    <!-- ROW 2: CHỨA CÁC BUTTON HÀNH ĐỘNG -->
     <div class="filter-row buttons-row">
-      <dx-button
-        class="sync-btn"
-        stylingMode="outlined"
-        hint="Đồng bộ dữ liệu từ GGSheet"
-        [text]="saveButtonText"
-        icon="save"
-        type="default"
-        [disabled]="saveDisabled"
-        (onClick)="syncAssessmentsFromGGSheet()">
-      </dx-button>
+      <dx-button class="primary-action" text="Thêm bảng đánh giá" icon="plus" type="default"
+        hint="Tạo bảng đánh giá" (onClick)="openCreate()"></dx-button>
 
-      <dx-button
-        text="Lọc"
-        icon="filter"
-        type="default"
-        hint="Áp dụng bộ lọc đánh giá"
-        (onClick)="applyFilters()">
-      </dx-button>
+      <dx-button [text]="syncButtonText" icon="refresh" stylingMode="outlined" type="normal"
+        hint="Đồng bộ dữ liệu từ Google Sheets" [disabled]="syncDisabled"
+        (onClick)="syncAssessmentsFromGoogleSheets()"></dx-button>
 
-      <dx-button
-        text="Đặt lại"
-        icon="revert"
-        stylingMode="outlined"
-        hint="Xóa toàn bộ bộ lọc"
-        (onClick)="resetFilters()">
-      </dx-button>
+      <dx-button text="Lọc" icon="filter" type="default" hint="Áp dụng bộ lọc"
+        (onClick)="applyFilters()"></dx-button>
 
-      <dx-button
-        text="Ẩn/Hiện cột"
-        icon="column-chooser"
-        stylingMode="outlined"
-        hint="Ẩn/Hiện cột"
-        (onClick)="showDialogColumnChooser()">
-      </dx-button>
+      <dx-button text="Đặt lại" icon="revert" stylingMode="outlined" hint="Xóa toàn bộ bộ lọc"
+        (onClick)="resetFilters()"></dx-button>
+
+      <dx-button text="Ẩn/Hiện cột" icon="column-chooser" stylingMode="outlined" hint="Ẩn/Hiện cột"
+        (onClick)="showDialogColumnChooser()"></dx-button>
     </div>
-
   </div>
-
 </section>
 
 <div *ngIf="loadError" class="content-block error-panel" role="alert">
@@ -120,29 +87,36 @@
 </div>
 
 <div class="content-block dx-card grid-card">
-  <dx-data-grid #grid [dataSource]="dataSource" [remoteOperations]="{ paging: false, sorting: false }"
+  <dx-data-grid #grid [dataSource]="dataSource" [remoteOperations]="{ paging: true, sorting: true }"
     [showBorders]="true" [columnAutoWidth]="true" [columnHidingEnabled]="true" [wordWrapEnabled]="true"
     [rowAlternationEnabled]="true" [hoverStateEnabled]="true" noDataText="Không có dữ liệu phù hợp">
-    <dxo-load-panel [enabled]="true" text="Đang tải ..."></dxo-load-panel>
-    <dxo-paging [pageSize]="5000"></dxo-paging>
+    <dxo-column-chooser [enabled]="true" mode="select"></dxo-column-chooser>
+    <dxo-load-panel [enabled]="true" text="Đang tải..."></dxo-load-panel>
+    <dxo-paging [pageSize]="20"></dxo-paging>
+    <dxo-pager [showInfo]="true" [showPageSizeSelector]="true" [allowedPageSizes]="[20, 50, 100]"></dxo-pager>
     <dxo-sorting mode="single"></dxo-sorting>
 
-    <dxi-column dataField="groupLv1Name" caption="Nhóm tuổi" cellTemplate="groupLv1Cell" [minWidth]="180"></dxi-column>
-    <dxi-column [visible]="false" dataField="groupLv2Name" caption="Nhóm lv 2" cellTemplate="groupLv2Cell" [minWidth]="200"></dxi-column>
-    <dxi-column [visible]="false" dataField="groupLv3Name" caption="Nhóm lv 3" cellTemplate="groupLv3Cell" [minWidth]="280"></dxi-column>
-    <dxi-column dataField="code" caption="Mã" [width]="70"></dxi-column>
-    <dxi-column dataField="name" caption="Nội dung" [minWidth]="320"></dxi-column>
-    <dxi-column dataField="rowIndex" caption="RowIndex"  sortOrder="asc" [minWidth]="60"></dxi-column>
+    <dxi-column type="buttons" [width]="80" [buttons]="rowButtons"></dxi-column>
+    <dxi-column dataField="studentFullName" caption="Học sinh" cellTemplate="studentCell" [minWidth]="260"></dxi-column>
+    <dxi-column dataField="responsibleTeacherFullName" caption="Giáo viên phụ trách" [minWidth]="200"></dxi-column>
+    <dxi-column dataField="status" caption="Trạng thái" cellTemplate="statusCell" [width]="150"></dxi-column>
+    <dxi-column dataField="startDate" caption="Bắt đầu" cellTemplate="startDateCell" sortOrder="desc" [width]="130"></dxi-column>
+    <dxi-column dataField="dueDate" caption="Hạn hoàn thành" cellTemplate="dueDateCell" [width]="150"></dxi-column>
+    <dxi-column dataField="submissionDate" caption="Ngày nộp" cellTemplate="submissionDateCell" [width]="130"></dxi-column>
+    <dxi-column dataField="updatedAt" caption="Cập nhật" cellTemplate="updatedAtCell" [width]="150"></dxi-column>
 
-    <div *dxTemplate="let cell of 'groupLv1Cell'" class="group-cell">
-      <span>{{ cell.data.groupLv1Name }}</span>
-    </div>
-    <div *dxTemplate="let cell of 'groupLv2Cell'" class="group-cell">
-      <span>{{ cell.data.groupLv2Name }}</span>
-    </div>
-    <div *dxTemplate="let cell of 'groupLv3Cell'" class="group-cell">
-      <span>{{ cell.data.groupLv3Name }}</span>
+    <div *dxTemplate="let cell of 'studentCell'" class="student-cell">
+      <span>{{ cell.data.studentFullName || '—' }}</span>
+      <small>{{ cell.data.studentCode || '—' }}</small>
     </div>
 
+    <div *dxTemplate="let cell of 'statusCell'">
+      <span class="status-pill" [class.done]="cell.data.status === 'Done'">{{ statusText(cell.data.status) }}</span>
+    </div>
+
+    <div *dxTemplate="let cell of 'startDateCell'">{{ dateText(cell.data.startDate) }}</div>
+    <div *dxTemplate="let cell of 'dueDateCell'">{{ dateText(cell.data.dueDate) }}</div>
+    <div *dxTemplate="let cell of 'submissionDateCell'">{{ dateText(cell.data.submissionDate) }}</div>
+    <div *dxTemplate="let cell of 'updatedAtCell'">{{ dateText(cell.data.updatedAt) }}</div>
   </dx-data-grid>
 </div>
