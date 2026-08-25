@@ -32,6 +32,12 @@ import { AssessmentPickerComponent } from './assessment-picker.component';
 
 const ASSESSMENT_CACHE_PAGE_SIZE = 100;
 const UNGROUPED_LABEL = 'Chưa phân nhóm';
+const EMPTY_GRADE_OPTION: { value: null; text: string; color: string; bgcolor: string } = {
+  value: null,
+  text: 'Chưa có',
+  color: '#344054',
+  bgcolor: '#E8EAED'
+};
 const GROUP_LV2_COLORS = new Map(
   ASSESSMENT_GROUP_LV2_CONFIGS.map(config => [normalizeVietnamese(config.key), config.bgcolor] as const)
 );
@@ -206,6 +212,18 @@ export function assessmentGroupLv2Color(groupLv2Name: string | null | undefined)
   return GROUP_LV2_COLORS.get(key) ?? '#FFFFFF';
 }
 
+export function assessmentGradeText(value: string | null | undefined): string {
+  return ASSESSMENT_GRADE_OPTIONS.find(item => item.value === value)?.text ?? EMPTY_GRADE_OPTION.text;
+}
+
+export function assessmentGradeColor(value: string | null | undefined): string {
+  return ASSESSMENT_GRADE_OPTIONS.find(item => item.value === value)?.color ?? EMPTY_GRADE_OPTION.color;
+}
+
+export function assessmentGradeBgColor(value: string | null | undefined): string {
+  return ASSESSMENT_GRADE_OPTIONS.find(item => item.value === value)?.bgcolor ?? EMPTY_GRADE_OPTION.bgcolor;
+}
+
 export function buildAssessmentSheetRecordRows(records: AssessmentSheetRecord[]): AssessmentSheetRecordTableRow[] {
   const rows = records
     .map((record, originalIndex) => ({
@@ -263,6 +281,7 @@ export class AssessmentSheetFormComponent implements OnInit {
 
   readonly statuses = ASSESSMENT_SHEET_STATUS_OPTIONS;
   readonly grades = ASSESSMENT_GRADE_OPTIONS;
+  readonly gradeSelectOptions = [EMPTY_GRADE_OPTION, ...ASSESSMENT_GRADE_OPTIONS];
   readonly studentDataSource = asLegacyWidgetDataSource(new CustomStore({
     key: 'id',
     byKey: key => firstValueFrom(this.students.get(String(key))),
@@ -773,7 +792,15 @@ export class AssessmentSheetFormComponent implements OnInit {
   }
 
   gradeText(value: string | null | undefined): string {
-    return this.grades.find(item => item.value === value)?.text ?? '—';
+    return assessmentGradeText(value);
+  }
+
+  gradeColor(value: string | null | undefined): string {
+    return assessmentGradeColor(value);
+  }
+
+  gradeBgColor(value: string | null | undefined): string {
+    return assessmentGradeBgColor(value);
   }
 
   recordGroupText(record: AssessmentSheetRecord): string {

@@ -150,19 +150,39 @@
                 {{ row.record.assessment.name }}
               </td>
               <td *ngIf="showPlanColumn" class="plan-cell">
-                {{ gradeText(row.record.planGrade) }}
+                <span
+                  class="grade-badge"
+                  [style.backgroundColor]="gradeBgColor(row.record.planGrade)"
+                  [style.color]="gradeColor(row.record.planGrade)">
+                  {{ gradeText(row.record.planGrade) }}
+                </span>
               </td>
               <td class="grade-cell">
-                <select
-                  class="grade-select"
-                  [disabled]="saving || recordMutationInProgress || originalStatus === 'Done'"
-                  [ngModel]="row.record.finalGrade ?? null"
-                  [ngModelOptions]="standaloneNgModelOptions"
-                  (ngModelChange)="updateRecordFinalGrade(row.record, $event)"
-                  [attr.aria-label]="'Kết quả hiện tại của ' + row.record.assessment.code">
-                  <option [ngValue]="null">Chưa có</option>
-                  <option *ngFor="let grade of grades" [ngValue]="grade.value">{{ grade.text }}</option>
-                </select>
+                <div
+                  class="grade-select-shell"
+                  [class.disabled]="saving || recordMutationInProgress || originalStatus === 'Done'"
+                  [style.backgroundColor]="gradeBgColor(row.record.finalGrade)"
+                  [style.color]="gradeColor(row.record.finalGrade)">
+                  <dx-select-box
+                    class="grade-select-box"
+                    [dataSource]="gradeSelectOptions"
+                    valueExpr="value"
+                    displayExpr="text"
+                    itemTemplate="gradeOption"
+                    [disabled]="saving || recordMutationInProgress || originalStatus === 'Done'"
+                    [value]="row.record.finalGrade ?? null"
+                    (onValueChanged)="updateRecordFinalGrade(row.record, $event.value)"
+                    [attr.aria-label]="'Kết quả hiện tại của ' + row.record.assessment.code">
+                    <div *dxTemplate="let grade of 'gradeOption'">
+                      <span
+                        class="grade-option-badge"
+                        [style.backgroundColor]="grade.bgcolor"
+                        [style.color]="grade.color">
+                        {{ grade.text }}
+                      </span>
+                    </div>
+                  </dx-select-box>
+                </div>
               </td>
               <td class="note-cell">
                 <textarea

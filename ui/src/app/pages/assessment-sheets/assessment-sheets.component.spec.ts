@@ -4,6 +4,9 @@ import { AssessmentPickerComponent } from './assessment-picker.component';
 import {
   AssessmentSheetFormComponent,
   AssessmentSheetEditor,
+  assessmentGradeBgColor,
+  assessmentGradeColor,
+  assessmentGradeText,
   assessmentGroupLv2Color,
   buildAssessmentSheetRecordRows,
   buildCreateAssessmentSheetRequest,
@@ -219,6 +222,15 @@ describe('Assessment sheet records table layout', () => {
     expect(assessmentGroupLv2Color(' Tiền tiểu học ')).toBe('#DCC1CF');
     expect(assessmentGroupLv2Color('PHAT TRIEN THE CHAT')).toBe('#C9DAF8');
     expect(assessmentGroupLv2Color('Nhóm khác')).toBe('#FFFFFF');
+  });
+
+  it('maps grade badge colors from the shared grade options', () => {
+    expect(assessmentGradeText('A')).toBe('Đạt +');
+    expect(assessmentGradeColor('A')).toBe('#11734b');
+    expect(assessmentGradeBgColor('A')).toBe('#d4edbc');
+    expect(assessmentGradeText(null)).toBe('Chưa có');
+    expect(assessmentGradeColor(null)).toBe('#344054');
+    expect(assessmentGradeBgColor(null)).toBe('#E8EAED');
   });
 
   it('builds grouped table rows with rowspans and row numbers per groupLv3', () => {
