@@ -39,7 +39,7 @@
     </div>
 
     <dx-form #form [formData]="editor" [disabled]="saving" labelLocation="top"
-      [colCountByScreen]="{ xs: 1, sm: 1, md: 2, lg: 2 }">
+      [colCountByScreen]="formColCountByScreen">
       <dxi-item dataField="studentId" editorType="dxSelectBox" [visible]="isCreate" [colSpan]="2"
         [editorOptions]="studentEditorOptions">
         <dxo-label text="Học sinh *"></dxo-label>
@@ -70,13 +70,13 @@
       </dxi-item>
 
       <dxi-item dataField="note" editorType="dxTextArea" [colSpan]="2"
-        [editorOptions]="{ maxLength: 2000, minHeight: 110, autoResizeEnabled: true, valueChangeEvent: 'input' }">
+        [editorOptions]="noteEditorOptions">
         <dxo-label text="Ghi chú"></dxo-label>
         <dxi-validation-rule type="stringLength" [max]="2000" message="Ghi chú tối đa 2.000 ký tự"></dxi-validation-rule>
       </dxi-item>
 
       <dxi-item dataField="feedback" editorType="dxTextArea" [visible]="!isCreate" [colSpan]="2"
-        [editorOptions]="{ maxLength: 2000, minHeight: 110, autoResizeEnabled: true, valueChangeEvent: 'input' }">
+        [editorOptions]="noteEditorOptions">
         <dxo-label text="Nhận xét kết quả"></dxo-label>
         <dxi-validation-rule type="stringLength" [max]="2000" message="Nhận xét tối đa 2.000 ký tự"></dxi-validation-rule>
       </dxi-item>

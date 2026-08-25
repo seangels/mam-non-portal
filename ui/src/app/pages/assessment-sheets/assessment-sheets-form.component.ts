@@ -138,6 +138,63 @@ export class AssessmentSheetFormComponent implements OnInit {
     ? `${assessment.code} · ${assessment.name}`
     : '';
 
+  readonly formColCountByScreen = { xs: 1, sm: 1, md: 2, lg: 2 };
+  readonly studentEditorOptions: Record<string, unknown> = {
+    dataSource: this.studentDataSource,
+    valueExpr: 'id',
+    displayExpr: this.studentDisplay,
+    searchEnabled: true,
+    searchMode: 'contains',
+    showClearButton: false,
+    placeholder: 'Chọn học sinh',
+    noDataText: 'Không có học sinh phù hợp',
+    inputAttr: { 'aria-label': 'Học sinh' }
+  };
+  readonly teacherEditorOptions: Record<string, unknown> = {
+    dataSource: this.teacherDataSource,
+    valueExpr: 'id',
+    displayExpr: this.teacherDisplay,
+    searchEnabled: true,
+    searchMode: 'contains',
+    showClearButton: true,
+    placeholder: 'Không chọn',
+    noDataText: 'Không có giáo viên phù hợp',
+    inputAttr: { 'aria-label': 'Giáo viên phụ trách' }
+  };
+  readonly statusEditorOptions: Record<string, unknown> = {
+    items: this.statuses,
+    valueExpr: 'value',
+    displayExpr: 'text',
+    searchEnabled: false,
+    inputAttr: { 'aria-label': 'Trạng thái' }
+  };
+  readonly assessmentEditorOptions: Record<string, unknown> = {
+    dataSource: this.assessmentDataSource,
+    valueExpr: 'id',
+    displayExpr: this.assessmentDisplay,
+    searchEnabled: true,
+    searchMode: 'contains',
+    showSelectionControls: true,
+    applyValueMode: 'useButtons',
+    placeholder: 'Chọn mục đánh giá',
+    noDataText: 'Không có mục đánh giá phù hợp',
+    selectAllText: 'Chọn tất cả',
+    maxDisplayedTags: 4,
+    showMultiTagOnly: false,
+    inputAttr: { 'aria-label': 'Mục đánh giá' }
+  };
+  readonly dateEditorOptions: Record<string, unknown> = {
+    type: 'date',
+    displayFormat: 'dd/MM/yyyy',
+    showClearButton: true
+  };
+  readonly noteEditorOptions: Record<string, unknown> = {
+    maxLength: 2000,
+    minHeight: 110,
+    autoResizeEnabled: true,
+    valueChangeEvent: 'input'
+  };
+
   get title(): string {
     return this.isCreate ? 'Thêm bảng đánh giá' : 'Chỉnh sửa bảng đánh giá';
   }
@@ -159,71 +216,6 @@ export class AssessmentSheetFormComponent implements OnInit {
   get canUseManagerLookups(): boolean {
     const role = this.auth.user?.role;
     return role === 'SuperAdmin' || role === 'Admin';
-  }
-
-  get studentEditorOptions(): Record<string, unknown> {
-    return {
-      dataSource: this.studentDataSource,
-      valueExpr: 'id',
-      displayExpr: this.studentDisplay,
-      searchEnabled: true,
-      searchMode: 'contains',
-      showClearButton: false,
-      disabled: !this.isCreate,
-      placeholder: 'Chọn học sinh',
-      noDataText: 'Không có học sinh phù hợp',
-      inputAttr: { 'aria-label': 'Học sinh' }
-    };
-  }
-
-  get teacherEditorOptions(): Record<string, unknown> {
-    return {
-      dataSource: this.teacherDataSource,
-      valueExpr: 'id',
-      displayExpr: this.teacherDisplay,
-      searchEnabled: true,
-      searchMode: 'contains',
-      showClearButton: true,
-      placeholder: 'Không chọn',
-      noDataText: 'Không có giáo viên phù hợp',
-      inputAttr: { 'aria-label': 'Giáo viên phụ trách' }
-    };
-  }
-
-  get statusEditorOptions(): Record<string, unknown> {
-    return {
-      items: this.statuses,
-      valueExpr: 'value',
-      displayExpr: 'text',
-      searchEnabled: false,
-      inputAttr: { 'aria-label': 'Trạng thái' }
-    };
-  }
-
-  get assessmentEditorOptions(): Record<string, unknown> {
-    return {
-      dataSource: this.assessmentDataSource,
-      valueExpr: 'id',
-      displayExpr: this.assessmentDisplay,
-      searchEnabled: true,
-      searchMode: 'contains',
-      showSelectionControls: true,
-      applyValueMode: 'useButtons',
-      placeholder: 'Chọn mục đánh giá',
-      noDataText: 'Không có mục đánh giá phù hợp',
-      selectAllText: 'Chọn tất cả',
-      maxDisplayedTags: 4,
-      showMultiTagOnly: false,
-      inputAttr: { 'aria-label': 'Mục đánh giá' }
-    };
-  }
-
-  get dateEditorOptions(): Record<string, unknown> {
-    return {
-      type: 'date',
-      displayFormat: 'dd/MM/yyyy',
-      showClearButton: true
-    };
   }
 
   constructor(

@@ -1,4 +1,5 @@
 import {
+  AssessmentSheetFormComponent,
   AssessmentSheetEditor,
   buildCreateAssessmentSheetRequest,
   buildUpdateAssessmentSheetRequest
@@ -49,5 +50,27 @@ describe('Assessment sheet form request mapping', () => {
       dueDate: '2026-08-30',
       feedback: 'Nhận xét cuối kỳ'
     });
+  });
+});
+
+describe('Assessment sheet form DevExtreme option stability', () => {
+  it('keeps editor option object references stable across change detection reads', () => {
+    const component = new AssessmentSheetFormComponent(
+      {} as any,
+      {} as any,
+      { user: { role: 'Admin' } } as any,
+      {} as any,
+      {} as any,
+      { snapshot: { data: { mode: 'create' }, paramMap: { get: () => null } } } as any,
+      {} as any
+    );
+
+    expect(component.studentEditorOptions).toBe(component.studentEditorOptions);
+    expect(component.teacherEditorOptions).toBe(component.teacherEditorOptions);
+    expect(component.statusEditorOptions).toBe(component.statusEditorOptions);
+    expect(component.assessmentEditorOptions).toBe(component.assessmentEditorOptions);
+    expect(component.dateEditorOptions).toBe(component.dateEditorOptions);
+    expect(component.noteEditorOptions).toBe(component.noteEditorOptions);
+    expect(component.formColCountByScreen).toBe(component.formColCountByScreen);
   });
 });
