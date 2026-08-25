@@ -66,6 +66,17 @@
       </div>
 
       <div class="filter-row buttons-row">
+        <label class="select-all-checkbox">
+          <input
+            type="checkbox"
+            [checked]="selectAllVisibleChecked"
+            [indeterminate]="selectAllVisibleIndeterminate"
+            [disabled]="visibleAssessmentIds.length === 0"
+            aria-label="Chọn tất cả mục đánh giá đang hiển thị"
+            (change)="onSelectAllVisibleChanged($event)" />
+          <span>{{ selectAllVisibleText }}</span>
+        </label>
+
         <dx-button
           class="sync-btn"
           stylingMode="outlined"
@@ -106,20 +117,29 @@
       #grid
       [dataSource]="dataSource"
       [remoteOperations]="gridRemoteOperations"
-      [selectedRowKeys]="selectedIds"
       [showBorders]="true"
       [columnAutoWidth]="true"
       [columnHidingEnabled]="true"
       [wordWrapEnabled]="true"
       [rowAlternationEnabled]="true"
       [hoverStateEnabled]="true"
+      (onContentReady)="onContentReady()"
+      (onRowPrepared)="onRowPrepared($event)"
       noDataText="Không có mục đánh giá phù hợp"
-      (onSelectionChanged)="onSelectionChanged($event)">
-      <dxo-selection mode="multiple" showCheckBoxesMode="always"></dxo-selection>
+      >
       <dxo-load-panel [enabled]="true" text="Đang tải ..."></dxo-load-panel>
       <dxo-paging [pageSize]="20"></dxo-paging>
       <dxo-pager [showInfo]="true" [showPageSizeSelector]="true" [allowedPageSizes]="gridPageSizes"></dxo-pager>
       <dxo-sorting mode="single"></dxo-sorting>
+
+      <dxi-column
+        caption=""
+        cellTemplate="selectCell"
+        [width]="52"
+        [allowSorting]="false"
+        [allowHiding]="false"
+        [showInColumnChooser]="false">
+      </dxi-column>
 
       <dxi-column dataField="groupLv1Name" caption="Nhóm tuổi" [minWidth]="160"></dxi-column>
       <dxi-column [visible]="false" dataField="groupLv2Name" caption="Nhóm 2" [minWidth]="180"></dxi-column>
@@ -127,6 +147,13 @@
       <dxi-column dataField="code" caption="Mã" [width]="90"></dxi-column>
       <dxi-column dataField="name" caption="Nội dung" [minWidth]="320"></dxi-column>
       <dxi-column dataField="rowIndex" caption="RowIndex" sortOrder="asc" [width]="100"></dxi-column>
+      <div *dxTemplate="let cell of 'selectCell'" class="select-cell">
+        <dx-check-box
+          [value]="isSelected(cell.data.id)"
+          [hint]="selectCheckboxHint(cell.data)"
+          (onValueChanged)="onSelectCheckboxChanged(cell.data.id, $event)">
+        </dx-check-box>
+      </div>
     </dx-data-grid>
   </div>
 </section>

@@ -1,24 +1,25 @@
-import { Component, EventEmitter, Input, OnDestroy, OnInit, Output, ViewChild } from '@angular/core';
+import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import CustomStore from 'devextreme/data/custom_store';
 import { custom } from 'devextreme/ui/dialog';
 import notify from 'devextreme/ui/notify';
 import { DxDataGridComponent } from 'devextreme-angular/ui/data-grid';
 import { ApiError } from '../../core/models/api-error';
-import { AssessmentGroup } from '../../core/models/api.models';
+import { Assessment, AssessmentGroup } from '../../core/models/api.models';
 import { asLegacyWidgetDataSource, LegacyWidgetDataSource } from '../../core/models/devextreme-legacy.types';
 import { AssessmentGroupsService } from '../../core/services/assessment-groups.service';
 import { AssessmentsService } from '../../core/services/assessments.service';
 import { GoogleSheetsService } from '../../core/services/google-sheets.service';
 
 const ASSESSMENT_PICKER_SORT_FIELDS = new Set(['code', 'name', 'rowindex']);
+const SELECTED_ROW_CLASS = 'assessment-picker-selected-row';
 
 @Component({
   selector: 'app-assessment-picker',
   templateUrl: './assessment-picker.component.html',
   styleUrls: ['./assessment-picker.component.scss']
 })
-export class AssessmentPickerComponent implements OnInit, OnDestroy {
+export class AssessmentPickerComponent implements OnChanges, OnInit, OnDestroy {
   @ViewChild(DxDataGridComponent) grid?: DxDataGridComponent;
   @Input() selectedIds: string[] = [];
   @Output() selectedIdsChange = new EventEmitter<string[]>();
@@ -35,7 +36,9 @@ export class AssessmentPickerComponent implements OnInit, OnDestroy {
   saving = false;
   groupLv2DataSource: LegacyWidgetDataSource | [] = [];
   groupLv3DataSource: LegacyWidgetDataSource | [] = [];
+  visibleAssessmentIds: string[] = [];
   private searchTimer?: number;
+  private selectedIdSet = new Set<string>();
   readonly gridRemoteOperations = { paging: true, sorting: true };
   readonly gridPageSizes = [20, 50, 100];
   readonly searchInputAttr = { 'aria-label': 'Tìm mục đánh giá theo mã, tên' };
@@ -95,7 +98,14 @@ export class AssessmentPickerComponent implements OnInit, OnDestroy {
     private readonly googleSheet: GoogleSheetsService
   ) {}
 
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['selectedIds']) {
+      this.refreshSelectedSet();
+    }
+  }
+
   ngOnInit(): void {
+    this.refreshSelectedSet();
     this.loadLv2DataSource();
     this.loadLv3DataSource();
   }
@@ -167,10 +177,67 @@ export class AssessmentPickerComponent implements OnInit, OnDestroy {
     this.applyFilters();
   }
 
-  onSelectionChanged(event: { selectedRowKeys?: unknown[] }): void {
-    const selectedIds = this.normalizeSelectedIds(event.selectedRowKeys ?? []);
-    this.selectedIds = selectedIds;
-    this.selectedIdsChange.emit(selectedIds);
+  isSelected(id: unknown): boolean {
+    const normalizedId = this.normalizeSelectedId(id);
+    return normalizedId ? this.selectedIdSet.has(normalizedId) : false;
+  }
+
+  selectCheckboxHint(assessment: Assessment | null | undefined): string {
+    return assessment ? `Chọn mục ${assessment.code} · ${assessment.name}` : 'Chọn mục đánh giá';
+  }
+
+  onSelectCheckboxChanged(id: unknown, event: { value?: boolean; event?: unknown }): void {
+    if (!event.event) {
+      return;
+    }
+    const normalizedId = this.normalizeSelectedId(id);
+    if (!normalizedId) {
+      return;
+    }
+    const next = new Set(this.selectedIdSet);
+    if (event.value === true) {
+      next.add(normalizedId);
+    } else {
+      next.delete(normalizedId);
+    }
+    this.emitSelectedIds(next);
+  }
+
+  onSelectAllVisibleChanged(event: Event): void {
+    if (this.visibleAssessmentIds.length === 0) {
+      return;
+    }
+    const input = event.target instanceof HTMLInputElement ? event.target : null;
+    this.setAllVisibleSelected(input?.checked === true);
+  }
+
+  setAllVisibleSelected(selected: boolean): void {
+    const next = new Set(this.selectedIdSet);
+    if (selected) {
+      this.visibleAssessmentIds.forEach(id => next.add(id));
+    } else {
+      this.visibleAssessmentIds.forEach(id => next.delete(id));
+    }
+    this.emitSelectedIds(next);
+  }
+
+  onContentReady(): void {
+    this.refreshVisibleAssessmentIds();
+  }
+
+  onRowPrepared(event: { rowType?: string; data?: Assessment; rowElement?: unknown }): void {
+    if (event.rowType !== 'data') {
+      return;
+    }
+    const rowClassList = this.getRowClassList(event.rowElement);
+    if (!rowClassList) {
+      return;
+    }
+    if (this.isSelected(event.data?.id)) {
+      rowClassList.add(SELECTED_ROW_CLASS);
+    } else {
+      rowClassList.remove(SELECTED_ROW_CLASS);
+    }
   }
 
   get saveDisabled(): boolean {
@@ -179,6 +246,33 @@ export class AssessmentPickerComponent implements OnInit, OnDestroy {
 
   get saveButtonText(): string {
     return this.saving ? 'Đang đồng bộ…' : 'Đồng bộ GGSheet';
+  }
+
+  get selectAllVisibleValue(): boolean | null {
+    if (this.visibleAssessmentIds.length === 0) {
+      return false;
+    }
+    const selectedCount = this.visibleAssessmentIds.filter(id => this.selectedIdSet.has(id)).length;
+    if (selectedCount === 0) {
+      return false;
+    }
+    return selectedCount === this.visibleAssessmentIds.length ? true : null;
+  }
+
+  get selectAllVisibleChecked(): boolean {
+    return this.selectAllVisibleValue === true;
+  }
+
+  get selectAllVisibleIndeterminate(): boolean {
+    return this.selectAllVisibleValue === null;
+  }
+
+  get selectAllVisibleText(): string {
+    if (this.visibleAssessmentIds.length === 0) {
+      return 'Chọn tất cả';
+    }
+    const selectedCount = this.visibleAssessmentIds.filter(id => this.selectedIdSet.has(id)).length;
+    return `Chọn tất cả (${selectedCount}/${this.visibleAssessmentIds.length})`;
   }
 
   async syncAssessmentsFromGGSheet(): Promise<void> {
@@ -282,8 +376,48 @@ export class AssessmentPickerComponent implements OnInit, OnDestroy {
 
   private normalizeSelectedIds(keys: unknown[]): string[] {
     return keys
-      .filter(value => value !== null && value !== undefined && String(value).trim() !== '')
-      .map(value => String(value));
+      .map(value => this.normalizeSelectedId(value))
+      .filter((value): value is string => !!value);
+  }
+
+  private normalizeSelectedId(value: unknown): string | null {
+    if (value === null || value === undefined) {
+      return null;
+    }
+    const id = String(value).trim();
+    return id || null;
+  }
+
+  private refreshSelectedSet(): void {
+    this.selectedIdSet = new Set(this.normalizeSelectedIds(this.selectedIds));
+    this.grid?.instance.repaint();
+  }
+
+  private emitSelectedIds(selectedIdSet: Set<string>): void {
+    const selectedIds = Array.from(selectedIdSet);
+    this.selectedIds = selectedIds;
+    this.selectedIdSet = selectedIdSet;
+    this.selectedIdsChange.emit(selectedIds);
+    this.grid?.instance.repaint();
+  }
+
+  private refreshVisibleAssessmentIds(): void {
+    const gridInstance: any = this.grid?.instance;
+    const rows: Array<{ data?: Assessment }> = gridInstance?.getVisibleRows?.() ?? [];
+    this.visibleAssessmentIds = rows
+      .filter(row => row?.data)
+      .map(row => this.normalizeSelectedId(row.data?.id))
+      .filter((value): value is string => !!value);
+  }
+
+  private getRowClassList(rowElement: unknown): DOMTokenList | null {
+    if (rowElement instanceof HTMLElement) {
+      return rowElement.classList;
+    }
+    const possibleElement = Array.isArray(rowElement)
+      ? rowElement[0]
+      : (rowElement as { get?: (index: number) => unknown } | undefined)?.get?.(0);
+    return possibleElement instanceof HTMLElement ? possibleElement.classList : null;
   }
 
   private isColumnChooserOpen(): boolean {

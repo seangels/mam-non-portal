@@ -116,14 +116,85 @@ describe('Assessment picker filter and selection', () => {
     };
   };
 
-  it('updates selected assessment ids from the grid selection', () => {
+  it('updates selected assessment ids from custom checkbox changes', () => {
+    const { component } = createPicker();
+    const emitted: string[][] = [];
+    component.selectedIds = ['assessment-1'];
+    component.ngOnChanges({ selectedIds: {} as any });
+    component.selectedIdsChange.subscribe(value => emitted.push(value));
+
+    component.onSelectCheckboxChanged('assessment-2', { value: true, event: {} });
+    component.onSelectCheckboxChanged('assessment-1', { value: false, event: {} });
+
+    expect(emitted).toEqual([['assessment-1', 'assessment-2'], ['assessment-2']]);
+    expect(component.isSelected('assessment-2')).toBeTrue();
+    expect(component.isSelected('assessment-1')).toBeFalse();
+  });
+
+  it('ignores programmatic checkbox value changes from grid rendering', () => {
     const { component } = createPicker();
     const emitted: string[][] = [];
     component.selectedIdsChange.subscribe(value => emitted.push(value));
 
-    component.onSelectionChanged({ selectedRowKeys: ['assessment-1', 2, null, undefined, ''] });
+    component.onSelectCheckboxChanged('assessment-1', { value: true });
 
-    expect(emitted).toEqual([['assessment-1', '2']]);
+    expect(emitted).toEqual([]);
+  });
+
+  it('reports select-all checkbox state for visible rows', () => {
+    const { component } = createPicker();
+    component.visibleAssessmentIds = ['assessment-1', 'assessment-2'];
+
+    expect(component.selectAllVisibleValue).toBeFalse();
+
+    component.selectedIds = ['assessment-1'];
+    component.ngOnChanges({ selectedIds: {} as any });
+    expect(component.selectAllVisibleValue).toBeNull();
+    expect(component.selectAllVisibleText).toBe('Chọn tất cả (1/2)');
+
+    component.selectedIds = ['assessment-1', 'assessment-2'];
+    component.ngOnChanges({ selectedIds: {} as any });
+    expect(component.selectAllVisibleValue).toBeTrue();
+  });
+
+  it('selects and clears all visible rows from the panel checkbox', () => {
+    const { component } = createPicker();
+    const emitted: string[][] = [];
+    component.visibleAssessmentIds = ['assessment-1', 'assessment-2'];
+    component.selectedIds = ['assessment-3'];
+    component.ngOnChanges({ selectedIds: {} as any });
+    component.selectedIdsChange.subscribe(value => emitted.push(value));
+
+    component.setAllVisibleSelected(true);
+    component.setAllVisibleSelected(false);
+
+    expect(emitted).toEqual([
+      ['assessment-3', 'assessment-1', 'assessment-2'],
+      ['assessment-3']
+    ]);
+  });
+
+  it('highlights selected rows and clears highlight from unselected rows', () => {
+    const { component } = createPicker();
+    const selectedRow = document.createElement('tr');
+    const unselectedRow = document.createElement('tr');
+    unselectedRow.classList.add('assessment-picker-selected-row');
+    component.selectedIds = ['assessment-1'];
+    component.ngOnChanges({ selectedIds: {} as any });
+
+    component.onRowPrepared({
+      rowType: 'data',
+      data: { id: 'assessment-1' } as any,
+      rowElement: selectedRow
+    });
+    component.onRowPrepared({
+      rowType: 'data',
+      data: { id: 'assessment-2' } as any,
+      rowElement: unselectedRow
+    });
+
+    expect(selectedRow.classList.contains('assessment-picker-selected-row')).toBeTrue();
+    expect(unselectedRow.classList.contains('assessment-picker-selected-row')).toBeFalse();
   });
 
   it('loads assessments with text and group filters like the assessment list', async () => {
