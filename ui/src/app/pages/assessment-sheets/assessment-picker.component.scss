@@ -14,7 +14,11 @@
 .select-all-checkbox input:disabled, .select-all-checkbox input:disabled + span { cursor: not-allowed; opacity: .65; }
 .assessment-picker-grid { margin-top: 16px; padding: 18px; }
 .select-cell { display: flex; justify-content: center; }
-.add-cell { display: flex; justify-content: center; }
+.add-cell { display: flex; justify-content: center;
+  .dx-button.dx-button-has-icon:not(.dx-button-has-text):not(.dx-shape-standard){
+    border-radius: 4px;
+  }
+}
 .existing-badge { display: inline-flex; align-items: center; min-height: 30px; padding: 0 10px; border-radius: 999px; background: #eef2f6; color: #667085; font-size: 12px; font-weight: 600; }
 .latest-grade-cell { font-weight: 600; color: #344054; }
 :host ::ng-deep .assessment-picker-selected-row > td { background-color: #e6f4ff !important; }
