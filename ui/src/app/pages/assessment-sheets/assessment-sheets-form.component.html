@@ -99,27 +99,17 @@
         <table class="records-table">
           <thead>
             <tr>
-              <th class="action-column" scope="col" aria-label="Thao tác"></th>
               <th class="group-lv2-column" scope="col">Nhóm lớn</th>
               <th class="group-lv3-column" scope="col">Nhóm nhỏ</th>
               <th class="number-column" scope="col">STT</th>
               <th scope="col">Nội dung đánh giá</th>
               <th class="grade-column" scope="col">Kết quả hiện tại</th>
               <th class="note-column" scope="col">Ghi chú</th>
+              <th class="action-column" scope="col" aria-label="Thao tác"></th>
             </tr>
           </thead>
           <tbody>
             <tr *ngFor="let row of recordRows" [style.backgroundColor]="row.groupColor">
-              <td class="action-cell">
-                <dx-button
-                  icon="trash"
-                  stylingMode="text"
-                  type="danger"
-                  [disabled]="saving || recordMutationInProgress || originalStatus === 'Done' || records.length <= 1"
-                  [hint]="removeRecordHint(row.record)"
-                  (onClick)="removeAssessmentRecord(row.record)">
-                </dx-button>
-              </td>
               <td *ngIf="row.showGroupLv2" class="group-cell group-lv2-cell"
                 [attr.rowspan]="row.groupLv2RowSpan">
                 <span>{{ row.groupLv2Name }}</span>
@@ -155,6 +145,16 @@
                   (ngModelChange)="updateRecordFinalNote(row.record, $event)"
                   [attr.aria-label]="'Ghi chú của ' + row.record.assessment.code"
                   placeholder="Ghi chú"></textarea>
+              </td>
+              <td class="action-cell">
+                <dx-button
+                  icon="trash"
+                  stylingMode="text"
+                  type="danger"
+                  [disabled]="saving || recordMutationInProgress || originalStatus === 'Done' || records.length <= 1"
+                  [hint]="removeRecordHint(row.record)"
+                  (onClick)="removeAssessmentRecord(row.record)">
+                </dx-button>
               </td>
             </tr>
           </tbody>

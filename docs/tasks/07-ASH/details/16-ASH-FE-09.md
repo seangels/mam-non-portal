@@ -19,18 +19,18 @@ Thiết kế lại section `records-panel` trên màn edit AssessmentSheet từ 
 ## Bố cục table cần làm
 
 - ✅ Section `records-panel` hiển thị records bằng table thay cho list card.
-- ✅ Cột chứa nút xóa nằm đầu tiên của mỗi dòng.
+- ✅ Cột chứa nút xóa nằm sau cột `Ghi chú`.
   - ✅ Dùng icon-only trash giống `ASH-FE-08`.
   - ✅ Vẫn dùng confirm trước khi xóa.
   - ✅ Dòng không được xóa thì button disabled và có hint tiếng Việt.
 - ✅ Các cột chính theo thứ tự:
-  1. ✅ Thao tác xóa.
-  2. ✅ Nhóm lớn `groupLv2`.
-  3. ✅ Nhóm nhỏ `groupLv3`.
-  4. ✅ `STT`.
-  5. ✅ `Nội dung đánh giá`.
-  6. ✅ `Kết quả hiện tại`.
-  7. ✅ `Ghi chú`.
+  1. ✅ Nhóm lớn `groupLv2`.
+  2. ✅ Nhóm nhỏ `groupLv3`.
+  3. ✅ `STT`.
+  4. ✅ `Nội dung đánh giá`.
+  5. ✅ `Kết quả hiện tại`.
+  6. ✅ `Ghi chú`.
+  7. ✅ Thao tác xóa.
 - ✅ `groupLv2` và `groupLv3` cần hiển thị dạng nhóm dễ nhìn:
   - ✅ Dùng `rowspan` theo các nhóm liên tiếp để nhìn gần mẫu bảng.
   - ✅ Không cần fallback lặp text vì rowspan build/test đã ổn trên Angular 12.
