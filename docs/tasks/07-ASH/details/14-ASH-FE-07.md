@@ -9,7 +9,7 @@ Cho phép người dùng mở màn chỉnh sửa bảng đánh giá và thêm th
 - ✅ Thêm nút `Thêm mục đánh giá` trong khu vực `Danh mục đánh giá đã chọn` của màn edit.
 - ✅ Khi bấm nút, hiển thị `app-assessment-picker` bên ngoài form, dùng lại bộ lọc/search/client cache/sync GGSheet hiện có.
 - ✅ Picker trong màn edit hiển thị thêm cột thao tác:
-  - ✅ Dòng chưa có trong sheet: hiện nút `Thêm`.
+  - ✅ Dòng chưa có trong sheet: hiện nút icon `+`.
   - ✅ Dòng đã có record trong sheet: vẫn hiện dòng nhưng ẩn/disable nút thêm và hiển thị `Đã có`.
 - ✅ Khi bấm `Thêm`, hỏi xác nhận trước khi lưu.
 - ✅ Sau khi xác nhận, gọi endpoint full-replace records hiện có `PUT /api/v1/assessment-sheets/{id}/records`.
