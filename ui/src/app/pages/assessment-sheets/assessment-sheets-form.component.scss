@@ -37,9 +37,6 @@
 .content-cell strong { display: block; font-weight: 500; }
 .code-cell { color: #111827; white-space: nowrap; }
 .plan-cell { color: #344054; }
-.grade-badge, .grade-option-badge { display: inline-flex; min-height: 24px; align-items: center; justify-content: center; padding: 2px 12px; border-radius: 999px; font-weight: 600; line-height: 1.2; white-space: nowrap; }
-.grade-badge { min-width: 76px; }
-.grade-option-badge { width: 100%; }
 .content-header,
 .grade-header { display: flex; flex-direction: column; align-items: center; gap: 4px; }
 .code-toggle,
@@ -57,6 +54,9 @@
 :host ::ng-deep .grade-select-box .dx-dropdowneditor-button { width: 28px; }
 :host ::ng-deep .grade-select-box .dx-dropdowneditor-icon { color: inherit; }
 :host ::ng-deep .grade-select-box.dx-state-focused, :host ::ng-deep .grade-select-box.dx-state-active { box-shadow: 0 0 0 2px #2f80ed26; }
+:host ::ng-deep .plan-grade-button.dx-button { min-width: 76px; min-height: 24px; border: 0; border-radius: 999px; box-shadow: none; cursor: default; pointer-events: none; }
+:host ::ng-deep .plan-grade-button .dx-button-content { padding: 2px 12px; }
+:host ::ng-deep .plan-grade-button .dx-button-text { color: inherit; font: inherit; font-weight: 600; line-height: 1.2; text-transform: none; }
 .form-actions { position: sticky; z-index: 5; bottom: 12px; display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-top: 16px; padding: 12px 16px; border: 1px solid #d0d5dd; border-radius: 9px; background: #fff; box-shadow: 0 5px 20px #1018282e; }
 .form-action-buttons { display: flex; justify-content: flex-end; gap: 10px; margin-left: auto; }
 .action-summary { display: flex; flex-direction: column; color: #344054; }

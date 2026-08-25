@@ -150,12 +150,17 @@
                 {{ row.record.assessment.name }}
               </td>
               <td *ngIf="showPlanColumn" class="plan-cell">
-                <span
-                  class="grade-badge"
+                <dx-button
+                  class="plan-grade-button"
+                  stylingMode="contained"
+                  [text]="gradeText(row.record.planGrade)"
+                  [focusStateEnabled]="false"
+                  [hoverStateEnabled]="false"
+                  [activeStateEnabled]="false"
+                  [tabIndex]="-1"
                   [style.backgroundColor]="gradeBgColor(row.record.planGrade)"
                   [style.color]="gradeColor(row.record.planGrade)">
-                  {{ gradeText(row.record.planGrade) }}
-                </span>
+                </dx-button>
               </td>
               <td class="grade-cell">
                 <div
@@ -168,19 +173,10 @@
                     [dataSource]="gradeSelectOptions"
                     valueExpr="value"
                     displayExpr="text"
-                    itemTemplate="gradeOption"
                     [disabled]="saving || recordMutationInProgress || originalStatus === 'Done'"
                     [value]="row.record.finalGrade ?? row.record.planGrade ?? null"
                     (onValueChanged)="updateRecordFinalGrade(row.record, $event.value)"
                     [attr.aria-label]="'Kết quả hiện tại của ' + row.record.assessment.code">
-                    <div *dxTemplate="let grade of 'gradeOption'">
-                      <span
-                        class="grade-option-badge"
-                        [style.backgroundColor]="grade.bgcolor"
-                        [style.color]="grade.color">
-                        {{ grade.text }}
-                      </span>
-                    </div>
                   </dx-select-box>
                 </div>
               </td>
