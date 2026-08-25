@@ -118,7 +118,7 @@
               <th *ngIf="showPlanColumn" class="plan-column" scope="col">Kế hoạch</th>
               <th class="grade-column" scope="col">
                 <div class="grade-header">
-                  <span>Kết quả hiện tại</span>
+                  <span>Kết quả</span>
                   <label class="plan-toggle">
                     <input
                       type="checkbox"
@@ -158,25 +158,44 @@
                   [hoverStateEnabled]="false"
                   [activeStateEnabled]="false"
                   [tabIndex]="-1"
+                  [style.borderColor]="gradeColor(row.record.planGrade)"
                   [style.backgroundColor]="gradeBgColor(row.record.planGrade)"
                   [style.color]="gradeColor(row.record.planGrade)">
                 </dx-button>
               </td>
-              <td class="grade-cell">
+              <td class="grade-cell"
+                [style.backgroundColor]="row.record.finalGrade == row.record.planGrade ? '' : 'yellow'"
+              >
                 <div
                   class="grade-select-shell"
                   [class.disabled]="saving || recordMutationInProgress || originalStatus === 'Done'"
-                  [style.backgroundColor]="gradeBgColor(row.record.finalGrade ?? row.record.planGrade)"
-                  [style.color]="gradeColor(row.record.finalGrade ?? row.record.planGrade)">
+                  >
                   <dx-select-box
                     class="grade-select-box"
+                    [style.borderColor]="gradeColor(row.record.finalGrade)"
+                    [style.backgroundColor]="row.record.finalGrade ? gradeBgColor(row.record.finalGrade) : ''"
+                    [style.color]="gradeColor(row.record.finalGrade)"
                     [dataSource]="gradeSelectOptions"
                     valueExpr="value"
                     displayExpr="text"
                     [disabled]="saving || recordMutationInProgress || originalStatus === 'Done'"
                     [value]="row.record.finalGrade ?? row.record.planGrade ?? null"
                     (onValueChanged)="updateRecordFinalGrade(row.record, $event.value)"
-                    [attr.aria-label]="'Kết quả hiện tại của ' + row.record.assessment.code">
+                    [attr.aria-label]="'Kết quả hiện tại của ' + row.record.assessment.code"
+                    itemTemplate="item"
+                    >
+                    <div *dxTemplate="let data of 'item'"
+                      class="grade-select-box-item"
+                    >
+                        <span
+                          class="grade-value"
+                          [style.borderColor]="gradeColor(data.value)"
+                          [style.backgroundColor]="data.value ? gradeBgColor(data.value) : ''"
+                          [style.color]="gradeColor(data.value)"
+                        >
+                          {{data.text}}
+                        </span>
+                    </div>
                   </dx-select-box>
                 </div>
               </td>

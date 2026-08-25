@@ -25,7 +25,7 @@
 .number-column { width: 40px; }
 .code-column { width: 40px; }
 .plan-column { width: 80px; }
-.grade-column { width: 120px; }
+.grade-column { width: 100px; }
 .note-column { width: 220px; }
 .action-cell, .number-cell, .code-cell, .plan-cell, .grade-cell { text-align: center; }
 .action-cell { background: #ffffff80; }
@@ -43,20 +43,35 @@
 .plan-toggle { display: inline-flex; align-items: center; gap: 4px; color: #667085; font-size: smaller; font-weight: 500; white-space: nowrap; cursor: pointer; }
 .code-toggle input,
 .plan-toggle input { width: 13px; height: 13px; margin: 0; cursor: pointer; }
-.grade-select-shell { width: 100%; min-height: 28px; overflow: hidden; border-radius: 999px; }
-.grade-select-box { display: block; width: 100%; min-height: 28px; color: inherit; font: inherit; }
+.grade-select-shell { width: 100%; overflow: hidden; }
+.grade-select-box {
+  display: block; width: 100%; color: inherit;
+}
 .note-cell textarea { width: 100%; border: 1px solid transparent; background: #ffffffc7; color: #111827; font: inherit; }
 .note-cell textarea { min-height: 28px; padding: 4px 8px; resize: vertical; }
 .note-cell textarea:focus { border-color: #2f80ed; background: #fff; outline: none; box-shadow: 0 0 0 2px #2f80ed26; }
 .grade-select-shell.disabled, .note-cell textarea:disabled { opacity: .65; cursor: not-allowed; }
-:host ::ng-deep .grade-select-box.dx-texteditor, :host ::ng-deep .grade-select-box .dx-texteditor { border: 0; background: transparent; color: inherit; }
-:host ::ng-deep .grade-select-box .dx-texteditor-input { min-height: 28px; padding: 3px 30px 3px 12px; color: inherit; font: inherit; font-weight: 600; text-align: center; }
-:host ::ng-deep .grade-select-box .dx-dropdowneditor-button { width: 28px; }
+:host ::ng-deep .grade-select-box.dx-texteditor, :host ::ng-deep .grade-select-box .dx-texteditor { color: inherit; }
+:host ::ng-deep .grade-select-box .dx-texteditor-input { color: inherit; text-align: center; }
+.grade-select-box-item {
+  display: flex;
+  justify-content: center;
+  .grade-value {
+    min-height: 22px;
+    padding: 4px;
+    align-items: center;
+    border-radius: 4px !important;
+    border: 1px solid;
+  }
+}
 :host ::ng-deep .grade-select-box .dx-dropdowneditor-icon { color: inherit; }
 :host ::ng-deep .grade-select-box.dx-state-focused, :host ::ng-deep .grade-select-box.dx-state-active { box-shadow: 0 0 0 2px #2f80ed26; }
-:host ::ng-deep .plan-grade-button.dx-button { min-width: 76px; min-height: 24px; border: 0; border-radius: 999px; box-shadow: none; cursor: default; pointer-events: none; }
+:host ::ng-deep .plan-grade-button.dx-button {
+  // border-color: rgb(17, 115, 75);
+  min-height: 24px;
+  min-width: 76px; cursor: default; pointer-events: none; }
 :host ::ng-deep .plan-grade-button .dx-button-content { padding: 2px 12px; }
-:host ::ng-deep .plan-grade-button .dx-button-text { color: inherit; font: inherit; font-weight: 600; line-height: 1.2; text-transform: none; }
+:host ::ng-deep .plan-grade-button .dx-button-text { color: inherit; font: inherit; line-height: 1.2; text-transform: none; }
 .form-actions { position: sticky; z-index: 5; bottom: 12px; display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-top: 16px; padding: 12px 16px; border: 1px solid #d0d5dd; border-radius: 9px; background: #fff; box-shadow: 0 5px 20px #1018282e; }
 .form-action-buttons { display: flex; justify-content: flex-end; gap: 10px; margin-left: auto; }
 .action-summary { display: flex; flex-direction: column; color: #344054; }

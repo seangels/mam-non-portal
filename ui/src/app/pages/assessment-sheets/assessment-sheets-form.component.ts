@@ -333,7 +333,7 @@ export class AssessmentSheetFormComponent implements OnInit {
   existingAssessmentCodes: string[] = [];
   showAddAssessmentPicker = false;
   showCodeColumn = false;
-  showPlanColumn = true;
+  showPlanColumn = false;
   loading = false;
   saving = false;
   addingRecord = false;
