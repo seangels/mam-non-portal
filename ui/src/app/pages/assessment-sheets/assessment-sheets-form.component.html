@@ -38,7 +38,7 @@
       </div>
     </div>
 
-    <dx-form #form [formData]="editor" [disabled]="saving || addingRecord" labelLocation="top"
+    <dx-form #form [formData]="editor" [disabled]="saving || recordMutationInProgress" labelLocation="top"
       [colCountByScreen]="formColCountByScreen">
       <dxi-item dataField="studentId" editorType="dxSelectBox"  [colSpan]="2" [visible]="isCreate"
         [editorOptions]="studentEditorOptions">
@@ -87,7 +87,7 @@
             icon="add"
             stylingMode="outlined"
             type="default"
-            [disabled]="saving || addingRecord || originalStatus === 'Done'"
+            [disabled]="saving || recordMutationInProgress || originalStatus === 'Done'"
             (onClick)="toggleAddAssessmentPicker()">
           </dx-button>
         </div>
@@ -104,6 +104,16 @@
           <div class="record-grades" aria-label="Kết quả đánh giá">
             <span>Kế hoạch: {{ gradeText(record.planGrade) }}</span>
             <span>Kết quả: {{ gradeText(record.finalGrade) }}</span>
+          </div>
+          <div class="record-actions">
+            <dx-button
+              icon="trash"
+              stylingMode="text"
+              type="danger"
+              [disabled]="saving || recordMutationInProgress || originalStatus === 'Done' || records.length <= 1"
+              [hint]="removeRecordHint(record)"
+              (onClick)="removeAssessmentRecord(record)">
+            </dx-button>
           </div>
         </article>
       </div>
@@ -125,7 +135,7 @@
     mode="add"
     [studentId]="editor.studentId || null"
     [existingCodes]="existingAssessmentCodes"
-    [addDisabled]="saving || addingRecord || originalStatus === 'Done'"
+    [addDisabled]="saving || recordMutationInProgress || originalStatus === 'Done'"
     (assessmentAdd)="addAssessmentToSheet($event)">
   </app-assessment-picker>
 
@@ -135,9 +145,9 @@
       <small *ngIf="dirty">Có thay đổi chưa lưu</small>
     </span>
     <div class="form-action-buttons">
-      <dx-button text="Hủy" stylingMode="outlined" [disabled]="saving || addingRecord" (onClick)="cancel()"></dx-button>
+      <dx-button text="Hủy" stylingMode="outlined" [disabled]="saving || recordMutationInProgress" (onClick)="cancel()"></dx-button>
       <dx-button [text]="isCreate ? 'Tạo bảng đánh giá' : 'Lưu thay đổi'" icon="save" type="default"
-        [disabled]="saving || addingRecord" (onClick)="save()"></dx-button>
+        [disabled]="saving || recordMutationInProgress" (onClick)="save()"></dx-button>
     </div>
   </div>
 </div>

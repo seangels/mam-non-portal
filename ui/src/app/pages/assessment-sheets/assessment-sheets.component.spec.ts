@@ -4,6 +4,7 @@ import {
   AssessmentSheetFormComponent,
   AssessmentSheetEditor,
   buildCreateAssessmentSheetRequest,
+  buildRemoveAssessmentSheetRecordRequest,
   buildReplaceAssessmentSheetRecordsRequest,
   buildUpdateAssessmentSheetRequest
 } from './assessment-sheets-form.component';
@@ -122,11 +123,57 @@ describe('Assessment sheet form request mapping', () => {
       { id: 'assessment-2', code: 'A02' } as any
     ])).toThrowError(/Không thể xác định assessmentId/);
   });
+  it('builds remove-record request and preserves remaining record values', () => {
+    const recordToRemove = {
+      id: 'record-1',
+      assessment: { code: 'A01', name: 'Ngôn ngữ' }
+    } as any;
+    const request = buildRemoveAssessmentSheetRecordRequest([
+      recordToRemove,
+      {
+        id: 'record-2',
+        assessment: { code: 'A02', name: 'Vận động' },
+        planGrade: 'A',
+        planNote: 'Kế hoạch',
+        finalGrade: 'D',
+        finalNote: 'Kết quả'
+      } as any
+    ], recordToRemove, [
+      { id: 'assessment-1', code: 'A01' } as any,
+      { id: 'assessment-2', code: 'A02' } as any
+    ]);
+
+    expect(request).toEqual({
+      records: [
+        {
+          assessmentId: 'assessment-2',
+          planGrade: 'A',
+          planNote: 'Kế hoạch',
+          finalGrade: 'D',
+          finalNote: 'Kết quả'
+        }
+      ]
+    });
+  });
+
+  it('stops remove-record request when it would remove the last record', () => {
+    const recordToRemove = {
+      id: 'record-1',
+      assessment: { code: 'A01', name: 'Ngôn ngữ' }
+    } as any;
+
+    expect(() => buildRemoveAssessmentSheetRecordRequest([
+      recordToRemove
+    ], recordToRemove, [
+      { id: 'assessment-1', code: 'A01' } as any
+    ])).toThrowError(/ít nhất một mục/);
+  });
 });
 
 describe('Assessment sheet form DevExtreme option stability', () => {
   const createComponent = (mode = 'create'): AssessmentSheetFormComponent =>
     new AssessmentSheetFormComponent(
+      {} as any,
       {} as any,
       { user: { role: 'Admin' } } as any,
       {} as any,

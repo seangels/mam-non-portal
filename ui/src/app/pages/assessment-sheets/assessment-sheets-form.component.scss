@@ -19,6 +19,7 @@
 .record-main { display: flex; flex-direction: column; gap: 4px; }
 .record-main small, .record-grades { color: #667085; }
 .record-grades { display: flex; flex-direction: column; gap: 4px; min-width: 150px; text-align: right; }
+.record-actions { display: flex; align-items: flex-start; justify-content: flex-end; }
 .form-actions { position: sticky; z-index: 5; bottom: 12px; display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-top: 16px; padding: 12px 16px; border: 1px solid #d0d5dd; border-radius: 9px; background: #fff; box-shadow: 0 5px 20px #1018282e; }
 .form-action-buttons { display: flex; justify-content: flex-end; gap: 10px; margin-left: auto; }
 .action-summary { display: flex; flex-direction: column; color: #344054; }
@@ -33,6 +34,7 @@
   .snapshot-panel { grid-template-columns: 1fr; }
   .record-card { flex-direction: column; }
   .record-grades { min-width: 0; text-align: left; }
+  .record-actions { justify-content: flex-start; }
   .form-error, .form-actions { align-items: stretch; flex-direction: column; }
   .form-actions { position: fixed; right: 8px; bottom: 8px; left: 8px; margin: 0; padding: 12px 16px; }
   .form-action-buttons { flex-direction: column; margin-left: 0; }

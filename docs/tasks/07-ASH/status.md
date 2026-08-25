@@ -34,7 +34,7 @@ Theo mục 13 của plan. Cả 5 quyết định đã được khoá. `ASH-DEC-0
 | Planning | 1 | 0 | 0 | 1 | 0 |
 | Backend | 6 | 0 | 3 | 3 | 0 |
 | Frontend | 6 | 5 | 0 | 1 | 0 |
-| Frontend delta | 3 | 0 | 0 | 3 | 0 |
+| Frontend delta | 4 | 0 | 0 | 4 | 0 |
 | Contract delta | 1 | 0 | 0 | 1 | 0 |
 | QA | 1 | 1 | 0 | 0 | 0 |
 
@@ -74,6 +74,7 @@ Cập nhật bảng này mỗi khi đổi trạng thái một dòng bên dưới
 | `[x]` | `ASH-FE-05` | Picker thêm TagBox lọc `Kết quả gần nhất` ở đầu panel filter, gồm lựa chọn `Chưa có`; filter chạy local trên snapshot `viewMode` | `ASM-LST-03` |
 | `[x]` | `ASH-FE-06` | Sửa dropdown Trạng thái trên màn edit: create vẫn readonly, edit cho phép đổi `Open`/`Planed`/`Done` nhưng giữ `editorOptions` ổn định để tránh reload loop DevExtreme 19 | `ASH-CR-01` |
 | `[x]` | [`ASH-FE-07`](details/14-ASH-FE-07.md) | Màn edit có nút `Thêm mục đánh giá`, mở picker ở chế độ thêm từng dòng với confirm; dòng đã có record vẫn hiển thị nhưng không cho thêm lại; lưu qua endpoint full-replace records hiện có | `ASH-FE-06`, `PUT /assessment-sheets/{id}/records` |
+| `[x]` | [`ASH-FE-08`](details/15-ASH-FE-08.md) | Màn edit có nút xóa từng dòng trong `records-panel`, confirm trước khi xóa và lưu qua endpoint full-replace records hiện có | `ASH-FE-07`, `PUT /assessment-sheets/{id}/records` |
 
 ## Contract delta — owner: `root` / phối hợp backend + frontend
 
