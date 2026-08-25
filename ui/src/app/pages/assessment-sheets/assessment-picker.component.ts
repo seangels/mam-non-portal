@@ -5,7 +5,7 @@ import notify from 'devextreme/ui/notify';
 import { DxDataGridComponent } from 'devextreme-angular/ui/data-grid';
 import { ApiError } from '../../core/models/api-error';
 import { Assessment, AssessmentGroup, AssessmentListQuery } from '../../core/models/api.models';
-import { ASSESSMENT_GRADE_OPTIONS } from '../../core/models/api.models.assessment-sheets';
+import { AssessmentGrade, ASSESSMENT_GRADE_OPTIONS } from '../../core/models/api.models.assessment-sheets';
 import { AssessmentsService } from '../../core/services/assessments.service';
 import { GoogleSheetsService } from '../../core/services/google-sheets.service';
 import { includesVietnamese } from '../../core/utils/vietnamese-search';
@@ -13,6 +13,7 @@ import { includesVietnamese } from '../../core/utils/vietnamese-search';
 const SELECTED_ROW_CLASS = 'assessment-picker-selected-row';
 const ASSESSMENT_CACHE_PAGE_SIZE = 100;
 type AssessmentPickerViewMode = 'all' | 'selected';
+type LatestGradeFilterValue = AssessmentGrade | 'none';
 
 @Component({
   selector: 'app-assessment-picker',
@@ -29,6 +30,7 @@ export class AssessmentPickerComponent implements OnChanges, OnInit, OnDestroy {
   groupLv1Name: string | null = null;
   groupLv2Name: string | null = null;
   groupLv3Name: string | null = null;
+  latestGradeFilters: LatestGradeFilterValue[] = [];
   viewMode: AssessmentPickerViewMode = 'all';
   groupLv1Placeholder = 'Nhóm tuổi';
   groupLv2Placeholder = 'Nhóm 2';
@@ -54,6 +56,11 @@ export class AssessmentPickerComponent implements OnChanges, OnInit, OnDestroy {
   readonly groupLv1InputAttr = { 'aria-label': 'Lọc theo nhóm tuổi' };
   readonly groupLv2InputAttr = { 'aria-label': 'Lọc theo nhóm 2' };
   readonly groupLv3InputAttr = { 'aria-label': 'Lọc theo nhóm 3' };
+  readonly latestGradeInputAttr = { 'aria-label': 'Lọc theo kết quả gần nhất' };
+  readonly latestGradeOptions: Array<{ value: LatestGradeFilterValue; text: string }> = [
+    { value: 'none', text: 'Chưa có' },
+    ...ASSESSMENT_GRADE_OPTIONS
+  ];
   readonly viewModeInputAttr = { 'aria-label': 'Chế độ xem mục đánh giá' };
   readonly viewModeOptions: Array<{ value: AssessmentPickerViewMode; text: string }> = [
     { value: 'all', text: 'Xem tất cả' },
@@ -124,6 +131,7 @@ export class AssessmentPickerComponent implements OnChanges, OnInit, OnDestroy {
     this.groupLv1Name = null;
     this.groupLv2Name = null;
     this.groupLv3Name = null;
+    this.latestGradeFilters = [];
     this.refreshGroupOptions();
     this.applyFilters();
   }
@@ -151,6 +159,10 @@ export class AssessmentPickerComponent implements OnChanges, OnInit, OnDestroy {
   }
 
   onGroupLv3Changed(): void {
+    this.applyFilters();
+  }
+
+  onLatestGradeFiltersChanged(): void {
     this.applyFilters();
   }
 
@@ -383,7 +395,13 @@ export class AssessmentPickerComponent implements OnChanges, OnInit, OnDestroy {
     return includesVietnamese([assessment.code, assessment.name], this.search)
       && (!this.groupLv1Name || assessment.groupLv1Name === this.groupLv1Name)
       && (!this.groupLv2Name || assessment.groupLv2Name === this.groupLv2Name)
-      && (!this.groupLv3Name || assessment.groupLv3Name === this.groupLv3Name);
+      && (!this.groupLv3Name || assessment.groupLv3Name === this.groupLv3Name)
+      && this.matchesLatestGradeFilter(assessment.latestGrade);
+  }
+
+  private matchesLatestGradeFilter(latestGrade: string | null | undefined): boolean {
+    return this.latestGradeFilters.length === 0
+      || this.latestGradeFilters.some(grade => grade === latestGrade || (grade === 'none' && !latestGrade));
   }
 
   private isInSelectedViewSnapshot(id: unknown): boolean {

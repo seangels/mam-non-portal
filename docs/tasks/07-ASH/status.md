@@ -33,7 +33,7 @@ Theo mục 13 của plan. Cả 5 quyết định đã được khoá. `ASH-DEC-0
 |---|---:|---:|---:|---:|---:|
 | Planning | 1 | 0 | 0 | 1 | 0 |
 | Backend | 6 | 0 | 3 | 3 | 0 |
-| Frontend | 5 | 5 | 0 | 0 | 0 |
+| Frontend | 6 | 5 | 0 | 1 | 0 |
 | QA | 1 | 1 | 0 | 0 | 0 |
 
 Cập nhật bảng này mỗi khi đổi trạng thái một dòng bên dưới.
@@ -64,6 +64,12 @@ Cập nhật bảng này mỗi khi đổi trạng thái một dòng bên dưới
 | `[ ]` | [`ASH-FE-02`](details/10-ASH-FE-02.md) | Form chi tiết: sửa plan/`PlanGrade`, Xuất sang Google Sheet/Đồng bộ | `ASH-FE-01`, `ASH-BE-03` |
 | `[ ]` | [`ASH-FE-03`](details/11-ASH-FE-03.md) | Nhập `FinalGrade`, sinh PDF, cập nhật `[F0.ĐG]`, chuyển `Open`/`Done` | `ASH-FE-02`, `ASH-BE-04` |
 | `[ ]` | [`ASH-FE-04`](details/12-ASH-FE-04.md) | Build/`test:ci` mặc định, docs/memory, smoke phần frontend | `ASH-FE-03` |
+
+### Frontend delta — owner: `frontend`
+
+| Status | Mã | Việc cần làm | Phụ thuộc |
+|---|---|---|---|
+| `[x]` | `ASH-FE-05` | Picker thêm TagBox lọc `Kết quả gần nhất` ở đầu panel filter, gồm lựa chọn `Chưa có`; filter chạy local trên snapshot `viewMode` | `ASM-LST-03` |
 
 ## QA — owner: chưa có agent QA riêng (root điều phối, backend/frontend tự chạy phần của mình)
 

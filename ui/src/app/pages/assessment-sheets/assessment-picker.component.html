@@ -8,6 +8,21 @@
 
     <div *ngIf="filtersExpanded" id="assessment-picker-filters" class="filters assessment-picker-filters">
       <div class="filter-row inputs-row">
+        <dx-tag-box
+          class="latest-grade-input"
+          [(value)]="latestGradeFilters"
+          [dataSource]="latestGradeOptions"
+          valueExpr="value"
+          displayExpr="text"
+          placeholder="Kết quả gần nhất"
+          [showClearButton]="true"
+          [showSelectionControls]="true"
+          [multiline]="false"
+          noDataText="Không có kết quả phù hợp"
+          [inputAttr]="latestGradeInputAttr"
+          (onValueChanged)="onLatestGradeFiltersChanged()">
+        </dx-tag-box>
+
         <dx-text-box
           class="search-input"
           [(value)]="search"

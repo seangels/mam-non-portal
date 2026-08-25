@@ -65,6 +65,7 @@
 - Giáo viên chọn các mục đánh giá (`plan`) từ kho `Assessment` để đưa vào bảng. Màn hình chọn plan hỗ trợ các bộ lọc sau (kết hợp được với nhau):
   - **Theo học sinh:** lấy thêm `LatestGrade`/ghi chú latest gợi ý dựa trên `AssessmentRecordLatest` (đọc-only, đã fetch từ Google Sheet) của đúng học sinh đang tạo bảng. Việc thiếu dữ liệu latest không được làm ẩn mất mục đánh giá; các field latest để trống/null.
   - **Theo mức grade:** ví dụ lọc các mục có kết quả gần nhất `LatestGrade >= B`, dùng thang xếp hạng đã chốt `A > B > C > D` (`A` cao nhất, `D` thấp nhất); dùng để khoanh vùng các mục học sinh đã đạt mức nhất định hoặc ngược lại cần cải thiện.
+  - **Theo kết quả gần nhất trên UI:** TagBox đứng đầu panel filter, cho chọn nhiều giá trị gồm `Chưa có`, `Đạt +`, `Chưa đạt -`, `Hỗ trợ +`, `Hỗ trợ -`. `Chưa có` đại diện cho mục chưa có `LatestGrade`. Filter này chạy trên dữ liệu đã tải về client và trên snapshot hiện hành của chế độ xem (`Xem tất cả` hoặc `Chỉ những mục đã chọn`), không tự gọi lại server.
   - **Theo nhóm phân cấp:** lọc theo `GroupLv1Name`, `GroupLv2Name`, `GroupLv3Name` của `Assessment`.
 - Với mỗi mục được chọn, hệ thống:
   - Snapshot thông tin mục đánh giá vào `AssessmentRecord.AssessmentSnapshot` (mã, tên, các cấp nhóm, `RowIndex`).

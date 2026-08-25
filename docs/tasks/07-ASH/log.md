@@ -60,7 +60,7 @@ File trạng thái: [`status.md`](status.md). Chi tiết từng task (Mục đí
 
 ## Frontend log
 
-_Chưa có hoạt động._
+- `ASH-FE-05` (2026-08-25): thêm DevExtreme TagBox lọc `latestGrade` ở đầu hàng filter của màn chọn mục đánh giá. Options hiển thị tiếng Việt: `Chưa có`, `Đạt +`, `Chưa đạt -`, `Hỗ trợ +`, `Hỗ trợ -`; `Chưa có` lọc item có `latestGrade` null/empty. Filter này chạy local trên dữ liệu client cache và trên source hiện hành của `viewMode` giống text/nhóm tuổi/nhóm 2/nhóm 3; ở mode `Chỉ những mục đã chọn`, filter chạy trên snapshot đã chụp và không gọi API khi đổi filter/chọn-bỏ chọn. Verification: `npm --prefix ui run test:ci` pass 92/92; `npm --prefix ui run build -- --configuration development` pass hash `5d6d04404cbb4a850f85`, chỉ còn warning CommonJS DevExtreme quen thuộc. Không đổi backend/REST contract, không production/IIS/deploy.
 
 ## QA / smoke test log
 

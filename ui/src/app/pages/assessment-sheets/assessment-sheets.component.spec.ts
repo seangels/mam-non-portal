@@ -206,14 +206,14 @@ describe('Assessment picker filter and selection', () => {
     assessments.list.and.returnValues(
       of({
         items: [
-          assessment({ id: 'assessment-1', code: 'NN01', name: 'Ngôn ngữ', groupLv1Name: '3-4 tuổi' }),
-          assessment({ id: 'assessment-2', code: 'TC01', name: 'Thể chất', groupLv1Name: '4-5 tuổi', groupLv2Name: 'Vận động' })
+          assessment({ id: 'assessment-1', code: 'NN01', name: 'Ngôn ngữ', groupLv1Name: '3-4 tuổi', latestGrade: 'A' }),
+          assessment({ id: 'assessment-2', code: 'TC01', name: 'Thể chất', groupLv1Name: '4-5 tuổi', groupLv2Name: 'Vận động', latestGrade: 'B' })
         ],
         pagination: { page: 1, pageSize: 100, totalItems: 3, totalPages: 2 }
       }),
       of({
         items: [
-          assessment({ id: 'assessment-3', code: 'TM01', name: 'Thẩm mỹ', groupLv1Name: '3-4 tuổi', groupLv2Name: 'Nghệ thuật' })
+          assessment({ id: 'assessment-3', code: 'TM01', name: 'Thẩm mỹ', groupLv1Name: '3-4 tuổi', groupLv2Name: 'Nghệ thuật', latestGrade: 'C' })
         ],
         pagination: { page: 2, pageSize: 100, totalItems: 3, totalPages: 2 }
       })
@@ -240,10 +240,17 @@ describe('Assessment picker filter and selection', () => {
 
     component.search = 'ngon ngu';
     component.groupLv1Name = '3-4 tuổi';
+    component.latestGradeFilters = ['A'];
     component.applyFilters();
 
     expect(assessments.list).toHaveBeenCalledTimes(2);
     expect(component.filteredAssessments.map(item => item.id)).toEqual(['assessment-1']);
+
+    component.latestGradeFilters = ['B'];
+    component.applyFilters();
+
+    expect(assessments.list).toHaveBeenCalledTimes(2);
+    expect(component.filteredAssessments).toEqual([]);
   });
 
   it('passes selected student id when loading the assessment cache', async () => {
@@ -299,8 +306,8 @@ describe('Assessment picker filter and selection', () => {
   it('keeps the current selected-only view stable when rows are unchecked', () => {
     const { component, assessments } = createPicker();
     component.allAssessments = [
-      assessment({ id: 'assessment-1', code: 'NN01', name: 'Ngôn ngữ' }),
-      assessment({ id: 'assessment-2', code: 'TC01', name: 'Thể chất' })
+      assessment({ id: 'assessment-1', code: 'NN01', name: 'Ngôn ngữ', latestGrade: 'A' }),
+      assessment({ id: 'assessment-2', code: 'TC01', name: 'Thể chất', latestGrade: 'B' })
     ];
     component.selectedIds = ['assessment-1', 'assessment-2'];
     component.ngOnChanges({ selectedIds: {} as any });
@@ -316,14 +323,53 @@ describe('Assessment picker filter and selection', () => {
     expect(component.isSelected('assessment-2')).toBeFalse();
 
     component.search = 'the chat';
+    component.latestGradeFilters = ['B'];
     component.applyFilters();
 
     expect(component.filteredAssessments.map(item => item.id)).toEqual(['assessment-2']);
     expect(assessments.list).not.toHaveBeenCalled();
 
+    component.latestGradeFilters = ['A'];
+    component.applyFilters();
+
+    expect(component.filteredAssessments).toEqual([]);
+
     component.onViewModeChanged();
 
     expect(component.filteredAssessments).toEqual([]);
+  });
+
+  it('clears latest grade filter when resetting filters', () => {
+    const { component } = createPicker();
+    component.allAssessments = [
+      assessment({ id: 'assessment-1', latestGrade: 'A' }),
+      assessment({ id: 'assessment-2', latestGrade: 'B' })
+    ];
+    component.latestGradeFilters = ['A'];
+    component.applyFilters();
+
+    expect(component.filteredAssessments.map(item => item.id)).toEqual(['assessment-1']);
+
+    component.resetFilters();
+
+    expect(component.latestGradeFilters).toEqual([]);
+    expect(component.filteredAssessments.map(item => item.id)).toEqual(['assessment-1', 'assessment-2']);
+  });
+
+  it('filters assessments without latest grade using Chưa có option', () => {
+    const { component, assessments } = createPicker();
+    component.allAssessments = [
+      assessment({ id: 'assessment-1', latestGrade: null }),
+      assessment({ id: 'assessment-2', latestGrade: '' }),
+      assessment({ id: 'assessment-3', latestGrade: 'A' })
+    ];
+    component.latestGradeFilters = ['none'];
+
+    component.applyFilters();
+
+    expect(component.latestGradeOptions.map(option => option.text)).toEqual(['Chưa có', 'Đạt +', 'Chưa đạt -', 'Hỗ trợ +', 'Hỗ trợ -']);
+    expect(component.filteredAssessments.map(item => item.id)).toEqual(['assessment-1', 'assessment-2']);
+    expect(assessments.list).not.toHaveBeenCalled();
   });
 
   it('retries loading the client cache from the server', async () => {
