@@ -177,6 +177,8 @@ GET    /api/v1/attendance/historical-recovery/group-candidates
 GET    /api/v1/attendance/historical-recovery/student-candidates
 GET    /api/v1/attendance/historical-recovery/teacher-candidates
 
+GET    /api/v1/assessments
+GET    /api/v1/assessments/{id}
 GET    /api/v1/assessment-sheets
 GET    /api/v1/assessment-sheets/plan-candidates
 GET    /api/v1/assessment-sheets/{id}
@@ -249,6 +251,7 @@ Các conflict/validation code ổn định: `TeacherNotFound`, `TeacherCodeAlrea
 
 - Yêu cầu nghiệp vụ đầy đủ: [`docs/requirements/09-bang-danh-gia-nang-luc.md`](../docs/requirements/09-bang-danh-gia-nang-luc.md); kế hoạch kỹ thuật: [`docs/plans/07-ASH-assessment-sheet.md`](../docs/plans/07-ASH-assessment-sheet.md); tiến độ: [`docs/tasks/07-ASH/status.md`](../docs/tasks/07-ASH/status.md).
 - Quyền: `Teacher`/`Admin`/`SuperAdmin` đều thao tác được `AssessmentSheet` của bất kỳ học sinh nào, không giới hạn theo nhóm — khác Attendance.
+- `GET /assessments` nhận `studentId` không bắt buộc. Khi có `studentId`, response vẫn trả đủ `Assessment` theo filter/paging/sort hiện tại và left join sang `AssessmentSheetLatest`/`AssessmentRecordLatest` của học sinh đó để bổ sung `latestGrade` và `latestNote` nullable; nếu học sinh chưa có sheet latest hoặc một assessment chưa có record latest thì các field latest là `null`. Field `note` hiện hữu tiếp tục là ghi chú gốc của `Assessment`, không phải ghi chú latest.
 - `AssessmentRecord` có 4 field kết quả độc lập: `planGrade`/`planNote` (giai đoạn kế hoạch, `planGrade` được server prefill từ dữ liệu gần nhất khi tạo) và `finalGrade`/`finalNote` (kết quả cuối, nhập riêng, không bị `PUT .../status` hay việc sửa cặp Plan ảnh hưởng).
 - `PUT /assessment-sheets/{id}` và `PUT /assessment-sheets/{id}/records` bị chặn (`409 AssessmentSheetDone`) khi `status = Done`; `PUT /assessment-sheets/{id}/status` luôn thực hiện được ở cả hai chiều `Open`↔`Done`, không cần lý do.
 - `GET /assessment-sheets/plan-candidates` dùng để chọn plan lúc tạo/sửa: lọc theo `studentId` (bắt buộc), `groupLv1Name`/`groupLv2Name`/`groupLv3Name`, `latestGradeAtOrBelow` (thang `A > B > C > D`), có `search`.

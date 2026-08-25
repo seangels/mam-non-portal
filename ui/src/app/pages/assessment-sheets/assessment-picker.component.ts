@@ -4,7 +4,8 @@ import { custom } from 'devextreme/ui/dialog';
 import notify from 'devextreme/ui/notify';
 import { DxDataGridComponent } from 'devextreme-angular/ui/data-grid';
 import { ApiError } from '../../core/models/api-error';
-import { Assessment, AssessmentGroup } from '../../core/models/api.models';
+import { Assessment, AssessmentGroup, AssessmentListQuery } from '../../core/models/api.models';
+import { ASSESSMENT_GRADE_OPTIONS } from '../../core/models/api.models.assessment-sheets';
 import { AssessmentsService } from '../../core/services/assessments.service';
 import { GoogleSheetsService } from '../../core/services/google-sheets.service';
 import { includesVietnamese } from '../../core/utils/vietnamese-search';
@@ -21,6 +22,7 @@ type AssessmentPickerViewMode = 'all' | 'selected';
 export class AssessmentPickerComponent implements OnChanges, OnInit, OnDestroy {
   @ViewChild(DxDataGridComponent) grid?: DxDataGridComponent;
   @Input() selectedIds: string[] = [];
+  @Input() studentId: string | null = null;
   @Output() selectedIdsChange = new EventEmitter<string[]>();
 
   search = '';
@@ -44,6 +46,8 @@ export class AssessmentPickerComponent implements OnChanges, OnInit, OnDestroy {
   private searchTimer?: number;
   private selectedIdSet = new Set<string>();
   private selectedViewSnapshotIdSet = new Set<string>();
+  private initialized = false;
+  private loadedStudentId: string | null = null;
   readonly gridRemoteOperations = false;
   readonly gridPageSizes = [20, 50, 100];
   readonly searchInputAttr = { 'aria-label': 'Tìm mục đánh giá theo mã, tên' };
@@ -67,10 +71,17 @@ export class AssessmentPickerComponent implements OnChanges, OnInit, OnDestroy {
     if (changes['selectedIds']) {
       this.refreshSelectedSet();
     }
+    if (changes['studentId'] && this.initialized) {
+      const nextStudentId = this.normalizeOptionalId(this.studentId);
+      if (nextStudentId !== this.loadedStudentId) {
+        void this.loadAssessmentsFromServer();
+      }
+    }
   }
 
   ngOnInit(): void {
     this.refreshSelectedSet();
+    this.initialized = true;
     void this.loadAssessmentsFromServer();
   }
 
@@ -159,6 +170,13 @@ export class AssessmentPickerComponent implements OnChanges, OnInit, OnDestroy {
 
   selectCheckboxHint(assessment: Assessment | null | undefined): string {
     return assessment ? `Chọn mục ${assessment.code} · ${assessment.name}` : 'Chọn mục đánh giá';
+  }
+
+  latestGradeText(value: string | null | undefined): string {
+    if (!value) {
+      return '-';
+    }
+    return ASSESSMENT_GRADE_OPTIONS.find(item => item.value === value)?.text ?? value;
   }
 
   onSelectCheckboxChanged(id: unknown, event: { value?: boolean; event?: unknown }): void {
@@ -292,6 +310,7 @@ export class AssessmentPickerComponent implements OnChanges, OnInit, OnDestroy {
     if (this.loading) {
       return;
     }
+    const requestedStudentId = this.normalizeOptionalId(this.studentId);
     this.loading = true;
     this.loadError = '';
     try {
@@ -299,18 +318,23 @@ export class AssessmentPickerComponent implements OnChanges, OnInit, OnDestroy {
       let page = 1;
       let totalPages = 1;
       do {
-        const result = await firstValueFrom(this.assessments.list({
+        const query: AssessmentListQuery = {
           page,
           pageSize: ASSESSMENT_CACHE_PAGE_SIZE,
           sortBy: 'rowindex',
           sortOrder: 'asc'
-        }));
+        };
+        if (requestedStudentId) {
+          query.studentId = requestedStudentId;
+        }
+        const result = await firstValueFrom(this.assessments.list(query));
         loaded.push(...result.items);
         totalPages = Math.max(1, result.pagination.totalPages || Math.ceil(result.pagination.totalItems / ASSESSMENT_CACHE_PAGE_SIZE));
         page += 1;
       } while (page <= totalPages);
 
       this.allAssessments = loaded;
+      this.loadedStudentId = requestedStudentId;
       this.refreshGroupOptions();
       this.applyFilters();
       this.loadError = '';
@@ -320,6 +344,9 @@ export class AssessmentPickerComponent implements OnChanges, OnInit, OnDestroy {
       this.notifyError(apiError);
     } finally {
       this.loading = false;
+      if (this.normalizeOptionalId(this.studentId) !== requestedStudentId) {
+        void this.loadAssessmentsFromServer();
+      }
     }
   }
 
@@ -375,6 +402,11 @@ export class AssessmentPickerComponent implements OnChanges, OnInit, OnDestroy {
       return null;
     }
     const id = String(value).trim();
+    return id || null;
+  }
+
+  private normalizeOptionalId(value: string | null | undefined): string | null {
+    const id = value?.trim();
     return id || null;
   }
 

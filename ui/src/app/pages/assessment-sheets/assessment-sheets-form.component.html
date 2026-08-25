@@ -104,7 +104,11 @@
     </p>
   </form>
 
-  <app-assessment-picker *ngIf="isCreate" [(selectedIds)]="editor.assessmentIds"></app-assessment-picker>
+  <app-assessment-picker
+    *ngIf="isCreate"
+    [studentId]="editor.studentId || null"
+    [(selectedIds)]="editor.assessmentIds">
+  </app-assessment-picker>
 
   <div class="form-actions">
     <span class="action-summary" aria-live="polite">

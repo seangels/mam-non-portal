@@ -246,6 +246,41 @@ describe('Assessment picker filter and selection', () => {
     expect(component.filteredAssessments.map(item => item.id)).toEqual(['assessment-1']);
   });
 
+  it('passes selected student id when loading the assessment cache', async () => {
+    const { component, assessments } = createPicker();
+    component.studentId = ' student-1 ';
+    assessments.list.and.returnValue(of({
+      items: [assessment({ id: 'assessment-1', latestGrade: 'A', latestNote: 'Cáº§n quan sÃ¡t thÃªm' })],
+      pagination: { page: 1, pageSize: 100, totalItems: 1, totalPages: 1 }
+    }));
+
+    await component.loadAssessmentsFromServer();
+
+    expect(assessments.list).toHaveBeenCalledWith({
+      page: 1,
+      pageSize: 100,
+      sortBy: 'rowindex',
+      sortOrder: 'asc',
+      studentId: 'student-1'
+    });
+    expect(component.filteredAssessments[0].latestGrade).toBe('A');
+    expect(component.filteredAssessments[0].latestNote).toBe('Cáº§n quan sÃ¡t thÃªm');
+    expect(component.latestGradeText('A')).toBe('Đạt +');
+    expect(component.latestGradeText(null)).toBe('-');
+  });
+
+  it('reloads the assessment cache when the selected student changes', () => {
+    const { component } = createPicker();
+    (component as any).initialized = true;
+    (component as any).loadedStudentId = 'student-1';
+    component.studentId = 'student-2';
+    spyOn(component, 'loadAssessmentsFromServer').and.returnValue(Promise.resolve());
+
+    component.ngOnChanges({ studentId: {} as any });
+
+    expect(component.loadAssessmentsFromServer).toHaveBeenCalled();
+  });
+
   it('updates dependent group filter options from the client cache', () => {
     const { component } = createPicker();
     component.allAssessments = [

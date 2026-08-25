@@ -3,15 +3,20 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using AdminPortal.Application.Assessments;
 using AdminPortal.Application.Auth;
 using AdminPortal.Application.Common.Models;
 using AdminPortal.Application.StudentGroups;
 using AdminPortal.Application.Students;
 using AdminPortal.Application.Teachers;
 using AdminPortal.Application.Users;
+using AdminPortal.Domain.Entities;
 using AdminPortal.Domain.Enums;
+using AdminPortal.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace AdminPortal.IntegrationTests;
 
@@ -60,6 +65,113 @@ public sealed class AdminPortalApiTests(ApiFactory factory) : IClassFixture<ApiF
         Assert.Contains("Unmarked", document, StringComparison.Ordinal);
         Assert.Contains("unmarked", document, StringComparison.Ordinal);
         Assert.Contains("halfDayPart", document, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task AssessmentListWithStudentIdReturnsAllAssessmentsAndLatestRecordColumns()
+    {
+        using var client = CreateClient();
+        var auth = await LoginAsync(client, ApiFactory.SuperAdminEmail, ApiFactory.SuperAdminPassword);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", auth.AccessToken);
+        var marker = Guid.NewGuid().ToString("N")[..8];
+        var studentWithLatest = await CreateStudentAsync(client, $"AL-{marker}", $"Latest {marker}");
+        var studentWithoutLatest = await CreateStudentAsync(client, $"AN-{marker}", $"No Latest {marker}");
+        var firstAssessmentId = Guid.NewGuid();
+        var secondAssessmentId = Guid.NewGuid();
+        var latestSheetId = Guid.NewGuid();
+        var now = DateTimeOffset.UtcNow;
+
+        using (var scope = factory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<AdminPortalDbContext>();
+            var actor = await dbContext.Users.AsNoTracking()
+                .SingleAsync(x => x.Email == ApiFactory.SuperAdminEmail);
+            var firstAssessment = new Assessment
+            {
+                Id = firstAssessmentId,
+                Code = $"ASM-{marker}-001",
+                Name = $"Assessment {marker} A",
+                Note = $"Assessment note {marker}",
+                RowIndex = 1,
+                GroupLv1Name = $"Age {marker}",
+                GroupLv2Name = "Group 2",
+                GroupLv3Name = "Group 3",
+                UpdatedByUserId = actor.Id,
+                CreatedAt = now,
+                UpdatedAt = now
+            };
+            var secondAssessment = new Assessment
+            {
+                Id = secondAssessmentId,
+                Code = $"ASM-{marker}-002",
+                Name = $"Assessment {marker} B",
+                Note = null,
+                RowIndex = 2,
+                GroupLv1Name = $"Age {marker}",
+                GroupLv2Name = "Group 2",
+                GroupLv3Name = "Group 3",
+                UpdatedByUserId = actor.Id,
+                CreatedAt = now,
+                UpdatedAt = now
+            };
+            var latestSheet = new AssessmentSheetLatest
+            {
+                Id = latestSheetId,
+                Name = "Káº¿t quáº£ gáº§n nháº¥t",
+                AssessmentSheetStatus = AssessmentSheetStatus.Open,
+                StudentId = studentWithLatest.Id,
+                StudentSnapshot = new StudentSnapshot
+                {
+                    StudentCode = studentWithLatest.StudentCode,
+                    FullName = studentWithLatest.FullName,
+                    NickName = studentWithLatest.NickName,
+                    DateOfBirth = studentWithLatest.DateOfBirth,
+                    Gender = studentWithLatest.Gender
+                },
+                CreatedAt = now,
+                UpdatedAt = now
+            };
+            var latestRecord = new AssessmentRecordLatest
+            {
+                Id = Guid.NewGuid(),
+                AssessmentSheetLatestId = latestSheetId,
+                AssessmentSheetLatest = latestSheet,
+                AssessmentId = firstAssessmentId,
+                Assessment = firstAssessment,
+                LatestGrade = AssessmentGrade.B,
+                Note = $"Latest note {marker}",
+                CreatedAt = now,
+                UpdatedAt = now
+            };
+
+            await dbContext.Assessments.AddRangeAsync(firstAssessment, secondAssessment);
+            await dbContext.AssessmentSheetLatests.AddAsync(latestSheet);
+            await dbContext.AssessmentRecordLatests.AddAsync(latestRecord);
+            await dbContext.SaveChangesAsync();
+        }
+
+        var withLatest = await client.GetFromJsonAsync<PagedResponse<AssessmentListItemResponse>>(
+            $"/api/v1/assessments?studentId={studentWithLatest.Id}&search={marker}&page=1&pageSize=10&sortBy=rowindex&sortOrder=asc",
+            JsonOptions);
+        Assert.NotNull(withLatest);
+        Assert.Equal(2, withLatest.Pagination.TotalItems);
+        Assert.Equal([firstAssessmentId, secondAssessmentId], withLatest.Items.Select(x => x.Id).ToArray());
+        Assert.Equal(AssessmentGrade.B, withLatest.Items[0].LatestGrade);
+        Assert.Equal($"Latest note {marker}", withLatest.Items[0].LatestNote);
+        Assert.Equal($"Assessment note {marker}", withLatest.Items[0].Note);
+        Assert.Null(withLatest.Items[1].LatestGrade);
+        Assert.Null(withLatest.Items[1].LatestNote);
+
+        var withoutLatestSheet = await client.GetFromJsonAsync<PagedResponse<AssessmentListItemResponse>>(
+            $"/api/v1/assessments?studentId={studentWithoutLatest.Id}&search={marker}&page=1&pageSize=10&sortBy=rowindex&sortOrder=asc",
+            JsonOptions);
+        Assert.NotNull(withoutLatestSheet);
+        Assert.Equal(2, withoutLatestSheet.Pagination.TotalItems);
+        Assert.All(withoutLatestSheet.Items, item =>
+        {
+            Assert.Null(item.LatestGrade);
+            Assert.Null(item.LatestNote);
+        });
     }
 
     [Fact]

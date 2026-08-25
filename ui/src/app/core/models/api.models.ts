@@ -395,16 +395,20 @@ export interface AssessmentListQuery extends ListQuery {
   groupLv1Name?: string;
   groupLv2Name?: string;
   groupLv3Name?: string;
+  studentId?: string;
 }
 
 export interface Assessment {
   id: string;
   code: string;
   name: string;
+  note?: string | null;
   rowIndex: number;
   groupLv1Name: string;
   groupLv2Name: string;
   groupLv3Name: string;
+  latestGrade?: string | null;
+  latestNote?: string | null;
 }
 
 export interface AssessmentDetail extends Assessment {

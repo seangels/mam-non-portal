@@ -11,6 +11,17 @@ Danh mục kế hoạch: [`plans/README.md`](plans/README.md). Contract nền: [
 
 Mỗi agent chỉ cập nhật section mình sở hữu sau từng mốc công việc. Không đánh dấu hoàn thành nếu chưa chạy kiểm tra tương ứng.
 
+## Thay đổi: Assessment list hiển thị kết quả gần nhất theo học sinh — owner: `root`
+
+- [x] ASM-LST-01. Backend mở rộng `GET /api/v1/assessments` nhận query `studentId` không bắt buộc; khi có `studentId` thì left join đủ danh sách `Assessment` với `AssessmentSheetLatest`/`AssessmentRecordLatest`, bổ sung `latestGrade` và `latestNote` nullable.
+- [x] ASM-LST-02. Backend giữ `note` hiện hữu là ghi chú gốc của `Assessment`, thêm `latestNote` cho ghi chú record latest để không đổi nghĩa field cũ; Teacher chỉ được xem latest theo học sinh thuộc nhóm mình phụ trách.
+- [x] ASM-LST-03. UI màn tạo bảng đánh giá truyền `studentId` đang chọn xuống assessment picker, reload cache khi đổi học sinh và hiển thị cột “Kết quả gần nhất” + “Ghi chú”.
+- [x] ASM-LST-04. Verification: `dotnet build api/AdminPortal.slnx -c Release --no-restore` pass 0 warning/error; `dotnet test api/tests/AdminPortal.UnitTests -c Release --no-restore` pass 83/83; `npm --prefix ui run test:ci` pass 90/90; `npm --prefix ui run build -- --configuration development` pass, chỉ còn warning CommonJS quen thuộc từ Angular/DevExtreme.
+
+### ASM-LST log
+
+- 2026-08-25: Không chạy DB runtime/integration theo trao đổi sau đó; integration test mới vẫn được thêm để compile và dùng khi cần xác minh PostgreSQL thật, nhưng checkpoint lần này chỉ chốt build + unit test như yêu cầu.
+
 ## Backend — owner: `backend`
 
 - [x] B1. Đọc plan, kiểm tra .NET SDK và khởi tạo solution trong `api/`

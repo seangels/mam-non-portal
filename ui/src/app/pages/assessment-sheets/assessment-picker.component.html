@@ -158,6 +158,8 @@
       <dxi-column [visible]="false" dataField="groupLv3Name" caption="Nhóm 3" [minWidth]="220"></dxi-column>
       <dxi-column dataField="code" caption="Mã" [width]="90"></dxi-column>
       <dxi-column dataField="name" caption="Nội dung" [minWidth]="320"></dxi-column>
+      <dxi-column dataField="latestGrade" caption="Kết quả gần nhất" cellTemplate="latestGradeCell" [width]="150"></dxi-column>
+      <dxi-column dataField="latestNote" caption="Ghi chú" [minWidth]="220"></dxi-column>
       <dxi-column dataField="rowIndex" caption="RowIndex" sortOrder="asc" [width]="100"></dxi-column>
       <div *dxTemplate="let cell of 'selectCell'" class="select-cell">
         <dx-check-box
@@ -165,6 +167,9 @@
           [hint]="selectCheckboxHint(cell.data)"
           (onValueChanged)="onSelectCheckboxChanged(cell.data.id, $event)">
         </dx-check-box>
+      </div>
+      <div *dxTemplate="let cell of 'latestGradeCell'" class="latest-grade-cell">
+        {{ latestGradeText(cell.data.latestGrade) }}
       </div>
     </dx-data-grid>
   </div>

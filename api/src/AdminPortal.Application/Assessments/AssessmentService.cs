@@ -34,7 +34,10 @@ public sealed partial class AssessmentService(
         AssessmentListQuery query,
         CancellationToken cancellationToken)
     {
-        EnsureAssessmentRole(currentActor.GetRequired());
+        var actor = currentActor.GetRequired();
+        EnsureAssessmentRole(actor);
+        if (query.StudentId is Guid studentId)
+            await EnsureStudentLatestScopeAsync(actor, studentId, cancellationToken);
 
         var assessments = QueryCurrent();
         if (query.GroupLv3Name is not null)
@@ -46,10 +49,11 @@ public sealed partial class AssessmentService(
 
         var descending = query.SortOrder.Equals("desc", StringComparison.OrdinalIgnoreCase);
         var ordered = ApplySort(assessments, query.SortBy, descending);
+        var projected = ProjectList(ordered, query.StudentId);
         if (string.IsNullOrWhiteSpace(query.Search))
         {
             var totalItems = await assessments.CountAsync(cancellationToken);
-            var items = await ProjectList(ordered)
+            var items = await projected
                 .Skip((query.Page - 1) * query.PageSize)
                 .Take(query.PageSize)
                 .ToListAsync(cancellationToken);
@@ -57,7 +61,7 @@ public sealed partial class AssessmentService(
         }
 
         var startedAt = Stopwatch.GetTimestamp();
-        var candidates = await ProjectList(ordered).ToListAsync(cancellationToken);
+        var candidates = await projected.ToListAsync(cancellationToken);
         var foldedSearch = VietnameseSearchNormalizer.Fold(query.Search);
         var matches = candidates.Where(candidate => Matches(candidate, foldedSearch)).ToList();
         var pageItems = matches
@@ -93,10 +97,31 @@ public sealed partial class AssessmentService(
         VietnameseSearchNormalizer.Fold(item.Code).Contains(foldedSearch, StringComparison.Ordinal) ||
         VietnameseSearchNormalizer.Fold(item.Name).Contains(foldedSearch, StringComparison.Ordinal) ||
         VietnameseSearchNormalizer.Fold(item.Note).Contains(foldedSearch, StringComparison.Ordinal) ||
+        VietnameseSearchNormalizer.Fold(item.LatestNote).Contains(foldedSearch, StringComparison.Ordinal) ||
         VietnameseSearchNormalizer.Fold(item.GroupLv1Name).Contains(foldedSearch, StringComparison.Ordinal) ||
         VietnameseSearchNormalizer.Fold(item.GroupLv2Name).Contains(foldedSearch, StringComparison.Ordinal) ||
         VietnameseSearchNormalizer.Fold(item.GroupLv3Name).Contains(foldedSearch, StringComparison.Ordinal)
         ;
+
+    private async Task EnsureStudentLatestScopeAsync(
+        ActorContext actor,
+        Guid studentId,
+        CancellationToken cancellationToken)
+    {
+        var students = dbContext.Students.AsNoTracking()
+            .Where(student => student.Id == studentId);
+
+        if (actor.Role == UserRole.Teacher)
+        {
+            students = students.Where(student =>
+                student.Group != null &&
+                student.Group.ResponsibleTeacher != null &&
+                student.Group.ResponsibleTeacher.UserId == actor.UserId);
+        }
+
+        if (!await students.AnyAsync(cancellationToken))
+            throw new NotFoundException("Không tìm thấy học sinh.", ProblemCodes.StudentNotFound);
+    }
 
     private static PagedResponse<AssessmentListItemResponse> CreatePage(
         IReadOnlyList<AssessmentListItemResponse> items,
@@ -108,17 +133,55 @@ public sealed partial class AssessmentService(
             totalItems,
             (int)Math.Ceiling(totalItems / (double)query.PageSize)));
 
-    private static IQueryable<AssessmentListItemResponse> ProjectList(IQueryable<Assessment> query) =>
-        query.Select(x => new AssessmentListItemResponse(
-            x.Id,
-            x.Code,
-            x.Name,
-            x.Note,
-            x.RowIndex,
-            x.GroupLv1Name,
-            x.GroupLv2Name,
-            x.GroupLv3Name
-            ));
+    private IQueryable<AssessmentListItemResponse> ProjectList(IQueryable<Assessment> query, Guid? studentId)
+    {
+        if (studentId is null)
+        {
+            return query.Select(x => new AssessmentListItemResponse(
+                x.Id,
+                x.Code,
+                x.Name,
+                x.Note,
+                x.RowIndex,
+                x.GroupLv1Name,
+                x.GroupLv2Name,
+                x.GroupLv3Name,
+                null,
+                null
+                ));
+        }
+
+        var latestRecords =
+            from latestSheet in dbContext.AssessmentSheetLatests.AsNoTracking()
+            where latestSheet.StudentId == studentId.Value
+            join latestRecord in dbContext.AssessmentRecordLatests.AsNoTracking()
+                on latestSheet.Id equals latestRecord.AssessmentSheetLatestId
+            select new
+            {
+                latestRecord.AssessmentId,
+                latestRecord.LatestGrade,
+                LatestNote = latestRecord.Note
+            };
+
+        return
+            from assessment in query
+            join latestRecord in latestRecords
+                on assessment.Id equals latestRecord.AssessmentId into latestRecordGroup
+            from latestRecord in latestRecordGroup.DefaultIfEmpty()
+            select new AssessmentListItemResponse(
+                assessment.Id,
+                assessment.Code,
+                assessment.Name,
+                assessment.Note,
+                assessment.RowIndex,
+                assessment.GroupLv1Name,
+                assessment.GroupLv2Name,
+                assessment.GroupLv3Name,
+                latestRecord == null ? null : latestRecord.LatestGrade,
+                latestRecord == null ? null : latestRecord.LatestNote
+                );
+    }
+
     private static IQueryable<AssessmentDetailResponse> ProjectDetail(IQueryable<Assessment> query) =>
         query.Select(x => new AssessmentDetailResponse(
             x.Id,
