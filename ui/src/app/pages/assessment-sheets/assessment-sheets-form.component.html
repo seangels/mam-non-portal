@@ -111,10 +111,12 @@
           <tbody>
             <tr *ngFor="let row of recordRows" [style.backgroundColor]="row.groupColor">
               <td *ngIf="row.showGroupLv2" class="group-cell group-lv2-cell"
+                [class.single-row-group]="row.groupLv2RowSpan === 1"
                 [attr.rowspan]="row.groupLv2RowSpan">
                 <span>{{ row.groupLv2Name }}</span>
               </td>
               <td *ngIf="row.showGroupLv3" class="group-cell group-lv3-cell"
+                [class.single-row-group]="row.groupLv3RowSpan === 1"
                 [attr.rowspan]="row.groupLv3RowSpan">
                 <span>{{ row.groupLv3Name }}</span>
               </td>

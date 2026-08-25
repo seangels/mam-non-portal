@@ -15,7 +15,7 @@
 .records-heading-actions { display: flex; align-items: center; gap: 10px; }
 .empty-records { padding: 14px; border: 1px dashed #c8d0dc; border-radius: 8px; color: #667085; text-align: center; }
 .records-table-wrapper { overflow: auto; border: 1px solid #1f2937; border-radius: 2px; background: #fff; }
-.records-table { width: 100%; min-width: 940px; border-collapse: collapse; font-size: 14px; }
+.records-table { width: 100%; min-width: 940px; border-collapse: collapse; font-size: small; }
 .records-table th, .records-table td { border: 1px dotted #1f2937; vertical-align: middle; }
 .records-table th { position: sticky; top: 0; z-index: 2; padding: 7px 8px; background: #fff; color: #111827; font-weight: 700; text-align: center; }
 .records-table td { padding: 4px 6px; }
@@ -29,6 +29,7 @@
 .action-cell { background: #ffffff80; }
 .group-cell { padding: 8px 6px; color: #111827; font-weight: 700; text-align: center; }
 .group-cell span { display: inline-block; line-height: 1.25; letter-spacing: .01em; }
+.group-cell.single-row-group { font-size: smaller; }
 .group-lv2-cell { text-transform: uppercase; }
 .content-cell { min-width: 330px; }
 .content-cell strong { display: block; font-weight: 500; }

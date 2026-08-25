@@ -69,6 +69,7 @@ Các màu dưới đây là cố định theo tên nhóm `groupLv2`; không ph�
 - ✅ Desktop/tablet: table chiếm đủ chiều ngang section, header sticky trong section.
 - ✅ Màn nhỏ: cho phép horizontal scroll trong `records-panel`, không phá layout sticky action bên dưới.
 - ✅ Không hard-code width quá cứng; có `min-width` hợp lý để giữ bảng dễ đọc.
+- ✅ Font trong `records-panel` và `assessment-picker` dùng mức `small`; riêng ô `Nhóm lớn`/`Nhóm nhỏ` có rowspan 1 dòng dùng `smaller`.
 - ✅ Toàn bộ label/hint/confirm/error hiển thị tiếng Việt.
 
 ## Kiểm thử mong đợi
