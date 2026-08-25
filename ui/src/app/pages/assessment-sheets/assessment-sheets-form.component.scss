@@ -20,15 +20,15 @@
 .records-table th { position: sticky; top: 0; z-index: 2; padding: 7px 8px; background: #fff; color: #111827; font-weight: 700; text-align: center; }
 .records-table td { padding: 4px 6px; }
 .action-column { width: 42px; }
-.group-lv2-column { width: 94px; }
-.group-lv3-column { width: 118px; }
+.group-lv2-column { width: 142px; }
+.group-lv3-column { width: 150px; }
 .number-column { width: 48px; }
 .grade-column { width: 174px; }
 .note-column { width: 220px; }
 .action-cell, .number-cell, .grade-cell { text-align: center; }
 .action-cell { background: #ffffff80; }
-.group-cell { padding: 8px 4px; color: #111827; font-weight: 700; text-align: center; }
-.group-cell span { display: inline-block; max-height: 180px; line-height: 1.25; writing-mode: vertical-rl; transform: rotate(180deg); letter-spacing: .03em; }
+.group-cell { padding: 8px 6px; color: #111827; font-weight: 700; text-align: center; }
+.group-cell span { display: inline-block; line-height: 1.25; letter-spacing: .01em; }
 .group-lv2-cell { text-transform: uppercase; }
 .content-cell { min-width: 330px; }
 .content-cell strong { display: block; font-weight: 500; }

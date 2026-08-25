@@ -34,6 +34,7 @@ Thiết kế lại section `records-panel` trên màn edit AssessmentSheet từ 
 - ✅ `groupLv2` và `groupLv3` cần hiển thị dạng nhóm dễ nhìn:
   - ✅ Dùng `rowspan` theo các nhóm liên tiếp để nhìn gần mẫu bảng.
   - ✅ Không cần fallback lặp text vì rowspan build/test đã ổn trên Angular 12.
+  - ✅ Chữ nhóm hiển thị ngang bình thường, không xoay dọc để tránh tốn diện tích theo chiều cao.
 - ✅ `STT` reset theo từng nhóm nhỏ `groupLv3` liên tiếp.
 - ✅ `Nội dung đánh giá` hiển thị `assessment.code` + `assessment.name`, ví dụ `B97. Đứng một chân trong 3 giây`.
 - ✅ `Kết quả hiện tại` dùng dropdown grade hiện có, hiển thị tiếng Việt.
