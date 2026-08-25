@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json;
 using AdminPortal.Domain.Enums;
 
 namespace AdminPortal.Domain.Entities;
@@ -8,9 +9,6 @@ public sealed class AssessmentSheet
 {
     [Key]
     public Guid Id { get; set; } = Guid.NewGuid();
-    [Required]
-    [StringLength(300)]
-    public string Name { get; set; } = string.Empty;
     public required AssessmentSheetStatus AssessmentSheetStatus { get; set; } = AssessmentSheetStatus.Open;
     public Guid StudentId { get; set; }
     [ForeignKey(nameof(StudentId))]
@@ -23,9 +21,24 @@ public sealed class AssessmentSheet
 
     [StringLength(500)]
     public string? ResponsibleTeacherFullNameSnapshot { get; set; }
+    public string? AssessmentSheetPlan { get; set; }
 
-    
-
+    [NotMapped]
+    public AssessmentSheet? AssessmentSheetPlanObject
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(this.AssessmentSheetPlan)) return null;
+            try
+            {
+                return JsonSerializer.Deserialize<AssessmentSheet>(this.AssessmentSheetPlan);
+            }
+            catch (System.Exception)
+            {
+                return null;
+            }
+        }
+    }
     [StringLength(2000)]
     public string? Note { get; set; }
 
@@ -35,8 +48,8 @@ public sealed class AssessmentSheet
     public DateTimeOffset? SubmissionDate { get; set; }
     [StringLength(2000)]
     public string? Feedback { get; set; }
-    public string? PlanFileLinkPdf {get;set;}
-    public string? ResultFileLinkPdf {get;set;}
+    public string? PlanFileLinkPdf { get; set; }
+    public string? ResultFileLinkPdf { get; set; }
     public string? AssessmentSheetSpreadsheetId { get; set; }
     public Guid? UpdatedByUserId { get; set; }
     [ForeignKey(nameof(UpdatedByUserId))]

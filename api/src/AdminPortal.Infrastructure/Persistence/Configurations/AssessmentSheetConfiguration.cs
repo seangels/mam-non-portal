@@ -10,13 +10,13 @@ internal sealed class AssessmentSheetConfiguration : IEntityTypeConfiguration<As
     {
         builder.ToTable("assessment_sheets");
         builder.HasKey(x => x.Id);
-        builder.Property(x => x.Name).HasMaxLength(300).IsRequired();
         builder.Property(x => x.AssessmentSheetStatus).HasConversion<string>().HasMaxLength(20);
         builder.Property(x => x.ResponsibleTeacherFullNameSnapshot).HasMaxLength(500);
         builder.Property(x => x.Note).HasMaxLength(2000);
         builder.Property(x => x.Feedback).HasMaxLength(2000);
         builder.ComplexProperty(x => x.StudentSnapshot, nested => nested.ToJson());
-        builder.HasIndex(x => new { x.StudentId, x.Name }).IsUnique();
+        builder.Property(x=>x.AssessmentSheetPlan).HasColumnType("jsonb").IsRequired(false);
+        
         builder.HasOne(x => x.Student).WithMany()
             .HasForeignKey(x => x.StudentId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne(x => x.ResponsibleTeacher).WithMany()

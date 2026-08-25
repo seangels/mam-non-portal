@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using AdminPortal.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -12,9 +13,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace AdminPortal.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(AdminPortalDbContext))]
-    partial class AdminPortalDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260824145638_AddFieldCaptureAssessmentSheet")]
+    partial class AddFieldCaptureAssessmentSheet
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -253,6 +256,12 @@ namespace AdminPortal.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(2000)")
                         .HasColumnName("feedback");
 
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("name");
+
                     b.Property<string>("Note")
                         .HasMaxLength(2000)
                         .HasColumnType("character varying(2000)")
@@ -320,11 +329,12 @@ namespace AdminPortal.Infrastructure.Persistence.Migrations
                     b.HasIndex("ResponsibleTeacherId")
                         .HasDatabaseName("ix_assessment_sheets_responsible_teacher_id");
 
-                    b.HasIndex("StudentId")
-                        .HasDatabaseName("ix_assessment_sheets_student_id");
-
                     b.HasIndex("UpdatedByUserId")
                         .HasDatabaseName("ix_assessment_sheets_updated_by_user_id");
+
+                    b.HasIndex("StudentId", "Name")
+                        .IsUnique()
+                        .HasDatabaseName("ix_assessment_sheets_student_id_name");
 
                     b.ToTable("assessment_sheets", (string)null);
                 });

@@ -17,23 +17,9 @@ public sealed class AssessmentSheetListQuery
     [RegularExpression("(?i)^(asc|desc)$")] public string SortOrder { get; init; } = "desc";
 }
 
-public sealed class AssessmentPlanCandidateQuery
-{
-    [Range(1, 1_000_000)] public int Page { get; init; } = 1;
-    [Range(1, 5000)] public int PageSize { get; init; } = 5000;
-    [Required] public Guid StudentId { get; init; }
-    [MaxLength(200)] public string? Search { get; init; }
-    public string? GroupLv1Name { get; init; }
-    public string? GroupLv2Name { get; init; }
-    public string? GroupLv3Name { get; init; }
-    public AssessmentGrade? LatestGradeAtOrBelow { get; init; }
-    [MaxLength(40)] public string SortBy { get; init; } = "rowIndex";
-    [RegularExpression("(?i)^(asc|desc)$")] public string SortOrder { get; init; } = "asc";
-}
 
 public sealed record AssessmentSheetListItemResponse(
     Guid Id,
-    string Name,
     AssessmentSheetStatus Status,
     Guid StudentId,
     string? StudentCode,
@@ -52,7 +38,6 @@ public sealed record AssessmentSheetListItemResponse(
 
 public sealed record AssessmentSheetDetailResponse(
     Guid Id,
-    string Name,
     AssessmentSheetStatus Status,
     Guid StudentId,
     AssessmentSheetStudentSnapshotResponse StudentSnapshot,
@@ -109,7 +94,6 @@ public sealed record AssessmentPlanCandidateResponse(
     AssessmentGrade? LatestGrade);
 
 public sealed record CreateAssessmentSheetRequest(
-    [param: Required, MaxLength(300)] string Name,
     Guid StudentId,
     Guid? ResponsibleTeacherId,
     [param: MaxLength(2000)] string? Note,
@@ -118,7 +102,6 @@ public sealed record CreateAssessmentSheetRequest(
     [param: Required, MinLength(1), MaxLength(5000)] IReadOnlyList<Guid> AssessmentIds);
 
 public sealed record UpdateAssessmentSheetRequest(
-    [param: Required, MaxLength(300)] string Name,
     Guid? ResponsibleTeacherId,
     [param: MaxLength(2000)] string? Note,
     DateTimeOffset? StartDate,

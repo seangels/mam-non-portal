@@ -510,7 +510,7 @@ public class GoogleSheetsService : IGoogleSheetsService, IDisposable
         {
             var body = new Google.Apis.Drive.v3.Data.File
             {
-                Name = $"{sheet.StudentSnapshot.StudentCode}.{sheet.StudentSnapshot.FullName}_{sheet.Name}",
+                Name = $"{sheet.StudentSnapshot.StudentCode}.{sheet.StudentSnapshot.FullName}_{sheet.StartDate}_{sheet.DueDate}",
                 Parents = folderId is null ? null : [folderId]
             };
             copy = await _driveService.Files.Copy(body, _assessmentSheetTemplateFileId).ExecuteAsync(cancellationToken);

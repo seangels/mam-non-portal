@@ -10,10 +10,6 @@ public interface IAssessmentSheetService
 
     Task<AssessmentSheetDetailResponse> GetAsync(Guid id, CancellationToken cancellationToken);
 
-    Task<PagedResponse<AssessmentPlanCandidateResponse>> ListPlanCandidatesAsync(
-        AssessmentPlanCandidateQuery query,
-        CancellationToken cancellationToken);
-
     Task<AssessmentSheetDetailResponse> CreateAsync(
         CreateAssessmentSheetRequest request,
         CancellationToken cancellationToken);

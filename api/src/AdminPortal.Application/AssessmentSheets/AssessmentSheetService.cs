@@ -63,82 +63,12 @@ public sealed class AssessmentSheetService(
         return await BuildDetailAsync(id, cancellationToken);
     }
 
-    public async Task<PagedResponse<AssessmentPlanCandidateResponse>> ListPlanCandidatesAsync(
-        AssessmentPlanCandidateQuery query,
-        CancellationToken cancellationToken)
-    {
-        AssessmentSheetRules.EnsureAssessmentSheetRole(currentActor.GetRequired());
-
-        var studentExists = await dbContext.Students.AsNoTracking()
-            .AnyAsync(x => x.Id == query.StudentId, cancellationToken);
-        if (!studentExists)
-            throw new NotFoundException("Không tìm thấy học sinh.", ProblemCodes.StudentNotFound);
-
-        var latestGrades = await LoadLatestGradesAsync(query.StudentId, cancellationToken);
-        var assessments = dbContext.Assessments.AsNoTracking();
-        if (!string.IsNullOrWhiteSpace(query.GroupLv1Name))
-            assessments = assessments.Where(x => x.GroupLv1Name == query.GroupLv1Name);
-        if (!string.IsNullOrWhiteSpace(query.GroupLv2Name))
-            assessments = assessments.Where(x => x.GroupLv2Name == query.GroupLv2Name);
-        if (!string.IsNullOrWhiteSpace(query.GroupLv3Name))
-            assessments = assessments.Where(x => x.GroupLv3Name == query.GroupLv3Name);
-        if (!string.IsNullOrWhiteSpace(query.Search))
-        {
-            var search = query.Search.Trim().ToUpperInvariant();
-#pragma warning disable CA1304, CA1311, CA1862
-            assessments = assessments.Where(x =>
-                x.Code.ToUpper().Contains(search) ||
-                x.Name.ToUpper().Contains(search) ||
-                (x.GroupLv1Name != null && x.GroupLv1Name.ToUpper().Contains(search)) ||
-                (x.GroupLv2Name != null && x.GroupLv2Name.ToUpper().Contains(search)) ||
-                (x.GroupLv3Name != null && x.GroupLv3Name.ToUpper().Contains(search)));
-#pragma warning restore CA1304, CA1311, CA1862
-        }
-
-        var candidates = await assessments
-            .Select(x => new AssessmentPlanCandidateResponse(
-                x.Id,
-                x.Code,
-                x.Name,
-                x.GroupLv1Name,
-                x.GroupLv2Name,
-                x.GroupLv3Name,
-                x.RowIndex,
-                null))
-            .ToListAsync(cancellationToken);
-
-        candidates = candidates
-            .Select(x => x with { LatestGrade = latestGrades.GetValueOrDefault(x.Code) })
-            .ToList();
-
-        if (query.LatestGradeAtOrBelow is not null)
-        {
-            var threshold = AssessmentSheetRules.GradeRank(query.LatestGradeAtOrBelow.Value);
-            candidates = candidates
-                .Where(x => x.LatestGrade is not null && AssessmentSheetRules.GradeRank(x.LatestGrade.Value) <= threshold)
-                .ToList();
-        }
-
-        var descending = query.SortOrder.Equals("desc", StringComparison.OrdinalIgnoreCase);
-        var ordered = ApplyCandidateSort(candidates, query.SortBy, descending);
-        var total = candidates.Count;
-        var items = ordered
-            .Skip((query.Page - 1) * query.PageSize)
-            .Take(query.PageSize)
-            .ToList();
-
-        return new PagedResponse<AssessmentPlanCandidateResponse>(
-            items,
-            new PaginationMetadata(query.Page, query.PageSize, total, (int)Math.Ceiling(total / (double)query.PageSize)));
-    }
-
     public async Task<AssessmentSheetDetailResponse> CreateAsync(
         CreateAssessmentSheetRequest request,
         CancellationToken cancellationToken)
     {
         var actor = currentActor.GetRequired();
         AssessmentSheetRules.EnsureAssessmentSheetRole(actor);
-        var name = NormalizeRequired(request.Name, "name", "Tên bảng đánh giá là bắt buộc.");
         AssessmentSheetRules.EnsureDistinctIds(request.AssessmentIds, "assessmentIds");
 
         var student = await dbContext.Students.AsNoTracking()
@@ -154,7 +84,6 @@ public sealed class AssessmentSheetService(
         var sheet = new AssessmentSheet
         {
             Id = Guid.NewGuid(),
-            Name = name,
             AssessmentSheetStatus = AssessmentSheetStatus.Open,
             StudentId = student.Id,
             StudentSnapshot = Snapshot(student),
@@ -187,12 +116,10 @@ public sealed class AssessmentSheetService(
         AssessmentSheetRules.EnsureAssessmentSheetRole(actor);
         var sheet = await FindRequiredAsync(id, cancellationToken);
         AssessmentSheetRules.EnsureOpen(sheet);
-        var name = NormalizeRequired(request.Name, "name", "Tên bảng đánh giá là bắt buộc.");
         var responsibleTeacher = await LoadResponsibleTeacherAsync(request.ResponsibleTeacherId, cancellationToken);
         var old = SnapshotForAudit(sheet);
         var now = timeProvider.GetUtcNow();
 
-        sheet.Name = name;
         sheet.ResponsibleTeacherId = responsibleTeacher?.Id;
         sheet.ResponsibleTeacherFullNameSnapshot = responsibleTeacher?.User.FullName;
         sheet.Note = NormalizeOptional(request.Note);
@@ -373,7 +300,6 @@ public sealed class AssessmentSheetService(
 
         return new AssessmentSheetDetailResponse(
             sheet.Id,
-            sheet.Name,
             sheet.AssessmentSheetStatus,
             sheet.StudentId,
             ToResponse(sheet.StudentSnapshot),
@@ -458,7 +384,6 @@ public sealed class AssessmentSheetService(
 
     private static object SnapshotForAudit(AssessmentSheet sheet) => new
     {
-        sheet.Name,
         Status = sheet.AssessmentSheetStatus.ToString(),
         sheet.StudentId,
         sheet.ResponsibleTeacherId,
@@ -471,7 +396,6 @@ public sealed class AssessmentSheetService(
     private static IQueryable<AssessmentSheetListItemResponse> ProjectList(IQueryable<AssessmentSheet> query) =>
         query.Select(x => new AssessmentSheetListItemResponse(
             x.Id,
-            x.Name,
             x.AssessmentSheetStatus,
             x.StudentId,
             x.StudentSnapshot.StudentCode,
@@ -489,7 +413,6 @@ public sealed class AssessmentSheetService(
             x.UpdatedAt));
 
     private static bool Matches(AssessmentSheetListItemResponse item, string foldedSearch) =>
-        VietnameseSearchNormalizer.Fold(item.Name).Contains(foldedSearch, StringComparison.Ordinal) ||
         VietnameseSearchNormalizer.Fold(item.StudentCode).Contains(foldedSearch, StringComparison.Ordinal) ||
         VietnameseSearchNormalizer.Fold(item.StudentFullName).Contains(foldedSearch, StringComparison.Ordinal);
 
@@ -498,8 +421,6 @@ public sealed class AssessmentSheetService(
         string sortBy,
         bool descending) => (sortBy.ToLowerInvariant(), descending) switch
         {
-            ("name", false) => query.OrderBy(x => x.Name).ThenBy(x => x.Id),
-            ("name", true) => query.OrderByDescending(x => x.Name).ThenByDescending(x => x.Id),
             ("status", false) => query.OrderBy(x => x.AssessmentSheetStatus).ThenBy(x => x.Id),
             ("status", true) => query.OrderByDescending(x => x.AssessmentSheetStatus).ThenByDescending(x => x.Id),
             ("startdate", false) => query.OrderBy(x => x.StartDate).ThenBy(x => x.Id),
@@ -511,32 +432,8 @@ public sealed class AssessmentSheetService(
             ("createdat", false) => query.OrderBy(x => x.CreatedAt).ThenBy(x => x.Id),
             ("createdat", true) => query.OrderByDescending(x => x.CreatedAt).ThenByDescending(x => x.Id),
             _ => throw new AppValidationException("Trường sắp xếp không hợp lệ.", new Dictionary<string, string[]>
-            { ["sortBy"] = ["Chỉ hỗ trợ name, status, startDate, dueDate, updatedAt hoặc createdAt."] })
+            { ["sortBy"] = ["Chỉ hỗ trợ status, startDate, dueDate, updatedAt hoặc createdAt."] })
         };
-
-    private static IOrderedEnumerable<AssessmentPlanCandidateResponse> ApplyCandidateSort(
-        IEnumerable<AssessmentPlanCandidateResponse> query,
-        string sortBy,
-        bool descending) => (sortBy.ToLowerInvariant(), descending) switch
-        {
-            ("code", false) => query.OrderBy(x => x.Code, StringComparer.Ordinal),
-            ("code", true) => query.OrderByDescending(x => x.Code, StringComparer.Ordinal),
-            ("name", false) => query.OrderBy(x => x.Name, StringComparer.Ordinal),
-            ("name", true) => query.OrderByDescending(x => x.Name, StringComparer.Ordinal),
-            ("rowindex", false) => query.OrderBy(x => x.RowIndex).ThenBy(x => x.Id),
-            ("rowindex", true) => query.OrderByDescending(x => x.RowIndex).ThenByDescending(x => x.Id),
-            ("latestgrade", false) => query.OrderBy(x => x.LatestGrade is null).ThenBy(x => x.LatestGrade),
-            ("latestgrade", true) => query.OrderByDescending(x => x.LatestGrade is not null).ThenByDescending(x => x.LatestGrade),
-            _ => throw new AppValidationException("Trường sắp xếp không hợp lệ.", new Dictionary<string, string[]>
-            { ["sortBy"] = ["Chỉ hỗ trợ code, name, rowIndex hoặc latestGrade."] })
-        };
-
-    private static string NormalizeRequired(string value, string field, string message)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-            throw new AppValidationException(message, new Dictionary<string, string[]> { [field] = [message] });
-        return value.Trim();
-    }
 
     private static string? NormalizeOptional(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();

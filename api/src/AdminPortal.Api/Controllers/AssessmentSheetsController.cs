@@ -22,13 +22,6 @@ public sealed class AssessmentSheetsController(IAssessmentSheetService assessmen
         CancellationToken cancellationToken) =>
         Ok(await assessmentSheetService.ListAsync(query, cancellationToken));
 
-    [HttpGet("plan-candidates")]
-    [ProducesResponseType<PagedResponse<AssessmentPlanCandidateResponse>>(StatusCodes.Status200OK)]
-    public async Task<ActionResult<PagedResponse<AssessmentPlanCandidateResponse>>> ListPlanCandidates(
-        [FromQuery] AssessmentPlanCandidateQuery query,
-        CancellationToken cancellationToken) =>
-        Ok(await assessmentSheetService.ListPlanCandidatesAsync(query, cancellationToken));
-
     [HttpGet("{id:guid}")]
     [ProducesResponseType<AssessmentSheetDetailResponse>(StatusCodes.Status200OK)]
     public async Task<ActionResult<AssessmentSheetDetailResponse>> Get(
