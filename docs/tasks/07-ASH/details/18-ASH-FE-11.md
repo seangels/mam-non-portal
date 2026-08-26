@@ -69,7 +69,7 @@ Thêm luồng preview/in PDF kế hoạch cá nhân cho AssessmentSheet. Ngườ
   - ⬜ Nếu màn edit đang dirty mà user bấm `In Kế hoạch PDF`, hiển thị confirm tiếng Việt: nên lưu thay đổi trước nếu muốn PDF phản ánh bản mới nhất.
   - ⬜ Không tự động gọi save trước khi mở preview.
 - ⬜ Sinh file PDF bằng `html2pdf.js`.
-  - ⬜ Cấu hình A4 portrait, `margin: 0`, `html2canvas.scale: 2`, `useCORS: true`, background trắng, filename tiếng Việt không dấu an toàn ví dụ `ke-hoach-ca-nhan-<ma-hoc-sinh>.pdf`.
+  - ⬜ Cấu hình A4 portrait, `margin: 0`, `html2canvas.scale: 2`, `html2canvas.letterRendering: true` để vẽ chữ chính xác cao, `useCORS: true`, background trắng, filename tiếng Việt không dấu an toàn ví dụ `ke-hoach-ca-nhan-<ma-hoc-sinh>.pdf`.
   - ⬜ Có fallback `window.print()` nếu thư viện không load được.
   - ⬜ Bắt lỗi và báo `Không thể tạo PDF kế hoạch. Vui lòng thử lại.`
 - ⬜ Mở blob PDF từ preview.
