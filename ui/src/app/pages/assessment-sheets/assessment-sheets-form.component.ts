@@ -416,7 +416,9 @@ export class AssessmentSheetFormComponent implements OnInit {
     valueChangeEvent: 'input'
   };
   readonly standaloneNgModelOptions = { standalone: true };
-
+  get showPlan(): boolean {
+    return this.showPlanColumn || this.originalStatus === 'Open'
+  }
   get title(): string {
     return this.isCreate ? 'Tạo' : 'Chỉnh sửa';
   }
@@ -426,7 +428,9 @@ export class AssessmentSheetFormComponent implements OnInit {
       ? 'Chọn học sinh và các mục đánh giá để tạo kế hoạch cá nhân.'
       : 'Cập nhật thông tin chung, ghi chú và trạng thái của bảng đánh giá.';
   }
-
+  get showResult(): boolean {
+    return this.originalStatus === 'Planed' || this.originalStatus === 'Done'
+  }
   get dirty(): boolean {
     return !this.loading && this.serialize(this.editor) !== this.baseline;
   }
@@ -599,7 +603,8 @@ export class AssessmentSheetFormComponent implements OnInit {
     return !this.loading
       && !this.saving
       && !this.recordMutationInProgress
-      && this.hasRecords;
+      && this.hasRecords
+      && this.originalStatus !== 'Open';
   }
 
   toggleAddAssessmentPicker(): void {

@@ -124,8 +124,8 @@
                   </label>
                 </div>
               </th>
-              <th *ngIf="showPlanColumn" class="plan-column" scope="col">Kế hoạch</th>
-              <th class="grade-column" scope="col">
+              <th *ngIf="showPlan" class="plan-column" scope="col">Kế hoạch</th>
+              <th *ngIf="showResult" class="grade-column" scope="col">
                 <div class="grade-header">
                   <span>Kết quả</span>
                   <label class="plan-toggle">
@@ -137,7 +137,8 @@
                   </label>
                 </div>
               </th>
-              <th class="note-column" scope="col">Ghi chú</th>
+              <th *ngIf="showPlan" class="note-column" scope="col">Ghi chú</th>
+              <th *ngIf="showResult" class="note-column" scope="col">Ghi chú</th>
               <th class="action-column" scope="col" aria-label="Thao tác"></th>
             </tr>
           </thead>
@@ -158,7 +159,7 @@
               <td class="content-cell">
                 {{ row.record.assessment.name }}
               </td>
-              <td *ngIf="showPlanColumn" class="plan-cell">
+              <td *ngIf="showPlan" class="plan-cell">
                 <dx-button
                   class="plan-grade-button"
                   stylingMode="contained"
@@ -172,7 +173,7 @@
                   [style.color]="gradeColor(row.record.planGrade)">
                 </dx-button>
               </td>
-              <td class="grade-cell"
+              <td *ngIf="showResult" class="grade-cell"
                 [style.backgroundColor]="row.record.finalGrade == row.record.planGrade ? '' : 'yellow'"
               >
                 <div
@@ -208,7 +209,10 @@
                   </dx-select-box>
                 </div>
               </td>
-              <td class="note-cell">
+              <td *ngIf="showPlan" class="note-cell">
+                {{row.record.planNote}}
+              </td>
+              <td *ngIf="showResult" class="note-cell">
                 <dx-text-area
                   class="record-note-textarea"
                   [height]="28"
