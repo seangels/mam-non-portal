@@ -579,13 +579,25 @@ export class AssessmentSheetFormComponent implements OnInit {
   }
 
   async openPlanPdfPreview(): Promise<void> {
-    if (this.isCreate || !this.assessmentSheetId || !this.canOpenPlanPdfPreview()) {
+    await this.openPdfPreview('plan');
+  }
+
+  async openResultPdfPreview(): Promise<void> {
+    await this.openPdfPreview('result');
+  }
+
+  private async openPdfPreview(kind: 'plan' | 'result'): Promise<void> {
+    const canOpen = kind === 'result'
+      ? this.canOpenResultPdfPreview()
+      : this.canOpenPlanPdfPreview();
+    if (this.isCreate || !this.assessmentSheetId || !canOpen) {
       return;
     }
     if (this.dirty) {
+      const label = kind === 'result' ? 'kết quả' : 'kế hoạch';
       const accepted = await confirm(
-        'Bạn có thay đổi chưa lưu. Trang preview sẽ dùng dữ liệu đã lưu trong hệ thống. Nếu muốn PDF phản ánh bản mới nhất, hãy lưu thay đổi trước.',
-        'Mở preview kế hoạch PDF'
+        `Bạn có thay đổi chưa lưu. Trang preview sẽ dùng dữ liệu đã lưu trong hệ thống. Nếu muốn PDF ${label} phản ánh bản mới nhất, hãy lưu thay đổi trước.`,
+        kind === 'result' ? 'Mở preview kết quả PDF' : 'Mở preview kế hoạch PDF'
       );
       if (!accepted) {
         return;
@@ -593,13 +605,25 @@ export class AssessmentSheetFormComponent implements OnInit {
       this.allowPreviewNavigationOnce = true;
     }
     try {
-      await this.router.navigate(['/assessment-sheets', this.assessmentSheetId, 'plan-pdf-preview']);
+      await this.router.navigate([
+        '/assessment-sheets',
+        this.assessmentSheetId,
+        kind === 'result' ? 'result-pdf-preview' : 'plan-pdf-preview'
+      ]);
     } finally {
       this.allowPreviewNavigationOnce = false;
     }
   }
 
   canOpenPlanPdfPreview(): boolean {
+    return !this.loading
+      && !this.saving
+      && !this.recordMutationInProgress
+      && this.hasRecords
+      && this.originalStatus !== 'Open';
+  }
+
+  canOpenResultPdfPreview(): boolean {
     return !this.loading
       && !this.saving
       && !this.recordMutationInProgress

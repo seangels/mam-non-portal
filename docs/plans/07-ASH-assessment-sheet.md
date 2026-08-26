@@ -147,6 +147,7 @@ POST   /api/v1/assessment-sheets/{id}/sync-to-sheet
 POST   /api/v1/assessment-sheets/{id}/generate-plan-pdf
 POST   /api/v1/assessment-sheets/{id}/upload-plan-pdf
 POST   /api/v1/assessment-sheets/{id}/generate-result-pdf
+POST   /api/v1/assessment-sheets/{id}/upload-result-pdf
 POST   /api/v1/assessment-sheets/{id}/submit-results
 POST   /api/v1/google-sheets/sync-assessments
 ```
@@ -156,6 +157,7 @@ POST   /api/v1/google-sheets/sync-assessments
 - `PUT /{id}/status`: đổi `Open`↔`Done`, set/clear `DoneDate`.
 - `export-to-sheet`, `sync-to-sheet`, `generate-plan-pdf`, `generate-result-pdf`, `submit-results` (ghi `[F0.ĐG]` bằng `FinalGrade` + set `SubmissionDate`) đều là action endpoint riêng, không gộp vào `PUT` chính, đúng với việc mỗi bước là thao tác nút bấm độc lập. 4 action đầu đều tự đảm bảo `[F01]` tồn tại (mục 6.1) — không bắt buộc gọi đúng thứ tự.
 - `upload-plan-pdf`: companion endpoint cho UI preview `In Kế hoạch PDF` (`ASH-FE-11`). Frontend render HTML/A4 bằng `html2pdf.js`, gửi PDF qua `multipart/form-data` field `file`; backend upload file này vào `Student.DriveFolderId`, cập nhật `PlanFileLinkPdf`, trả `AssessmentSheetDetail`. Luồng này không gọi `generate-plan-pdf`, không tạo/ghi `[F01]`, và trả `409 StudentDriveFolderRequired` nếu học sinh chưa có Drive folder id.
+- `upload-result-pdf`: companion endpoint cho UI preview `In Kết Quả PDF` (`ASH-FE-12`). Frontend render HTML/A4 bằng `html2pdf.js`, dùng `FinalGrade`/`FinalNote`, gửi PDF qua `multipart/form-data` field `file`; backend upload file này vào `Student.DriveFolderId`, cập nhật `ResultFileLinkPdf`, trả `AssessmentSheetDetail`. Luồng này không gọi `generate-result-pdf`, không tạo/ghi `[F01]`, và trả `409 StudentDriveFolderRequired` nếu học sinh chưa có Drive folder id.
 - Response của `AssessmentSheet` nên có thể expose `AssessmentSheetSpreadsheetId` (hoặc một link Drive dựng sẵn từ id đó) để UI có thể cho người dùng mở trực tiếp file `[F01]` nếu cần — quyết định UI cụ thể thuộc `ASH-FE-02`/`ASH-FE-03`.
 - `GET /api/v1/assessments` hỗ trợ query `studentId` không bắt buộc. Khi có `studentId`, API vẫn trả đủ `Assessment` theo filter/sort/paging hiện tại và left join sang `AssessmentSheetLatest`/`AssessmentRecordLatest` để bổ sung `latestGrade`/`latestNote` nullable; nếu chưa có sheet latest hoặc record latest thì không làm mất dòng assessment. Field `note` hiện hữu vẫn là ghi chú gốc của `Assessment`, không phải ghi chú latest. UI picker tải toàn bộ danh sách vào client cache; TagBox `Kết quả gần nhất` đứng đầu panel filter và lọc local trên snapshot `viewMode`, gồm cả lựa chọn `Chưa có` cho `latestGrade` null/empty.
 - Toàn bộ theo quy ước REST/error/pagination đã có trong [requirements/07](../requirements/07-api-bao-mat-va-van-hanh.md); không cần tài liệu hoá lại ở đây.

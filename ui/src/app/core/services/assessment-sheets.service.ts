@@ -48,6 +48,12 @@ export class AssessmentSheetsService {
     return this.api.post<AssessmentSheetDetail>(`assessment-sheets/${id}/upload-plan-pdf`, formData);
   }
 
+  uploadResultPdf(id: string, file: Blob, fileName: string): Observable<AssessmentSheetDetail> {
+    const formData = new FormData();
+    formData.append('file', file, fileName);
+    return this.api.post<AssessmentSheetDetail>(`assessment-sheets/${id}/upload-result-pdf`, formData);
+  }
+
   delete(id: string): Observable<void> {
     return this.api.delete(`assessment-sheets/${id}`);
   }

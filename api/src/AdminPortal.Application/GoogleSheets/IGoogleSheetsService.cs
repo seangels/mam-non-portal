@@ -50,6 +50,14 @@ public interface IGoogleSheetsService
         Guid assessmentSheetId, Guid studentId, string? existingFileLink, string fileName,
         byte[] content, CancellationToken cancellationToken);
 
+    /// <summary>
+    /// Lưu PDF kết quả đã render từ UI vào Google Drive folder của học sinh và trả về webViewLink.
+    /// Flow này yêu cầu Student.DriveFolderId để tránh tạo file ngoài folder học viên.
+    /// </summary>
+    Task<string> UploadAssessmentSheetResultPdfAsync(
+        Guid assessmentSheetId, Guid studentId, string? existingFileLink, string fileName,
+        byte[] content, CancellationToken cancellationToken);
+
     /// <summary>Như trên nhưng ghi Final*/FinalNote vào sheet KQ_template.</summary>
     Task<string> GenerateAssessmentSheetResultPdfAsync(
         string spreadsheetId, Guid assessmentSheetId, Guid studentId, string? existingFileLink,

@@ -589,6 +589,18 @@ public class GoogleSheetsService : IGoogleSheetsService, IDisposable
             cancellationToken,
             requireStudentFolder: true);
 
+    public async Task<string> UploadAssessmentSheetResultPdfAsync(
+        Guid assessmentSheetId, Guid studentId, string? existingFileLink, string fileName,
+        byte[] content, CancellationToken cancellationToken) =>
+        await SavePdfToDriveAsync(
+            studentId,
+            existingFileLink,
+            assessmentSheetId,
+            NormalizePdfFileName(fileName),
+            content,
+            cancellationToken,
+            requireStudentFolder: true);
+
     public async Task<string> GenerateAssessmentSheetResultPdfAsync(
         string spreadsheetId, Guid assessmentSheetId, Guid studentId, string? existingFileLink,
         IReadOnlyList<AssessmentRecord> records, CancellationToken cancellationToken)

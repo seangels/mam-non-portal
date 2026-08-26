@@ -4,15 +4,20 @@ import { firstValueFrom } from 'rxjs';
 import html2pdf from 'html2pdf.js';
 import notify from 'devextreme/ui/notify';
 import { ApiError } from '../../core/models/api-error';
-import { AssessmentSheetDetail } from '../../core/models/api.models.assessment-sheets';
+import { AssessmentSheetDetail, AssessmentSheetRecord } from '../../core/models/api.models.assessment-sheets';
 import { AssessmentSheetsService } from '../../core/services/assessment-sheets.service';
 import {
+  AssessmentSheetPdfKind,
   AssessmentSheetPlanPreviewModel,
-  buildAssessmentSheetPlanPreview,
+  buildAssessmentSheetPdfPreview,
   planGradeText,
   planGradeBgColor,
   planGradeColor,
   planNoteText,
+  resultGradeText,
+  resultGradeBgColor,
+  resultGradeColor,
+  resultNoteText,
 } from './assessment-sheet-plan-preview.models';
 
 @Component({
@@ -33,6 +38,7 @@ export class AssessmentSheetPlanPreviewComponent implements OnInit, AfterViewChe
   loadError = '';
   actionError = '';
   driveFileLink = '';
+  pdfKind: AssessmentSheetPdfKind = 'plan';
 
   // Tracks which model reference has already been fitted to the page so
   // fitContentToPage() only re-measures once per model change, not on every
@@ -45,7 +51,7 @@ export class AssessmentSheetPlanPreviewComponent implements OnInit, AfterViewChe
     image: { type: 'jpeg', quality: 0.98 },
     html2canvas: {
       scale: 2,
-      // letterRendering: true,
+      letterRendering: true,
       useCORS: true,
       backgroundColor: '#ffffff'
     },
@@ -60,6 +66,8 @@ export class AssessmentSheetPlanPreviewComponent implements OnInit, AfterViewChe
   ) {}
 
   ngOnInit(): void {
+    this.pdfKind = this.route.snapshot.data['pdfKind'] === 'result' ? 'result' : 'plan';
+    this.pdfOptions['filename'] = this.pdfKind === 'result' ? 'ket-qua-danh-gia.pdf' : 'ke-hoach-ca-nhan.pdf';
     this.sheetId = this.route.snapshot.paramMap.get('id') ?? '';
     if (!this.sheetId) {
       this.loadError = 'Không tìm thấy mã bảng đánh giá trong đường dẫn.';
@@ -118,7 +126,7 @@ export class AssessmentSheetPlanPreviewComponent implements OnInit, AfterViewChe
       const blobUrl = await worker.outputPdf('bloburl');
       window.open(blobUrl);
     } catch {
-      this.actionError = 'Không thể tạo PDF kế hoạch. Vui lòng thử lại.';
+      this.actionError = `Không thể tạo PDF ${this.kindLabelLower}. Vui lòng thử lại.`;
     } finally {
       this.generatingPdf = false;
     }
@@ -131,7 +139,7 @@ export class AssessmentSheetPlanPreviewComponent implements OnInit, AfterViewChe
 
     const worker = this.createPdfWorker(false);
     if (!worker) {
-      this.actionError = 'Không thể tạo PDF kế hoạch vì thư viện html2pdf chưa sẵn sàng.';
+      this.actionError = `Không thể tạo PDF ${this.kindLabelLower} vì thư viện html2pdf chưa sẵn sàng.`;
       return;
     }
 
@@ -139,14 +147,9 @@ export class AssessmentSheetPlanPreviewComponent implements OnInit, AfterViewChe
     this.actionError = '';
     try {
       const blob = await worker.outputPdf('blob');
-      const saved = await firstValueFrom(this.assessmentSheets.uploadPlanPdf(
-        this.sheetId,
-        blob,
-        this.model.fileName
-      ));
+      const saved = await firstValueFrom(this.uploadPdfBlob(blob, this.model.fileName));
       this.applySheet(saved);
-      this.driveFileLink = saved.planFileLinkPdf ?? '';
-      notify('Đã tạo PDF kế hoạch lên Google Drive.', 'success', 2500);
+      notify(`Đã tạo PDF ${this.kindLabelLower} lên Google Drive.`, 'success', 2500);
     } catch (error) {
       const apiError = ApiError.from(error);
       this.actionError = this.withTrace(apiError);
@@ -155,17 +158,39 @@ export class AssessmentSheetPlanPreviewComponent implements OnInit, AfterViewChe
     }
   }
 
-  gradeText = planGradeText;
-  gradeColor = planGradeColor;
-  gradeBgColor = planGradeBgColor;
-  noteText = planNoteText;
+  get kindLabelLower(): string {
+    return this.pdfKind === 'result' ? 'kết quả' : 'kế hoạch';
+  }
+
+  get currentDriveLinkLabel(): string {
+    return this.pdfKind === 'result' ? 'Mở file kết quả hiện tại' : 'Mở file kế hoạch hiện tại';
+  }
+
+  gradeText = (record: AssessmentSheetRecord): string =>
+    this.pdfKind === 'result' ? resultGradeText(record) : planGradeText(record);
+
+  gradeColor = (record: AssessmentSheetRecord): string =>
+    this.pdfKind === 'result' ? resultGradeColor(record) : planGradeColor(record);
+
+  gradeBgColor = (record: AssessmentSheetRecord): string =>
+    this.pdfKind === 'result' ? resultGradeBgColor(record) : planGradeBgColor(record);
+
+  noteText = (record: AssessmentSheetRecord): string =>
+    this.pdfKind === 'result' ? resultNoteText(record) : planNoteText(record);
 
   private applySheet(sheet: AssessmentSheetDetail): void {
     this.sheet = sheet;
-    this.model = buildAssessmentSheetPlanPreview(sheet);
+    this.model = buildAssessmentSheetPdfPreview(sheet, this.pdfKind);
     this.pdfOptions['filename'] = this.model.fileName;
-    console.log(this.pdfOptions['filename'])
-    this.driveFileLink = sheet.planFileLinkPdf ?? '';
+    this.driveFileLink = this.pdfKind === 'result'
+      ? sheet.resultFileLinkPdf ?? ''
+      : sheet.planFileLinkPdf ?? '';
+  }
+
+  private uploadPdfBlob(blob: Blob, fileName: string) {
+    return this.pdfKind === 'result'
+      ? this.assessmentSheets.uploadResultPdf(this.sheetId, blob, fileName)
+      : this.assessmentSheets.uploadPlanPdf(this.sheetId, blob, fileName);
   }
 
   // Ports the auto-fit-to-one-page mechanism from docs/samples/khcn-standalone.html:

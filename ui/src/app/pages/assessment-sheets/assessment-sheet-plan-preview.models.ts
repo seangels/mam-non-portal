@@ -9,6 +9,10 @@ import {
 } from './assessment-sheets-form.component';
 
 export interface AssessmentSheetPlanPreviewModel {
+  kind: AssessmentSheetPdfKind;
+  documentTitle: string;
+  sectionTitle: string;
+  tableLabel: string;
   studentName: string;
   studentCode: string;
   studentNickName: string;
@@ -19,20 +23,40 @@ export interface AssessmentSheetPlanPreviewModel {
   rows: AssessmentSheetRecordTableRow[];
 }
 
+export type AssessmentSheetPdfKind = 'plan' | 'result';
+
 const MISSING_TEXT = 'Chưa có thông tin';
 
 export function buildAssessmentSheetPlanPreview(sheet: AssessmentSheetDetail): AssessmentSheetPlanPreviewModel {
+  return buildAssessmentSheetPdfPreview(sheet, 'plan');
+}
+
+export function buildAssessmentSheetResultPreview(sheet: AssessmentSheetDetail): AssessmentSheetPlanPreviewModel {
+  return buildAssessmentSheetPdfPreview(sheet, 'result');
+}
+
+export function buildAssessmentSheetPdfPreview(
+  sheet: AssessmentSheetDetail,
+  kind: AssessmentSheetPdfKind
+): AssessmentSheetPlanPreviewModel {
   const snapshot = sheet.studentSnapshot ?? {};
   const studentCode = snapshot.studentCode || sheet.studentCode || '';
+  const isResult = kind === 'result';
 
   return {
+    kind,
+    documentTitle: isResult ? 'KẾT QUẢ ĐÁNH GIÁ' : 'KẾ HOẠCH CÁ NHÂN',
+    sectionTitle: isResult ? '2. Kết quả đánh giá' : '2. Kế hoạch cá nhân',
+    tableLabel: isResult ? 'Kết quả đánh giá' : 'Kế hoạch cá nhân',
     studentName: snapshot.fullName || sheet.studentFullName || MISSING_TEXT,
     studentCode: studentCode || MISSING_TEXT,
     studentNickName: snapshot.nickName || '',
     birthDateText: formatDateText(snapshot.dateOfBirth),
     ageText: calculateAgeText(snapshot.dateOfBirth, sheet.startDate),
     periodText: formatAssessmentPeriod(sheet.startDate, sheet.dueDate),
-    fileName: buildPlanPdfFileName(studentCode || sheet.id, snapshot.nickName, sheet.startDate, sheet.dueDate),
+    fileName: isResult
+      ? buildResultPdfFileName(studentCode || sheet.id, snapshot.nickName, sheet.startDate, sheet.dueDate)
+      : buildPlanPdfFileName(studentCode || sheet.id, snapshot.nickName, sheet.startDate, sheet.dueDate),
     rows: buildAssessmentSheetRecordRows(sheet.records ?? [])
   };
 }
@@ -51,6 +75,22 @@ export function planGradeBgColor(record: AssessmentSheetRecord): string {
 
 export function planNoteText(record: AssessmentSheetRecord): string {
   return record.planNote?.trim() || '';
+}
+
+export function resultGradeText(record: AssessmentSheetRecord): string {
+  return assessmentGradeText(record.finalGrade);
+}
+
+export function resultGradeColor(record: AssessmentSheetRecord): string {
+  return assessmentGradeColor(record.finalGrade);
+}
+
+export function resultGradeBgColor(record: AssessmentSheetRecord): string {
+  return assessmentGradeBgColor(record.finalGrade);
+}
+
+export function resultNoteText(record: AssessmentSheetRecord): string {
+  return record.finalNote?.trim() || '';
 }
 
 export function formatAssessmentPeriod(
@@ -132,19 +172,24 @@ export function buildPlanPdfFileName(
   startValue: Date | string | number | null | undefined,
   dueValue: Date | string | number | null | undefined
 ): string {
-  const slugify = (value: string | null | undefined): string =>
-    normalizeVietnamese(value || '')
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '');
-
-  const codePart = slugify(studentCode) || 'hoc-sinh';
-  const nickPart = slugify(studentNickName);
-  const namePart = nickPart ? `${codePart}.${nickPart}` : codePart;
+  const namePart = buildSafeStudentNamePart(studentCode, studentNickName);
   const assessmentName = buildAssessmentNameForFileName(startValue, dueValue);
   const suffix = assessmentName ? `_${assessmentName}` : '';
 
   return `khcn - ${namePart}${suffix}.pdf`;
+}
+
+export function buildResultPdfFileName(
+  studentCode: string | null | undefined,
+  studentNickName: string | null | undefined,
+  startValue: Date | string | number | null | undefined,
+  dueValue: Date | string | number | null | undefined
+): string {
+  const namePart = buildSafeStudentNamePart(studentCode, studentNickName);
+  const assessmentName = buildAssessmentNameForFileName(startValue, dueValue);
+  const suffix = assessmentName ? `_${assessmentName}` : '';
+
+  return `kq - ${namePart}${suffix}.pdf`;
 }
 
 function isLastDayOfMonth(date: Date): boolean {
@@ -167,7 +212,7 @@ function buildAssessmentNameForFileName(
   let month = start.getMonth();
   const dueYear = due.getFullYear();
   const dueMonth = due.getMonth();
-  while (year < dueYear || (year === dueYear && month <= dueMonth)) {
+  while (year < dueYear || (year === dueYear && month < dueMonth)) {
     months.push(month + 1);
     month += 1;
     if (month > 11) {
@@ -181,6 +226,22 @@ function buildAssessmentNameForFileName(
 
   const yearSuffix = String(dueYear).slice(-2);
   return `${months.join('.')}.${yearSuffix}`;
+}
+
+function buildSafeStudentNamePart(
+  studentCode: string | null | undefined,
+  studentNickName: string | null | undefined
+): string {
+  const codePart = slugifyFileNamePart(studentCode) || 'hoc-sinh';
+  const nickPart = slugifyFileNamePart(studentNickName);
+  return nickPart ? `${codePart}.${nickPart}` : codePart;
+}
+
+function slugifyFileNamePart(value: string | null | undefined): string {
+  return normalizeVietnamese(value || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
 }
 
 function toCalendarDate(value: Date | string | number | null | undefined): Date | null {

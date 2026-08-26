@@ -34,7 +34,7 @@ Theo mục 13 của plan. Cả 5 quyết định đã được khoá. `ASH-DEC-0
 | Planning | 1 | 0 | 0 | 1 | 0 |
 | Backend | 6 | 0 | 3 | 3 | 0 |
 | Frontend | 6 | 5 | 0 | 1 | 0 |
-| Frontend delta | 7 | 0 | 3 | 4 | 0 |
+| Frontend delta | 8 | 0 | 4 | 4 | 0 |
 | Contract delta | 1 | 0 | 0 | 1 | 0 |
 | QA | 1 | 1 | 0 | 0 | 0 |
 
@@ -77,7 +77,8 @@ Cập nhật bảng này mỗi khi đổi trạng thái một dòng bên dưới
 | `[x]` | [`ASH-FE-08`](details/15-ASH-FE-08.md) | Màn edit có nút xóa từng dòng trong `records-panel`, confirm trước khi xóa và lưu qua endpoint full-replace records hiện có | `ASH-FE-07`, `PUT /assessment-sheets/{id}/records` |
 | `[~]` | [`ASH-FE-09`](details/16-ASH-FE-09.md) | Chuyển `records-panel` từ dạng card sang table, cột xóa nằm đầu, hiển thị nhóm `groupLv2`/`groupLv3` và màu nền cố định theo 5 nhóm `groupLv2` | `ASH-FE-08` |
 | `[~]` | [`ASH-FE-10`](details/17-ASH-FE-10.md) | Đổi ghi chú từng dòng sang `dxTextArea`; `Open` cho thao tác đầy đủ, `Planed` chỉ khóa thêm/xóa record nhưng vẫn cho nhập `FinalGrade`/`FinalNote`, `Done` giữ khóa như hiện tại | `ASH-FE-09` |
-| `[~]` | [`ASH-FE-11`](details/18-ASH-FE-11.md) | Đã code nút `In Kế hoạch PDF`, trang preview A4 (co 1 trang tự động), mở blob PDF bằng `html2pdf.js`, endpoint upload PDF do UI tạo lên Google Drive học viên, show/hide cột Kế hoạch/Kết quả + khoá nút PDF theo `status`, tên file PDF đổi sang cú pháp `khcn - <code>.<nick>_<assessmentName>.pdf`; `npm --prefix ui run test:ci` 114/114, build dev pass; smoke thủ công và kiểm tra lưu Drive thật vẫn chừa lại theo yêu cầu; thay đổi mới nhất chưa commit git | `ASH-FE-10` |
+| `[~]` | [`ASH-FE-11`](details/18-ASH-FE-11.md) | Đã code nút `In Kế hoạch PDF`, trang preview A4 (co 1 trang tự động), mở blob PDF bằng `html2pdf.js`, endpoint upload PDF do UI tạo lên Google Drive học viên, show/hide cột Kế hoạch/Kết quả + khoá nút PDF theo `status`, tên file PDF đổi sang cú pháp `khcn - <code>.<nick>_<assessmentName>.pdf`; `npm --prefix ui run test:ci` 114/114, build dev pass; smoke thủ công và kiểm tra lưu Drive thật vẫn chừa lại theo yêu cầu | `ASH-FE-10` |
+| `[~]` | [`ASH-FE-12`](details/19-ASH-FE-12.md) | Đã code nút `In Kết Quả PDF`, chỉ enable khi `status != Open`, route preview kết quả dùng `FinalGrade`/`FinalNote`, mở blob PDF và upload Google Drive vào `ResultFileLinkPdf`; backend endpoint `upload-result-pdf` có integration coverage; backend build/unit/integration pass, frontend `test:ci` 116/116 và build dev pass; smoke thủ công và kiểm tra Drive thật chưa chạy | `ASH-FE-11` |
 
 ## Contract delta — owner: `root` / phối hợp backend + frontend
 

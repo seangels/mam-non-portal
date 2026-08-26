@@ -395,6 +395,22 @@ Authorization: Bearer {{accessToken}}
 
 ###
 
+# Upload PDF kết quả do UI preview tạo bằng html2pdf.js.
+# Endpoint này không gọi generate-result-pdf cũ và yêu cầu Student.driveFolderId để lưu đúng thư mục Drive học viên.
+# Đổi đường dẫn file PDF mẫu bên dưới trước khi chạy thật.
+POST {{host}}/api/v1/assessment-sheets/{{assessmentSheetId}}/upload-result-pdf
+Authorization: Bearer {{accessToken}}
+Content-Type: multipart/form-data; boundary=ResultPdfBoundary
+
+--ResultPdfBoundary
+Content-Disposition: form-data; name="file"; filename="ket-qua-ca-nhan-test.pdf"
+Content-Type: application/pdf
+
+< ./samples/ket-qua-ca-nhan-test.pdf
+--ResultPdfBoundary--
+
+###
+
 POST {{host}}/api/v1/assessment-sheets/{{assessmentSheetId}}/submit-results
 Authorization: Bearer {{accessToken}}
 

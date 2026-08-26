@@ -109,7 +109,13 @@ export const APP_ROUTES: Routes = [
     path: 'assessment-sheets/:id/plan-pdf-preview',
     component: AssessmentSheetPlanPreviewComponent,
     canActivate: [SetupCompletedGuard, AuthGuardService, RoleGuard],
-    data: { roles: ['SuperAdmin', 'Admin', 'Teacher'] }
+    data: { roles: ['SuperAdmin', 'Admin', 'Teacher'], pdfKind: 'plan' }
+  },
+  {
+    path: 'assessment-sheets/:id/result-pdf-preview',
+    component: AssessmentSheetPlanPreviewComponent,
+    canActivate: [SetupCompletedGuard, AuthGuardService, RoleGuard],
+    data: { roles: ['SuperAdmin', 'Admin', 'Teacher'], pdfKind: 'result' }
   },
   {
     path: 'profile',

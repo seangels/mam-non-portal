@@ -16,7 +16,7 @@ namespace AdminPortal.Api.Controllers;
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
 public sealed class AssessmentSheetsController(IAssessmentSheetService assessmentSheetService) : ControllerBase
 {
-    private const long MaxPlanPdfUploadBytes = 10 * 1024 * 1024;
+    private const long MaxPdfUploadBytes = 10 * 1024 * 1024;
 
     [HttpGet]
     [ProducesResponseType<PagedResponse<AssessmentSheetListItemResponse>>(StatusCodes.Status200OK)]
@@ -89,7 +89,7 @@ public sealed class AssessmentSheetsController(IAssessmentSheetService assessmen
 
     [HttpPost("{id:guid}/upload-plan-pdf")]
     [Consumes("multipart/form-data")]
-    [RequestSizeLimit(MaxPlanPdfUploadBytes)]
+    [RequestSizeLimit(MaxPdfUploadBytes)]
     [ProducesResponseType<AssessmentSheetDetailResponse>(StatusCodes.Status200OK)]
     public async Task<ActionResult<AssessmentSheetDetailResponse>> UploadPlanPdf(
         Guid id,
@@ -103,7 +103,7 @@ public sealed class AssessmentSheetsController(IAssessmentSheetService assessmen
                 ["file"] = ["Vui lòng chọn file PDF có nội dung."]
             });
         }
-        if (file.Length > MaxPlanPdfUploadBytes)
+        if (file.Length > MaxPdfUploadBytes)
         {
             throw new AppValidationException("File PDF kế hoạch vượt quá dung lượng cho phép.", new Dictionary<string, string[]>
             {
@@ -129,6 +129,42 @@ public sealed class AssessmentSheetsController(IAssessmentSheetService assessmen
         Guid id,
         CancellationToken cancellationToken) =>
         Ok(await assessmentSheetService.GenerateResultPdfAsync(id, cancellationToken));
+
+    [HttpPost("{id:guid}/upload-result-pdf")]
+    [Consumes("multipart/form-data")]
+    [RequestSizeLimit(MaxPdfUploadBytes)]
+    [ProducesResponseType<AssessmentSheetDetailResponse>(StatusCodes.Status200OK)]
+    public async Task<ActionResult<AssessmentSheetDetailResponse>> UploadResultPdf(
+        Guid id,
+        [FromForm] IFormFile? file,
+        CancellationToken cancellationToken)
+    {
+        if (file is null || file.Length == 0)
+        {
+            throw new AppValidationException("File PDF kết quả không hợp lệ.", new Dictionary<string, string[]>
+            {
+                ["file"] = ["Vui lòng chọn file PDF có nội dung."]
+            });
+        }
+        if (file.Length > MaxPdfUploadBytes)
+        {
+            throw new AppValidationException("File PDF kết quả vượt quá dung lượng cho phép.", new Dictionary<string, string[]>
+            {
+                ["file"] = ["Dung lượng tối đa là 10MB."]
+            });
+        }
+        if (!file.FileName.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new AppValidationException("File PDF kết quả không hợp lệ.", new Dictionary<string, string[]>
+            {
+                ["file"] = ["Vui lòng chọn file PDF."]
+            });
+        }
+
+        using var stream = new MemoryStream();
+        await file.CopyToAsync(stream, cancellationToken);
+        return Ok(await assessmentSheetService.UploadResultPdfAsync(id, file.FileName, stream.ToArray(), cancellationToken));
+    }
 
     [HttpPost("{id:guid}/submit-results")]
     [ProducesResponseType<AssessmentSheetDetailResponse>(StatusCodes.Status200OK)]

@@ -17,7 +17,11 @@ describe('APP_ROUTES teacher permissions', () => {
   it('allows Teacher to open assessment sheet list and create/edit forms', () => {
     const assessmentSheetRoutes = APP_ROUTES.filter(route => route.path?.startsWith('assessment-sheets'));
     expect(assessmentSheetRoutes.map(route => route.path)).toEqual([
-      'assessment-sheets', 'assessment-sheets/new', 'assessment-sheets/:id/edit', 'assessment-sheets/:id/plan-pdf-preview'
+      'assessment-sheets',
+      'assessment-sheets/new',
+      'assessment-sheets/:id/edit',
+      'assessment-sheets/:id/plan-pdf-preview',
+      'assessment-sheets/:id/result-pdf-preview'
     ]);
     assessmentSheetRoutes.forEach(route => expect(route.data?.['roles']).toEqual(['SuperAdmin', 'Admin', 'Teacher']));
   });

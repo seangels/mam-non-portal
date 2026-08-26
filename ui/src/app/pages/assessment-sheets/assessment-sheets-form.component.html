@@ -91,6 +91,14 @@
             (onClick)="openPlanPdfPreview()">
           </dx-button>
           <dx-button
+            text="In Kết Quả PDF"
+            icon="print"
+            stylingMode="outlined"
+            [disabled]="!canOpenResultPdfPreview()"
+            hint="Mở trang preview kết quả trước khi tạo PDF"
+            (onClick)="openResultPdfPreview()">
+          </dx-button>
+          <dx-button
             [text]="showAddAssessmentPicker ? 'Ẩn chọn mục' : 'Thêm mục đánh giá'"
             icon="add"
             stylingMode="outlined"

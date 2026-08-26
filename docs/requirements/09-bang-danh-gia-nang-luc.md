@@ -115,6 +115,7 @@
 
 - Cùng cơ chế như `[F02]` (mục 8), áp dụng cho sheet `KQ_template` (`gid=1903920808`) của `[F01]`: đảm bảo `[F01]` tồn tại, ghi `FinalGrade`/`FinalNote`/feedback hiện tại vào sheet (chỉnh format/merge nếu cần), rồi export sheet đó thành PDF. Cho phép sinh PDF ngay cả khi còn `AssessmentRecord` chưa có `FinalGrade`; các mục còn thiếu hiển thị trống trên PDF.
 - Link tới file PDF này được lưu vào field `ResultFileLinkPdf` của `AssessmentSheet`; chỉ giữ **bản mới nhất**, mỗi lần sinh lại lặp lại chu trình ghi đè–export và ghi đè link hiện tại.
+- Biến thể UI-preview mới (`ASH-FE-12`): màn edit có nút `In Kết Quả PDF`, chỉ bật khi bảng đã lưu, có record và trạng thái đã lưu khác `Open`. Nút mở trang preview HTML/A4 trước, dùng `FinalGrade`/`FinalNote`, sau đó cho `Mở PDF` bằng blob URL hoặc `Tạo PDF lên Google Drive` bằng cách upload PDF do UI tạo qua `POST /api/v1/assessment-sheets/{id}/upload-result-pdf`. Backend lưu file vào `Student.DriveFolderId` và cập nhật `ResultFileLinkPdf`. Luồng này không gọi `generate-result-pdf` cũ và không phụ thuộc việc tạo/ghi `[F01]`; nếu học sinh chưa có Drive folder id thì báo lỗi rõ.
 
 ## 11. Ghi kết quả vào [F0.ĐG]
 

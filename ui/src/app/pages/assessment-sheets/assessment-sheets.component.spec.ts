@@ -3,11 +3,15 @@ import { ASSESSMENT_GROUP_LV2_CONFIGS } from '../../core/models/api.models.asses
 import { AssessmentPickerComponent } from './assessment-picker.component';
 import {
   buildAssessmentSheetPlanPreview,
+  buildAssessmentSheetResultPreview,
   buildPlanPdfFileName,
+  buildResultPdfFileName,
   calculateAgeText,
   formatAssessmentPeriod,
   planGradeText,
-  planNoteText
+  planNoteText,
+  resultGradeText,
+  resultNoteText
 } from './assessment-sheet-plan-preview.models';
 import {
   AssessmentSheetFormComponent,
@@ -421,10 +425,51 @@ describe('Assessment sheet plan PDF preview mapping', () => {
     expect(preview.rows[0].groupLv2Name).toBe('Tiền tiểu học');
   });
 
+  it('maps sheet detail to printable result rows using final fields', () => {
+    const preview = buildAssessmentSheetResultPreview({
+      id: 'sheet-1',
+      studentId: 'student-1',
+      studentSnapshot: {
+        studentCode: 'S 101',
+        fullName: 'Bé An',
+        nickName: 'An',
+        dateOfBirth: '2020-01-15'
+      },
+      startDate: '2026-03-01',
+      dueDate: '2026-06-26',
+      records: [
+        {
+          id: 'record-1',
+          assessment: {
+            code: 'B97',
+            name: 'Đứng một chân',
+            groupLv2Name: 'Tiền tiểu học',
+            groupLv3Name: 'Vận động'
+          },
+          planGrade: 'B',
+          planNote: 'Không dùng cho kết quả',
+          finalGrade: 'A',
+          finalNote: '  Đã đạt mục tiêu  '
+        } as any
+      ]
+    } as any);
+
+    expect(preview.kind).toBe('result');
+    expect(preview.documentTitle).toBe('KẾT QUẢ ĐÁNH GIÁ');
+    expect(preview.sectionTitle).toBe('2. Kết quả đánh giá');
+    expect(preview.tableLabel).toBe('Kết quả đánh giá');
+    expect(preview.fileName).toBe('kq - s-101.an_3.4.5.26.pdf');
+    expect(resultGradeText(preview.rows[0].record)).toBe('Đạt +');
+    expect(resultNoteText(preview.rows[0].record)).toBe('Đã đạt mục tiêu');
+  });
+
   it('builds safe PDF file names', () => {
     expect(buildPlanPdfFileName('Số 01', 'Bé An', '2026-03-01', '2026-06-26')).toBe('khcn - so-01.be-an_3.4.5.26.pdf');
     expect(buildPlanPdfFileName('S101', null, '2026-06-01', '2026-08-31')).toBe('khcn - s101_6.7.8.26.pdf');
     expect(buildPlanPdfFileName('', '', null, null)).toBe('khcn - hoc-sinh.pdf');
+    expect(buildResultPdfFileName('Số 01', 'Bé An', '2026-03-01', '2026-06-26')).toBe('kq - so-01.be-an_3.4.5.26.pdf');
+    expect(buildResultPdfFileName('S101', null, '2026-06-01', '2026-08-31')).toBe('kq - s101_6.7.8.26.pdf');
+    expect(buildResultPdfFileName('', '', null, null)).toBe('kq - hoc-sinh.pdf');
   });
 });
 
@@ -490,6 +535,26 @@ describe('Assessment sheet form DevExtreme option stability', () => {
 
     component.records = [];
     expect(component.canOpenPlanPdfPreview()).toBeFalse();
+  });
+
+  it('allows opening the result PDF preview only for saved edit sheets past Open status with records', () => {
+    const component = createComponent('edit');
+    component.isCreate = false;
+    component.loading = false;
+    component.saving = false;
+    component.records = [{ id: 'record-1' } as any];
+
+    component.originalStatus = 'Open';
+    expect(component.canOpenResultPdfPreview()).toBeFalse();
+
+    component.originalStatus = 'Planed';
+    expect(component.canOpenResultPdfPreview()).toBeTrue();
+
+    component.originalStatus = 'Done';
+    expect(component.canOpenResultPdfPreview()).toBeTrue();
+
+    component.records = [];
+    expect(component.canOpenResultPdfPreview()).toBeFalse();
   });
 
   it('locks add and remove immediately from the currently selected status while keeping Planed record values editable', () => {

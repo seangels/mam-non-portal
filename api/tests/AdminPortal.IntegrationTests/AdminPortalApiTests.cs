@@ -257,7 +257,7 @@ public sealed class AdminPortalApiTests(ApiFactory factory) : IClassFixture<ApiF
     }
 
     [Fact]
-    public async Task AssessmentSheetUploadPlanPdfSavesDriveLinkWithoutUsingLegacyGenerateEndpoint()
+    public async Task AssessmentSheetUploadPlanAndResultPdfSaveDriveLinksWithoutUsingLegacyGenerateEndpoints()
     {
         var googleSheets = new FakeGoogleSheetsService();
         using var uploadFactory = factory.WithWebHostBuilder(builder => builder.ConfigureServices(services =>
@@ -326,6 +326,19 @@ public sealed class AdminPortalApiTests(ApiFactory factory) : IClassFixture<ApiF
         Assert.Equal(student.Id, googleSheets.UploadedStudentId);
         Assert.Equal("ke-hoach-ca-nhan-test.pdf", googleSheets.UploadedFileName);
         Assert.Equal("%PDF-test"u8.ToArray(), googleSheets.UploadedContent);
+
+        using var resultMultipart = new MultipartFormDataContent();
+        resultMultipart.Add(new ByteArrayContent("%PDF-result-test"u8.ToArray()), "file", "ket-qua-ca-nhan-test.pdf");
+
+        var resultUpload = await client.PostAsync($"/api/v1/assessment-sheets/{sheet.Id}/upload-result-pdf", resultMultipart);
+        resultUpload.EnsureSuccessStatusCode();
+        var resultUploadedSheet = await resultUpload.Content.ReadFromJsonAsync<AssessmentSheetDetailResponse>(JsonOptions);
+
+        Assert.Equal($"https://drive.example.test/{sheet.Id:N}/result.pdf", resultUploadedSheet?.ResultFileLinkPdf);
+        Assert.Equal(sheet.Id, googleSheets.UploadedAssessmentSheetId);
+        Assert.Equal(student.Id, googleSheets.UploadedStudentId);
+        Assert.Equal("ket-qua-ca-nhan-test.pdf", googleSheets.UploadedFileName);
+        Assert.Equal("%PDF-result-test"u8.ToArray(), googleSheets.UploadedContent);
     }
 
     [Fact]
@@ -850,6 +863,21 @@ public sealed class AdminPortalApiTests(ApiFactory factory) : IClassFixture<ApiF
             UploadedFileName = fileName;
             UploadedContent = content;
             return Task.FromResult($"https://drive.example.test/{assessmentSheetId:N}/plan.pdf");
+        }
+
+        public Task<string> UploadAssessmentSheetResultPdfAsync(
+            Guid assessmentSheetId,
+            Guid studentId,
+            string? existingFileLink,
+            string fileName,
+            byte[] content,
+            CancellationToken cancellationToken)
+        {
+            UploadedAssessmentSheetId = assessmentSheetId;
+            UploadedStudentId = studentId;
+            UploadedFileName = fileName;
+            UploadedContent = content;
+            return Task.FromResult($"https://drive.example.test/{assessmentSheetId:N}/result.pdf");
         }
 
         public Task<string> GenerateAssessmentSheetResultPdfAsync(

@@ -3,7 +3,7 @@
 
   <div class="preview-toolbar-actions">
     <a *ngIf="driveFileLink" class="drive-link" [href]="driveFileLink" target="_blank" rel="noopener">
-      Mở file Drive hiện tại
+      {{ currentDriveLinkLabel }}
     </a>
     <dx-button
       text="Mở PDF"
@@ -13,7 +13,7 @@
       (onClick)="openPdf()">
     </dx-button>
     <dx-button
-      text="Tạo PDF lên Google Drive"
+      [text]="'Tạo PDF ' + kindLabelLower + ' lên Google Drive'"
       icon="upload"
       type="default"
       [disabled]="loading || generatingPdf || uploadingPdf || !model"
@@ -24,7 +24,7 @@
 
 <div *ngIf="loading" class="content-block state-panel" role="status">
   <dx-load-indicator [visible]="true"></dx-load-indicator>
-  <span>Đang tải preview kế hoạch...</span>
+  <span>Đang tải preview {{ kindLabelLower }}...</span>
 </div>
 
 <div *ngIf="!loading && loadError" class="content-block state-panel error" role="alert">
@@ -39,7 +39,7 @@
 <div *ngIf="!loading && !loadError && model" class="preview-stage">
   <main #pdfPage class="pdf-page">
     <div #pdfContent class="pdf-content">
-    <h1 class="document-title">KẾ HOẠCH CÁ NHÂN</h1>
+    <h1 class="document-title">{{ model.documentTitle }}</h1>
     <div class="term">{{ model.periodText }}</div>
 
     <h2 class="section-title">1. Thông tin trẻ</h2>
@@ -51,9 +51,9 @@
       <p><span class="label">Độ tuổi:</span>{{ model.ageText }}</p>
     </div>
 
-    <h2 class="section-title plan-title">2. Kế hoạch cá nhân</h2>
+    <h2 class="section-title plan-title">{{ model.sectionTitle }}</h2>
 
-    <table class="plan-table" aria-label="Kế hoạch cá nhân">
+    <table class="plan-table" [attr.aria-label]="model.tableLabel">
       <colgroup>
         <col class="domain">
         <col class="area">
