@@ -164,6 +164,7 @@ export class AssessmentSheetPlanPreviewComponent implements OnInit, AfterViewChe
     this.sheet = sheet;
     this.model = buildAssessmentSheetPlanPreview(sheet);
     this.pdfOptions['filename'] = this.model.fileName;
+    console.log(this.pdfOptions['filename'])
     this.driveFileLink = sheet.planFileLinkPdf ?? '';
   }
 

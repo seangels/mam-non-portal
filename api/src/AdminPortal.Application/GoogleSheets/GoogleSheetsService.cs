@@ -807,7 +807,7 @@ public class GoogleSheetsService : IGoogleSheetsService, IDisposable
                 }
                 var metadata = new Google.Apis.Drive.v3.Data.File
                 {
-                    Name = $"{assessmentSheetId}-{fileName}",
+                    Name = $"{fileName}",
                     MimeType = "application/pdf",
                     Parents = folderId is null ? null : [folderId]
                 };

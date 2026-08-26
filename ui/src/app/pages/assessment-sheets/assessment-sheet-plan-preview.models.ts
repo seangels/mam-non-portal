@@ -167,7 +167,7 @@ function buildAssessmentNameForFileName(
   let month = start.getMonth();
   const dueYear = due.getFullYear();
   const dueMonth = due.getMonth();
-  while (year < dueYear || (year === dueYear && month < dueMonth)) {
+  while (year < dueYear || (year === dueYear && month <= dueMonth)) {
     months.push(month + 1);
     month += 1;
     if (month > 11) {
