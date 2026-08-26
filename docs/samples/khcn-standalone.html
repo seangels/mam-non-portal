@@ -1,0 +1,549 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Kế hoạch cá nhân</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 0;
+    }
+
+    :root {
+      --page-width: 210mm;
+      --page-height: 297mm;
+      --page-pad-x: 16.5mm;
+      --ink: #000;
+      --grid: #111;
+      --physical: #edd6e2;
+      --cognitive: #f1effd;
+      --language: #d0e0f8;
+      --social: #dcecee;
+      --pre-primary: #f4cccc;
+      --result-red: #c00000;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: #d8d8d8;
+      color: var(--ink);
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 10.7pt;
+      line-height: 1.16;
+    }
+
+    .toolbar {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+      padding: 12px;
+    }
+
+    .toolbar button {
+      border: 1px solid #333;
+      background: #fff;
+      color: #111;
+      cursor: pointer;
+      font: 13px Arial, Helvetica, sans-serif;
+      padding: 7px 12px;
+    }
+
+    .page {
+      position: relative;
+      width: var(--page-width);
+      height: var(--page-height);
+      margin: 0 auto 16px;
+      padding: 18.9mm var(--page-pad-x) 12mm;
+      background: #fff;
+      overflow: hidden;
+    }
+
+    .document-title {
+      margin: 0;
+      text-align: center;
+      font-size: 19.6pt;
+      line-height: 1;
+      font-weight: 700;
+      letter-spacing: 0;
+    }
+
+    .term {
+      margin: 1.2mm 0 2.4mm;
+      text-align: center;
+      font-size: 15.2pt;
+      line-height: 1;
+      font-weight: 400;
+    }
+
+    .section-title {
+      margin: 0;
+      font-size: 11.2pt;
+      line-height: 1.08;
+      font-weight: 700;
+      text-decoration: underline;
+    }
+
+    .student-info {
+      width: 72mm;
+      margin: 1.3mm 0 1.2mm 23.1mm;
+      font-size: 10pt;
+    }
+
+    .student-info p {
+      margin: 0 0 1.15mm;
+    }
+
+    .student-info .label {
+      display: inline-block;
+      min-width: 24.8mm;
+      font-weight: 400;
+    }
+
+    .student-info .name {
+      font-weight: 700;
+    }
+
+    .plan-title {
+      margin-top: 1.8mm;
+      margin-bottom: 3.5mm;
+    }
+
+    table.plan {
+      width: 177mm;
+      border-collapse: collapse;
+      table-layout: fixed;
+      font-size: 8.6pt;
+      line-height: 1.08;
+    }
+
+    .plan col.domain {
+      width: 18.5mm;
+    }
+
+    .plan col.area {
+      width: 22.2mm;
+    }
+
+    .plan col.order {
+      width: 7.8mm;
+    }
+
+    .plan col.content {
+      width: 70.9mm;
+    }
+
+    .plan col.result,
+    .plan col.note {
+      width: 28.8mm;
+    }
+
+    .plan th,
+    .plan td {
+      border: 1px dotted var(--grid);
+      padding: 0.45mm 0.8mm;
+      vertical-align: middle;
+    }
+
+    .plan th {
+      height: 5.3mm;
+      font-size: 9pt;
+      font-weight: 700;
+      text-align: center;
+      background: #fff;
+      white-space: nowrap;
+    }
+
+    .plan td {
+      height: 5.25mm;
+    }
+
+    .plan tr.tall td {
+      height: 8.35mm;
+    }
+
+    .plan .domain-label,
+    .plan .area-label {
+      padding: 0.8mm 0.6mm;
+      text-align: center;
+      font-weight: 700;
+      overflow: hidden;
+    }
+
+    .vertical {
+      display: inline-block;
+      /* writing-mode: vertical-rl; */
+      /* transform: rotate(180deg); */
+      /* text-orientation: mixed; */
+      white-space: normal;
+      line-height: 1.08;
+      /* Xoay chữ */
+      transform: rotate(-90deg);
+      transform-origin: center center;
+      margin-left: -50px;
+      margin-right: -50px;
+    }
+
+    .domain-label .vertical {
+      font-size: 9.1pt;
+      letter-spacing: 0;
+    }
+
+    .area-label .vertical {
+      max-height: 100%;
+      font-size: 8.9pt;
+      letter-spacing: 0;
+    }
+
+    .area-label .vertical.compact {
+      font-size: 7.8pt;
+      line-height: 1.03;
+    }
+
+    .order-cell {
+      text-align: center;
+    }
+
+    .content-cell {
+      text-align: left;
+    }
+
+    .result-cell {
+      color: var(--result-red);
+    }
+
+    .physical {
+      background: var(--physical);
+    }
+
+    .cognitive {
+      background: var(--cognitive);
+    }
+
+    .language {
+      background: var(--language);
+    }
+
+    .social {
+      background: var(--social);
+    }
+
+    .pre-primary {
+      background: var(--pre-primary);
+    }
+
+    .parent-title {
+      margin-top: 1.4mm;
+    }
+
+    .comment-lines {
+      margin-top: 8.6mm;
+    }
+
+    .comment-lines div {
+      height: 7.9mm;
+      border-top: 1px dotted var(--grid);
+    }
+
+    .page-number {
+      position: absolute;
+      right: 8.6mm;
+      bottom: 8.7mm;
+      font-size: 11pt;
+    }
+    @media print {
+      body {
+        background: #fff;
+      }
+
+      .toolbar {
+        display: none;
+      }
+
+      .page {
+        margin: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="toolbar" data-html2canvas-ignore="true">
+    <button type="button" onclick="downloadPdf()">Xuất PDF</button>
+  </div>
+
+  <main id="pdf-page" class="page">
+    <h1 class="document-title">KẾ HOẠCH CÁ NHÂN</h1>
+    <div class="term">3 tháng 8.9.10.26</div>
+
+    <h2 class="section-title">1. Thông tin trẻ</h2>
+    <div class="student-info">
+      <p><span class="label">Họ và tên:</span><span class="name">Phạm Lê Trung Quân</span></p>
+      <p><span class="label">Sinh ngày:</span>05/12/2019</p>
+      <p><span class="label">Độ tuổi:</span>6 tuổi, 8 tháng</p>
+    </div>
+
+    <h2 class="section-title plan-title">2. Kế hoạch cá nhân</h2>
+
+    <table class="plan" aria-label="Kế hoạch cá nhân">
+      <colgroup>
+        <col class="domain">
+        <col class="area">
+        <col class="order">
+        <col class="content">
+        <col class="result">
+        <col class="note">
+      </colgroup>
+      <thead>
+        <tr>
+          <th style="width: 70px;"></th>
+          <th style="width: 84px;"></th>
+          <th style="width: 30px;">STT</th>
+          <th>Nội dung đánh giá</th>
+          <th style="width: 188px;">Kết quả hiện tại</th>
+          <th style="width: 188px;">Ghi chú</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="domain-label physical" rowspan="6"><span class="vertical">PHÁT TRIỂN THỂ CHẤT</span></td>
+          <td class="area-label physical" rowspan="3"><span class="vertical">vận động thô</span></td>
+          <td class="order-cell physical">1</td>
+          <td class="content-cell physical">B97. Đứng một chân trong 3 giây</td>
+          <td class="physical"></td>
+          <td class="physical"></td>
+        </tr>
+        <tr class="tall">
+          <td class="order-cell physical">2</td>
+          <td class="content-cell physical">C99. Đi lên cầu thang, nắm tay vịn, hai chân một bậc</td>
+          <td class="physical"></td>
+          <td class="physical"></td>
+        </tr>
+        <tr class="tall">
+          <td class="order-cell physical">3</td>
+          <td class="content-cell physical">C100. Đi xuống cầu thang, nắm tay vịn và một tay được dắt, hai chân một bậc</td>
+          <td class="physical"></td>
+          <td class="physical"></td>
+        </tr>
+        <tr>
+          <td class="area-label physical" rowspan="3"><span class="vertical">vận động tinh</span></td>
+          <td class="order-cell physical">1</td>
+          <td class="content-cell physical">F47. Vạch trên giấy</td>
+          <td class="physical"></td>
+          <td class="physical"></td>
+        </tr>
+        <tr>
+          <td class="order-cell physical">2</td>
+          <td class="content-cell physical">H65. Xếp lồng 4 cái cốc</td>
+          <td class="physical"></td>
+          <td class="physical"></td>
+        </tr>
+        <tr>
+          <td class="order-cell physical">3</td>
+          <td class="content-cell physical">Lăn dài đất sét</td>
+          <td class="result-cell physical">Chưa đạt -</td>
+          <td class="physical"></td>
+        </tr>
+
+        <tr>
+          <td class="domain-label cognitive" rowspan="3"><span class="vertical">PHÁT TRIỂN NHẬN THỨC</span></td>
+          <td class="area-label cognitive" rowspan="2"><span class="vertical compact">Làm quen với toán</span></td>
+          <td class="order-cell cognitive">1</td>
+          <td class="content-cell cognitive">Xếp xen kẽ 2 - 3 đối tượng</td>
+          <td class="cognitive"></td>
+          <td class="cognitive"></td>
+        </tr>
+        <tr>
+          <td class="order-cell cognitive">2</td>
+          <td class="content-cell cognitive">Nhận biết 1 và nhiều</td>
+          <td class="cognitive"></td>
+          <td class="cognitive"></td>
+        </tr>
+        <tr class="tall">
+          <td class="area-label cognitive"><span class="vertical compact">Nhận biết</span></td>
+          <td class="order-cell cognitive">3</td>
+          <td class="content-cell cognitive">Biết tên một số món ăn hàng ngày: trứng chiên, thịt kho trứng cút, cá chiên, ...</td>
+          <td class="cognitive"></td>
+          <td class="cognitive"></td>
+        </tr>
+
+        <tr>
+          <td class="domain-label language" rowspan="9"><span class="vertical">PHÁT TRIỂN NGÔN NGỮ</span></td>
+          <td class="area-label language" rowspan="2"><span class="vertical compact">tiếp nhận: (khả năng nghe hiểu lời)</span></td>
+          <td class="order-cell language">1</td>
+          <td class="content-cell language">Hiểu về sự chung nhóm: con vật</td>
+          <td class="language"></td>
+          <td class="language"></td>
+        </tr>
+        <tr>
+          <td class="order-cell language">2</td>
+          <td class="content-cell language">Hiểu về sự chung nhóm "phương tiện giao thông"</td>
+          <td class="language"></td>
+          <td class="language"></td>
+        </tr>
+        <tr>
+          <td class="area-label language" rowspan="7"><span class="vertical">Ngôn ngữ diễn đạt (nói)</span></td>
+          <td class="order-cell language">1</td>
+          <td class="content-cell language">Phát âm âm a</td>
+          <td class="language"></td>
+          <td class="language"></td>
+        </tr>
+        <tr>
+          <td class="order-cell language">2</td>
+          <td class="content-cell language">Phát âm âm ă</td>
+          <td class="language"></td>
+          <td class="language"></td>
+        </tr>
+        <tr>
+          <td class="order-cell language">3</td>
+          <td class="content-cell language">Phát âm âm â</td>
+          <td class="language"></td>
+          <td class="language"></td>
+        </tr>
+        <tr class="tall">
+          <td class="order-cell language">4</td>
+          <td class="content-cell language">Trả lời câu hỏi: "Cái gì đây?"<br>Chủ đề: Đồ dùng cá nhân</td>
+          <td class="language"></td>
+          <td class="language"></td>
+        </tr>
+        <tr class="tall">
+          <td class="order-cell language">5</td>
+          <td class="content-cell language">Trả lời câu hỏi: "Cái gì đây?"<br>Chủ đề: Đồ dùng học tập</td>
+          <td class="language"></td>
+          <td class="language"></td>
+        </tr>
+        <tr class="tall">
+          <td class="order-cell language">6</td>
+          <td class="content-cell language">Trả lời câu hỏi: "Cái gì đây?"<br>Chủ đề: Đồ dùng gia đình</td>
+          <td class="language"></td>
+          <td class="language"></td>
+        </tr>
+        <tr>
+          <td class="order-cell language">7</td>
+          <td class="content-cell language">Trả lời câu hỏi: "Rau củ quả gì đây?"</td>
+          <td class="language"></td>
+          <td class="language"></td>
+        </tr>
+
+        <tr class="tall">
+          <td class="domain-label social" rowspan="5"><span class="vertical">CÁ NHÂN VÀ XÃ HỘI</span></td>
+          <td class="area-label social" rowspan="3"><span class="vertical compact">Kỹ năng giao tiếp - tương tác - chơi đùa</span></td>
+          <td class="order-cell social">1</td>
+          <td class="content-cell social">A21. Giơ tay ra chơi những trò chơi phối hợp đơn giản như “chi chi chành chành”, “nu na nu nống”...</td>
+          <td class="social"></td>
+          <td class="social"></td>
+        </tr>
+        <tr class="tall">
+          <td class="order-cell social">2</td>
+          <td class="content-cell social">A38. Lật lại cho đúng hình hoặc sách bị đặt úp ngược hoặc mặt sau lên trước</td>
+          <td class="social"></td>
+          <td class="social"></td>
+        </tr>
+        <tr>
+          <td class="order-cell social">3</td>
+          <td class="content-cell social">A51. Giúp việc nhà đơn giản</td>
+          <td class="social"></td>
+          <td class="social"></td>
+        </tr>
+        <tr class="tall">
+          <td class="area-label social" rowspan="2"><span class="vertical">Tự phục vụ</span></td>
+          <td class="order-cell social">1</td>
+          <td class="content-cell social">Làm quen một số thao tác rửa tay, lau mặt đơn giản</td>
+          <td class="result-cell social">Chưa đạt -</td>
+          <td class="social"></td>
+        </tr>
+        <tr>
+          <td class="order-cell social">2</td>
+          <td class="content-cell social">Tự gấp quần áo bỏ vào cặp</td>
+          <td class="social"></td>
+          <td class="social"></td>
+        </tr>
+
+        <tr>
+          <td class="domain-label pre-primary" rowspan="4"><span class="vertical">TIỀN TIỂU HỌC</span></td>
+          <td class="area-label pre-primary" rowspan="4"><span class="vertical">TIẾNG VIỆT</span></td>
+          <td class="order-cell pre-primary">1</td>
+          <td class="content-cell pre-primary">Nét thẳng |</td>
+          <td class="result-cell pre-primary">Chưa đạt -</td>
+          <td class="pre-primary"></td>
+        </tr>
+        <tr>
+          <td class="order-cell pre-primary">2</td>
+          <td class="content-cell pre-primary">Nét ngang _</td>
+          <td class="result-cell pre-primary">Chưa đạt -</td>
+          <td class="pre-primary"></td>
+        </tr>
+        <tr>
+          <td class="order-cell pre-primary">3</td>
+          <td class="content-cell pre-primary">Nét xiên trái /</td>
+          <td class="result-cell pre-primary">Chưa đạt -</td>
+          <td class="pre-primary"></td>
+        </tr>
+        <tr>
+          <td class="order-cell pre-primary">4</td>
+          <td class="content-cell pre-primary">Nét xiên phải \</td>
+          <td class="result-cell pre-primary">Chưa đạt -</td>
+          <td class="pre-primary"></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2 class="section-title parent-title">3. Nhận xét của phụ huynh</h2>
+    <div class="comment-lines" aria-hidden="true">
+      <div></div>
+      <div></div>
+      <div></div>
+      <div></div>
+    </div>
+
+    <div class="page-number">1</div>
+  </main>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"
+    integrity="sha512-YcsIPGdhPK4P/uRWjXJMSXe9VnSMehk43E/lRBgA/YMyuXlEAqIF4Wv6F9MtG+Ptf6mZ2qvzK8NUfN9rcJZgGQ=="
+    crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script>
+    function downloadPdf() {
+      var page = document.getElementById('pdf-page');
+      var options = {
+        margin: 0,
+        filename: 'ke-hoach-ca-nhan.pdf',
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+      };
+
+      if (!window.html2pdf) {
+        window.print();
+        return;
+      }
+
+      window.html2pdf().set(options).from(page).save();
+    }
+    function OpenPdf() {
+      var page = document.getElementById('pdf-page');
+      var options = {
+        margin: 0,
+        filename: 'ke-hoach-ca-nhan.pdf',
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+      };
+
+      if (!window.html2pdf) {
+        window.print();
+        return;
+      }
+
+      window.html2pdf().set(options).from(page).outputPdf('bloburl').then(function(blobUrl) {
+          window.open(blobUrl);
+      });
+    }
+  </script>
+</body>
+</html>
