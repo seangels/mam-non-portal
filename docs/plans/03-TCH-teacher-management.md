@@ -115,10 +115,10 @@ Mã giáo viên do người dùng tự nhập và được phép sửa. API trim
 
 | Hành động | SuperAdmin | Admin | Teacher |
 |---|:---:|:---:|:---:|
-| Xem danh sách/chi tiết Teacher | Có | Có | Không |
+| Xem danh sách/chi tiết Teacher | Có | Có | Có |
 | Tạo/sửa/soft-delete Teacher | Có | Có | Không |
 | Đổi mật khẩu Teacher | Có | Có | Không |
-| Xem nhóm đang phụ trách | Có | Có | Không |
+| Xem nhóm đang phụ trách | Có | Có | Có, qua detail/list read-only |
 | Phân công/gỡ nhóm | Có | Có | Không |
 
 Quy tắc bổ sung:
@@ -126,7 +126,7 @@ Quy tắc bổ sung:
 - Role của resource luôn là `Teacher`; create/update Teacher không nhận field `role`.
 - Admin không thể dùng Teacher endpoint để tạo hoặc nâng quyền Admin/SuperAdmin.
 - Mọi authorization phải kiểm tra tại API; ẩn navigation/action trên UI chỉ là UX.
-- Teacher self-service để ngoài v1. Nếu bổ sung sau, dùng endpoint/DTO hạn chế riêng, không tái sử dụng manager `PUT`.
+- Teacher self-service mutation để ngoài v1. `Teacher` chỉ được read-only list/detail trên `/teachers`; nếu bổ sung self-service sửa thông tin sau này, dùng endpoint/DTO hạn chế riêng, không tái sử dụng manager `PUT`.
 
 ## 8. REST API contract đề xuất
 

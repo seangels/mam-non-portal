@@ -224,7 +224,7 @@ Enum được gửi/nhận dưới dạng chuỗi. `StudentStatus` chỉ có `Ac
 
 ### Quản lý giáo viên
 
-`/api/v1/teachers` là mutation surface canonical và atomic cho cả User role `Teacher` lẫn Teacher profile. Các endpoint cần role `Admin` hoặc `SuperAdmin`:
+`/api/v1/teachers` là surface canonical và atomic cho cả User role `Teacher` lẫn Teacher profile. `GET /teachers` và `GET /teachers/{id}` cho phép mọi user đã đăng nhập, bao gồm `Teacher`; các mutation `POST`/`PUT`/`DELETE`/`attendance-policy` vẫn cần role `Admin` hoặc `SuperAdmin`:
 
 - List nhận `page`, `pageSize`, `search`, `status`, `groupId`, `unassigned`, `sortBy`, `sortOrder`. `sortBy` hỗ trợ `teacherCode`, `fullName`, `email`, `status`, `attendanceEditWindowDays`, `responsibleGroupCount`, `createdAt`, `updatedAt`.
 - `search` là literal substring trên mã, họ tên, email và điện thoại; server bỏ dấu tiếng Việt/không phân biệt hoa thường trước khi tính `totalItems` và phân trang. `%`/`_` không phải wildcard.
@@ -233,7 +233,7 @@ Enum được gửi/nhận dưới dạng chuỗi. `StudentStatus` chỉ có `Ac
 - Full PUT nhận các field editable trên, trừ password, cộng `expectedVersion`. `phoneNumber`/`note` nhận `null` để xóa. Thành công tăng `version` đúng một.
 - Policy PUT nhận `{ "attendanceEditWindowDays": 1..7, "expectedVersion": n }` và dùng chung Teacher version.
 - DELETE nhận `expectedVersion` trong query, bị chặn khi còn nhóm phụ trách; khi thành công soft-delete User, revoke session nhưng giữ Teacher row/mã/lịch sử.
-- Phân công nhóm chỉ qua `PUT /student-groups/{id}/responsible-teacher`; Teacher detail chỉ đọc các nhóm hiện tại.
+- Phân công nhóm chỉ qua `PUT /student-groups/{id}/responsible-teacher`; Teacher detail/list chỉ đọc các nhóm hiện tại.
 
 Các conflict/validation code ổn định: `TeacherNotFound`, `TeacherCodeAlreadyExists`, `EmailAlreadyExists`, `TeacherVersionConflict` (kèm `currentVersion`), `TeacherHasResponsibleGroups`, `TeacherMustBeManagedViaTeachers`, `InvalidAttendanceEditWindow`, `ValidationFailed`.
 

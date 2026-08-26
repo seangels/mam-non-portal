@@ -290,8 +290,34 @@ public sealed class TeacherManagementApiTests(ApiFactory factory) : IClassFixtur
         var activeAuth = await LoginAsync(teacherClient, teacher.Email, changedPassword);
         teacherClient.DefaultRequestHeaders.Authorization =
             new AuthenticationHeaderValue("Bearer", activeAuth.AccessToken);
+        var teacherReadList = await ListAsync(teacherClient, "page=1&pageSize=20");
+        Assert.Contains(teacherReadList.Items, x => x.Id == teacher.Id);
+        var teacherReadDetail = await GetTeacherAsync(teacherClient, teacher.Id);
+        Assert.Equal(teacher.Id, teacherReadDetail.Id);
         Assert.Equal(HttpStatusCode.Forbidden,
-            (await teacherClient.GetAsync("/api/v1/teachers")).StatusCode);
+            (await teacherClient.PostAsJsonAsync(
+                "/api/v1/teachers",
+                CreateBody($"GV-FORBID-{marker}", $"{Guid.NewGuid():N}@example.test", "Forbidden Teacher"),
+                JsonOptions)).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden,
+            (await teacherClient.PutAsJsonAsync(
+                $"/api/v1/teachers/{teacher.Id}",
+                new
+                {
+                    teacher.TeacherCode,
+                    teacher.Email,
+                    teacher.FullName,
+                    teacher.PhoneNumber,
+                    teacher.Status,
+                    teacher.Note,
+                    expectedVersion = reactivated.Version
+                },
+                JsonOptions)).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden,
+            (await teacherClient.PutAsJsonAsync(
+                $"/api/v1/teachers/{teacher.Id}/attendance-policy",
+                new { attendanceEditWindowDays = 3, expectedVersion = reactivated.Version },
+                JsonOptions)).StatusCode);
 
         var group = await CreateAssignedGroupAsync(manager, $"D{marker}", teacher.Id);
         var blocked = await manager.DeleteAsync(
