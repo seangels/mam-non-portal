@@ -77,7 +77,7 @@ Cập nhật bảng này mỗi khi đổi trạng thái một dòng bên dưới
 | `[x]` | [`ASH-FE-08`](details/15-ASH-FE-08.md) | Màn edit có nút xóa từng dòng trong `records-panel`, confirm trước khi xóa và lưu qua endpoint full-replace records hiện có | `ASH-FE-07`, `PUT /assessment-sheets/{id}/records` |
 | `[~]` | [`ASH-FE-09`](details/16-ASH-FE-09.md) | Chuyển `records-panel` từ dạng card sang table, cột xóa nằm đầu, hiển thị nhóm `groupLv2`/`groupLv3` và màu nền cố định theo 5 nhóm `groupLv2` | `ASH-FE-08` |
 | `[~]` | [`ASH-FE-10`](details/17-ASH-FE-10.md) | Đổi ghi chú từng dòng sang `dxTextArea`; `Open` cho thao tác đầy đủ, `Planed` chỉ khóa thêm/xóa record nhưng vẫn cho nhập `FinalGrade`/`FinalNote`, `Done` giữ khóa như hiện tại | `ASH-FE-09` |
-| `[ ]` | [`ASH-FE-11`](details/18-ASH-FE-11.md) | Thêm nút `In Kế hoạch PDF` trên màn edit, render PDF phía client bằng `html2pdf.js` dựa theo mẫu `khcn-standalone.html`, dùng dữ liệu `PlanGrade`/`PlanNote` hiện tại | `ASH-FE-10` |
+| `[ ]` | [`ASH-FE-11`](details/18-ASH-FE-11.md) | Thêm nút `In Kế hoạch PDF` mở trang preview A4, tính đợt từ `startDate`/`dueDate`, tính tuổi tại `startDate`, dùng `html2pdf.js` để mở blob PDF hoặc tạo file lên Google Drive học viên | `ASH-FE-10` |
 
 ## Contract delta — owner: `root` / phối hợp backend + frontend
 
