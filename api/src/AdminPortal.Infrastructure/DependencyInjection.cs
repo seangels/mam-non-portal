@@ -1,6 +1,10 @@
 using AdminPortal.Application.Common.Interfaces;
+using AdminPortal.Application.Common.Mediator;
+using AdminPortal.Application.Common.Models;
 using AdminPortal.Application.Auth;
 using AdminPortal.Application.Users;
+using AdminPortal.Application.Users.Commands;
+using AdminPortal.Application.Users.Queries;
 using AdminPortal.Application.Students;
 using AdminPortal.Infrastructure.Options;
 using AdminPortal.Infrastructure.Persistence;
@@ -38,6 +42,13 @@ public static class DependencyInjection
                 .UseSnakeCaseNamingConvention();
         });
         services.AddScoped<IApplicationDbContext>(provider => provider.GetRequiredService<AdminPortalDbContext>());
+        services.AddScoped<IAppMediator, DefaultAppMediator>();
+        services.AddScoped<IAppRequestHandler<ListUsersQuery, PagedResponse<UserResponse>>, ListUsersQueryHandler>();
+        services.AddScoped<IAppRequestHandler<GetUserQuery, UserResponse>, GetUserQueryHandler>();
+        services.AddScoped<IAppRequestHandler<CreateUserCommand, UserResponse>, CreateUserCommandHandler>();
+        services.AddScoped<IAppRequestHandler<UpdateUserCommand, UserResponse>, UpdateUserCommandHandler>();
+        services.AddScoped<IAppRequestHandler<ChangeUserPasswordCommand, Unit>, ChangeUserPasswordCommandHandler>();
+        services.AddScoped<IAppRequestHandler<DeleteUserCommand, Unit>, DeleteUserCommandHandler>();
         services.AddScoped<IDatabaseExceptionClassifier, PostgresExceptionClassifier>();
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IUserService, UserService>();

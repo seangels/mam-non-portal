@@ -30,7 +30,7 @@ public sealed partial class TeacherService(
         TeacherListQuery query,
         CancellationToken cancellationToken)
     {
-        AuthorizationRules.EnsureReadRole(currentActor.GetRequired());
+        AuthorizationRules.EnsurePortalManager(currentActor.GetRequired());
         if (query.GroupId is not null && query.Unassigned == true)
         {
             throw new AppValidationException(
@@ -82,7 +82,7 @@ public sealed partial class TeacherService(
 
     public async Task<TeacherDetailResponse> GetAsync(Guid id, CancellationToken cancellationToken)
     {
-        AuthorizationRules.EnsureReadRole(currentActor.GetRequired());
+        AuthorizationRules.EnsurePortalManager(currentActor.GetRequired());
         return await ProjectDetail(QueryCurrent().Where(x => x.Id == id))
             .SingleOrDefaultAsync(cancellationToken)
             ?? throw TeacherNotFound();

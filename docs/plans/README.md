@@ -11,6 +11,7 @@ Các file được đánh số theo thứ tự phụ thuộc và triển khai. M
 | 05 | `AUI` | [`05-AUI-attendance-compact-cards.md`](05-AUI-attendance-compact-cards.md) | Đã triển khai | `ATT`, `SCH` |
 | 06 | `DX19` | [`06-DX19-devextreme-19-2-5-angular-12-migration.md`](06-DX19-devextreme-19-2-5-angular-12-migration.md) | Đã triển khai; smoke một phần theo user-waiver | `BASE`, `ATT`, `TCH`, `SCH`, `AUI` |
 | 07 | `ASH` | [`07-ASH-assessment-sheet.md`](07-ASH-assessment-sheet.md) | Đang triển khai từng phần; xem [`../tasks/07-ASH/status.md`](../tasks/07-ASH/status.md) | `BASE` |
+| 08 | `CQRS` | [`08-CQRS-backend-mediator-cqrs.md`](08-CQRS-backend-mediator-cqrs.md) | Đang triển khai theo slice; `CQRS-BE-00` đã xong, xem [`../tasks/08-CQRS/status.md`](../tasks/08-CQRS/status.md) | `BASE` |
 
 ## Quy ước đặt tên
 

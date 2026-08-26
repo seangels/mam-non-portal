@@ -25,7 +25,7 @@ Memory chỉ là snapshot định hướng. Khi memory mâu thuẫn với code/t
 
 - Target hiện tại là .NET 10 / ASP.NET Core / EF Core 10 / PostgreSQL 17; nullable bật và warning được coi là error qua `Directory.Build.props`.
 - Dependency direction: `Domain` chứa entity/enum; `Application` chứa use case, DTO, validation, authorization và interface; `Infrastructure` chứa EF Core/PostgreSQL, password/token và setup implementation; `Api` chỉ composition root, HTTP/auth middleware/controller.
-- Controller phải mỏng. Không expose EF entity trực tiếp. Không thêm Generic Repository hoặc MediatR khi chưa có quyết định kiến trúc mới.
+- Controller phải mỏng. Không expose EF entity trực tiếp. Không thêm Generic Repository hoặc package NuGet MediatR khi chưa có quyết định kiến trúc mới. Quyết định hiện tại của `CQRS` là dùng mediator nội bộ nhỏ trong `AdminPortal.Application.Common.Mediator` và migrate incremental theo slice.
 - `AdminPortal.Maintenance` và `scripts/maintenance/cleanup-retention.sql` phải giữ cùng semantics retention; API không tự chạy cleanup nền vì có thể scale nhiều instance.
 - JSON enum dùng chuỗi; lỗi ứng dụng dùng `ProblemDetails` và có `traceId`; list endpoint dùng pagination giới hạn `pageSize <= 100` và sort/filter whitelist.
 

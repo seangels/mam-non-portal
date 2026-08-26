@@ -34,7 +34,7 @@ tools/
 scripts/maintenance/cleanup-retention.sql
 ```
 
-Controller chỉ xử lý HTTP; use case nằm trong Application; EF Core, PostgreSQL và security implementation nằm trong Infrastructure. Dự án không dùng GenericRepository hoặc MediatR.
+Controller chỉ xử lý HTTP; use case nằm trong Application; EF Core, PostgreSQL và security implementation nằm trong Infrastructure. Dự án không dùng GenericRepository hoặc package NuGet MediatR; CQRS refactor dùng mediator nội bộ nhỏ trong `AdminPortal.Application.Common.Mediator`.
 
 ## Chạy local
 

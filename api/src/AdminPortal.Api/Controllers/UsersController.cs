@@ -1,5 +1,8 @@
 using AdminPortal.Application.Common.Models;
+using AdminPortal.Application.Common.Mediator;
 using AdminPortal.Application.Users;
+using AdminPortal.Application.Users.Commands;
+using AdminPortal.Application.Users.Queries;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -8,19 +11,19 @@ namespace AdminPortal.Api.Controllers;
 [ApiController]
 [Authorize(Policy = "PortalManagers")]
 [Route("api/v1/users")]
-public sealed class UsersController(IUserService userService) : ControllerBase
+public sealed class UsersController(IAppMediator mediator) : ControllerBase
 {
     [HttpGet]
     [ProducesResponseType<PagedResponse<UserResponse>>(StatusCodes.Status200OK)]
     public async Task<ActionResult<PagedResponse<UserResponse>>> List(
         [FromQuery] UserListQuery query,
         CancellationToken cancellationToken) =>
-        Ok(await userService.ListAsync(query, cancellationToken));
+        Ok(await mediator.Send(new ListUsersQuery(query), cancellationToken));
 
     [HttpGet("{id:guid}")]
     [ProducesResponseType<UserResponse>(StatusCodes.Status200OK)]
     public async Task<ActionResult<UserResponse>> Get(Guid id, CancellationToken cancellationToken) =>
-        Ok(await userService.GetAsync(id, cancellationToken));
+        Ok(await mediator.Send(new GetUserQuery(id), cancellationToken));
 
     [HttpPost]
     [ProducesResponseType<UserResponse>(StatusCodes.Status201Created)]
@@ -28,7 +31,7 @@ public sealed class UsersController(IUserService userService) : ControllerBase
         CreateUserRequest request,
         CancellationToken cancellationToken)
     {
-        var created = await userService.CreateAsync(request, cancellationToken);
+        var created = await mediator.Send(new CreateUserCommand(request), cancellationToken);
         return CreatedAtAction(nameof(Get), new { id = created.Id }, created);
     }
 
@@ -38,7 +41,7 @@ public sealed class UsersController(IUserService userService) : ControllerBase
         Guid id,
         UpdateUserRequest request,
         CancellationToken cancellationToken) =>
-        Ok(await userService.UpdateAsync(id, request, cancellationToken));
+        Ok(await mediator.Send(new UpdateUserCommand(id, request), cancellationToken));
 
     [HttpPut("{id:guid}/password")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
@@ -47,7 +50,7 @@ public sealed class UsersController(IUserService userService) : ControllerBase
         ChangePasswordRequest request,
         CancellationToken cancellationToken)
     {
-        await userService.ChangePasswordAsync(id, request, cancellationToken);
+        await mediator.Send(new ChangeUserPasswordCommand(id, request), cancellationToken);
         return NoContent();
     }
 
@@ -55,7 +58,7 @@ public sealed class UsersController(IUserService userService) : ControllerBase
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {
-        await userService.DeleteAsync(id, cancellationToken);
+        await mediator.Send(new DeleteUserCommand(id), cancellationToken);
         return NoContent();
     }
 }

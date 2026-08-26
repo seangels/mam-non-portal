@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace AdminPortal.Api.Controllers;
 
 [ApiController]
-[Authorize]
+[Authorize(Policy = "PortalManagers")]
 [Route("api/v1/teachers")]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized)]
@@ -28,7 +28,6 @@ public sealed class TeachersController(ITeacherService teacherService) : Control
         Ok(await teacherService.GetAsync(id, cancellationToken));
 
     [HttpPost]
-    [Authorize(Policy = "PortalManagers")]
     [ProducesResponseType<TeacherDetailResponse>(StatusCodes.Status201Created)]
     public async Task<ActionResult<TeacherDetailResponse>> Create(
         CreateTeacherRequest request,
@@ -39,7 +38,6 @@ public sealed class TeachersController(ITeacherService teacherService) : Control
     }
 
     [HttpPut("{id:guid}")]
-    [Authorize(Policy = "PortalManagers")]
     [ProducesResponseType<TeacherDetailResponse>(StatusCodes.Status200OK)]
     public async Task<ActionResult<TeacherDetailResponse>> Update(
         Guid id,
@@ -48,7 +46,6 @@ public sealed class TeachersController(ITeacherService teacherService) : Control
         Ok(await teacherService.UpdateAsync(id, request, cancellationToken));
 
     [HttpDelete("{id:guid}")]
-    [Authorize(Policy = "PortalManagers")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> Delete(
         Guid id,
@@ -60,7 +57,6 @@ public sealed class TeachersController(ITeacherService teacherService) : Control
     }
 
     [HttpPut("{id:guid}/attendance-policy")]
-    [Authorize(Policy = "PortalManagers")]
     [ProducesResponseType<TeacherDetailResponse>(StatusCodes.Status200OK)]
     public async Task<ActionResult<TeacherDetailResponse>> UpdateAttendancePolicy(
         Guid id,
