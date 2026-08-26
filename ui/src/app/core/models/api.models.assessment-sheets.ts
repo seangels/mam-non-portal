@@ -17,8 +17,8 @@ export const ASSESSMENT_GRADE_OPTIONS: { value: AssessmentGrade; text: string, c
 ];
 
 export const ASSESSMENT_GROUP_LV2_CONFIGS: { key: string; displayOrder: number; bgcolor: string }[] = [
-  { key: 'Phát triển thể chất', displayOrder: 1, bgcolor: '#C9DAF8' },
-  { key: 'Phát triển nhận thức', displayOrder: 2, bgcolor: '#C7B7D2' },
+  { key: 'Phát triển thể chất', displayOrder: 1, bgcolor: '#EAD1DC' },
+  { key: 'Phát triển nhận thức', displayOrder: 2, bgcolor: '#D9D2E9' },
   { key: 'Phát triển ngôn ngữ', displayOrder: 3, bgcolor: '#C9DAF8' },
   { key: 'Cá nhân và xã hội', displayOrder: 4, bgcolor: '#D0E0E3' },
   { key: 'Tiền tiểu học', displayOrder: 5, bgcolor: '#DCC1CF' }

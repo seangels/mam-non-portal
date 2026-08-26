@@ -6,6 +6,11 @@ namespace AdminPortal.Application.Common;
 
 public static class AuthorizationRules
 {
+    public static void EnsureReadRole(ActorContext actor)
+    {
+        if (actor.Role is not (UserRole.SuperAdmin or UserRole.Admin or UserRole.Teacher))
+            throw new ForbiddenException("Tài khoản không có quyền xem.");
+    }
     public static void EnsurePortalManager(ActorContext actor)
     {
         if (actor.Role is not (UserRole.SuperAdmin or UserRole.Admin))
