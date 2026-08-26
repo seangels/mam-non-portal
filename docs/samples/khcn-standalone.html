@@ -1,5 +1,6 @@
 <!doctype html>
 <html lang="vi">
+
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -12,7 +13,7 @@
 
     :root {
       --page-width: 210mm;
-      --page-height: 297mm;
+      --page-height: 295mm;
       --page-pad-x: 16.5mm;
       --ink: #000;
       --grid: #111;
@@ -61,6 +62,10 @@
       padding: 18.9mm var(--page-pad-x) 12mm;
       background: #fff;
       overflow: hidden;
+    }
+
+    #pdf-content {
+      transform-origin: top center;
     }
 
     .document-title {
@@ -182,10 +187,10 @@
       white-space: normal;
       line-height: 1.08;
       /* Xoay chữ */
-      transform: rotate(-90deg);
-      transform-origin: center center;
-      margin-left: -50px;
-      margin-right: -50px;
+      /* transform: rotate(-90deg);
+      transform-origin: center center; */
+      /* margin-left: -50px;
+      margin-right: -50px; */
     }
 
     .domain-label .vertical {
@@ -255,6 +260,7 @@
       bottom: 8.7mm;
       font-size: 11pt;
     }
+
     @media print {
       body {
         background: #fff;
@@ -270,12 +276,14 @@
     }
   </style>
 </head>
+
 <body>
   <div class="toolbar" data-html2canvas-ignore="true">
     <button type="button" onclick="downloadPdf()">Xuất PDF</button>
   </div>
 
   <main id="pdf-page" class="page">
+    <div id="pdf-content">
     <h1 class="document-title">KẾ HOẠCH CÁ NHÂN</h1>
     <div class="term">3 tháng 8.9.10.26</div>
 
@@ -324,7 +332,8 @@
         </tr>
         <tr class="tall">
           <td class="order-cell physical">3</td>
-          <td class="content-cell physical">C100. Đi xuống cầu thang, nắm tay vịn và một tay được dắt, hai chân một bậc</td>
+          <td class="content-cell physical">C100. Đi xuống cầu thang, nắm tay vịn và một tay được dắt, hai chân một bậc
+          </td>
           <td class="physical"></td>
           <td class="physical"></td>
         </tr>
@@ -365,14 +374,16 @@
         <tr class="tall">
           <td class="area-label cognitive"><span class="vertical compact">Nhận biết</span></td>
           <td class="order-cell cognitive">3</td>
-          <td class="content-cell cognitive">Biết tên một số món ăn hàng ngày: trứng chiên, thịt kho trứng cút, cá chiên, ...</td>
+          <td class="content-cell cognitive">Biết tên một số món ăn hàng ngày: trứng chiên, thịt kho trứng cút, cá
+            chiên, ...</td>
           <td class="cognitive"></td>
           <td class="cognitive"></td>
         </tr>
 
         <tr>
           <td class="domain-label language" rowspan="9"><span class="vertical">PHÁT TRIỂN NGÔN NGỮ</span></td>
-          <td class="area-label language" rowspan="2"><span class="vertical compact">tiếp nhận: (khả năng nghe hiểu lời)</span></td>
+          <td class="area-label language" rowspan="2"><span class="vertical compact">tiếp nhận: (khả năng nghe hiểu
+              lời)</span></td>
           <td class="order-cell language">1</td>
           <td class="content-cell language">Hiểu về sự chung nhóm: con vật</td>
           <td class="language"></td>
@@ -430,15 +441,18 @@
 
         <tr class="tall">
           <td class="domain-label social" rowspan="5"><span class="vertical">CÁ NHÂN VÀ XÃ HỘI</span></td>
-          <td class="area-label social" rowspan="3"><span class="vertical compact">Kỹ năng giao tiếp - tương tác - chơi đùa</span></td>
+          <td class="area-label social" rowspan="3"><span class="vertical compact">Kỹ năng giao tiếp - tương tác - chơi
+              đùa</span></td>
           <td class="order-cell social">1</td>
-          <td class="content-cell social">A21. Giơ tay ra chơi những trò chơi phối hợp đơn giản như “chi chi chành chành”, “nu na nu nống”...</td>
+          <td class="content-cell social">A21. Giơ tay ra chơi những trò chơi phối hợp đơn giản như “chi chi chành
+            chành”, “nu na nu nống”...</td>
           <td class="social"></td>
           <td class="social"></td>
         </tr>
         <tr class="tall">
           <td class="order-cell social">2</td>
-          <td class="content-cell social">A38. Lật lại cho đúng hình hoặc sách bị đặt úp ngược hoặc mặt sau lên trước</td>
+          <td class="content-cell social">A38. Lật lại cho đúng hình hoặc sách bị đặt úp ngược hoặc mặt sau lên trước
+          </td>
           <td class="social"></td>
           <td class="social"></td>
         </tr>
@@ -461,12 +475,61 @@
           <td class="social"></td>
           <td class="social"></td>
         </tr>
-
         <tr>
-          <td class="domain-label pre-primary" rowspan="4"><span class="vertical">TIỀN TIỂU HỌC</span></td>
-          <td class="area-label pre-primary" rowspan="4"><span class="vertical">TIẾNG VIỆT</span></td>
+          <td class="domain-label pre-primary" rowspan="6"><span class="vertical">TIỀN TIỂU HỌC</span></td>
+          <td class="area-label pre-primary" rowspan="6"><span class="vertical">TIẾNG VIỆT</span></td>
           <td class="order-cell pre-primary">1</td>
           <td class="content-cell pre-primary">Nét thẳng |</td>
+          <td class="result-cell pre-primary">Chưa đạt -</td>
+          <td class="pre-primary"></td>
+        </tr>
+        <tr>
+          <td class="order-cell pre-primary">2</td>
+          <td class="content-cell pre-primary">Nét ngang _</td>
+          <td class="result-cell pre-primary">Chưa đạt -</td>
+          <td class="pre-primary"></td>
+        </tr>
+        <tr>
+          <td class="order-cell pre-primary">2</td>
+          <td class="content-cell pre-primary">Nét ngang _</td>
+          <td class="result-cell pre-primary">Chưa đạt -</td>
+          <td class="pre-primary"></td>
+        </tr>
+        <tr>
+          <td class="order-cell pre-primary">2</td>
+          <td class="content-cell pre-primary">Nét ngang _</td>
+          <td class="result-cell pre-primary">Chưa đạt -</td>
+          <td class="pre-primary"></td>
+        </tr>
+        <tr>
+          <td class="order-cell pre-primary">3</td>
+          <td class="content-cell pre-primary">Nét xiên trái /</td>
+          <td class="result-cell pre-primary">Chưa đạt -</td>
+          <td class="pre-primary"></td>
+        </tr>
+        <tr>
+          <td class="order-cell pre-primary">4</td>
+          <td class="content-cell pre-primary">Nét xiên phải \</td>
+          <td class="result-cell pre-primary">Chưa đạt -</td>
+          <td class="pre-primary"></td>
+        </tr>
+        <tr>
+          <td class="domain-label pre-primary" rowspan="6"><span class="vertical">TIỀN TIỂU HỌC</span></td>
+          <td class="area-label pre-primary" rowspan="6"><span class="vertical">TIẾNG VIỆT</span></td>
+          <td class="order-cell pre-primary">1</td>
+          <td class="content-cell pre-primary">Nét thẳng |</td>
+          <td class="result-cell pre-primary">Chưa đạt -</td>
+          <td class="pre-primary"></td>
+        </tr>
+        <tr>
+          <td class="order-cell pre-primary">2</td>
+          <td class="content-cell pre-primary">Nét ngang _</td>
+          <td class="result-cell pre-primary">Chưa đạt -</td>
+          <td class="pre-primary"></td>
+        </tr>
+        <tr>
+          <td class="order-cell pre-primary">2</td>
+          <td class="content-cell pre-primary">Nét ngang _</td>
           <td class="result-cell pre-primary">Chưa đạt -</td>
           <td class="pre-primary"></td>
         </tr>
@@ -498,15 +561,40 @@
       <div></div>
       <div></div>
     </div>
+    </div>
 
     <div class="page-number">1</div>
   </main>
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"
-    integrity="sha512-YcsIPGdhPK4P/uRWjXJMSXe9VnSMehk43E/lRBgA/YMyuXlEAqIF4Wv6F9MtG+Ptf6mZ2qvzK8NUfN9rcJZgGQ=="
-    crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   <script>
+    // Co nội dung lại vừa đúng 1 trang A4 nếu nó dài hơn vùng in được (tự tính lại
+    // mỗi lần gọi nên vẫn đúng khi thêm/bớt dòng trong bảng).
+    function fitContentToPage() {
+      var page = document.getElementById('pdf-page');
+      var content = document.getElementById('pdf-content');
+      if (!page || !content) return;
+
+      content.style.transform = 'none';
+
+      var pageStyle = window.getComputedStyle(page);
+      var paddingTop = parseFloat(pageStyle.paddingTop) || 0;
+      var paddingBottom = parseFloat(pageStyle.paddingBottom) || 0;
+      var availableHeight = page.clientHeight - paddingTop - paddingBottom;
+      var naturalHeight = content.scrollHeight;
+
+      if (availableHeight > 0 && naturalHeight > availableHeight) {
+        // trừ hao 0.5% để tránh lệch làm tròn pixel khi html2canvas render lại
+        var scale = (availableHeight / naturalHeight) * 0.995;
+        content.style.transform = 'scale(' + scale + ')';
+      }
+    }
+
+    window.addEventListener('load', fitContentToPage);
+    window.addEventListener('resize', fitContentToPage);
+
     function downloadPdf() {
+      fitContentToPage();
       var page = document.getElementById('pdf-page');
       var options = {
         margin: 0,
@@ -525,9 +613,10 @@
       window.html2pdf().set(options).from(page).save();
     }
     function OpenPdf() {
+      fitContentToPage();
       var page = document.getElementById('pdf-page');
       var options = {
-        margin: 0,
+        "margin": -5,
         filename: 'ke-hoach-ca-nhan.pdf',
         image: { type: 'jpeg', quality: 0.98 },
         html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
@@ -540,10 +629,11 @@
         return;
       }
 
-      window.html2pdf().set(options).from(page).outputPdf('bloburl').then(function(blobUrl) {
-          window.open(blobUrl);
+      window.html2pdf().set(options).from(page).outputPdf('bloburl').then(function (blobUrl) {
+        window.open(blobUrl);
       });
     }
   </script>
 </body>
+
 </html>

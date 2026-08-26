@@ -38,6 +38,7 @@
 
 <div *ngIf="!loading && !loadError && model" class="preview-stage">
   <main #pdfPage class="pdf-page">
+    <div #pdfContent class="pdf-content">
     <h1 class="document-title">KẾ HOẠCH CÁ NHÂN</h1>
     <div class="term">{{ model.periodText }}</div>
 
@@ -67,12 +68,12 @@
           <th></th>
           <th>STT</th>
           <th>Nội dung đánh giá</th>
-          <th>Kết quả hiện tại</th>
+          <th>Kết quả</th>
           <th>Ghi chú</th>
         </tr>
       </thead>
       <tbody>
-        <tr *ngFor="let row of model.rows" [style.backgroundColor]="row.groupColor">
+        <tr *ngFor="let row of model.rows">
           <td *ngIf="row.showGroupLv2" class="group-cell group-lv2-cell"
             [style.backgroundColor]="row.groupColor"
             [attr.rowspan]="row.groupLv2RowSpan">
@@ -81,14 +82,13 @@
           <td *ngIf="row.showGroupLv3" class="group-cell group-lv3-cell"
             [style.backgroundColor]="row.groupColor"
             [attr.rowspan]="row.groupLv3RowSpan">
-            {{ row.groupLv3Name }}
+            {{ row.groupLv3NameSubstring }}
           </td>
           <td class="order-cell" [style.backgroundColor]="row.groupColor">{{ row.rowNumber }}</td>
           <td class="content-cell" [style.backgroundColor]="row.groupColor">
-            <strong>{{ row.record.assessment.code }}</strong>
             <span>{{ row.record.assessment.name }}</span>
           </td>
-          <td class="result-cell" [style.backgroundColor]="row.groupColor">{{ gradeText(row.record) }}</td>
+          <td class="result-cell" [style.color]="gradeColor(row.record)" [style.backgroundColor]="row.record.planGrade?gradeBgColor(row.record):row.groupColor">{{ gradeText(row.record) }}</td>
           <td class="note-cell" [style.backgroundColor]="row.groupColor">{{ noteText(row.record) }}</td>
         </tr>
       </tbody>
@@ -99,6 +99,7 @@
       <div></div>
       <div></div>
       <div></div>
+    </div>
     </div>
 
     <div class="page-number">1</div>

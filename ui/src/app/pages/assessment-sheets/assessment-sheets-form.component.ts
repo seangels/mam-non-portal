@@ -66,6 +66,7 @@ export interface AssessmentSheetRecordTableRow {
   record: AssessmentSheetRecord;
   groupLv2Name: string;
   groupLv3Name: string;
+  groupLv3NameSubstring: string;
   groupColor: string;
   showGroupLv2: boolean;
   showGroupLv3: boolean;
@@ -222,7 +223,7 @@ export function assessmentGroupLv2Color(groupLv2Name: string | null | undefined)
 }
 
 export function assessmentGradeText(value: string | null | undefined): string {
-  return ASSESSMENT_GRADE_OPTIONS.find(item => item.value === value)?.text ?? EMPTY_GRADE_OPTION.text;
+  return ASSESSMENT_GRADE_OPTIONS.find(item => item.value === value)?.text ?? '';
 }
 
 export function assessmentGradeColor(value: string | null | undefined): string {
@@ -247,6 +248,7 @@ export function buildAssessmentSheetRecordRows(records: AssessmentSheetRecord[])
         record,
         groupLv2Name: normalizeGroupName(record.assessment.groupLv2Name),
         groupLv3Name: normalizeGroupName(record.assessment.groupLv3Name),
+        groupLv3NameSubstring: normalizeGroupName(record.assessment.groupLv3Name),
         groupColor: assessmentGroupLv2Color(record.assessment.groupLv2Name),
         showGroupLv2: false,
         showGroupLv3: false,
@@ -281,6 +283,17 @@ export function buildAssessmentSheetRecordRows(records: AssessmentSheetRecord[])
         current.groupLv2Name === row.groupLv2Name && current.groupLv3Name === row.groupLv3Name
       );
     }
+    if (row.groupLv3RowSpan > 3) {
+      row.groupLv3NameSubstring = row.groupLv3Name;
+    } else if (row.groupLv3Name.length > 40) {
+      // if (row.groupLv3Name.indexOf(":") > 0) {
+      //   row.groupLv3NameSubstring = row.groupLv3Name.split(":")[0];
+      // } else {
+      // }
+      row.groupLv3NameSubstring = row.groupLv3Name.substring(0, 40) + "..."
+    }
+
+
   });
 
   return rows;

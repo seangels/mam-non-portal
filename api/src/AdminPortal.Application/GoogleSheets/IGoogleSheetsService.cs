@@ -5,6 +5,8 @@ namespace AdminPortal.Application.GoogleSheets;
 public interface IGoogleSheetsSettings
 {
     public string CredentialFilePath { get; }
+    public string TokenStorePath { get; }
+    public string AuthUser { get; }
     public string SpreadsheetId { get; }
     public string AssessmentSheetTemplateFileId { get; }
 

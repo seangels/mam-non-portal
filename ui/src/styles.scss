@@ -1,7 +1,7 @@
 html, body { background: #f4f7fb; }
 .page-title { margin: 0; font-size: 25px !important; font-weight: 600;  }
 .page-subtitle { margin: 6px 0 0; color: #6b7280; }
-.page-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 16px; }
+.page-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
 .filters { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; }
 .filters > * { min-width: 170px; }
 .grid-card { padding: 18px; }
@@ -47,4 +47,21 @@ app-attendance {
   .recovery-list article { grid-template-columns: 1fr; }
   .recovery-list article > small, .recovery-list .validation { grid-column: auto; }
 }
+@media print {
+  .layout-header, .dx-scrollable-scrollbar,.dx-drawer-panel-content {
+    display: none;
+  }
+}
+@page {
+  size: A4;
+  margin: 0;
+}
 
+@media print {
+  .pdf-page {
+    width: 210mm;
+    height: 290mm;
+    margin: 0;
+    page-break-after: always; /* Đảm bảo ngắt trang chuẩn nếu có nhiều trang */
+  }
+}

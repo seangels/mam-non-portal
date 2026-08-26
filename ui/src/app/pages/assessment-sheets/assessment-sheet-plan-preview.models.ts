@@ -3,6 +3,8 @@ import { normalizeVietnamese } from '../../core/utils/vietnamese-search';
 import {
   AssessmentSheetRecordTableRow,
   assessmentGradeText,
+  assessmentGradeBgColor,
+  assessmentGradeColor,
   buildAssessmentSheetRecordRows
 } from './assessment-sheets-form.component';
 
@@ -37,6 +39,14 @@ export function buildAssessmentSheetPlanPreview(sheet: AssessmentSheetDetail): A
 
 export function planGradeText(record: AssessmentSheetRecord): string {
   return assessmentGradeText(record.planGrade);
+}
+
+export function planGradeColor(record: AssessmentSheetRecord): string {
+  return assessmentGradeColor(record.planGrade);
+}
+
+export function planGradeBgColor(record: AssessmentSheetRecord): string {
+  return assessmentGradeBgColor(record.planGrade);
 }
 
 export function planNoteText(record: AssessmentSheetRecord): string {
@@ -121,7 +131,7 @@ export function buildPlanPdfFileName(studentCodeOrId: string | null | undefined)
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '');
-  return `ke-hoach-ca-nhan-${seed || 'hoc-sinh'}.pdf`;
+  return `khcn-${seed || 'hoc-sinh'}.pdf`;
 }
 
 function toCalendarDate(value: Date | string | number | null | undefined): Date | null {

@@ -9,6 +9,7 @@ using Google.Apis.Auth.OAuth2;
 using Google.Apis.Drive.v3;
 using Google.Apis.Services;
 using Google.Apis.Sheets.v4;
+using Google.Apis.Util.Store;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -26,6 +27,8 @@ public class GoogleSheetsSettings : IGoogleSheetsSettings
 {
 
     public string CredentialFilePath { get; set; } = string.Empty;
+    public string TokenStorePath { get; set; } = string.Empty;
+    public string AuthUser { get; set; } = string.Empty;
     public string SpreadsheetId { get; set; } = string.Empty;
     public string SheetConfigRange { get; set; } = string.Empty;
     public string SheetConfigLastRow { get; set; } = string.Empty;
@@ -50,7 +53,7 @@ internal sealed class AssessmentGroupSync
 
 public class GoogleSheetsService : IGoogleSheetsService, IDisposable
 {
-    private readonly Lazy<GoogleCredential> _credential;
+    private readonly Lazy<UserCredential> _credential;
     private readonly Lazy<SheetsService> _sheetsService;
     private readonly Lazy<DriveService> _driveService;
     private readonly Lazy<HttpClient> _httpClient;
@@ -89,23 +92,37 @@ public class GoogleSheetsService : IGoogleSheetsService, IDisposable
         this.timeProvider = timeProvider;
         this.googleSheetsSettings = configuration.Value;
 
-        _credential = new Lazy<GoogleCredential>(CreateCredential);
+        _credential = new Lazy<UserCredential>(CreateCredential);
         _sheetsService = new Lazy<SheetsService>(CreateSheetsService);
         _driveService = new Lazy<DriveService>(CreateDriveService);
         _httpClient = new Lazy<HttpClient>(() => new HttpClient());
     }
 
-    private GoogleCredential CreateCredential()
+    // Dùng OAuth 2.0 "installed app" flow của tài khoản Google cá nhân (không phải service account):
+    // credentialPath trỏ tới OAuth client secret (Desktop app) tải từ Google Cloud Console. Lần đầu chạy
+    // sẽ mở trình duyệt để người dùng đăng nhập/consent; refresh token sau đó được cache trong TokenStorePath
+    // nên các lần khởi động sau không cần consent lại.
+    private UserCredential CreateCredential()
     {
         var credentialPath = string.IsNullOrWhiteSpace(googleSheetsSettings.CredentialFilePath)
             ? "google-credentials.json"
             : googleSheetsSettings.CredentialFilePath;
+        var tokenStorePath = string.IsNullOrWhiteSpace(googleSheetsSettings.TokenStorePath)
+            ? "google-token-store"
+            : googleSheetsSettings.TokenStorePath;
+        var authUser = string.IsNullOrWhiteSpace(googleSheetsSettings.AuthUser)
+            ? "user"
+            : googleSheetsSettings.AuthUser;
 
         using var stream = new FileStream(credentialPath, FileMode.Open, FileAccess.Read);
-#pragma warning disable CS0618 // Type or member is obsolete
-        return GoogleCredential.FromStream(stream)
-            .CreateScoped(SheetsService.Scope.Spreadsheets, DriveService.Scope.Drive);
-#pragma warning restore CS0618 // Type or member is obsolete
+        var clientSecrets = GoogleClientSecrets.FromStream(stream).Secrets;
+
+        return GoogleWebAuthorizationBroker.AuthorizeAsync(
+            clientSecrets,
+            [SheetsService.Scope.Spreadsheets, DriveService.Scope.Drive],
+            authUser,
+            CancellationToken.None,
+            new FileDataStore(tokenStorePath, true)).GetAwaiter().GetResult();
     }
 
     private SheetsService CreateSheetsService() => new(new BaseClientService.Initializer

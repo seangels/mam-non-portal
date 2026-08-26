@@ -49,10 +49,15 @@
   background: #d8d8d8;
 }
 
+// Fixed height + overflow hidden forces exactly one A4 page. Content is
+// wrapped in .pdf-content and scaled down to fit when it overflows; see
+// AssessmentSheetPlanPreviewComponent.fitContentToPage(), ported from
+// docs/samples/khcn-standalone.html.
 .pdf-page {
   position: relative;
   width: 210mm;
-  min-height: 297mm;
+  height: 295mm;
+  overflow: hidden;
   margin: 0 auto;
   padding: 18.9mm 16.5mm 12mm;
   background: #fff;
@@ -60,6 +65,10 @@
   font-family: Arial, Helvetica, sans-serif;
   font-size: 10.7pt;
   line-height: 1.16;
+}
+
+.pdf-content {
+  transform-origin: top center;
 }
 
 .document-title {
@@ -127,6 +136,10 @@
   white-space: nowrap;
 }
 
+// Now effectively inert: .pdf-page is capped at one fixed-height page and
+// content is scaled to fit inside it, so html2pdf never needs to split rows
+// across a second page. Left in place (harmless) in case single-page
+// scaling is ever relaxed back to multi-page pagination.
 .plan-table tr {
   page-break-inside: avoid;
   break-inside: avoid;
@@ -138,17 +151,17 @@
 .order-cell { text-align: center; }
 .content-cell { text-align: left; }
 .content-cell strong { margin-right: 2mm; }
-.result-cell { color: #c00000; text-align: center; }
+.result-cell { color: #c00000; }
 .note-cell { white-space: pre-wrap; }
 
 .parent-title { margin-top: 3mm; }
 
 .comment-lines {
-  margin-top: 8.6mm;
+  margin-top: 6mm;
 }
 
 .comment-lines div {
-  height: 7.9mm;
+  height: 6.9mm;
   border-top: 1px dotted #111;
 }
 
