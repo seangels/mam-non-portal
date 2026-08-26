@@ -32,7 +32,7 @@ export function buildAssessmentSheetPlanPreview(sheet: AssessmentSheetDetail): A
     birthDateText: formatDateText(snapshot.dateOfBirth),
     ageText: calculateAgeText(snapshot.dateOfBirth, sheet.startDate),
     periodText: formatAssessmentPeriod(sheet.startDate, sheet.dueDate),
-    fileName: buildPlanPdfFileName(studentCode || sheet.id),
+    fileName: buildPlanPdfFileName(studentCode || sheet.id, snapshot.nickName, sheet.startDate, sheet.dueDate),
     rows: buildAssessmentSheetRecordRows(sheet.records ?? [])
   };
 }
@@ -126,12 +126,61 @@ export function formatDateText(value: Date | string | number | null | undefined)
   ].join('/');
 }
 
-export function buildPlanPdfFileName(studentCodeOrId: string | null | undefined): string {
-  const seed = normalizeVietnamese(studentCodeOrId || 'hoc-sinh')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
-  return `khcn-${seed || 'hoc-sinh'}.pdf`;
+export function buildPlanPdfFileName(
+  studentCode: string | null | undefined,
+  studentNickName: string | null | undefined,
+  startValue: Date | string | number | null | undefined,
+  dueValue: Date | string | number | null | undefined
+): string {
+  const slugify = (value: string | null | undefined): string =>
+    normalizeVietnamese(value || '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+
+  const codePart = slugify(studentCode) || 'hoc-sinh';
+  const nickPart = slugify(studentNickName);
+  const namePart = nickPart ? `${codePart}.${nickPart}` : codePart;
+  const assessmentName = buildAssessmentNameForFileName(startValue, dueValue);
+  const suffix = assessmentName ? `_${assessmentName}` : '';
+
+  return `khcn - ${namePart}${suffix}.pdf`;
+}
+
+function isLastDayOfMonth(date: Date): boolean {
+  const nextDay = new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1);
+  return nextDay.getMonth() !== date.getMonth();
+}
+
+function buildAssessmentNameForFileName(
+  startValue: Date | string | number | null | undefined,
+  dueValue: Date | string | number | null | undefined
+): string {
+  const start = toCalendarDate(startValue);
+  const due = toCalendarDate(dueValue);
+  if (!start || !due || due.getTime() < start.getTime()) {
+    return '';
+  }
+
+  const months: number[] = [];
+  let year = start.getFullYear();
+  let month = start.getMonth();
+  const dueYear = due.getFullYear();
+  const dueMonth = due.getMonth();
+  while (year < dueYear || (year === dueYear && month < dueMonth)) {
+    months.push(month + 1);
+    month += 1;
+    if (month > 11) {
+      month = 0;
+      year += 1;
+    }
+  }
+  if (months.length === 0 || isLastDayOfMonth(due)) {
+    months.push(dueMonth + 1);
+  }
+
+  const yearSuffix = String(dueYear).slice(-2);
+  return `${months.join('.')}.${yearSuffix}`;
 }
 
 function toCalendarDate(value: Date | string | number | null | undefined): Date | null {

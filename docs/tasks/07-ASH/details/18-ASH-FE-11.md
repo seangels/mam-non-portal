@@ -91,8 +91,8 @@ Thêm luồng preview/in PDF kế hoạch cá nhân cho AssessmentSheet. Ngườ
   - ✅ Trong lần triển khai hiện tại, áp dụng mặc định đề xuất: cập nhật `PlanFileLinkPdf` vì đây vẫn là PDF kế hoạch cá nhân mới nhất.
 - ✅ Hỗ trợ nhiều record.
   - ✅ Không hard-code chỉ một trang theo dữ liệu mẫu.
-  - ✅ Có quy tắc page-break để bảng dài có thể sang trang A4 tiếp theo.
-  - ✅ Header bảng nên lặp lại hoặc tối thiểu không làm mất cấu trúc khi qua trang.
+  - ⚠️ **Đổi hướng sau khi code lần đầu** (commit `25fe8e4`, 2026-08-26): thay vì cho bảng dài sang trang A4 tiếp theo bằng page-break, preview giờ ép luôn 1 trang cố định (`.pdf-page` `height: 295mm`, `overflow: hidden`) và tự động `scale()` nội dung xuống vừa 1 trang (`fitContentToPage()`, đo `.pdf-content.scrollHeight` so với chiều cao khả dụng, không bao giờ scale lên) theo cơ chế đã kiểm chứng ở `docs/samples/khcn-standalone.html`. Đánh đổi: sheet nhiều dòng bị co chữ nhỏ lại thay vì tràn sang trang 2. `page-break-inside: avoid`/`pagebreak.avoid` trong CSS/`pdfOptions` vẫn còn trong code nhưng không còn tác dụng thật (không bao giờ có trang 2 để mà tránh vỡ dòng) — coi là dead code vô hại, chưa dọn.
+  - ⬜ Header bảng lặp lại khi qua trang: không còn áp dụng vì thiết kế đã chuyển sang ép 1 trang duy nhất (không có "trang tiếp theo" nữa).
 
 ## Ghi chú thiết kế
 
@@ -104,6 +104,7 @@ Thêm luồng preview/in PDF kế hoạch cá nhân cho AssessmentSheet. Ngườ
 - ✅ Tránh tạo object literal mới trong template cho DevExtreme 19.2.5; config/options nên là property ổn định trong component.
 - ✅ Không dùng API mới của Angular sau 12.2.17; giữ NgModule/component pattern hiện tại.
 - ✅ Ưu tiên tách helper build dữ liệu in để có unit test nhẹ, thay vì nhồi toàn bộ logic vào click handler.
+- ⚠️ **Bổ sung sau khi code** (commit `788c48d`, 2026-08-26, ngoài scope DoD ban đầu của task này): nút `In Kế hoạch PDF` trên màn edit chỉ bật khi `originalStatus !== 'Open'` (`canOpenPlanPdfPreview()`), vì PDF chỉ có ý nghĩa khi sheet đã có kế hoạch chốt (`Planed`/`Done`). Cùng lúc `records-panel` (bảng đưa vào từ `ASH-FE-09`) ẩn hẳn cột `Kết quả hiện tại`/`Ghi chú` của nó khi `Open` (chỉ hiện ở `Planed`/`Done`), và luôn hiện cột `Kế hoạch`/`Ghi chú` khi `Open` bất kể checkbox `Hiện kế hoạch`.
 
 ## Kiểm thử mong đợi
 
@@ -113,11 +114,11 @@ Thêm luồng preview/in PDF kế hoạch cá nhân cho AssessmentSheet. Ngườ
   - ✅ tính đúng độ tuổi tại `startDate` từ ngày sinh.
   - ✅ dùng `PlanGrade`/`PlanNote`, không dùng `FinalGrade`/`FinalNote`.
   - ✅ giữ đúng sort/order nhóm như records table.
-  - ✅ tạo filename an toàn.
+  - ✅ tạo filename an toàn — cú pháp đổi lại (2026-08-26, theo yêu cầu người dùng) thành `khcn - <studentCode>.<studentNickName>_<assessmentName>.pdf`; `assessmentName` là công thức riêng biệt với `formatAssessmentPeriod` (header preview giữ nguyên "N tháng ..."), chỉ tính tháng của `dueDate` nếu đó là ngày cuối tháng, ví dụ `2026-03-01`→`2026-06-26` ra `3.4.5.26`, `2026-06-01`→`2026-08-31` ra `6.7.8.26`.
 - ✅ Cập nhật/thêm test route/permission hoặc component state cho preview nếu phù hợp với cấu trúc test hiện tại.
 - ✅ Nếu thêm backend upload endpoint, chạy thêm backend build/unit/integration tương ứng và cập nhật memory backend/shared contract.
-- ✅ Chạy `npm --prefix ui run test:ci`.
-- ✅ Chạy `npm --prefix ui run build -- --configuration development`.
+- ✅ Chạy `npm --prefix ui run test:ci` — audit (2026-08-26) khi review commit `25fe8e4`/`788c48d` từng phát hiện 110/114 pass (4 fail); đã vá trong cùng lượt (đổi filename theo cú pháp mới, đổi fallback `assessmentGradeColor`/`assessmentGradeBgColor` sang `''` theo yêu cầu người dùng, cập nhật test `canOpenPlanPdfPreview` theo rule khoá khi `Open`) → **114/114 pass**, xem `log.md`.
+- ✅ Chạy `npm --prefix ui run build -- --configuration development` — pass (hash `5db6c70f5becc2ddf940` sau khi vá).
 - ⚠️ Smoke thủ công màn edit AssessmentSheet: chưa chạy trong lượt này.
   - ⚠️ Bấm `In Kế hoạch PDF`: mở trang preview đúng sheet.
   - ⚠️ Trên preview bấm `Quay lại`: trở về màn edit đúng id.

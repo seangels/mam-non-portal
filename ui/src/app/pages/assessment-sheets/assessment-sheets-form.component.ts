@@ -227,11 +227,11 @@ export function assessmentGradeText(value: string | null | undefined): string {
 }
 
 export function assessmentGradeColor(value: string | null | undefined): string {
-  return ASSESSMENT_GRADE_OPTIONS.find(item => item.value === value)?.color ?? EMPTY_GRADE_OPTION.color;
+  return ASSESSMENT_GRADE_OPTIONS.find(item => item.value === value)?.color ?? '';
 }
 
 export function assessmentGradeBgColor(value: string | null | undefined): string {
-  return ASSESSMENT_GRADE_OPTIONS.find(item => item.value === value)?.bgcolor ?? EMPTY_GRADE_OPTION.bgcolor;
+  return ASSESSMENT_GRADE_OPTIONS.find(item => item.value === value)?.bgcolor ?? '';
 }
 
 export function initializeAssessmentSheetRecords(records: AssessmentSheetRecord[]): AssessmentSheetRecord[] {

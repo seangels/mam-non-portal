@@ -265,9 +265,9 @@ describe('Assessment sheet records table layout', () => {
     expect(assessmentGradeText('A')).toBe('Đạt +');
     expect(assessmentGradeColor('A')).toBe('#11734b');
     expect(assessmentGradeBgColor('A')).toBe('#d4edbc');
-    expect(assessmentGradeText(null)).toBe('Chưa có');
-    expect(assessmentGradeColor(null)).toBe('#344054');
-    expect(assessmentGradeBgColor(null)).toBe('#E8EAED');
+    expect(assessmentGradeText(null)).toBe('');
+    expect(assessmentGradeColor(null)).toBe('');
+    expect(assessmentGradeBgColor(null)).toBe('');
   });
 
   it('builds grouped table rows with rowspans and row numbers per groupLv3', () => {
@@ -415,15 +415,16 @@ describe('Assessment sheet plan PDF preview mapping', () => {
 
     expect(preview.studentName).toBe('Bé An');
     expect(preview.periodText).toBe('3 tháng 6.7.8.26');
-    expect(preview.fileName).toBe('ke-hoach-ca-nhan-s-101.pdf');
+    expect(preview.fileName).toBe('khcn - s-101.an_6.7.8.26.pdf');
     expect(planGradeText(preview.rows[0].record)).toBe('Chưa đạt -');
     expect(planNoteText(preview.rows[0].record)).toBe('Cần luyện thêm');
     expect(preview.rows[0].groupLv2Name).toBe('Tiền tiểu học');
   });
 
   it('builds safe PDF file names', () => {
-    expect(buildPlanPdfFileName('Số 01 / Bé An')).toBe('ke-hoach-ca-nhan-so-01-be-an.pdf');
-    expect(buildPlanPdfFileName('')).toBe('ke-hoach-ca-nhan-hoc-sinh.pdf');
+    expect(buildPlanPdfFileName('Số 01', 'Bé An', '2026-03-01', '2026-06-26')).toBe('khcn - so-01.be-an_3.4.5.26.pdf');
+    expect(buildPlanPdfFileName('S101', null, '2026-06-01', '2026-08-31')).toBe('khcn - s101_6.7.8.26.pdf');
+    expect(buildPlanPdfFileName('', '', null, null)).toBe('khcn - hoc-sinh.pdf');
   });
 });
 
@@ -471,13 +472,20 @@ describe('Assessment sheet form DevExtreme option stability', () => {
     expect(component.selectedAssessmentCount).toBe(3);
   });
 
-  it('allows opening the plan PDF preview only for saved edit sheets with records', () => {
+  it('allows opening the plan PDF preview only for saved edit sheets past Open status with records', () => {
     const component = createComponent('edit');
     component.isCreate = false;
     component.loading = false;
     component.saving = false;
     component.records = [{ id: 'record-1' } as any];
 
+    component.originalStatus = 'Open';
+    expect(component.canOpenPlanPdfPreview()).toBeFalse();
+
+    component.originalStatus = 'Planed';
+    expect(component.canOpenPlanPdfPreview()).toBeTrue();
+
+    component.originalStatus = 'Done';
     expect(component.canOpenPlanPdfPreview()).toBeTrue();
 
     component.records = [];
