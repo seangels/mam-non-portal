@@ -103,6 +103,7 @@
   3. Export chính sheet `khcn_template` đó (theo `gid`) thành file PDF.
 - Link tới file PDF này được lưu vào field `PlanFileLinkPdf` của `AssessmentSheet`.
 - PDF `[F02]` phản ánh plan (mục đánh giá + `PlanGrade`/`PlanNote` hiện tại) tại thời điểm sinh; chỉ giữ **bản mới nhất** — mỗi lần bấm sinh lại sẽ lặp lại bước 2–3 (ghi đè dữ liệu, export lại) và ghi đè link `PlanFileLinkPdf` hiện tại, không giữ lịch sử các bản PDF cũ.
+- Biến thể UI-preview mới (`ASH-FE-11`): màn edit có nút `In Kế hoạch PDF` mở trang preview HTML/A4 trước, dùng `html2pdf.js` để tạo blob PDF từ DOM preview. Nút `Mở PDF` chỉ mở blob URL để xem/in; nút `Tạo PDF lên Google Drive` upload PDF do UI tạo qua `POST /api/v1/assessment-sheets/{id}/upload-plan-pdf`, lưu vào `Student.DriveFolderId` và cập nhật `PlanFileLinkPdf`. Luồng này không gọi `generate-plan-pdf` cũ và không phụ thuộc việc tạo/ghi `[F01]`; nếu học sinh chưa có Drive folder id thì báo lỗi rõ.
 
 ## 9. Nhập kết quả đánh giá
 

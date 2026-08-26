@@ -35,6 +35,9 @@ public interface IAssessmentSheetService
 
     Task<AssessmentSheetDetailResponse> GeneratePlanPdfAsync(Guid id, CancellationToken cancellationToken);
 
+    Task<AssessmentSheetDetailResponse> UploadPlanPdfAsync(
+        Guid id, string fileName, byte[] content, CancellationToken cancellationToken);
+
     Task<AssessmentSheetDetailResponse> GenerateResultPdfAsync(Guid id, CancellationToken cancellationToken);
 
     Task<AssessmentSheetDetailResponse> SubmitResultsAsync(Guid id, CancellationToken cancellationToken);

@@ -20,6 +20,7 @@ import { AssessmentsModule } from './pages/assessments/assessments.module';
 import { AssessmentSheetsComponent } from './pages/assessment-sheets/assessment-sheets.component';
 import { AssessmentSheetsModule } from './pages/assessment-sheets/assessment-sheets.module';
 import { AssessmentSheetFormComponent } from './pages/assessment-sheets/assessment-sheets-form.component';
+import { AssessmentSheetPlanPreviewComponent } from './pages/assessment-sheets/assessment-sheet-plan-preview.component';
 
 export const APP_ROUTES: Routes = [
   {
@@ -103,6 +104,12 @@ export const APP_ROUTES: Routes = [
     canActivate: [SetupCompletedGuard, AuthGuardService, RoleGuard],
     canDeactivate: [PendingChangesGuard],
     data: { roles: ['SuperAdmin', 'Admin', 'Teacher'], mode: 'edit' }
+  },
+  {
+    path: 'assessment-sheets/:id/plan-pdf-preview',
+    component: AssessmentSheetPlanPreviewComponent,
+    canActivate: [SetupCompletedGuard, AuthGuardService, RoleGuard],
+    data: { roles: ['SuperAdmin', 'Admin', 'Teacher'] }
   },
   {
     path: 'profile',

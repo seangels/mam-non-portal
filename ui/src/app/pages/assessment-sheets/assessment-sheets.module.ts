@@ -14,12 +14,14 @@ import { DxTextAreaModule } from 'devextreme-angular/ui/text-area';
 import { DxTextBoxModule } from 'devextreme-angular/ui/text-box';
 import { DxDateBoxModule } from 'devextreme-angular/ui/date-box';
 import { AssessmentPickerComponent } from './assessment-picker.component';
+import { AssessmentSheetPlanPreviewComponent } from './assessment-sheet-plan-preview.component';
 import { AssessmentSheetsComponent } from './assessment-sheets.component';
 import { AssessmentSheetFormComponent } from './assessment-sheets-form.component';
 
 @NgModule({
   declarations: [
     AssessmentPickerComponent,
+    AssessmentSheetPlanPreviewComponent,
     AssessmentSheetsComponent,
     AssessmentSheetFormComponent
   ],
@@ -39,6 +41,6 @@ import { AssessmentSheetFormComponent } from './assessment-sheets-form.component
     DxTextBoxModule,
     DxDateBoxModule
   ],
-  exports: [AssessmentSheetsComponent, AssessmentSheetFormComponent]
+  exports: [AssessmentSheetsComponent, AssessmentSheetFormComponent, AssessmentSheetPlanPreviewComponent]
 })
 export class AssessmentSheetsModule {}

@@ -83,6 +83,14 @@
         <div class="records-heading-actions">
           <span>{{ records.length }} mục</span>
           <dx-button
+            text="In Kế hoạch PDF"
+            icon="print"
+            stylingMode="outlined"
+            [disabled]="!canOpenPlanPdfPreview()"
+            hint="Mở trang preview kế hoạch trước khi tạo PDF"
+            (onClick)="openPlanPdfPreview()">
+          </dx-button>
+          <dx-button
             [text]="showAddAssessmentPicker ? 'Ẩn chọn mục' : 'Thêm mục đánh giá'"
             icon="add"
             stylingMode="outlined"

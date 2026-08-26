@@ -560,6 +560,18 @@ public class GoogleSheetsService : IGoogleSheetsService, IDisposable
         return await SavePdfToDriveAsync(studentId, existingFileLink, assessmentSheetId, "plan.pdf", bytes, cancellationToken);
     }
 
+    public async Task<string> UploadAssessmentSheetPlanPdfAsync(
+        Guid assessmentSheetId, Guid studentId, string? existingFileLink, string fileName,
+        byte[] content, CancellationToken cancellationToken) =>
+        await SavePdfToDriveAsync(
+            studentId,
+            existingFileLink,
+            assessmentSheetId,
+            NormalizePdfFileName(fileName),
+            content,
+            cancellationToken,
+            requireStudentFolder: true);
+
     public async Task<string> GenerateAssessmentSheetResultPdfAsync(
         string spreadsheetId, Guid assessmentSheetId, Guid studentId, string? existingFileLink,
         IReadOnlyList<AssessmentRecord> records, CancellationToken cancellationToken)
@@ -749,7 +761,8 @@ public class GoogleSheetsService : IGoogleSheetsService, IDisposable
     // Nếu đã có link cũ (regenerate), cập nhật đè lên đúng file Drive đó (Files.Update) thay vì tạo file mới,
     // tránh tích luỹ file rác trên Drive mỗi lần bấm sinh lại PDF.
     private async Task<string> SavePdfToDriveAsync(
-        Guid studentId, string? existingFileLink, Guid assessmentSheetId, string fileName, byte[] content, CancellationToken cancellationToken)
+        Guid studentId, string? existingFileLink, Guid assessmentSheetId, string fileName, byte[] content,
+        CancellationToken cancellationToken, bool requireStudentFolder = false)
     {
         try
         {
@@ -769,6 +782,12 @@ public class GoogleSheetsService : IGoogleSheetsService, IDisposable
             else
             {
                 var folderId = await GetStudentDriveFolderIdAsync(studentId, cancellationToken);
+                if (requireStudentFolder && string.IsNullOrWhiteSpace(folderId))
+                {
+                    throw new ConflictException(
+                        "Học sinh chưa có Drive folder id, không thể tạo PDF kế hoạch lên Google Drive.",
+                        ProblemCodes.StudentDriveFolderRequired);
+                }
                 var metadata = new Google.Apis.Drive.v3.Data.File
                 {
                     Name = $"{assessmentSheetId}-{fileName}",
@@ -785,10 +804,20 @@ public class GoogleSheetsService : IGoogleSheetsService, IDisposable
 
             return file.WebViewLink ?? $"https://drive.google.com/file/d/{file.Id}/view";
         }
+        catch (AppException)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             throw GoogleOperationFailed("Lỗi khi lưu PDF lên Google Drive.", ex);
         }
+    }
+
+    private static string NormalizePdfFileName(string fileName)
+    {
+        var name = Path.GetFileName(string.IsNullOrWhiteSpace(fileName) ? "ke-hoach-ca-nhan.pdf" : fileName.Trim());
+        return name.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase) ? name : $"{name}.pdf";
     }
 
     private static string? ExtractDriveFileId(string? webViewLink)

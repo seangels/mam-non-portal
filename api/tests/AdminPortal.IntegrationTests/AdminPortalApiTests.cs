@@ -7,6 +7,7 @@ using AdminPortal.Application.Assessments;
 using AdminPortal.Application.AssessmentSheets;
 using AdminPortal.Application.Auth;
 using AdminPortal.Application.Common.Models;
+using AdminPortal.Application.GoogleSheets;
 using AdminPortal.Application.StudentGroups;
 using AdminPortal.Application.Students;
 using AdminPortal.Application.Teachers;
@@ -18,6 +19,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace AdminPortal.IntegrationTests;
 
@@ -252,6 +254,78 @@ public sealed class AdminPortalApiTests(ApiFactory factory) : IClassFixture<ApiF
                 Assert.Null(second.FinalGrade);
                 Assert.Null(second.FinalNote);
             });
+    }
+
+    [Fact]
+    public async Task AssessmentSheetUploadPlanPdfSavesDriveLinkWithoutUsingLegacyGenerateEndpoint()
+    {
+        var googleSheets = new FakeGoogleSheetsService();
+        using var uploadFactory = factory.WithWebHostBuilder(builder => builder.ConfigureServices(services =>
+        {
+            services.RemoveAll<IGoogleSheetsService>();
+            services.AddSingleton<IGoogleSheetsService>(googleSheets);
+        }));
+        using var client = uploadFactory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            BaseAddress = new Uri("https://localhost"),
+            AllowAutoRedirect = false,
+            HandleCookies = true
+        });
+        var auth = await LoginAsync(client, ApiFactory.SuperAdminEmail, ApiFactory.SuperAdminPassword);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", auth.AccessToken);
+        var marker = Guid.NewGuid().ToString("N")[..8];
+        var student = await CreateStudentAsync(client, $"UP-{marker}", $"Upload Pdf {marker}");
+        var assessmentId = Guid.NewGuid();
+        var now = DateTimeOffset.UtcNow;
+
+        using (var scope = uploadFactory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<AdminPortalDbContext>();
+            var actor = await dbContext.Users.AsNoTracking()
+                .SingleAsync(x => x.Email == ApiFactory.SuperAdminEmail);
+            var persistedStudent = await dbContext.Students.SingleAsync(x => x.Id == student.Id);
+            persistedStudent.DriveFolderId = $"folder-{marker}";
+            await dbContext.Assessments.AddAsync(new Assessment
+            {
+                Id = assessmentId,
+                Code = $"PDF-{marker}",
+                Name = $"PDF Assessment {marker}",
+                RowIndex = 1,
+                UpdatedByUserId = actor.Id,
+                CreatedAt = now,
+                UpdatedAt = now
+            });
+            await dbContext.SaveChangesAsync();
+        }
+
+        var create = await client.PostAsJsonAsync("/api/v1/assessment-sheets", new
+        {
+            studentId = student.Id,
+            responsibleTeacherId = (Guid?)null,
+            note = (string?)null,
+            startDate = "2026-06-01T00:00:00+07:00",
+            dueDate = "2026-08-31T00:00:00+07:00",
+            records = new[]
+            {
+                new { assessmentId, latestGrade = (AssessmentGrade?)AssessmentGrade.A, note = "plan note" }
+            }
+        }, JsonOptions);
+        create.EnsureSuccessStatusCode();
+        var sheet = await create.Content.ReadFromJsonAsync<AssessmentSheetDetailResponse>(JsonOptions);
+        Assert.NotNull(sheet);
+
+        using var multipart = new MultipartFormDataContent();
+        multipart.Add(new ByteArrayContent("%PDF-test"u8.ToArray()), "file", "ke-hoach-ca-nhan-test.pdf");
+
+        var upload = await client.PostAsync($"/api/v1/assessment-sheets/{sheet.Id}/upload-plan-pdf", multipart);
+        upload.EnsureSuccessStatusCode();
+        var uploadedSheet = await upload.Content.ReadFromJsonAsync<AssessmentSheetDetailResponse>(JsonOptions);
+
+        Assert.Equal($"https://drive.example.test/{sheet.Id:N}/plan.pdf", uploadedSheet?.PlanFileLinkPdf);
+        Assert.Equal(sheet.Id, googleSheets.UploadedAssessmentSheetId);
+        Assert.Equal(student.Id, googleSheets.UploadedStudentId);
+        Assert.Equal("ke-hoach-ca-nhan-test.pdf", googleSheets.UploadedFileName);
+        Assert.Equal("%PDF-test"u8.ToArray(), googleSheets.UploadedContent);
     }
 
     [Fact]
@@ -732,4 +806,65 @@ public sealed class AdminPortalApiTests(ApiFactory factory) : IClassFixture<ApiF
         mode = "FullDay",
         weekdays = new[] { "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday" }
     };
+
+    private sealed class FakeGoogleSheetsService : IGoogleSheetsService
+    {
+        public Guid UploadedAssessmentSheetId { get; private set; }
+        public Guid UploadedStudentId { get; private set; }
+        public string? UploadedFileName { get; private set; }
+        public byte[]? UploadedContent { get; private set; }
+
+        public Task<SyncAssessmentsFromGoogleSheetsResponse> SyncAssessmentsAsync(
+            SyncAssessmentsFromGoogleSheetsRequest request,
+            CancellationToken cancellationToken) =>
+            throw new NotImplementedException();
+
+        public Task<string> EnsureAssessmentSheetSpreadsheetAsync(AssessmentSheet sheet, CancellationToken cancellationToken) =>
+            throw new NotImplementedException();
+
+        public Task WriteAssessmentSheetDataAsync(
+            string spreadsheetId,
+            IReadOnlyList<AssessmentRecord> records,
+            CancellationToken cancellationToken) =>
+            throw new NotImplementedException();
+
+        public Task<string> GenerateAssessmentSheetPlanPdfAsync(
+            string spreadsheetId,
+            Guid assessmentSheetId,
+            Guid studentId,
+            string? existingFileLink,
+            IReadOnlyList<AssessmentRecord> records,
+            CancellationToken cancellationToken) =>
+            throw new NotImplementedException();
+
+        public Task<string> UploadAssessmentSheetPlanPdfAsync(
+            Guid assessmentSheetId,
+            Guid studentId,
+            string? existingFileLink,
+            string fileName,
+            byte[] content,
+            CancellationToken cancellationToken)
+        {
+            UploadedAssessmentSheetId = assessmentSheetId;
+            UploadedStudentId = studentId;
+            UploadedFileName = fileName;
+            UploadedContent = content;
+            return Task.FromResult($"https://drive.example.test/{assessmentSheetId:N}/plan.pdf");
+        }
+
+        public Task<string> GenerateAssessmentSheetResultPdfAsync(
+            string spreadsheetId,
+            Guid assessmentSheetId,
+            Guid studentId,
+            string? existingFileLink,
+            IReadOnlyList<AssessmentRecord> records,
+            CancellationToken cancellationToken) =>
+            throw new NotImplementedException();
+
+        public Task WriteFinalGradesToSourceSheetAsync(
+            string studentCode,
+            IReadOnlyList<AssessmentRecord> records,
+            CancellationToken cancellationToken) =>
+            throw new NotImplementedException();
+    }
 }

@@ -106,6 +106,7 @@ export const API_ERROR_CODE_LABELS: Record<string, string> = {
   TeacherHasResponsibleGroups: 'Cần gỡ giáo viên khỏi các nhóm đang phụ trách trước khi xóa.',
   StudentHasCurrentGroup: 'Cần gỡ học sinh khỏi nhóm trước khi ngừng hoạt động hoặc xóa.',
   StudentInactive: 'Chỉ có thể phân nhóm học sinh đang hoạt động.',
+  StudentDriveFolderRequired: 'Học sinh chưa có thư mục Google Drive. Vui lòng cập nhật Drive folder id trong hồ sơ học sinh.',
   StudentNotFound: 'Không tìm thấy học sinh hoặc hồ sơ đã bị xóa.',
   StudentVersionConflict: 'Thông tin học sinh đã được người khác cập nhật. Vui lòng tải dữ liệu mới nhất.',
   NoScheduledStudents: 'Không có học sinh có lịch học trong ngày này.',

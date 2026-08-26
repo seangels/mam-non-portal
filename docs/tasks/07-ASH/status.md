@@ -34,7 +34,7 @@ Theo mục 13 của plan. Cả 5 quyết định đã được khoá. `ASH-DEC-0
 | Planning | 1 | 0 | 0 | 1 | 0 |
 | Backend | 6 | 0 | 3 | 3 | 0 |
 | Frontend | 6 | 5 | 0 | 1 | 0 |
-| Frontend delta | 7 | 1 | 2 | 4 | 0 |
+| Frontend delta | 7 | 0 | 3 | 4 | 0 |
 | Contract delta | 1 | 0 | 0 | 1 | 0 |
 | QA | 1 | 1 | 0 | 0 | 0 |
 
@@ -77,7 +77,7 @@ Cập nhật bảng này mỗi khi đổi trạng thái một dòng bên dưới
 | `[x]` | [`ASH-FE-08`](details/15-ASH-FE-08.md) | Màn edit có nút xóa từng dòng trong `records-panel`, confirm trước khi xóa và lưu qua endpoint full-replace records hiện có | `ASH-FE-07`, `PUT /assessment-sheets/{id}/records` |
 | `[~]` | [`ASH-FE-09`](details/16-ASH-FE-09.md) | Chuyển `records-panel` từ dạng card sang table, cột xóa nằm đầu, hiển thị nhóm `groupLv2`/`groupLv3` và màu nền cố định theo 5 nhóm `groupLv2` | `ASH-FE-08` |
 | `[~]` | [`ASH-FE-10`](details/17-ASH-FE-10.md) | Đổi ghi chú từng dòng sang `dxTextArea`; `Open` cho thao tác đầy đủ, `Planed` chỉ khóa thêm/xóa record nhưng vẫn cho nhập `FinalGrade`/`FinalNote`, `Done` giữ khóa như hiện tại | `ASH-FE-09` |
-| `[ ]` | [`ASH-FE-11`](details/18-ASH-FE-11.md) | Thêm nút `In Kế hoạch PDF` mở trang preview A4, tính đợt từ `startDate`/`dueDate`, tính tuổi tại `startDate`, dùng `html2pdf.js` để mở blob PDF hoặc tạo file lên Google Drive học viên | `ASH-FE-10` |
+| `[~]` | [`ASH-FE-11`](details/18-ASH-FE-11.md) | Đã code nút `In Kế hoạch PDF`, trang preview A4, mở blob PDF bằng `html2pdf.js` và endpoint upload PDF do UI tạo lên Google Drive học viên; automated build/test đã pass, smoke thủ công và kiểm tra lưu Drive thật được chừa lại theo yêu cầu | `ASH-FE-10` |
 
 ## Contract delta — owner: `root` / phối hợp backend + frontend
 

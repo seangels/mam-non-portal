@@ -1,4 +1,5 @@
 using AdminPortal.Application.AssessmentSheets;
+using AdminPortal.Application.Common.Exceptions;
 using AdminPortal.Application.Common.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -15,6 +16,8 @@ namespace AdminPortal.Api.Controllers;
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
 public sealed class AssessmentSheetsController(IAssessmentSheetService assessmentSheetService) : ControllerBase
 {
+    private const long MaxPlanPdfUploadBytes = 10 * 1024 * 1024;
+
     [HttpGet]
     [ProducesResponseType<PagedResponse<AssessmentSheetListItemResponse>>(StatusCodes.Status200OK)]
     public async Task<ActionResult<PagedResponse<AssessmentSheetListItemResponse>>> List(
@@ -83,6 +86,42 @@ public sealed class AssessmentSheetsController(IAssessmentSheetService assessmen
         Guid id,
         CancellationToken cancellationToken) =>
         Ok(await assessmentSheetService.GeneratePlanPdfAsync(id, cancellationToken));
+
+    [HttpPost("{id:guid}/upload-plan-pdf")]
+    [Consumes("multipart/form-data")]
+    [RequestSizeLimit(MaxPlanPdfUploadBytes)]
+    [ProducesResponseType<AssessmentSheetDetailResponse>(StatusCodes.Status200OK)]
+    public async Task<ActionResult<AssessmentSheetDetailResponse>> UploadPlanPdf(
+        Guid id,
+        [FromForm] IFormFile? file,
+        CancellationToken cancellationToken)
+    {
+        if (file is null || file.Length == 0)
+        {
+            throw new AppValidationException("File PDF kế hoạch không hợp lệ.", new Dictionary<string, string[]>
+            {
+                ["file"] = ["Vui lòng chọn file PDF có nội dung."]
+            });
+        }
+        if (file.Length > MaxPlanPdfUploadBytes)
+        {
+            throw new AppValidationException("File PDF kế hoạch vượt quá dung lượng cho phép.", new Dictionary<string, string[]>
+            {
+                ["file"] = ["Dung lượng tối đa là 10MB."]
+            });
+        }
+        if (!file.FileName.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new AppValidationException("File PDF kế hoạch không hợp lệ.", new Dictionary<string, string[]>
+            {
+                ["file"] = ["Vui lòng chọn file PDF."]
+            });
+        }
+
+        using var stream = new MemoryStream();
+        await file.CopyToAsync(stream, cancellationToken);
+        return Ok(await assessmentSheetService.UploadPlanPdfAsync(id, file.FileName, stream.ToArray(), cancellationToken));
+    }
 
     [HttpPost("{id:guid}/generate-result-pdf")]
     [ProducesResponseType<AssessmentSheetDetailResponse>(StatusCodes.Status200OK)]

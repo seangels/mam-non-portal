@@ -374,6 +374,22 @@ Authorization: Bearer {{accessToken}}
 
 ###
 
+# Upload PDF kế hoạch do UI preview tạo bằng html2pdf.js.
+# Endpoint này không gọi generate-plan-pdf cũ và yêu cầu Student.driveFolderId để lưu đúng thư mục Drive học viên.
+# Đổi đường dẫn file PDF mẫu bên dưới trước khi chạy thật.
+POST {{host}}/api/v1/assessment-sheets/{{assessmentSheetId}}/upload-plan-pdf
+Authorization: Bearer {{accessToken}}
+Content-Type: multipart/form-data; boundary=PlanPdfBoundary
+
+--PlanPdfBoundary
+Content-Disposition: form-data; name="file"; filename="ke-hoach-ca-nhan-test.pdf"
+Content-Type: application/pdf
+
+< ./samples/ke-hoach-ca-nhan-test.pdf
+--PlanPdfBoundary--
+
+###
+
 POST {{host}}/api/v1/assessment-sheets/{{assessmentSheetId}}/generate-result-pdf
 Authorization: Bearer {{accessToken}}
 

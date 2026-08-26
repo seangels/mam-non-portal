@@ -2,6 +2,14 @@ import { of } from 'rxjs';
 import { ASSESSMENT_GROUP_LV2_CONFIGS } from '../../core/models/api.models.assessment-sheets';
 import { AssessmentPickerComponent } from './assessment-picker.component';
 import {
+  buildAssessmentSheetPlanPreview,
+  buildPlanPdfFileName,
+  calculateAgeText,
+  formatAssessmentPeriod,
+  planGradeText,
+  planNoteText
+} from './assessment-sheet-plan-preview.models';
+import {
   AssessmentSheetFormComponent,
   AssessmentSheetEditor,
   assessmentGradeBgColor,
@@ -364,6 +372,61 @@ describe('Assessment sheet edit permissions', () => {
   });
 });
 
+describe('Assessment sheet plan PDF preview mapping', () => {
+  it('calculates assessment period from start and due dates', () => {
+    expect(formatAssessmentPeriod('2026-06-01', '2026-08-31')).toBe('3 tháng 6.7.8.26');
+    expect(formatAssessmentPeriod(null, '2026-08-31')).toContain('Chưa có đủ');
+    expect(formatAssessmentPeriod('2026-09-01', '2026-08-31')).toContain('đang trước');
+  });
+
+  it('calculates student age at the start date', () => {
+    expect(calculateAgeText('2019-12-05', '2026-08-01')).toBe('6 tuổi, 7 tháng');
+    expect(calculateAgeText('2026-08-01', null)).toBe('Chưa có thông tin');
+  });
+
+  it('maps sheet detail to printable plan rows using plan fields', () => {
+    const preview = buildAssessmentSheetPlanPreview({
+      id: 'sheet-1',
+      studentId: 'student-1',
+      studentSnapshot: {
+        studentCode: 'S 101',
+        fullName: 'Bé An',
+        nickName: 'An',
+        dateOfBirth: '2020-01-15'
+      },
+      startDate: '2026-06-01',
+      dueDate: '2026-08-31',
+      records: [
+        {
+          id: 'record-1',
+          assessment: {
+            code: 'B97',
+            name: 'Đứng một chân',
+            groupLv2Name: 'Tiền tiểu học',
+            groupLv3Name: 'Vận động'
+          },
+          planGrade: 'B',
+          planNote: '  Cần luyện thêm  ',
+          finalGrade: 'A',
+          finalNote: 'Không dùng cho kế hoạch'
+        } as any
+      ]
+    } as any);
+
+    expect(preview.studentName).toBe('Bé An');
+    expect(preview.periodText).toBe('3 tháng 6.7.8.26');
+    expect(preview.fileName).toBe('ke-hoach-ca-nhan-s-101.pdf');
+    expect(planGradeText(preview.rows[0].record)).toBe('Chưa đạt -');
+    expect(planNoteText(preview.rows[0].record)).toBe('Cần luyện thêm');
+    expect(preview.rows[0].groupLv2Name).toBe('Tiền tiểu học');
+  });
+
+  it('builds safe PDF file names', () => {
+    expect(buildPlanPdfFileName('Số 01 / Bé An')).toBe('ke-hoach-ca-nhan-so-01-be-an.pdf');
+    expect(buildPlanPdfFileName('')).toBe('ke-hoach-ca-nhan-hoc-sinh.pdf');
+  });
+});
+
 describe('Assessment sheet form DevExtreme option stability', () => {
   const createComponent = (mode = 'create'): AssessmentSheetFormComponent =>
     new AssessmentSheetFormComponent(
@@ -406,6 +469,19 @@ describe('Assessment sheet form DevExtreme option stability', () => {
     component.isCreate = false;
     component.records = [{ id: 'record-1' } as any, { id: 'record-2' } as any, { id: 'record-3' } as any];
     expect(component.selectedAssessmentCount).toBe(3);
+  });
+
+  it('allows opening the plan PDF preview only for saved edit sheets with records', () => {
+    const component = createComponent('edit');
+    component.isCreate = false;
+    component.loading = false;
+    component.saving = false;
+    component.records = [{ id: 'record-1' } as any];
+
+    expect(component.canOpenPlanPdfPreview()).toBeTrue();
+
+    component.records = [];
+    expect(component.canOpenPlanPdfPreview()).toBeFalse();
   });
 
   it('locks add and remove immediately from the currently selected status while keeping Planed record values editable', () => {

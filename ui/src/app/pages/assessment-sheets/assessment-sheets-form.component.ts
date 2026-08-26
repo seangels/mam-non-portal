@@ -352,6 +352,7 @@ export class AssessmentSheetFormComponent implements OnInit {
   private assessmentCache: Assessment[] = [];
   private assessmentCacheStudentId: string | null = null;
   private baseline = this.serialize(this.editor);
+  private allowPreviewNavigationOnce = false;
 
   readonly studentDisplay = (student: Student | null): string => student
     ? `${student.studentCode} · ${student.fullName}${student.nickName ? ` (${student.nickName})` : ''}`
@@ -489,6 +490,9 @@ export class AssessmentSheetFormComponent implements OnInit {
   }
 
   async canLeave(): Promise<boolean> {
+    if (this.allowPreviewNavigationOnce) {
+      return true;
+    }
     if (!this.dirty || this.saving || this.recordMutationInProgress) {
       return true;
     }
@@ -555,6 +559,34 @@ export class AssessmentSheetFormComponent implements OnInit {
 
   cancel(): void {
     void this.router.navigate(['/assessment-sheets']);
+  }
+
+  async openPlanPdfPreview(): Promise<void> {
+    if (this.isCreate || !this.assessmentSheetId || !this.canOpenPlanPdfPreview()) {
+      return;
+    }
+    if (this.dirty) {
+      const accepted = await confirm(
+        'Bạn có thay đổi chưa lưu. Trang preview sẽ dùng dữ liệu đã lưu trong hệ thống. Nếu muốn PDF phản ánh bản mới nhất, hãy lưu thay đổi trước.',
+        'Mở preview kế hoạch PDF'
+      );
+      if (!accepted) {
+        return;
+      }
+      this.allowPreviewNavigationOnce = true;
+    }
+    try {
+      await this.router.navigate(['/assessment-sheets', this.assessmentSheetId, 'plan-pdf-preview']);
+    } finally {
+      this.allowPreviewNavigationOnce = false;
+    }
+  }
+
+  canOpenPlanPdfPreview(): boolean {
+    return !this.loading
+      && !this.saving
+      && !this.recordMutationInProgress
+      && this.hasRecords;
   }
 
   toggleAddAssessmentPicker(): void {

@@ -228,6 +228,35 @@ public sealed class AssessmentSheetService(
         return await BuildDetailAsync(id, cancellationToken);
     }
 
+    public async Task<AssessmentSheetDetailResponse> UploadPlanPdfAsync(
+        Guid id, string fileName, byte[] content, CancellationToken cancellationToken)
+    {
+        var actor = currentActor.GetRequired();
+        AssessmentSheetRules.EnsureAssessmentSheetRole(actor);
+        if (content.Length == 0)
+        {
+            throw new AppValidationException("File PDF kế hoạch không hợp lệ.", new Dictionary<string, string[]>
+            {
+                ["file"] = ["Vui lòng chọn file PDF có nội dung."]
+            });
+        }
+
+        var sheet = await FindRequiredAsync(id, cancellationToken);
+        var old = SnapshotForAudit(sheet);
+        var link = await googleSheetsService.UploadAssessmentSheetPlanPdfAsync(
+            sheet.Id, sheet.StudentId, sheet.PlanFileLinkPdf, fileName, content, cancellationToken);
+
+        var now = timeProvider.GetUtcNow();
+        sheet.PlanFileLinkPdf = link;
+        sheet.UpdatedByUserId = actor.UserId;
+        sheet.UpdatedAt = now;
+
+        AddAudit(actor, "AssessmentSheet.PlanPdfUploaded", sheet.Id, old, SnapshotForAudit(sheet));
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return await BuildDetailAsync(id, cancellationToken);
+    }
+
     public async Task<AssessmentSheetDetailResponse> GenerateResultPdfAsync(Guid id, CancellationToken cancellationToken)
     {
         var actor = currentActor.GetRequired();

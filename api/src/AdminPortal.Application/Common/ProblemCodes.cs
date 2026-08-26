@@ -26,6 +26,7 @@ public static class ProblemCodes
     public const string StudentAlreadyRecordedToday = nameof(StudentAlreadyRecordedToday);
     public const string StudentInactive = nameof(StudentInactive);
     public const string StudentNotFound = nameof(StudentNotFound);
+    public const string StudentDriveFolderRequired = nameof(StudentDriveFolderRequired);
     public const string StudentVersionConflict = nameof(StudentVersionConflict);
     public const string NoScheduledStudents = nameof(NoScheduledStudents);
     public const string HistoricalRecoveryNotAllowed = nameof(HistoricalRecoveryNotAllowed);
