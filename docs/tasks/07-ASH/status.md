@@ -21,10 +21,10 @@ Theo mục 13 của plan. Cả 5 quyết định đã được khoá. `ASH-DEC-0
 
 | Status | Mã | Quyết định | Chi tiết |
 |---|---|---|---|
-| `[x]` Đã chốt — chưa code | `ASH-DEC-01` | Cách sinh PDF `[F02]`/`[F03]` | Ghi dữ liệu trực tiếp vào sheet `khcn_template`/`KQ_template` sẵn có trong file `[F01]` (không cần copy sheet) → export sang PDF theo `gid` qua Google Sheets/Drive. `ASH-BE-04` triển khai theo đúng phương án này. |
+| `[x]` Legacy/removed | `ASH-DEC-01` | Cách sinh PDF `[F02]`/`[F03]` | Quyết định cũ từng sinh PDF từ sheet trong `[F01]`; hiện đã thay bằng UI preview/html2pdf + upload Drive. |
 | `[x]` **Đã code phần quyền** | `ASH-DEC-02` | Cách mở quyền `Teacher` cho `sync-assessments` | Đã bỏ policy `PortalManagers` khỏi endpoint và kiểm tra role `Teacher`/`Admin`/`SuperAdmin` trong handler service. Phần nạp `AssessmentSheetLatest`/`AssessmentRecordLatest` vẫn chờ `ASH-BE-03`. |
 | `[x]` **Đã code** | `ASH-DEC-03` | Giữ/bỏ field `ClosedDate` | Đã bỏ trên cả `AssessmentSheet` và `AssessmentSheetLatest`; migration không tạo cột `closed_date`. |
-| `[x]` **Đã code** | `ASH-DEC-04` | Spreadsheet nguồn cho `[F01]` | Đã thêm `AssessmentSheetTemplateFileId = 12ClFCOFCfUJJ1i8QstHweNaSdLfY-1MB2eaCuigqWwQ` vào `GoogleSheetsSettings`/`appsettings.json`. Còn cần xác nhận riêng (không phải code): service account đã có quyền đọc/copy file mẫu chưa. |
+| `[x]` Legacy/removed | `ASH-DEC-04` | Spreadsheet nguồn cho `[F01]` | Không còn tạo Google Sheet riêng `[F01]`; settings template/gid đã gỡ khỏi config hiện hành. |
 | `[x]` **Đã code** | `ASH-DEC-05` | Khoá upsert khi đồng bộ `AssessmentSheetLatest`/`AssessmentRecordLatest` | Migration hiện hành tạo unique index `StudentId` (sheet) và (`AssessmentSheetLatestId`, `AssessmentId`) (record). Bản trung gian từng dùng `AssessmentCode` đã được thay bằng FK `AssessmentId`; các log cũ nhắc `AssessmentCode` chỉ còn giá trị lịch sử. |
 
 ## Tổng quan
@@ -37,6 +37,7 @@ Theo mục 13 của plan. Cả 5 quyết định đã được khoá. `ASH-DEC-0
 | Frontend | 6 | 5 | 0 | 1 | 0 |
 | Frontend delta | 8 | 0 | 4 | 4 | 0 |
 | Contract delta | 2 | 0 | 0 | 2 | 0 |
+| Cleanup delta | 1 | 0 | 0 | 1 | 0 |
 | QA | 1 | 1 | 0 | 0 | 0 |
 
 Cập nhật bảng này mỗi khi đổi trạng thái một dòng bên dưới.
@@ -54,8 +55,8 @@ Cập nhật bảng này mỗi khi đổi trạng thái một dòng bên dưới
 | `[x]` | [`ASH-BE-00`](details/02-ASH-BE-00.md) | Khoá contract DTO/enum/API surface (`PlanGrade`/`PlanNote`/`FinalGrade`/`FinalNote`, không phải 1 field `Grade`) | `ASH-P-01` |
 | `[x]` | [`ASH-BE-01`](details/03-ASH-BE-01.md) | Domain/EF configuration/migration (gồm `AssessmentSheetLatest`/`AssessmentRecordLatest`) | `ASH-BE-00` |
 | `[x]` | [`ASH-BE-02`](details/04-ASH-BE-02.md) | `AssessmentSheetService` (CRUD, plan filter, `Open`/`Done`) | `ASH-BE-01` |
-| `[~]` | [`ASH-BE-03`](details/05-ASH-BE-03.md) | Mở rộng `GoogleSheetsService` (copy file mẫu → `[F01]` riêng, ghi sheet `data`, `[F0.ĐG]`, nạp lại) — đủ 4/4 mục đã code thật (kể cả upsert `AssessmentSheetLatest`/`AssessmentRecordLatest` từ `_data_DG`); chưa đánh `[x]` vì chưa gọi Google API thật lần nào để xác nhận | `ASH-BE-02` |
-| `[~]` | [`ASH-BE-04`](details/06-ASH-BE-04.md) | Sinh PDF `[F02]`/`[F03]` (ghi trực tiếp vào sheet sẵn có trong `[F01]` → export) — đã code thật theo `ASH-DEC-01`, dùng mapping cột tạm (chưa xác nhận); **chưa gọi Google API thật lần nào nên chưa được đánh `[x]`** theo quy ước (chỉ tick khi đã chạy kiểm tra tương ứng) | `ASH-BE-03` |
+| `[~]` | [`ASH-BE-03`](details/05-ASH-BE-03.md) | Mở rộng `GoogleSheetsService` cho sync nguồn `[F0]`, ghi `[F0.ĐG]`, nạp latest; phần copy/ghi `[F01]` trong detail cũ là lịch sử và đã được cleanup ở `ASH-CL-01` | `ASH-BE-02` |
+| `[~]` | [`ASH-BE-04`](details/06-ASH-BE-04.md) | Legacy sau cleanup: backend không còn sinh PDF từ Google Sheet; PDF hiện do UI render/upload Drive (`ASH-FE-11/12`) | `ASH-BE-03` |
 | `[~]` | [`ASH-BE-05`](details/07-ASH-BE-05.md) | Test, README/`requests.http`, default gate, smoke phần backend | `ASH-BE-04` |
 
 ### Backend delta — owner: `backend`
@@ -70,7 +71,7 @@ Cập nhật bảng này mỗi khi đổi trạng thái một dòng bên dưới
 |---|---|---|---|
 | `[ ]` | [`ASH-FE-00`](details/08-ASH-FE-00.md) | Khoá contract cùng backend trước khi code UI | `ASH-BE-00` |
 | `[ ]` | [`ASH-FE-01`](details/09-ASH-FE-01.md) | Danh sách + tạo `AssessmentSheet`, chọn plan có filter | `ASH-FE-00`, `ASH-BE-02` |
-| `[ ]` | [`ASH-FE-02`](details/10-ASH-FE-02.md) | Form chi tiết: sửa plan/`PlanGrade`, Xuất sang Google Sheet/Đồng bộ | `ASH-FE-01`, `ASH-BE-03` |
+| `[ ]` | [`ASH-FE-02`](details/10-ASH-FE-02.md) | Form chi tiết: sửa plan/`PlanGrade`; nút Xuất sang Google Sheet/Đồng bộ `[F01]` trong detail cũ là legacy và không còn dùng | `ASH-FE-01`, `ASH-BE-03` |
 | `[ ]` | [`ASH-FE-03`](details/11-ASH-FE-03.md) | Nhập `FinalGrade`, sinh PDF, cập nhật `[F0.ĐG]`, chuyển `Open`/`Done` | `ASH-FE-02`, `ASH-BE-04` |
 | `[ ]` | [`ASH-FE-04`](details/12-ASH-FE-04.md) | Build/`test:ci` mặc định, docs/memory, smoke phần frontend | `ASH-FE-03` |
 
@@ -93,6 +94,12 @@ Cập nhật bảng này mỗi khi đổi trạng thái một dòng bên dưới
 |---|---|---|---|
 | `[x]` | `ASH-CR-01` | `POST /assessment-sheets` đổi payload tạo mới từ `assessmentIds[]` sang `records[]` gồm `assessmentId`, `latestGrade`, `note`; backend lưu vào `PlanGrade`/`PlanNote`, UI picker gửi dữ liệu latest đang hiển thị | `ASH-FE-05`, latest contract `/assessments?studentId=...` |
 | `[x]` | [`ASH-CR-02`](details/20-ASH-CR-02.md) | Đã thêm nút `Cập nhật Kết Quả` gọi `submit-results`; UI chỉ hiện khi sheet `Done` và disable cho role `Teacher`, còn backend không chặn riêng Teacher. Backend ghi ResultSource chỉ với cell có thay đổi và audit từng cell được ghi; `FinalNote` ghi vào cột kế bên phải cột kết quả của học sinh; automated gate pass, chưa smoke Google Sheet thật | `ASH-FE-10`, `ASH-BE-03` |
+
+## Cleanup delta — owner: `root` / phối hợp backend + frontend
+
+| Status | Mã | Việc cần làm | Phụ thuộc |
+|---|---|---|---|
+| `[x]` | [`ASH-CL-01`](details/22-ASH-CL-01.md) | Cleanup luồng Google Sheet riêng `[F01]`: gỡ endpoint/service/config/model/docs cũ; giữ `AssessmentSheetSpreadsheetId` là legacy DB-only. Backend build/unit/integration và UI test/build dev pass; chưa gọi Google thật | `ASH-FE-11`, `ASH-FE-12`, `ASH-CR-02` |
 
 ## QA — owner: chưa có agent QA riêng (root điều phối, backend/frontend tự chạy phần của mình)
 

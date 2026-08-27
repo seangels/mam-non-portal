@@ -5,7 +5,7 @@
 - **Epic:** `ASH` — Assessment Sheet.
 - **Thứ tự:** `07`.
 - **Trạng thái:** Đang triển khai theo từng phần; dashboard hiện hành ở [`docs/tasks/07-ASH/status.md`](../tasks/07-ASH/status.md).
-- **Ngày lập:** 2026-08-20. Cập nhật entity/contract theo source thật: 2026-08-20 (nhiều lần trong ngày). Cập nhật cơ chế Google Sheet (file riêng theo `AssessmentSheet`) và tách `AssessmentRecord.Grade` thành `PlanGrade`/`PlanNote` + `FinalGrade`/`FinalNote` theo xác nhận/source thật mới nhất của người dùng: 2026-08-20.
+- **Ngày lập:** 2026-08-20. Cập nhật entity/contract theo source thật: 2026-08-20 (nhiều lần trong ngày). Cập nhật cleanup 2026-08-27: luồng Google Sheet riêng `[F01]` cho từng `AssessmentSheet` đã ngừng dùng; PDF dùng UI preview/html2pdf rồi upload Drive.
 - **Phạm vi:** .NET 10 REST API, PostgreSQL 17, tích hợp Google Sheets/Drive hiện có, và Angular/DevExtreme UI cho giáo viên.
 - **Phụ thuộc:** [`01-BASE-admin-portal.md`](01-BASE-admin-portal.md) (auth, Student). Kế thừa trực tiếp kho `Assessment`/`AssessmentGroup` và `GoogleSheetsService` đã có trong source (không có plan riêng — được thêm ad hoc, xem mục 4).
 - **Nguồn yêu cầu:** [`requirements/09-bang-danh-gia-nang-luc.md`](../requirements/09-bang-danh-gia-nang-luc.md) (sơ đồ luồng dữ liệu: [`requirements/09-bang-danh-gia-nang-luc-so-do-du-lieu.md`](../requirements/09-bang-danh-gia-nang-luc-so-do-du-lieu.md)). Mọi quyết định nghiệp vụ đã chốt trong tài liệu đó (mục 15) là nguồn sự thật; plan này chỉ dịch sang kế hoạch kỹ thuật, không lặp lại phần đã giải thích ở đó.
@@ -14,10 +14,10 @@ Production build, IIS package và deploy không thuộc plan này; chỉ chạy 
 
 ## 2. Mục tiêu
 
-1. Hoàn thiện end-to-end tính năng `AssessmentSheet` cho giáo viên: tạo, chọn plan có filter, xuất/đồng bộ file Google Sheet riêng `[F01]`, sinh PDF `[F02]`/`[F03]`, nhập kết quả, ghi `[F0.ĐG]`, nạp lại `Assessment`/`AssessmentSheetLatest`/`AssessmentRecordLatest`, chuyển `Open`/`Done`.
-2. Backend: wire các entity đã có (`AssessmentSheet`, `AssessmentRecord` — với `PlanGrade`/`PlanNote`/`FinalGrade`/`FinalNote`, `AssessmentSheetLatest`, `AssessmentRecordLatest`, enum `AssessmentSheetStatus`) vào `DbContext`, migration, service, API; thêm field mới `AssessmentSheet.AssessmentSheetSpreadsheetId`.
-3. Mở rộng `GoogleSheetsService` để hỗ trợ: **copy toàn bộ file mẫu `gen_assessment_sheet` thành file `[F01]` riêng cho mỗi `AssessmentSheet`** (lazy, tự động), ghi/cập nhật sheet `data` trong `[F01]`, điền `PlanGrade`/`PlanNote` vào sheet `khcn_template` và `FinalGrade`/`FinalNote` vào sheet `KQ_template` sẵn có trong `[F01]` để sinh PDF, ghi `FinalGrade` vào `[F0.ĐG]`, nạp lại `AssessmentSheetLatest`/`AssessmentRecordLatest` (chỉ-đọc, dùng cho UI hiển thị/gửi dữ liệu gần nhất lúc tạo mới), và mở quyền đồng bộ `sync-assessments` cho `Teacher`.
-4. Thêm khả năng sinh PDF `[F02]`/`[F03]` từ sheet tương ứng trong `[F01]`.
+1. Hoàn thiện end-to-end tính năng `AssessmentSheet` cho giáo viên: tạo, chọn plan có filter, preview/upload PDF `[F02]`/`[F03]`, nhập kết quả, ghi `[F0.ĐG]`, nạp lại `Assessment`/`AssessmentSheetLatest`/`AssessmentRecordLatest`, chuyển `Open`/`Done`.
+2. Backend: wire các entity đã có (`AssessmentSheet`, `AssessmentRecord` — với `PlanGrade`/`PlanNote`/`FinalGrade`/`FinalNote`, `AssessmentSheetLatest`, `AssessmentRecordLatest`, enum `AssessmentSheetStatus`) vào `DbContext`, migration, service, API. `AssessmentSheet.AssessmentSheetSpreadsheetId` chỉ còn là cột legacy nếu đã tồn tại trong DB/migration cũ, không thuộc contract API/UI v1.
+3. Mở rộng `GoogleSheetsService` để hỗ trợ các luồng còn dùng: ghi `FinalGrade`/`FinalNote` vào `[F0.ĐG]`, nạp lại `AssessmentSheetLatest`/`AssessmentRecordLatest` (chỉ-đọc, dùng cho UI hiển thị/gửi dữ liệu gần nhất lúc tạo mới), mở quyền đồng bộ `sync-assessments` cho `Teacher`, và upload PDF do UI render vào Drive của học sinh.
+4. Thêm khả năng preview PDF `[F02]`/`[F03]` từ UI bằng `html2pdf.js`, sau đó upload file PDF vào Google Drive qua endpoint upload.
 5. Xây UI Angular/DevExtreme cho giáo viên thao tác toàn bộ luồng trên, tiếng Việt, dùng được trên desktop/tablet cơ bản (không có yêu cầu redesign compact card như `AUI`).
 6. Kiểm tra bằng smoke test theo golden path; không xây dựng ma trận test UI/responsive/accessibility hay performance riêng cho tính năng này (xem mục 9).
 
@@ -25,19 +25,19 @@ Production build, IIS package và deploy không thuộc plan này; chỉ chạy 
 
 ### 3.1 Trong phạm vi
 
-- Domain/EF: hoàn thiện `AssessmentSheet` (thêm field `AssessmentSheetSpreadsheetId`), `AssessmentRecord` (`PlanGrade`/`PlanNote`/`FinalGrade`/`FinalNote`), `AssessmentSheetLatest`, `AssessmentRecordLatest`, migration mới, `DbContext`/configuration.
+- Domain/EF: hoàn thiện `AssessmentSheet`, `AssessmentRecord` (`PlanGrade`/`PlanNote`/`FinalGrade`/`FinalNote`), `AssessmentSheetLatest`, `AssessmentRecordLatest`, migration mới, `DbContext`/configuration. `AssessmentSheetSpreadsheetId` nếu còn tồn tại là legacy DB-only.
 - Application: `AssessmentSheetService` (CRUD, chọn/sửa plan có filter, chuyển `Open`/`Done`), validation, authorization (mở cho `Teacher`/`Admin`/`SuperAdmin`, không giới hạn nhóm).
-- Google Sheets: copy file mẫu → `[F01]` riêng (lazy, tự động khi cần), "Xuất sang Google Sheet"/"Đồng bộ" (ghi sheet `data` trong `[F01]`, đủ cả `Plan*`/`Final*`), sinh PDF (điền `PlanGrade`/`PlanNote` vào sheet `khcn_template`, `FinalGrade`/`FinalNote` vào sheet `KQ_template`, cả hai sẵn có trong `[F01]`, rồi export), ghi `FinalGrade` vào `[F0.ĐG]` (đúng ô theo mapping đã xác nhận), nạp lại `AssessmentSheetLatest`/`AssessmentRecordLatest` (chỉ-đọc), mở policy `sync-assessments` cho `Teacher`.
-- PDF: sinh `[F02]` từ sheet `khcn_template` (dữ liệu `Plan*`) và `[F03]` từ sheet `KQ_template` (dữ liệu `Final*`), cả hai trong `[F01]`, lưu link vào `PlanFileLinkPdf`/`ResultFileLinkPdf`, ghi đè bản cũ.
+- Google Sheets/Drive: nạp lại `AssessmentSheetLatest`/`AssessmentRecordLatest` (chỉ-đọc), mở policy `sync-assessments` cho `Teacher`, ghi `FinalGrade`/`FinalNote` vào `[F0.ĐG]` (đúng ô theo mapping đã xác nhận), và upload PDF do UI render vào `Student.DriveFolderId`.
+- PDF: sinh `[F02]`/`[F03]` từ UI preview HTML/A4 bằng `html2pdf.js`, lưu link vào `PlanFileLinkPdf`/`ResultFileLinkPdf`, ghi đè bản cũ.
 - API endpoints tương ứng dưới `/api/v1/assessment-sheets` (và mở rộng `/api/v1/google-sheets` nếu phù hợp).
-- Frontend: trang danh sách + form tạo/sửa `AssessmentSheet` cho giáo viên, chọn học sinh, chọn plan có filter (đọc `latestGrade`/`latestNote` từ `AssessmentSheetLatest`/`AssessmentRecordLatest` qua `GET /assessments?studentId=...`, rồi gửi kèm từng record khi tạo mới), các nút hành động (Xuất sang Google Sheet, Đồng bộ, Sinh PDF F02/F03, Cập nhật kết quả vào F0.ĐG, Đồng bộ Assessment/AssessmentSheetLatest/AssessmentRecordLatest, chuyển Open/Done), nhập `PlanGrade`/`PlanNote` (giai đoạn kế hoạch) và `FinalGrade`/`FinalNote` (giai đoạn kết quả) ở hai khu vực tách biệt.
+- Frontend: trang danh sách + form tạo/sửa `AssessmentSheet` cho giáo viên, chọn học sinh, chọn plan có filter (đọc `latestGrade`/`latestNote` từ `AssessmentSheetLatest`/`AssessmentRecordLatest` qua `GET /assessments?studentId=...`, rồi gửi kèm từng record khi tạo mới), nút preview/upload PDF F02/F03, nút cập nhật kết quả vào F0.ĐG, đồng bộ Assessment/AssessmentSheetLatest/AssessmentRecordLatest, chuyển Open/Done, nhập `PlanGrade`/`PlanNote` và `FinalGrade`/`FinalNote`.
 - Smoke test thủ công + build/test mặc định theo `AGENTS.md`/`api/AGENTS.md` (xem mục 9).
 
 ### 3.2 Ngoài phạm vi
 
 - Không redesign UI dạng compact card như `AUI`; UI đợt này dùng layout form/grid tiêu chuẩn hiện có của portal.
 - Không xây bộ test UI tự động (Karma component test chi tiết, ma trận visual/responsive/accessibility) và không xây test performance/load cho tính năng này — chỉ smoke test theo mục 9.
-- Không tự động hoá việc xuất/đồng bộ, sinh PDF hay ghi `[F0.ĐG]`; mọi bước này là hành động nút bấm thủ công theo đúng quyết định đã chốt trong requirements 09. (Việc copy file mẫu để tạo `[F01]` là ngoại lệ có chủ đích: nó tự động chạy ngầm bên trong lần đầu tiên một trong các nút bấm đó được gọi, không phải một nút riêng — xem mục 6.)
+- Không tự động hoá việc render/upload PDF hay ghi `[F0.ĐG]`; mọi bước này là hành động nút bấm thủ công theo đúng quyết định đã chốt trong requirements 09. Không còn copy file mẫu để tạo Google Sheet riêng `[F01]`.
 - Không xây quy trình duyệt/audit log riêng cho chuyển `Done` ↔ `Open` (đổi trạng thái đơn giản, không cần lý do).
 - Không đổi phạm vi/permission của các API Student/Group/Attendance hiện có ngoài việc mở policy `sync-assessments`.
 - Không thực hiện production/IIS build hay deploy.
@@ -80,58 +80,45 @@ Việc đầu tiên của backend agent là đối chiếu lại các file trên
 **`ASH-BE-00` và `ASH-BE-01` đã thực hiện xong (2026-08-20)** — mục này giờ mô tả đúng trạng thái đã code, không còn là việc cần làm. Chi tiết thực thi: [`docs/tasks/07-ASH/log.md`](../tasks/07-ASH/log.md).
 
 - `AssessmentRecord` giữ nguyên 4 field như mục 4: `PlanGrade`/`PlanNote`/`FinalGrade`/`FinalNote` — không gộp lại thành một field. `PlanGrade`/`PlanNote` khởi tạo từ `records[].latestGrade`/`records[].note` trong request tạo mới (UI lấy từ dữ liệu latest đang hiển thị), sau đó mutable trực tiếp qua bước sửa plan (mục 7). `FinalGrade`/`FinalNote` để trống tới khi nhập kết quả (mục 9), độc lập với `PlanGrade`.
-- **Đã thêm field `AssessmentSheet.AssessmentSheetSpreadsheetId`** (`string?`): lưu Drive file id của file `[F01]` riêng — copy từ file mẫu `gen_assessment_sheet`. Null cho tới khi hành động đầu tiên cần `[F01]` được gọi.
+- **`AssessmentSheet.AssessmentSheetSpreadsheetId` hiện là legacy DB-only**: field từng phục vụ file Google Sheet riêng `[F01]`, nhưng luồng này đã ngừng dùng từ 2026-08-27. Code mới không expose qua DTO/API/UI và không ghi giá trị mới.
 - `AssessmentSheetLatest`/`AssessmentRecordLatest`: đã có EF configuration + migration (`ASH-BE-01`) và luồng đồng bộ `sync-assessments` hiện đã nạp lại cả `Assessment`, `AssessmentSheetLatest`, `AssessmentRecordLatest` từ Google Sheet. Không có API tạo/sửa/xoá trực tiếp nào cho cặp bảng này ngoài luồng đồng bộ.
 - **Đính chính kỹ thuật 2026-08-25:** bản trung gian từng dùng field scalar `AssessmentRecordLatest.AssessmentCode` để index/upsert vì EF không index được sub-property JSON. Source hiện tại đã đổi sang liên kết trực tiếp `AssessmentRecordLatest.AssessmentId`/`Assessment` và unique index (`AssessmentSheetLatestId`, `AssessmentId`). Các đoạn/log cũ nhắc `AssessmentCode` chỉ còn giá trị lịch sử, không phải contract hiện hành.
 - Khoá upsert khi đồng bộ (`ASH-DEC-05`) đã áp dụng trong migration hiện hành: `AssessmentSheetLatest` unique index trên `StudentId`; `AssessmentRecordLatest` unique index trên (`AssessmentSheetLatestId`, `AssessmentId`).
 - `ClosedDate` trên `AssessmentSheetLatest` đã bỏ (`ASH-DEC-03`, áp dụng đầy đủ — trước đó chỉ `AssessmentSheet` đã bỏ, giờ cả hai).
-- Đã thêm `AssessmentSheetTemplateFileId = "12ClFCOFCfUJJ1i8QstHweNaSdLfY-1MB2eaCuigqWwQ"` vào `GoogleSheetsSettings`/`IGoogleSheetsSettings` và `appsettings.json` (mục `GoogleSheets`) — giải quyết `ASH-DEC-04`.
+- Các cấu hình cũ phục vụ `[F01]` (`AssessmentSheetTemplateFileId`, `DataSheetName`, `PlanTemplateSheetName/Gid`, `ResultTemplateSheetName/Gid`) đã bị gỡ khỏi settings hiện hành.
 - Giữ nguyên nguyên tắc: sửa `AssessmentRecord`/`AssessmentSheet` không được ghi ngược `AssessmentSheetLatest`/`AssessmentRecordLatest`/`Assessment` gốc; và ngược lại, luồng đồng bộ nạp lại không được sửa `AssessmentRecord` đã snapshot trong các `AssessmentSheet` đang tồn tại.
 - Migration `20260820094414_AddAssessmentSheetManagement` đã tạo 4 bảng (`assessment_sheets`, `assessment_records`, `assessment_sheet_latests`, `assessment_record_latests`), `dotnet-ef migrations has-pending-model-changes` xanh, `dotnet build` 0 warning/0 error cho `Domain`/`Application`/`Infrastructure`/`Api`/`UnitTests`, 40/40 unit test cũ vẫn pass (chưa có unit test riêng cho entity mới — thuộc `ASH-BE-02`/`05`). Tất cả FK dùng `DeleteBehavior.Restrict` khớp quy ước hiện có của codebase (không cascade).
 
-## 6. Thiết kế Google Sheets
+## 6. Thiết kế Google Sheets / Drive hiện hành
 
-### 6.1 File riêng `[F01]` — tạo bằng Drive file copy (lazy)
+### 6.1 Luồng Google Sheet riêng `[F01]` — legacy, không còn dùng
 
-- Mỗi `AssessmentSheet` có **file Google Sheet riêng** (`[F01]`), tạo bằng Drive API `files.copy` từ file mẫu `gen_assessment_sheet` (id `12ClFCOFCfUJJ1i8QstHweNaSdLfY-1MB2eaCuigqWwQ`, xem mục 4).
-- Việc copy là **lazy**: chỉ chạy khi có hành động thực sự cần `[F01]` (export-to-sheet, sync-to-sheet, generate-plan-pdf, generate-result-pdf) VÀ `AssessmentSheet.AssessmentSheetSpreadsheetId` đang null. Nên tách một helper dùng chung, ví dụ `EnsureAssessmentSheetFileAsync`, gọi ở đầu cả 4 action trên: nếu null thì copy file mẫu, lưu id mới vào `AssessmentSheetSpreadsheetId` (và `SaveChangesAsync` ngay để tránh copy trùng nếu request khác chen vào), nếu đã có thì trả về luôn.
-- File `[F01]` copy ra đã có sẵn 3 sheet `data`/`khcn_template`/`KQ_template` với đúng `gid` `0`/`1320805599`/`1903920808` như file mẫu (Drive giữ nguyên `gid` nội bộ khi copy toàn bộ file) — **không cần** `AddSheetRequest`/`DuplicateSheetRequest` nào nữa cho luồng bình thường.
-- (Tuỳ chọn, không bắt buộc) có thể đặt lại tiêu đề Drive của file vừa copy theo quy ước `<MãHS>.<TênGọi>_<TênĐợt>` để admin dễ nhận diện khi mở Drive thủ công — chỉ là UX, không ảnh hưởng logic vì hệ thống luôn định vị file qua `AssessmentSheetSpreadsheetId`, không qua tên.
+- Không tạo/copy file Google Sheet riêng cho từng `AssessmentSheet`.
+- Không còn endpoint `export-to-sheet`, `sync-to-sheet`, `generate-plan-pdf`, `generate-result-pdf`.
+- Không còn settings/template/gid riêng cho `[F01]`.
+- `AssessmentSheetSpreadsheetId` nếu còn trong entity/DB chỉ để tương thích dữ liệu và migration cũ; không expose trong API/UI v1.
 
-### 6.2 Xuất sang Google Sheet / Đồng bộ — chỉ ghi sheet `data`
-
-- "Xuất sang Google Sheet" (`POST .../export-to-sheet`): gọi `EnsureAssessmentSheetFileAsync`, sau đó `spreadsheets.values.update` ghi dữ liệu `AssessmentRecord` hiện tại (snapshot + cả `PlanGrade`/`PlanNote` + `FinalGrade`/`FinalNote`) vào sheet `data` (`gid=0`) của `[F01]`. Idempotent — gọi lại nhiều lần chỉ ghi đè, không tạo file/sheet mới nếu đã tồn tại.
-- "Đồng bộ" (`POST .../sync-to-sheet`): cùng cơ chế `EnsureAssessmentSheetFileAsync` + ghi đè sheet `data`. Về mặt kỹ thuật hai action gần như giống hệt nhau (khác tên/route để khớp UX 2 nút riêng theo yêu cầu nghiệp vụ) — có thể dùng chung một hàm nội bộ.
-- Không đụng tới `khcn_template`/`KQ_template` ở 2 action này.
-
-### 6.3 Sinh PDF — ghi trực tiếp vào sheet có sẵn, không cần copy sheet riêng
-
-- `generate-plan-pdf`: gọi `EnsureAssessmentSheetFileAsync`, sau đó `spreadsheets.values.update` ghi `AssessmentSnapshot` + `PlanGrade`/`PlanNote` vào sheet `khcn_template` (`gid=1320805599`) đã có sẵn trong `[F01]`.
-- `generate-result-pdf`: tương tự, ghi `AssessmentSnapshot` + `FinalGrade`/`FinalNote` vào sheet `KQ_template` (`gid=1903920808`).
-- Cả hai **không cần `DuplicateSheetRequest`** như bản trước của plan từng thiết kế, vì sheet đó đã tồn tại ngay từ lúc file được copy.
-- Chỉnh format/merge cell nếu cần bằng `batchUpdate` (`MergeCellsRequest`, `UpdateDimensionPropertiesRequest`...) — mapping cột/vị trí chi tiết vẫn nằm trong phần "sẽ bổ sung sau" của requirements 09 mục 15.
-- Export sheet đó (theo `ASH-DEC-01`) sang PDF, xem mục 7.
-
-### 6.4 Ghi kết quả vào `[F0.ĐG]`
+### 6.2 Ghi kết quả vào `[F0.ĐG]`
 
 - Ghi **nhãn** của **`FinalGrade`** (theo bảng mapping ở mục 4, không phải chữ cái `A/B/C/D`, và **không phải** `PlanGrade`) vào đúng ô của sheet `ĐG` trong spreadsheet `[F0]` hiện có (khác `[F01]` — đây là file nguồn dùng chung, không phải file riêng của `AssessmentSheet`).
 - Định vị ô: dò cột `E16:E` để tìm dòng khớp mã mục đánh giá (`item_id`), dò hàng `H16:16` để tìm cột khớp mã học sinh; ghi tại ô giao nhau.
 - Ngay sau khi ghi thành công, set `AssessmentSheet.SubmissionDate = now`.
 
-### 6.5 Nạp lại `Assessment`/`AssessmentSheetLatest`/`AssessmentRecordLatest` từ `[F0.data_DG]`
+### 6.3 Nạp lại `Assessment`/`AssessmentSheetLatest`/`AssessmentRecordLatest` từ `[F0.data_DG]`
 
 - Mở rộng `SyncAssessmentsAsync` để, ngoài việc thay thế `Assessment`, đọc thêm cột kết quả để nạp lại `AssessmentSheetLatest` (một dòng mirror mỗi học sinh, unique index theo `StudentId`) và các `AssessmentRecordLatest` con (`LatestGrade` đơn = kết quả đọc được — không tách Plan/Final ở bảng này). Record latest liên kết tới mục đánh giá bằng `AssessmentId`/`Assessment`, không dùng `AssessmentCode` trong source hiện hành. Cân nhắc đổi tên DTO mẫu có sẵn `AssessmentLastResultGoogleSheetResponse` trong `GoogleSheetsModels.cs` cho khớp ngữ cảnh mới khi code.
 - Đổi quyền: `Teacher`/`Admin`/`SuperAdmin` đều gọi được `POST /api/v1/google-sheets/sync-assessments`. **Không đổi định nghĩa policy `PortalManagers`** (sẽ vô tình mở quyền Student/Group/Teacher/User cho `Teacher`) — thêm role-check riêng tại handler (`EnsureAssessmentSyncRole`), theo `ASH-DEC-02`.
-- `AssessmentSheetLatest`/`AssessmentRecordLatest` là bảng chỉ-đọc: không service nào khác ngoài luồng đồng bộ này được phép ghi vào chúng. Luồng này hoàn toàn tách biệt khỏi cơ chế file `[F01]` ở mục 6.1–6.4 — không liên quan tới nhau.
+- `AssessmentSheetLatest`/`AssessmentRecordLatest` là bảng chỉ-đọc: không service nào khác ngoài luồng đồng bộ này được phép ghi vào chúng. Luồng này hoàn toàn tách biệt khỏi `AssessmentSheet` working records.
 
 ## 7. Thiết kế sinh PDF `[F02]`/`[F03]`
 
-Đơn giản hơn bản trước của plan vì sheet nguồn (`khcn_template`/`KQ_template`) đã có sẵn trong `[F01]` (mục 6.3), không cần bước "make copy sheet" riêng nữa:
+PDF hiện do frontend render từ trang preview HTML/A4 bằng `html2pdf.js`, không sinh từ Google Sheet:
 
-1. `EnsureAssessmentSheetFileAsync` + ghi dữ liệu vào sheet `khcn_template` (`Plan*`) hoặc `KQ_template` (`Final*`) của `[F01]` (mục 6.3).
-2. **Export sang PDF (cần `ASH-DEC-01` khoá trước khi code):** đề xuất dùng chính Google Sheets/Drive export sheet đó sang PDF qua URL dạng `.../export?format=pdf&gid={sheetId}`, dùng `fileId = AssessmentSheetSpreadsheetId`, `gid = 1320805599` (khcn) hoặc `1903920808` (KQ), xác thực bằng access token của service account hiện có (có thể cần mở rộng scope từ `Spreadsheets` sang thêm `https://www.googleapis.com/auth/drive.readonly`). Ưu điểm: PDF khớp chính xác template mà đội vận hành thiết kế, không cần dựng lại layout trong code .NET, không thêm dependency PDF nặng.
-3. Backend tải PDF bytes về, lưu vào vị trí lưu trữ file dùng chung của portal (hoặc cấu hình mới nếu chưa có), set `AssessmentSheet.PlanFileLinkPdf`/`ResultFileLinkPdf`. Chỉ giữ **bản mới nhất** — mỗi lần sinh lại lặp lại bước 1–3 và ghi đè link.
-4. Nếu bước 2 không khả thi (giới hạn quyền Drive export), phương án dự phòng: dựng PDF trong .NET bằng thư viện có license phù hợp dự án nhỏ (ví dụ QuestPDF Community), đọc dữ liệu trực tiếp từ `AssessmentRecord` (bỏ qua bước 1 vì không cần sheet trung gian) — chỉ chuyển sang phương án này nếu phương án chính bị chặn, và phải ghi rõ lý do trong `.agents/backend/MEMORY.md`.
+1. UI mở route preview kế hoạch/kết quả từ `AssessmentSheetDetail` đã lưu.
+2. Nút `Mở PDF` tạo blob URL bằng `window.html2pdf().set(options).from(page).outputPdf('bloburl')` và mở tab mới.
+3. Nút `Tạo PDF lên Google Drive` tạo file PDF từ DOM preview và upload multipart field `file` lên backend.
+4. Backend upload PDF vào `Student.DriveFolderId`, cập nhật `PlanFileLinkPdf` hoặc `ResultFileLinkPdf`, audit hành động upload và trả lại `AssessmentSheetDetail`.
+5. Nếu học sinh chưa có Drive folder id, backend trả `409 StudentDriveFolderRequired`.
 
 ## 8. API dự kiến
 
@@ -142,23 +129,19 @@ GET    /api/v1/assessment-sheets/{id}
 PUT    /api/v1/assessment-sheets/{id}
 PUT    /api/v1/assessment-sheets/{id}/records
 PUT    /api/v1/assessment-sheets/{id}/status
-POST   /api/v1/assessment-sheets/{id}/export-to-sheet
-POST   /api/v1/assessment-sheets/{id}/sync-to-sheet
-POST   /api/v1/assessment-sheets/{id}/generate-plan-pdf
 POST   /api/v1/assessment-sheets/{id}/upload-plan-pdf
-POST   /api/v1/assessment-sheets/{id}/generate-result-pdf
 POST   /api/v1/assessment-sheets/{id}/upload-result-pdf
 POST   /api/v1/assessment-sheets/{id}/submit-results
 POST   /api/v1/google-sheets/sync-assessments
 ```
 
-- `POST /assessment-sheets`: tạo với `studentId`, thông tin header và plan ban đầu dưới dạng `records: [{ assessmentId, latestGrade, note }]` — không chỉ gửi mỗi `assessmentId`. Server snapshot `StudentSnapshot` + `AssessmentSnapshot`, lưu `latestGrade`/`note` request vào `PlanGrade`/`PlanNote` của từng `AssessmentRecord`; `FinalGrade`/`FinalNote` để trống. Không copy file `[F01]` ở bước này (lazy, xem mục 6.1).
+- `POST /assessment-sheets`: tạo với `studentId`, thông tin header và plan ban đầu dưới dạng `records: [{ assessmentId, latestGrade, note }]` — không chỉ gửi mỗi `assessmentId`. Server snapshot `StudentSnapshot` + `AssessmentSnapshot`, lưu `latestGrade`/`note` request vào `PlanGrade`/`PlanNote` của từng `AssessmentRecord`; `FinalGrade`/`FinalNote` để trống. Không tạo Google Sheet riêng.
 - `PUT /{id}/records`: full replace danh sách `AssessmentRecord` (thêm/bớt mục, sửa `PlanGrade`/`PlanNote`/`FinalGrade`/`FinalNote`) — chặn khi `Status = Done`. Một endpoint chung cho cả 4 field; UI tách hai khu vực nhập liệu (`ASH-FE-02` cho Plan, `ASH-FE-03` cho Final) nhưng gọi cùng endpoint này.
 - `PUT /{id}/status`: đổi `Open`↔`Done`, set/clear `DoneDate`.
-- `export-to-sheet`, `sync-to-sheet`, `generate-plan-pdf`, `generate-result-pdf`, `submit-results` (nút UI `Cập nhật Kết Quả`: ghi `[F0.ĐG]` bằng `FinalGrade`/`FinalNote` + set `SubmissionDate`) đều là action endpoint riêng, không gộp vào `PUT` chính, đúng với việc mỗi bước là thao tác nút bấm độc lập. 4 action đầu đều tự đảm bảo `[F01]` tồn tại (mục 6.1) — không bắt buộc gọi đúng thứ tự. Riêng `submit-results` phải đọc giá trị hiện tại trên ResultSource trước, chỉ ghi cell có thay đổi và audit riêng từng cell được ghi; `FinalNote` nằm ở cột ngay bên phải cột kết quả của học sinh. UI chỉ hiện nút khi sheet đã `Done`; role `Teacher` bị disable nút ở UI nhưng backend endpoint không đổi quyền và không chặn riêng Teacher.
+- `submit-results` (nút UI `Cập nhật Kết Quả`): ghi `[F0.ĐG]` bằng `FinalGrade`/`FinalNote` + set `SubmissionDate`. Endpoint phải đọc giá trị hiện tại trên ResultSource trước, chỉ ghi cell có thay đổi và audit riêng từng cell được ghi; `FinalNote` nằm ở cột ngay bên phải cột kết quả của học sinh. UI chỉ hiện nút khi sheet đã `Done`; role `Teacher` bị disable nút ở UI nhưng backend endpoint không đổi quyền và không chặn riêng Teacher.
 - `upload-plan-pdf`: companion endpoint cho UI preview `In Kế hoạch PDF` (`ASH-FE-11`). Frontend render HTML/A4 bằng `html2pdf.js`, gửi PDF qua `multipart/form-data` field `file`; backend upload file này vào `Student.DriveFolderId`, cập nhật `PlanFileLinkPdf`, trả `AssessmentSheetDetail`. Luồng này không gọi `generate-plan-pdf`, không tạo/ghi `[F01]`, và trả `409 StudentDriveFolderRequired` nếu học sinh chưa có Drive folder id.
 - `upload-result-pdf`: companion endpoint cho UI preview `In Kết Quả PDF` (`ASH-FE-12`). Frontend render HTML/A4 bằng `html2pdf.js`, dùng `FinalGrade`/`FinalNote`, gửi PDF qua `multipart/form-data` field `file`; backend upload file này vào `Student.DriveFolderId`, cập nhật `ResultFileLinkPdf`, trả `AssessmentSheetDetail`. Luồng này không gọi `generate-result-pdf`, không tạo/ghi `[F01]`, và trả `409 StudentDriveFolderRequired` nếu học sinh chưa có Drive folder id.
-- Response của `AssessmentSheet` nên có thể expose `AssessmentSheetSpreadsheetId` (hoặc một link Drive dựng sẵn từ id đó) để UI có thể cho người dùng mở trực tiếp file `[F01]` nếu cần — quyết định UI cụ thể thuộc `ASH-FE-02`/`ASH-FE-03`.
+- Các endpoint legacy đã gỡ/không dùng: `export-to-sheet`, `sync-to-sheet`, `generate-plan-pdf`, `generate-result-pdf`. Response `AssessmentSheet` không expose `AssessmentSheetSpreadsheetId` trong contract v1.
 - `GET /api/v1/assessments` hỗ trợ query `studentId` không bắt buộc. Khi có `studentId`, API vẫn trả đủ `Assessment` theo filter/sort/paging hiện tại và left join sang `AssessmentSheetLatest`/`AssessmentRecordLatest` để bổ sung `latestGrade`/`latestNote` nullable; nếu chưa có sheet latest hoặc record latest thì không làm mất dòng assessment. Field `note` hiện hữu vẫn là ghi chú gốc của `Assessment`, không phải ghi chú latest. UI picker tải toàn bộ danh sách vào client cache; TagBox `Kết quả gần nhất` đứng đầu panel filter và lọc local trên snapshot `viewMode`, gồm cả lựa chọn `Chưa có` cho `latestGrade` null/empty.
 - Toàn bộ theo quy ước REST/error/pagination đã có trong [requirements/07](../requirements/07-api-bao-mat-va-van-hanh.md); không cần tài liệu hoá lại ở đây.
 
@@ -169,33 +152,32 @@ Người dùng đã yêu cầu rõ: **chỉ smoke test, không cần test UI, kh
 - Vẫn giữ nguyên gate mặc định bắt buộc của repo (không phải phần mở rộng của plan này, mà là yêu cầu chung trong `AGENTS.md`/`api/AGENTS.md`/`ui/AGENTS.md`): `dotnet build`, `dotnet test` unit/integration backend, `npm run build -- --configuration development`, `npm run test:ci` frontend. Đây là compile/regression tối thiểu, không phải "test UI" theo nghĩa ma trận visual/responsive/accessibility.
 - **Không** viết ma trận Unit/component chi tiết theo từng trạng thái UI, **không** viết test visual/responsive/accessibility (như plan `AUI` mục 14), **không** đo hoặc kiểm performance/load.
 - Yêu cầu bắt buộc duy nhất về kiểm thử tính năng: **smoke test thủ công theo golden path**, chạy trên môi trường Development sau khi build:
-  1. Đăng nhập `Teacher`; tạo `AssessmentSheet` cho một học sinh bất kỳ (không giới hạn nhóm). Xác nhận `AssessmentSheetSpreadsheetId` vẫn null lúc này (chưa copy file).
+  1. Đăng nhập `Teacher`; tạo `AssessmentSheet` cho một học sinh bất kỳ (không giới hạn nhóm). Xác nhận không có thao tác tạo/copy Google Sheet riêng.
   2. Chọn plan bằng ít nhất một filter (`grade`, hoặc `GroupLv1/2/3Name`); xác nhận request tạo mới gửi đủ `assessmentId`, `latestGrade`, `note` cho từng mục được chọn và `AssessmentRecord` tạo ra có `PlanGrade`/`PlanNote` đúng theo payload; `FinalGrade`/`FinalNote` để trống.
-  3. Bấm "Xuất sang Google Sheet"; xác nhận `AssessmentSheetSpreadsheetId` được set (file `[F01]` mới xuất hiện trên Drive, là bản copy của `gen_assessment_sheet`), và sheet `data` (`gid=0`) trong `[F01]` có đúng dữ liệu (cả `Plan*` lẫn `Final*`, dù `Final*` còn trống).
-  4. Sửa plan (đổi `PlanGrade`/`PlanNote` một vài mục), bấm "Đồng bộ"; xác nhận sheet `data` cập nhật, **không** tạo thêm file `[F01]` khác (vẫn dùng đúng `AssessmentSheetSpreadsheetId` cũ).
-  5. Sinh PDF `[F02]`; xác nhận sheet `khcn_template` (`gid=1320805599`) trong **đúng file `[F01]` đã có** được điền `PlanGrade`/`PlanNote` mới, link PDF lưu vào `AssessmentSheet.PlanFileLinkPdf` và file mở được.
-  6. Nhập `FinalGrade`/`FinalNote` cho một số mục (không cần đủ hết) — xác nhận `PlanGrade` không đổi; sinh PDF `[F03]` dù còn thiếu — xác nhận sheet `KQ_template` (`gid=1903920808`) được điền `Final*` và vẫn sinh được PDF.
-  7. Bấm cập nhật kết quả vào `[F0.ĐG]`; xác nhận `SubmissionDate` được set và đúng ô (dò theo `E16:E`/`H16:16`) trên sheet `ĐG` của `[F0]` có nhãn của **`FinalGrade`** đúng theo bảng mapping (mục 4).
-  8. Chuyển `Status` sang `Done`; xác nhận bị khoá sửa plan/`PlanGrade`/`PlanNote`/`FinalGrade`/`FinalNote`/feedback; chuyển lại `Open` (bất kỳ vai trò) và xác nhận sửa được tiếp.
-  9. Chạy `POST /google-sheets/sync-assessments` bằng tài khoản `Teacher`; xác nhận không còn bị `403` và `Assessment`/`AssessmentSheetLatest`/`AssessmentRecordLatest` được nạp lại mà không đổi `AssessmentRecord` đã snapshot trong `AssessmentSheet` đang mở ở bước 1–8, và không đụng tới file `[F01]` của bảng đó.
-  10. Kiểm tra nhanh bằng `Admin`/`SuperAdmin` rằng họ cũng thấy/sửa được đúng `AssessmentSheet` do `Teacher` tạo ở bước 1 (không giới hạn theo nhóm), bao gồm cả việc thấy đúng `AssessmentSheetSpreadsheetId`/link PDF/cả hai cặp `Plan*`/`Final*`.
+  3. Sửa plan (đổi `PlanGrade`/`PlanNote` một vài mục), lưu lại và xác nhận chỉ dữ liệu portal đổi, không có request legacy `export-to-sheet`/`sync-to-sheet`.
+  4. Mở preview PDF `[F02]`; xác nhận PDF kế hoạch render từ UI, mở blob PDF được, upload Drive cập nhật `AssessmentSheet.PlanFileLinkPdf`.
+  5. Nhập `FinalGrade`/`FinalNote` cho một số mục (không cần đủ hết) — xác nhận `PlanGrade` không đổi; mở preview PDF `[F03]` dù còn thiếu và upload Drive cập nhật `ResultFileLinkPdf`.
+  6. Chuyển `Status` sang `Done`, bấm cập nhật kết quả vào `[F0.ĐG]`; xác nhận `SubmissionDate` được set và đúng ô (dò theo `E16:E`/`H16:16`) trên sheet `ĐG` của `[F0]` có nhãn của **`FinalGrade`** đúng theo bảng mapping (mục 4), `FinalNote` ở cột kế bên.
+  7. Xác nhận `Done` vẫn khoá như logic hiện hành; chuyển lại `Open` (bất kỳ vai trò) và xác nhận sửa được tiếp.
+  8. Chạy `POST /google-sheets/sync-assessments` bằng tài khoản `Teacher`; xác nhận không còn bị `403` và `Assessment`/`AssessmentSheetLatest`/`AssessmentRecordLatest` được nạp lại mà không đổi `AssessmentRecord` đã snapshot trong `AssessmentSheet` đang mở.
+  9. Kiểm tra nhanh bằng `Admin`/`SuperAdmin` rằng họ cũng thấy/sửa được đúng `AssessmentSheet` do `Teacher` tạo ở bước 1 (không giới hạn theo nhóm), bao gồm link PDF/cả hai cặp `Plan*`/`Final*`.
 - Ghi lại kết quả smoke test (pass/fail từng bước, ngày chạy, evidence) trong `.agents/backend/MEMORY.md` và/hoặc `.agents/frontend/MEMORY.md` tuỳ bước thuộc phía nào; không cần báo cáo test coverage riêng.
-- Nếu một bước smoke phụ thuộc vào phần "sẽ bổ sung sau" (mapping cột chi tiết trong sheet `data`/`khcn_template`/`KQ_template`, xem requirements 09 mục 15) mà chưa có, ghi rõ đây là blocker chờ input người dùng thay vì tự suy diễn định dạng cột.
+- Không smoke test thao tác tạo/copy Google Sheet riêng `[F01]` vì luồng này đã bị gỡ.
 
 ## 10. File dự kiến thay đổi
 
 Backend:
 
-- `api/src/AdminPortal.Domain/Entities/AssessmentSheet.cs` (thêm field `AssessmentSheetSpreadsheetId`), `AssessmentRecord.cs` (đã có `PlanGrade`/`PlanNote`/`FinalGrade`/`FinalNote`), `AssessmentSheetLatest.cs`, `AssessmentRecordLatest.cs`.
+- `api/src/AdminPortal.Domain/Entities/AssessmentSheet.cs` (`AssessmentSheetSpreadsheetId` là legacy DB-only), `AssessmentRecord.cs` (đã có `PlanGrade`/`PlanNote`/`FinalGrade`/`FinalNote`), `AssessmentSheetLatest.cs`, `AssessmentRecordLatest.cs`.
 - `api/src/AdminPortal.Domain/Enums/AssessmentSheetStatus.cs` (nếu cần).
 - `api/src/AdminPortal.Infrastructure/Persistence/Configurations/AssessmentSheetConfiguration.cs`, `AssessmentRecordConfiguration.cs`, `AssessmentSheetLatestConfiguration.cs`, `AssessmentRecordLatestConfiguration.cs` (mới).
 - `api/src/AdminPortal.Infrastructure/Persistence/*DbContext*.cs` (đăng ký `DbSet`).
 - EF migration + Designer + model snapshot mới (sinh bằng CLI theo `api/AGENTS.md`).
 - `api/src/AdminPortal.Application/AssessmentSheets/` (mới: models, service, validation).
-- `api/src/AdminPortal.Application/GoogleSheets/GoogleSheetsService.cs`, `GoogleSheetsModels.cs`, `IGoogleSheetsService.cs` (mở rộng theo mục 6: Drive file copy, `EnsureAssessmentSheetFileAsync`, ghi sheet theo `gid` cố định với đúng field group (`Plan*`/`Final*`), ghi `[F0.ĐG]` theo vị trí `E16:E`/`H16:16` bằng `FinalGrade`, mapping nhãn).
+- `api/src/AdminPortal.Application/GoogleSheets/GoogleSheetsService.cs`, `GoogleSheetsModels.cs`, `IGoogleSheetsService.cs` (sync nguồn `[F0]`, upload PDF Drive, ghi `[F0.ĐG]` theo vị trí `E16:E`/`H16:16` bằng `FinalGrade`/`FinalNote`, mapping nhãn).
 - `api/src/AdminPortal.Api/Controllers/AssessmentSheetsController.cs` (mới), `GoogleSheetsController.cs` (cập nhật quyền).
 - `api/src/AdminPortal.Api/Authentication/AuthenticationExtensions.cs` (chỉ nếu quyết định thêm role check tại handler thay vì policy — xem mục 6.5, không đổi định nghĩa `PortalManagers`).
-- `api/appsettings*.json` (cấu hình `AssessmentSheetTemplateFileId = 12ClFCOFCfUJJ1i8QstHweNaSdLfY-1MB2eaCuigqWwQ`; scope Drive nếu áp dụng phương án export PDF; quyền edit của service account trên file mẫu cần xác nhận trước khi chạy thật — xem mục 13).
+- `api/appsettings*.json` (chỉ giữ cấu hình Google nguồn/upload còn dùng; các key template/gid cho `[F01]` không còn thuộc config hiện hành).
 - `api/tests/AdminPortal.UnitTests/...`, `api/tests/AdminPortal.IntegrationTests/...` (test tương xứng theo gate mặc định, không phải ma trận riêng).
 
 Frontend:
@@ -208,7 +190,7 @@ Frontend:
 Tài liệu/handoff:
 
 - `api/README.md`, `api/requests.http` (endpoint mới).
-- `.agents/backend/MEMORY.md`, `.agents/frontend/MEMORY.md`, `.agents/shared/MEMORY.md` (quyết định kỹ thuật, đặc biệt mục 6.1 và 7, và việc tách `Plan*`/`Final*`).
+- `.agents/backend/MEMORY.md`, `.agents/frontend/MEMORY.md`, `.agents/shared/MEMORY.md` (quyết định kỹ thuật, đặc biệt việc ngừng dùng `[F01]`, upload PDF từ UI và tách `Plan*`/`Final*`).
 - `docs/tasks/**`, `docs/plans/README.md` (thêm dòng `ASH`).
 
 ## 11. Mã đợt triển khai
@@ -219,32 +201,32 @@ Tài liệu/handoff:
 
 ### Backend
 
-- `ASH-BE-00`: khoá contract DTO/enum/API surface (mục 5, 8); thêm field `AssessmentSheetSpreadsheetId`; quyết định giữ/bỏ `ClosedDate` trên `AssessmentSheetLatest`; khoá `ASH-DEC-01`, `ASH-DEC-02`, `ASH-DEC-05` (mục 13, `ASH-DEC-04` đã có giá trị cụ thể) trước khi code.
+- `ASH-BE-00`: khoá contract DTO/enum/API surface (mục 5, 8); quyết định giữ/bỏ `ClosedDate` trên `AssessmentSheetLatest`; khoá `ASH-DEC-01`, `ASH-DEC-02`, `ASH-DEC-05` trước khi code. `AssessmentSheetSpreadsheetId` hiện chỉ còn legacy DB-only.
 - `ASH-BE-01`: domain/config/migration cho `AssessmentSheet` (gồm field mới)/`AssessmentRecord` (4 field kết quả)/`AssessmentSheetLatest`/`AssessmentRecordLatest`, fresh + `has-pending-model-changes` xanh.
 - `ASH-BE-02`: `AssessmentSheetService` — CRUD, chọn/sửa plan có filter, khởi tạo `PlanGrade`/`PlanNote` từ `records[].latestGrade`/`records[].note` trong request tạo mới, chuyển `Open`/`Done`, authorization mở cho mọi vai trò.
-- `ASH-BE-03`: mở rộng `GoogleSheetsService` — `EnsureAssessmentSheetFileAsync` (Drive file copy lazy), ghi/cập nhật sheet `data` (đủ cả 4 field), ghi `[F0.ĐG]` theo vị trí `E16:E`/`H16:16` bằng `FinalGrade` + mapping nhãn + `SubmissionDate`, nạp lại `AssessmentSheetLatest`/`AssessmentRecordLatest` (chỉ-đọc), mở quyền `Teacher` cho `sync-assessments` theo đúng cách ở mục 6.5.
-- `ASH-BE-04`: sinh PDF `[F02]`/`[F03]` theo phương án đã khoá ở `ASH-DEC-01` — ghi `Plan*` trực tiếp vào sheet `khcn_template`, `Final*` vào `KQ_template` (cả hai sẵn có trong `[F01]`, không cần duplicate sheet), rồi export PDF (mục 7).
+- `ASH-BE-03`: mở rộng `GoogleSheetsService` — ghi `[F0.ĐG]` theo vị trí `E16:E`/`H16:16` bằng `FinalGrade`/`FinalNote` + mapping nhãn + `SubmissionDate`, nạp lại `AssessmentSheetLatest`/`AssessmentRecordLatest` (chỉ-đọc), mở quyền `Teacher` cho `sync-assessments`.
+- `ASH-BE-04`: legacy sau cleanup — backend không còn sinh PDF từ Google Sheet; PDF `[F02]`/`[F03]` do UI render và backend chỉ nhận upload Drive.
 - `ASH-BE-05`: unit/integration test tương xứng thay đổi, README/`requests.http`, chạy default verification gate (mục 9), ghi kết quả smoke phần backend.
 
 ### Frontend
 
-- `ASH-FE-00`: khoá contract cùng backend trước khi code UI (không tự đoán DTO), gồm cả field `AssessmentSheetSpreadsheetId` và 4 field `Plan*`/`Final*` trên `AssessmentRecord`.
+- `ASH-FE-00`: khoá contract cùng backend trước khi code UI (không tự đoán DTO), gồm 4 field `Plan*`/`Final*` trên `AssessmentRecord`; không dùng `assessmentSheetSpreadsheetId` trong UI contract v1.
 - `ASH-FE-01`: trang danh sách + tạo `AssessmentSheet`, chọn học sinh, chọn plan có filter (`grade` đọc từ `AssessmentRecordLatest`, `GroupLv1/2/3Name`).
-- `ASH-FE-02`: form chi tiết — sửa plan/`PlanGrade`/`PlanNote`, nút Xuất sang Google Sheet/Đồng bộ.
-- `ASH-FE-03`: khu vực nhập `FinalGrade`/`FinalNote`, nút sinh PDF `[F02]`/`[F03]`, nút cập nhật `[F0.ĐG]`, hiển thị `SubmissionDate`/link file, chuyển `Open`/`Done`.
+- `ASH-FE-02`: form chi tiết — sửa plan/`PlanGrade`/`PlanNote`; không còn nút Xuất sang Google Sheet/Đồng bộ riêng cho `[F01]`.
+- `ASH-FE-03`: khu vực nhập `FinalGrade`/`FinalNote`, nút preview/upload PDF `[F02]`/`[F03]`, nút cập nhật `[F0.ĐG]`, hiển thị `SubmissionDate`/link file, chuyển `Open`/`Done`.
 - `ASH-FE-04`: build/`test:ci` mặc định, cập nhật docs/memory, chạy phần frontend của smoke test (mục 9) phối hợp backend.
 
 ### QA
 
-- `ASH-QA-01`: chạy đầy đủ 10 bước smoke ở mục 9 trên môi trường Development, ghi kết quả pass/fail vào memory; không mở rộng ngoài phạm vi đã giới hạn.
+- `ASH-QA-01`: chạy đầy đủ smoke ở mục 9 trên môi trường Development, ghi kết quả pass/fail vào memory; không mở rộng ngoài phạm vi đã giới hạn.
 
 ## 12. Definition of Done
 
-- Toàn bộ luồng ở mục 9 (10 bước smoke) chạy pass trên môi trường Development.
+- Toàn bộ luồng ở mục 9 chạy pass trên môi trường Development.
 - `dotnet build`/`dotnet test` (unit + integration) và `npm run build -- --configuration development`/`npm run test:ci` đều pass theo gate mặc định của `AGENTS.md`.
 - EF xác nhận không còn pending model changes sau migration mới.
 - `Teacher` gọi được `sync-assessments` không còn `403`; các endpoint quản trị khác (Students/Groups/Teachers/Users/Attendance recovery) vẫn giữ nguyên giới hạn `PortalManagers` — không bị mở nhầm quyền.
-- Mỗi `AssessmentSheet` chỉ tạo đúng một file `[F01]` (không copy trùng khi bấm lại nút nhiều lần); file mẫu `gen_assessment_sheet` không bị chỉnh sửa bởi bất kỳ luồng nào.
+- Không còn tạo/copy Google Sheet riêng `[F01]`; source không còn endpoint/config/service method cho `export-to-sheet`, `sync-to-sheet`, `generate-plan-pdf`, `generate-result-pdf`.
 - Sửa `PlanGrade`/`FinalGrade`/plan trên một `AssessmentSheet` không ghi ngược `AssessmentSheetLatest`/`AssessmentRecordLatest`/`Assessment` gốc; hai bảng `*Latest` chỉ bị ghi bởi đúng một luồng đồng bộ (mục 12 requirements 09), không bởi bất kỳ API nào khác. Sửa `FinalGrade` không làm đổi `PlanGrade` và ngược lại.
 - `Done` khoá đúng các field theo mục 4 của requirements 09; `Open` mở lại được bởi mọi vai trò, không cần lý do.
 - README/`requests.http`/`docs/tasks/**`/`docs/plans/README.md`/memory được cập nhật.
@@ -252,14 +234,14 @@ Tài liệu/handoff:
 
 ## 13. Quyết định cần user khoá
 
-Cả 5 quyết định dưới đây **đã được chốt**. `ASH-DEC-03`/`04`/`05` đã **áp dụng thật vào code** ở `ASH-BE-00`/`ASH-BE-01` (2026-08-20). `ASH-DEC-01`/`02` vẫn chờ `ASH-BE-04`/`ASH-BE-03` triển khai.
+Các quyết định dưới đây là lịch sử của epic. Sau cleanup 2026-08-27, các quyết định liên quan `[F01]`/PDF từ Google Sheet được đánh dấu legacy và không còn là hướng triển khai hiện hành.
 
 | Mã | Quyết định | Đã chốt | Trạng thái code |
 |---|---|---|---|
-| `ASH-DEC-01` | Cách sinh PDF `[F02]`/`[F03]` | Ghi dữ liệu (`Plan*` cho khcn, `Final*` cho KQ) trực tiếp vào sheet `khcn_template`/`KQ_template` sẵn có trong `[F01]`, rồi export sheet đó sang PDF theo `gid` qua Google Sheets/Drive (mục 7); chỉ chuyển sang thư viện PDF .NET (ví dụ QuestPDF Community) nếu export bị chặn về quyền/scope. | Chưa — chờ `ASH-BE-04` |
+| `ASH-DEC-01` | Cách sinh PDF `[F02]`/`[F03]` | Legacy: từng chốt sinh PDF từ sheet `khcn_template`/`KQ_template` trong `[F01]`. Hiện đã thay bằng UI preview/html2pdf + upload Drive. | **Legacy/removed** |
 | `ASH-DEC-02` | Cách mở quyền `Teacher` cho `sync-assessments` | Thêm role check `Teacher`/`Admin`/`SuperAdmin` ngay tại handler `sync-assessments`, giữ nguyên định nghĩa policy `PortalManagers` dùng chung cho các API quản trị khác (mục 6.5) — tránh mở nhầm quyền Student/Group/Teacher/User cho `Teacher`. | Chưa — chờ `ASH-BE-03` |
 | `ASH-DEC-03` | Giữ hay bỏ field `ClosedDate` trên `AssessmentSheetLatest` | Bỏ, vì bảng chỉ-đọc/prefill không có ý nghĩa dùng field này (đã bỏ trên `AssessmentSheet` từ trước). | **Đã code** — field đã xoá khỏi `AssessmentSheetLatest.cs`, migration không tạo cột `closed_date`. |
-| `ASH-DEC-04` | Spreadsheet nguồn cho `[F01]` | File mẫu `gen_assessment_sheet`, id `12ClFCOFCfUJJ1i8QstHweNaSdLfY-1MB2eaCuigqWwQ`, cấu hình vào setting `AssessmentSheetTemplateFileId`. | **Đã code** — thêm vào `GoogleSheetsSettings`/`IGoogleSheetsSettings` và `appsettings.json`. Còn một điều kiện tiên quyết vận hành (không phải code): xác nhận service account đã có quyền đọc file mẫu để copy và tạo file mới trong Drive hay chưa. |
+| `ASH-DEC-04` | Spreadsheet nguồn cho `[F01]` | Legacy: từng dùng file mẫu `gen_assessment_sheet`. Hiện không còn tạo `[F01]`, setting template đã gỡ khỏi config hiện hành. | **Legacy/removed** |
 | `ASH-DEC-05` | Khoá upsert khi đồng bộ `AssessmentSheetLatest`/`AssessmentRecordLatest` | `AssessmentSheetLatest` unique theo `StudentId`; `AssessmentRecordLatest` unique theo (`AssessmentSheetLatestId`, mục đánh giá). | **Đã code** — migration hiện hành tạo unique index theo (`AssessmentSheetLatestId`, `AssessmentId`). Bản trung gian `AssessmentCode` đã bị thay thế, chỉ còn trong log lịch sử. |
 
 Đây là các quyết định kỹ thuật có thể đảo ngược nếu phát hiện vấn đề khi code, không phải quyết định nghiệp vụ (nghiệp vụ đã chốt xong trong requirements 09).

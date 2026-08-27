@@ -2,6 +2,8 @@
 
 Owner: `backend`. Phụ thuộc: `ASH-BE-02`. Trạng thái: xem [`../status.md`](../status.md). Log lịch sử: [`../log.md`](../log.md).
 
+> Cập nhật 2026-08-27: phần tạo/copy Google Sheet riêng `[F01]`, `export-to-sheet` và `sync-to-sheet` trong file này là lịch sử thiết kế cũ. Luồng hiện hành chỉ còn sync nguồn `[F0]`, ghi kết quả về `[F0.ĐG]`, upload PDF do UI render; xem `ASH-CL-01`.
+
 Nguồn: [plan mục 6](../../../plans/07-ASH-assessment-sheet.md#6-thiết-kế-google-sheets), [sơ đồ luồng dữ liệu](../../../requirements/09-bang-danh-gia-nang-luc-so-do-du-lieu.md).
 
 ## Mục đích

@@ -2,6 +2,8 @@
 
 Owner: `frontend`. Phụ thuộc: `ASH-BE-00`. Trạng thái: xem [`../status.md`](../status.md). Log lịch sử: [`../log.md`](../log.md).
 
+> Cập nhật 2026-08-27: UI contract v1 không dùng `assessmentSheetSpreadsheetId` và không gọi endpoint legacy `export-to-sheet`/`sync-to-sheet`/`generate-plan-pdf`/`generate-result-pdf`; xem `ASH-CL-01`.
+
 Nguồn: [plan mục 8](../../../plans/07-ASH-assessment-sheet.md#8-api-dự-kiến).
 
 ## Mục đích

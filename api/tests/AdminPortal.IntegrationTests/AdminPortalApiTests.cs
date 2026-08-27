@@ -1001,24 +1001,6 @@ public sealed class AdminPortalApiTests(ApiFactory factory) : IClassFixture<ApiF
             CancellationToken cancellationToken) =>
             throw new NotImplementedException();
 
-        public Task<string> EnsureAssessmentSheetSpreadsheetAsync(AssessmentSheet sheet, CancellationToken cancellationToken) =>
-            throw new NotImplementedException();
-
-        public Task WriteAssessmentSheetDataAsync(
-            string spreadsheetId,
-            IReadOnlyList<AssessmentRecord> records,
-            CancellationToken cancellationToken) =>
-            throw new NotImplementedException();
-
-        public Task<string> GenerateAssessmentSheetPlanPdfAsync(
-            string spreadsheetId,
-            Guid assessmentSheetId,
-            Guid studentId,
-            string? existingFileLink,
-            IReadOnlyList<AssessmentRecord> records,
-            CancellationToken cancellationToken) =>
-            throw new NotImplementedException();
-
         public Task<string> UploadAssessmentSheetPlanPdfAsync(
             Guid assessmentSheetId,
             Guid studentId,
@@ -1048,15 +1030,6 @@ public sealed class AdminPortalApiTests(ApiFactory factory) : IClassFixture<ApiF
             UploadedContent = content;
             return Task.FromResult($"https://drive.example.test/{assessmentSheetId:N}/result.pdf");
         }
-
-        public Task<string> GenerateAssessmentSheetResultPdfAsync(
-            string spreadsheetId,
-            Guid assessmentSheetId,
-            Guid studentId,
-            string? existingFileLink,
-            IReadOnlyList<AssessmentRecord> records,
-            CancellationToken cancellationToken) =>
-            throw new NotImplementedException();
 
         public Task<IReadOnlyList<ResultSourceCellUpdate>> WriteFinalGradesToSourceSheetAsync(
             string studentCode,

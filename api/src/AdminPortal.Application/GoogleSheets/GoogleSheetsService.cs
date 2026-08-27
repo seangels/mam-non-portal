@@ -33,13 +33,6 @@ public class GoogleSheetsSettings : IGoogleSheetsSettings
     public string SpreadsheetId { get; set; } = string.Empty;
     public string SheetConfigRange { get; set; } = string.Empty;
     public string SheetConfigLastRow { get; set; } = string.Empty;
-    public string AssessmentSheetTemplateFileId { get; set; } = string.Empty;
-
-    public string DataSheetName { get; set; } = "data";
-    public string PlanTemplateSheetName { get; set; } = "khcn_template";
-    public long PlanTemplateSheetGid { get; set; } = 1320805599;
-    public string ResultTemplateSheetName { get; set; } = "KQ_template";
-    public long ResultTemplateSheetGid { get; set; } = 1903920808;
 
 }
 internal sealed class AssessmentGroupSync
@@ -57,7 +50,6 @@ public class GoogleSheetsService : IGoogleSheetsService, IDisposable
     private readonly Lazy<UserCredential> _credential;
     private readonly Lazy<SheetsService> _sheetsService;
     private readonly Lazy<DriveService> _driveService;
-    private readonly Lazy<HttpClient> _httpClient;
 
     private bool _disposed;
     private readonly IApplicationDbContext dbContext;
@@ -96,7 +88,6 @@ public class GoogleSheetsService : IGoogleSheetsService, IDisposable
         _credential = new Lazy<UserCredential>(CreateCredential);
         _sheetsService = new Lazy<SheetsService>(CreateSheetsService);
         _driveService = new Lazy<DriveService>(CreateDriveService);
-        _httpClient = new Lazy<HttpClient>(() => new HttpClient());
     }
 
     // Dùng OAuth 2.0 "installed app" flow của tài khoản Google cá nhân (không phải service account):
@@ -363,7 +354,6 @@ public class GoogleSheetsService : IGoogleSheetsService, IDisposable
                 // Giải phóng đối tượng SheetsService của Google
                 if (_sheetsService.IsValueCreated) _sheetsService.Value.Dispose();
                 if (_driveService.IsValueCreated) _driveService.Value.Dispose();
-                if (_httpClient.IsValueCreated) _httpClient.Value.Dispose();
             }
             _disposed = true;
         }
@@ -543,61 +533,15 @@ public class GoogleSheetsService : IGoogleSheetsService, IDisposable
         return response;
     }
 
-    public async Task<string> EnsureAssessmentSheetSpreadsheetAsync(AssessmentSheet sheet, CancellationToken cancellationToken)
-    {
-        if (!string.IsNullOrWhiteSpace(sheet.AssessmentSheetSpreadsheetId))
-            return sheet.AssessmentSheetSpreadsheetId;
-        var _assessmentSheetTemplateFileId = googleSheetsSettings.AssessmentSheetTemplateFileId;
-        if (string.IsNullOrWhiteSpace(_assessmentSheetTemplateFileId))
-            throw GoogleOperationFailed("Chưa cấu hình GoogleSheets:AssessmentSheetTemplateFileId.");
-
-        var folderId = await GetStudentDriveFolderIdAsync(sheet.StudentId, cancellationToken);
-
-        Google.Apis.Drive.v3.Data.File copy;
-        try
-        {
-            var body = new Google.Apis.Drive.v3.Data.File
-            {
-                Name = $"{sheet.StudentSnapshot.StudentCode}.{sheet.StudentSnapshot.FullName}_{sheet.StartDate}_{sheet.DueDate}",
-                Parents = folderId is null ? null : [folderId]
-            };
-            copy = await _driveService.Value.Files.Copy(body, _assessmentSheetTemplateFileId).ExecuteAsync(cancellationToken);
-        }
-        catch (Exception ex)
-        {
-            throw GoogleOperationFailed("Lỗi khi copy file mẫu gen_assessment_sheet trên Drive để tạo [F01].", ex);
-        }
-
-        sheet.AssessmentSheetSpreadsheetId = copy.Id;
-        await dbContext.SaveChangesAsync(cancellationToken);
-        return copy.Id;
-    }
-
     /// <summary>
     /// Id thư mục Drive riêng của học sinh — nhập thủ công ở UI quản lý Student (Student.DriveFolderId),
-    /// backend chỉ đọc, không tự tạo. Null nếu chưa nhập, khi đó file sẽ tạo ở vị trí mặc định của Drive API
-    /// (thư mục cha của file mẫu khi copy [F01], gốc Drive của service account khi tạo PDF mới).
+    /// backend chỉ đọc, không tự tạo. Flow upload PDF của AssessmentSheet yêu cầu có folder này.
     /// </summary>
     private async Task<string?> GetStudentDriveFolderIdAsync(Guid studentId, CancellationToken cancellationToken) =>
         await dbContext.Students.AsNoTracking()
             .Where(x => x.Id == studentId)
             .Select(x => x.DriveFolderId)
             .SingleOrDefaultAsync(cancellationToken);
-
-    // TẠM/CHƯA XÁC NHẬN: định dạng cột dưới đây là suy đoán hợp lý, chưa có mapping thật từ đội vận hành
-    // (xem requirements 09 mục 15 — "Định dạng chi tiết từng cột... sẽ được bổ sung sau"). Sửa lại theo
-    // mapping thật khi có, đừng coi đây là nguồn sự thật lâu dài.
-    public Task WriteAssessmentSheetDataAsync(string spreadsheetId, IReadOnlyList<AssessmentRecord> records, CancellationToken cancellationToken) =>
-        WriteRecordsToSheetAsync(spreadsheetId, googleSheetsSettings.DataSheetName, records, includePlan: true, includeFinal: true, cancellationToken);
-
-    public async Task<string> GenerateAssessmentSheetPlanPdfAsync(
-        string spreadsheetId, Guid assessmentSheetId, Guid studentId, string? existingFileLink,
-        IReadOnlyList<AssessmentRecord> records, CancellationToken cancellationToken)
-    {
-        await WriteRecordsToSheetAsync(spreadsheetId, googleSheetsSettings.PlanTemplateSheetName, records, includePlan: true, includeFinal: false, cancellationToken);
-        var bytes = await ExportSheetToPdfAsync(spreadsheetId, googleSheetsSettings.PlanTemplateSheetGid, cancellationToken);
-        return await SavePdfToDriveAsync(studentId, existingFileLink, assessmentSheetId, "plan.pdf", bytes, cancellationToken);
-    }
 
     public async Task<string> UploadAssessmentSheetPlanPdfAsync(
         Guid assessmentSheetId, Guid studentId, string? existingFileLink, string fileName,
@@ -622,15 +566,6 @@ public class GoogleSheetsService : IGoogleSheetsService, IDisposable
             content,
             cancellationToken,
             requireStudentFolder: true);
-
-    public async Task<string> GenerateAssessmentSheetResultPdfAsync(
-        string spreadsheetId, Guid assessmentSheetId, Guid studentId, string? existingFileLink,
-        IReadOnlyList<AssessmentRecord> records, CancellationToken cancellationToken)
-    {
-        await WriteRecordsToSheetAsync(spreadsheetId, googleSheetsSettings.ResultTemplateSheetName, records, includePlan: false, includeFinal: true, cancellationToken);
-        var bytes = await ExportSheetToPdfAsync(spreadsheetId, googleSheetsSettings.ResultTemplateSheetGid, cancellationToken);
-        return await SavePdfToDriveAsync(studentId, existingFileLink, assessmentSheetId, "result.pdf", bytes, cancellationToken);
-    }
 
     public async Task<IReadOnlyList<ResultSourceCellUpdate>> WriteFinalGradesToSourceSheetAsync(
         string studentCode,
@@ -824,82 +759,6 @@ public class GoogleSheetsService : IGoogleSheetsService, IDisposable
         catch (Exception ex)
         {
             throw GoogleOperationFailed("Lỗi khi ghi kết quả vào [F0.ĐG].", ex);
-        }
-    }
-
-    private async Task WriteRecordsToSheetAsync(
-        string spreadsheetId,
-        string sheetName,
-        IReadOnlyList<AssessmentRecord> records,
-        bool includePlan,
-        bool includeFinal,
-        CancellationToken cancellationToken)
-    {
-        var rows = new List<IList<object>> { BuildHeaderRow(includePlan, includeFinal) };
-        foreach (var record in records.OrderBy(x => x.AssessmentRowIndex ?? int.MaxValue))
-        {
-            var row = new List<object>
-            {
-                record.AssessmentSnapshot.Code,
-                record.AssessmentSnapshot.Name,
-                record.AssessmentSnapshot.GroupLv1Name ?? "",
-                record.AssessmentSnapshot.GroupLv2Name ?? "",
-                record.AssessmentSnapshot.GroupLv3Name ?? ""
-            };
-            if (includePlan)
-            {
-                row.Add(record.PlanGrade is null ? "" : AssessmentSheetRules.GradeLabel(record.PlanGrade.Value));
-                row.Add(record.PlanNote ?? "");
-            }
-            if (includeFinal)
-            {
-                row.Add(record.FinalGrade is null ? "" : AssessmentSheetRules.GradeLabel(record.FinalGrade.Value));
-                row.Add(record.FinalNote ?? "");
-            }
-            rows.Add(row);
-        }
-
-        try
-        {
-            await _sheetsService.Value.Spreadsheets.Values
-                .Clear(new Google.Apis.Sheets.v4.Data.ClearValuesRequest(), spreadsheetId, $"{sheetName}!A1:Z2000")
-                .ExecuteAsync(cancellationToken);
-
-            var updateRequest = _sheetsService.Value.Spreadsheets.Values.Update(
-                new Google.Apis.Sheets.v4.Data.ValueRange { Values = rows }, spreadsheetId, $"{sheetName}!A1");
-            updateRequest.ValueInputOption = SpreadsheetsResource.ValuesResource.UpdateRequest.ValueInputOptionEnum.USERENTERED;
-            await updateRequest.ExecuteAsync(cancellationToken);
-        }
-        catch (Exception ex)
-        {
-            throw GoogleOperationFailed($"Lỗi khi ghi dữ liệu vào sheet {sheetName} của file [F01].", ex);
-        }
-    }
-
-    private static List<object> BuildHeaderRow(bool includePlan, bool includeFinal)
-    {
-        var header = new List<object> { "Mã mục", "Tên mục", "Nhóm 1", "Nhóm 2", "Nhóm 3" };
-        if (includePlan) { header.Add("Kế hoạch"); header.Add("Ghi chú kế hoạch"); }
-        if (includeFinal) { header.Add("Kết quả"); header.Add("Ghi chú kết quả"); }
-        return header;
-    }
-
-    private async Task<byte[]> ExportSheetToPdfAsync(string spreadsheetId, long gid, CancellationToken cancellationToken)
-    {
-        try
-        {
-            var accessToken = await ((ITokenAccess)_credential.Value).GetAccessTokenForRequestAsync(cancellationToken: cancellationToken);
-            using var request = new HttpRequestMessage(
-                HttpMethod.Get,
-                $"https://docs.google.com/spreadsheets/d/{spreadsheetId}/export?format=pdf&gid={gid}&portrait=true&size=A4");
-            request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
-            using var response = await _httpClient.Value.SendAsync(request, cancellationToken);
-            response.EnsureSuccessStatusCode();
-            return await response.Content.ReadAsByteArrayAsync(cancellationToken);
-        }
-        catch (Exception ex)
-        {
-            throw GoogleOperationFailed("Lỗi khi export PDF từ Google Sheets/Drive.", ex);
         }
     }
 

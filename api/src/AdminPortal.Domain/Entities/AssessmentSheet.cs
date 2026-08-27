@@ -50,6 +50,7 @@ public sealed class AssessmentSheet
     public string? Feedback { get; set; }
     public string? PlanFileLinkPdf { get; set; }
     public string? ResultFileLinkPdf { get; set; }
+    /// <summary>Legacy column from the old per-AssessmentSheet Google Sheet flow; new code must not create or depend on it.</summary>
     public string? AssessmentSheetSpreadsheetId { get; set; }
     public Guid? UpdatedByUserId { get; set; }
     [ForeignKey(nameof(UpdatedByUserId))]

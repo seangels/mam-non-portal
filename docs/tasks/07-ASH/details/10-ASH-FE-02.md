@@ -2,6 +2,8 @@
 
 Owner: `frontend`. Phụ thuộc: `ASH-FE-01`, `ASH-BE-03`. Trạng thái: xem [`../status.md`](../status.md). Log lịch sử: [`../log.md`](../log.md).
 
+> Cập nhật 2026-08-27: phần nút "Xuất sang Google Sheet"/"Đồng bộ" cho `[F01]` trong file này là legacy/removed. Form chi tiết hiện chỉ lưu plan/records trong portal; xem `ASH-CL-01`.
+
 Nguồn: [plan mục 6](../../../plans/07-ASH-assessment-sheet.md#6-thiết-kế-google-sheets), [requirements 09 mục 6, 7](../../../requirements/09-bang-danh-gia-nang-luc.md), [sơ đồ luồng dữ liệu](../../../requirements/09-bang-danh-gia-nang-luc-so-do-du-lieu.md).
 
 ## Mục đích

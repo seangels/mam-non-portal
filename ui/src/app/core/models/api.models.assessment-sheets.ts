@@ -43,7 +43,6 @@ export interface AssessmentSheet {
   dueDate?: string | null;
   doneDate?: string | null;
   submissionDate?: string | null;
-  assessmentSheetSpreadsheetId?: string | null;
   planFileLinkPdf?: string | null;
   resultFileLinkPdf?: string | null;
   createdAt: string;

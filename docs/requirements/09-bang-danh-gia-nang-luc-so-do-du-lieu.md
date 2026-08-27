@@ -6,7 +6,7 @@ Sơ đồ minh hoạ luồng dữ liệu mô tả bằng chữ trong [09-bang-da
 
 - Hình trụ = Google Sheet / bảng dữ liệu (nguồn hoặc đích).
   - Màu **xanh dương** = bảng dữ liệu trong database (`AssessmentSheet`/`AssessmentRecord`, `...Latest`).
-  - Màu **xanh lá** = file/sheet trên Google Sheet (`F0`, file mẫu `gen_assessment_sheet`, `F01`, `F0.ĐG`).
+  - Màu **xanh lá** = file/sheet trên Google Sheet/Drive (`F0`, `F0.ĐG`, thư mục Drive học sinh).
 - Hình chữ nhật = thao tác **nút bấm thủ công** (không có bước nào tự động chạy ngầm).
 - Hình bình hành = file PDF xuất ra.
 
@@ -24,54 +24,42 @@ flowchart TD
     Latest[("AssessmentSheetLatest / AssessmentRecordLatest<br/>chỉ đọc — mirror theo học sinh")]
 
     CreateSheet["Tạo AssessmentSheet + chọn plan<br/>nút bấm"]
-    Sheet[("AssessmentSheet / AssessmentRecord<br/>PlanGrade + PlanNote — giai đoạn kế hoạch<br/>FinalGrade + FinalNote — kết quả cuối, độc lập<br/>AssessmentSheetSpreadsheetId — id file F01 riêng")]
+    Sheet[("AssessmentSheet / AssessmentRecord<br/>PlanGrade + PlanNote — giai đoạn kế hoạch<br/>FinalGrade + FinalNote — kết quả cuối, độc lập")]
     EditPlan["Sửa lại plan / PlanGrade<br/>chỉ khi Status = Open"]
     EnterResult["Nhập FinalGrade<br/>chỉ khi Status = Open"]
 
-    Template[("gen_assessment_sheet — file mẫu<br/>sheet data gid 0, khcn_template gid 1320805599, KQ_template gid 1903920808<br/>không bao giờ chỉnh trực tiếp")]
-    F01[("F01 — file riêng của AssessmentSheet này<br/>bản copy file mẫu, đã có sẵn 3 sheet data / khcn_template / KQ_template")]
-
-    Export["Xuất sang Google Sheet<br/>nút bấm"]
-    Sync["Đồng bộ<br/>nút bấm, sau khi sửa plan"]
-    GenPlanPdf["Sinh PDF F02<br/>nút bấm"]
-    GenResultPdf["Sinh PDF F03<br/>nút bấm"]
+    PlanPreview["Preview kế hoạch<br/>UI HTML/A4 + html2pdf.js"]
+    ResultPreview["Preview kết quả<br/>UI HTML/A4 + html2pdf.js"]
     F02[/"F02 — PDF kế hoạch cá nhân"/]
     F03[/"F03 — PDF kết quả đánh giá"/]
+    Drive[("Google Drive folder của học sinh<br/>Student.DriveFolderId")]
 
     Submit["Cập nhật kết quả vào F0.ĐG<br/>nút bấm"]
-    F0DG[("F0.ĐG<br/>mã mục đánh giá — cột E16:E<br/>mã học sinh — hàng H16:16<br/>ghi nhãn FinalGrade tại ô giao nhau")]
+    F0DG[("F0.ĐG<br/>mã mục đánh giá — cột E16:E<br/>mã học sinh — hàng H16:16<br/>ghi FinalGrade + FinalNote tại ô/cột kế bên")]
 
     F0 -- đọc --> Fetch --> Latest
     Latest -- "prefill PlanGrade lúc tạo" --> CreateSheet --> Sheet
     Sheet --> EditPlan --> Sheet
     Sheet --> EnterResult --> Sheet
 
-    Template -. "copy toàn bộ file — chỉ khi F01 chưa tồn tại" .-> F01
-    F01 -. "lưu AssessmentSheetSpreadsheetId" .-> Sheet
+    Sheet --> PlanPreview --> F02 -- "upload-plan-pdf" --> Drive
+    Sheet --> ResultPreview --> F03 -- "upload-result-pdf" --> Drive
 
-    Sheet --> Export -- "ghi sheet data (Plan* + Final*)" --> F01
-    Sheet -. "sau khi sửa plan" .-> Sync -- "ghi đè sheet data" --> F01
-
-    Sheet --> GenPlanPdf -- "điền PlanGrade/PlanNote vào sheet khcn_template rồi export" --> F01 --> F02
-    Sheet --> GenResultPdf -- "điền FinalGrade/FinalNote vào sheet KQ_template rồi export" --> F01 --> F03
-
-    Sheet --> Submit -- "ghi nhãn FinalGrade đúng ô giao nhau" --> F0DG
+    Sheet --> Submit -- "ghi cell có thay đổi + audit" --> F0DG
     F0DG -. "dữ liệu nguồn cho lần Nạp lại sau" .-> F0
 
     classDef db fill:#cfe3ff,stroke:#3a6ea5,color:#1a2e44;
     classDef sheet fill:#d6f0d6,stroke:#4a9c4a,color:#1a3d1a;
     class Sheet,Latest db;
-    class F0,Template,F01,F0DG sheet;
+    class F0,F0DG,Drive sheet;
 ```
 
 </details>
 
 ## Điểm cần lưu ý khi đọc sơ đồ
 
-1. **`gen_assessment_sheet` là file mẫu cố định, không bao giờ bị chỉnh sửa trực tiếp.** Mỗi `AssessmentSheet` có file Google Sheet riêng (`F01`), tạo ra bằng cách **copy toàn bộ file mẫu** (Drive file copy) — không phải tạo/copy từng sheet lẻ trong một file dùng chung. `F01` đã có sẵn cả 3 sheet `data`/`khcn_template`/`KQ_template` ngay từ lúc copy vì đó là bản sao nguyên file.
-2. Việc copy chỉ xảy ra **một lần** cho mỗi `AssessmentSheet` — id file kết quả được lưu vào `AssessmentSheet.AssessmentSheetSpreadsheetId`. Mọi hành động sau đó (Xuất, Đồng bộ, Sinh PDF F02/F03) đều thao tác trên chính file `F01` đó, không đụng lại vào `gen_assessment_sheet`.
-3. **`Nạp lại`** và **`AssessmentSheetLatest`/`AssessmentRecordLatest`** chỉ phục vụ prefill lúc tạo mới; không có mũi tên ngược từ `AssessmentSheet`/`AssessmentRecord` trở lại 2 bảng này.
-4. **Sheet `data`** trong `F01` được ghi trực tiếp từ `AssessmentRecord` hiện tại — lần đầu ở bước Xuất sang Google Sheet, cập nhật lại ở bước Đồng bộ.
-5. **Sheet `khcn_template`/`KQ_template`** trong `F01` được điền dữ liệu mới nhất và export thành PDF **ngay tại mỗi lần bấm "Sinh PDF"** tương ứng — không cần thêm bước copy sheet nào nữa vì cả 2 sheet này đã có sẵn trong `F01` từ lúc copy file.
-6. **`F0.ĐG`** chỉ được ghi khi bấm nút cập nhật kết quả — tách biệt hoàn toàn khỏi luồng Nạp lại. Vị trí ghi: dò cột `E16:E` để tìm đúng dòng theo mã mục đánh giá, dò hàng `H16:16` để tìm đúng cột theo mã học sinh, ghi nhãn `FinalGrade` (không phải chữ cái `A/B/C/D`) vào đúng ô giao nhau.
-7. **`AssessmentRecord` có hai cặp field độc lập:** `PlanGrade`/`PlanNote` (giai đoạn kế hoạch, dùng cho `khcn_template`/`[F02]`) và `FinalGrade`/`FinalNote` (kết quả cuối, dùng cho `KQ_template`/`[F03]`/`F0.ĐG`) — sửa cặp này không ảnh hưởng cặp kia.
+1. **Luồng Google Sheet riêng `[F01]` đã ngừng dùng.** Không còn copy file mẫu, không lưu/expose `AssessmentSheetSpreadsheetId`, không ghi `data`/`khcn_template`/`KQ_template` cho từng `AssessmentSheet`.
+2. **`Nạp lại`** và **`AssessmentSheetLatest`/`AssessmentRecordLatest`** chỉ phục vụ prefill lúc tạo mới; không có mũi tên ngược từ `AssessmentSheet`/`AssessmentRecord` trở lại 2 bảng này.
+3. **PDF `[F02]`/`[F03]`** được render từ UI preview HTML/A4 bằng `html2pdf.js`. Nếu cần lưu Drive, UI upload PDF qua endpoint backend tương ứng; backend chỉ upload file vào `Student.DriveFolderId`.
+4. **`F0.ĐG`** chỉ được ghi khi bấm nút cập nhật kết quả — tách biệt hoàn toàn khỏi luồng Nạp lại. Vị trí ghi: dò cột `E16:E` để tìm đúng dòng theo mã mục đánh giá, dò hàng `H16:16` để tìm đúng cột theo mã học sinh, ghi nhãn `FinalGrade` vào ô kết quả và `FinalNote` vào cột kế bên.
+5. **`AssessmentRecord` có hai cặp field độc lập:** `PlanGrade`/`PlanNote` (giai đoạn kế hoạch, dùng cho `[F02]`) và `FinalGrade`/`FinalNote` (kết quả cuối, dùng cho `[F03]`/`F0.ĐG`) — sửa cặp này không ảnh hưởng cặp kia.

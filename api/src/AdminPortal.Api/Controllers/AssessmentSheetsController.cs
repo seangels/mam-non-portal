@@ -66,27 +66,6 @@ public sealed class AssessmentSheetsController(IAssessmentSheetService assessmen
         CancellationToken cancellationToken) =>
         Ok(await assessmentSheetService.UpdateStatusAsync(id, request, cancellationToken));
 
-    [HttpPost("{id:guid}/export-to-sheet")]
-    [ProducesResponseType<AssessmentSheetDetailResponse>(StatusCodes.Status200OK)]
-    public async Task<ActionResult<AssessmentSheetDetailResponse>> ExportToSheet(
-        Guid id,
-        CancellationToken cancellationToken) =>
-        Ok(await assessmentSheetService.ExportToSheetAsync(id, cancellationToken));
-
-    [HttpPost("{id:guid}/sync-to-sheet")]
-    [ProducesResponseType<AssessmentSheetDetailResponse>(StatusCodes.Status200OK)]
-    public async Task<ActionResult<AssessmentSheetDetailResponse>> SyncToSheet(
-        Guid id,
-        CancellationToken cancellationToken) =>
-        Ok(await assessmentSheetService.SyncToSheetAsync(id, cancellationToken));
-
-    [HttpPost("{id:guid}/generate-plan-pdf")]
-    [ProducesResponseType<AssessmentSheetDetailResponse>(StatusCodes.Status200OK)]
-    public async Task<ActionResult<AssessmentSheetDetailResponse>> GeneratePlanPdf(
-        Guid id,
-        CancellationToken cancellationToken) =>
-        Ok(await assessmentSheetService.GeneratePlanPdfAsync(id, cancellationToken));
-
     [HttpPost("{id:guid}/upload-plan-pdf")]
     [Consumes("multipart/form-data")]
     [RequestSizeLimit(MaxPdfUploadBytes)]
@@ -122,13 +101,6 @@ public sealed class AssessmentSheetsController(IAssessmentSheetService assessmen
         await file.CopyToAsync(stream, cancellationToken);
         return Ok(await assessmentSheetService.UploadPlanPdfAsync(id, file.FileName, stream.ToArray(), cancellationToken));
     }
-
-    [HttpPost("{id:guid}/generate-result-pdf")]
-    [ProducesResponseType<AssessmentSheetDetailResponse>(StatusCodes.Status200OK)]
-    public async Task<ActionResult<AssessmentSheetDetailResponse>> GenerateResultPdf(
-        Guid id,
-        CancellationToken cancellationToken) =>
-        Ok(await assessmentSheetService.GenerateResultPdfAsync(id, cancellationToken));
 
     [HttpPost("{id:guid}/upload-result-pdf")]
     [Consumes("multipart/form-data")]

@@ -24,7 +24,7 @@ public sealed class Student
     public string? GuardianName { get; set; }
     public string? GuardianPhone { get; set; }
     public string? Note { get; set; }
-    /// <summary>Id thư mục Google Drive riêng của học sinh (lazy, tạo lần đầu khi cần file [F01]/PDF của AssessmentSheet).</summary>
+    /// <summary>Id thư mục Google Drive riêng của học sinh, dùng khi upload PDF kế hoạch/kết quả của AssessmentSheet.</summary>
     public string? DriveFolderId { get; set; }
     public StudyMode StudyMode { get; set; }
     public short StudyWeekdayMask { get; set; }

@@ -189,45 +189,6 @@ public sealed class AssessmentSheetService(
         return await BuildDetailAsync(sheet.Id, cancellationToken);
     }
 
-    public async Task<AssessmentSheetDetailResponse> ExportToSheetAsync(Guid id, CancellationToken cancellationToken) =>
-        await ExportOrSyncToSheetAsync(id, cancellationToken);
-
-    public async Task<AssessmentSheetDetailResponse> SyncToSheetAsync(Guid id, CancellationToken cancellationToken) =>
-        await ExportOrSyncToSheetAsync(id, cancellationToken);
-
-    private async Task<AssessmentSheetDetailResponse> ExportOrSyncToSheetAsync(Guid id, CancellationToken cancellationToken)
-    {
-        var actor = currentActor.GetRequired();
-        AssessmentSheetRules.EnsureAssessmentSheetRole(actor);
-        var sheet = await FindRequiredAsync(id, cancellationToken);
-        var records = await LoadRecordEntitiesAsync(id, cancellationToken);
-
-        var spreadsheetId = await googleSheetsService.EnsureAssessmentSheetSpreadsheetAsync(sheet, cancellationToken);
-        await googleSheetsService.WriteAssessmentSheetDataAsync(spreadsheetId, records, cancellationToken);
-
-        return await BuildDetailAsync(id, cancellationToken);
-    }
-
-    public async Task<AssessmentSheetDetailResponse> GeneratePlanPdfAsync(Guid id, CancellationToken cancellationToken)
-    {
-        var actor = currentActor.GetRequired();
-        AssessmentSheetRules.EnsureAssessmentSheetRole(actor);
-        var sheet = await FindRequiredAsync(id, cancellationToken);
-        var records = await LoadRecordEntitiesAsync(id, cancellationToken);
-
-        var spreadsheetId = await googleSheetsService.EnsureAssessmentSheetSpreadsheetAsync(sheet, cancellationToken);
-        var link = await googleSheetsService.GenerateAssessmentSheetPlanPdfAsync(
-            spreadsheetId, sheet.Id, sheet.StudentId, sheet.PlanFileLinkPdf, records, cancellationToken);
-
-        var now = timeProvider.GetUtcNow();
-        sheet.PlanFileLinkPdf = link;
-        sheet.UpdatedByUserId = actor.UserId;
-        sheet.UpdatedAt = now;
-        await dbContext.SaveChangesAsync(cancellationToken);
-
-        return await BuildDetailAsync(id, cancellationToken);
-    }
-
     public async Task<AssessmentSheetDetailResponse> UploadPlanPdfAsync(
         Guid id, string fileName, byte[] content, CancellationToken cancellationToken)
     {
@@ -285,26 +246,6 @@ public sealed class AssessmentSheetService(
 
         AddAudit(actor, "AssessmentSheet.ResultPdfUploaded", sheet.Id, old,
             PdfUploadAuditSnapshot(sheet, "Result", fileName, content.LongLength, oldLink, link));
-        await dbContext.SaveChangesAsync(cancellationToken);
-
-        return await BuildDetailAsync(id, cancellationToken);
-    }
-
-    public async Task<AssessmentSheetDetailResponse> GenerateResultPdfAsync(Guid id, CancellationToken cancellationToken)
-    {
-        var actor = currentActor.GetRequired();
-        AssessmentSheetRules.EnsureAssessmentSheetRole(actor);
-        var sheet = await FindRequiredAsync(id, cancellationToken);
-        var records = await LoadRecordEntitiesAsync(id, cancellationToken);
-
-        var spreadsheetId = await googleSheetsService.EnsureAssessmentSheetSpreadsheetAsync(sheet, cancellationToken);
-        var link = await googleSheetsService.GenerateAssessmentSheetResultPdfAsync(
-            spreadsheetId, sheet.Id, sheet.StudentId, sheet.ResultFileLinkPdf, records, cancellationToken);
-
-        var now = timeProvider.GetUtcNow();
-        sheet.ResultFileLinkPdf = link;
-        sheet.UpdatedByUserId = actor.UserId;
-        sheet.UpdatedAt = now;
         await dbContext.SaveChangesAsync(cancellationToken);
 
         return await BuildDetailAsync(id, cancellationToken);
@@ -386,7 +327,6 @@ public sealed class AssessmentSheetService(
             sheet.DoneDate,
             sheet.SubmissionDate,
             sheet.Feedback,
-            sheet.AssessmentSheetSpreadsheetId,
             sheet.PlanFileLinkPdf,
             sheet.ResultFileLinkPdf,
             sheet.CreatedAt,
@@ -524,7 +464,6 @@ public sealed class AssessmentSheetService(
             x.DueDate,
             x.DoneDate,
             x.SubmissionDate,
-            x.AssessmentSheetSpreadsheetId,
             x.PlanFileLinkPdf,
             x.ResultFileLinkPdf,
             x.CreatedAt,

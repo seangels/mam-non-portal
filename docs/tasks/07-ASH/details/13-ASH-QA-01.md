@@ -2,6 +2,8 @@
 
 Owner: chưa có agent QA riêng — root điều phối, backend (`ASH-BE-05`) và frontend (`ASH-FE-04`) tự chạy phần liên quan. Phụ thuộc: `ASH-BE-05`, `ASH-FE-04`. Trạng thái: xem [`../status.md`](../status.md). Log lịch sử: [`../log.md`](../log.md).
 
+> Cập nhật 2026-08-27: các bước smoke liên quan tạo/copy `[F01]`, `export-to-sheet`, `sync-to-sheet`, `generate-plan-pdf`, `generate-result-pdf` là legacy/removed. Smoke hiện hành theo `docs/plans/07-ASH-assessment-sheet.md` mục 9 và `ASH-CL-01`.
+
 Nguồn: [plan mục 9](../../../plans/07-ASH-assessment-sheet.md#9-test--smoke--phạm-vi-đã-được-người-dùng-giới-hạn).
 
 ## Mục đích

@@ -354,26 +354,6 @@ Content-Type: application/json
 }
 
 ###
-# Các action Google Sheet/PDF dưới đây gọi Drive/Sheets thật (copy file mẫu [F01], ghi sheet, export PDF, ghi [F0.ĐG]).
-# Định dạng cột trong sheet data/khcn_template/KQ_template hiện là suy đoán tạm, chưa có mapping thật từ đội vận hành
-# (xem docs/requirements/09-bang-danh-gia-nang-luc.md mục 15) — chỉ chạy khi đã xác nhận service account có quyền
-# đọc/copy file mẫu gen_assessment_sheet trên Drive, tránh tạo file rác/ghi nhầm trên Google Sheet thật.
-
-POST {{host}}/api/v1/assessment-sheets/{{assessmentSheetId}}/export-to-sheet
-Authorization: Bearer {{accessToken}}
-
-###
-
-POST {{host}}/api/v1/assessment-sheets/{{assessmentSheetId}}/sync-to-sheet
-Authorization: Bearer {{accessToken}}
-
-###
-
-POST {{host}}/api/v1/assessment-sheets/{{assessmentSheetId}}/generate-plan-pdf
-Authorization: Bearer {{accessToken}}
-
-###
-
 # Upload PDF kế hoạch do UI preview tạo bằng html2pdf.js.
 # Endpoint này không gọi generate-plan-pdf cũ và yêu cầu Student.driveFolderId để lưu đúng thư mục Drive học viên.
 # Đổi đường dẫn file PDF mẫu bên dưới trước khi chạy thật.
@@ -387,11 +367,6 @@ Content-Type: application/pdf
 
 < ./samples/ke-hoach-ca-nhan-test.pdf
 --PlanPdfBoundary--
-
-###
-
-POST {{host}}/api/v1/assessment-sheets/{{assessmentSheetId}}/generate-result-pdf
-Authorization: Bearer {{accessToken}}
 
 ###
 

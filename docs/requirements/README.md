@@ -15,7 +15,7 @@ Thư mục này là bản tổng hợp yêu cầu đã được chốt cho Admin
 | 06 | [Giao diện điểm danh](06-giao-dien-diem-danh.md) | Compact card, responsive, tìm kiếm, dirty state và accessibility |
 | 07 | [API, bảo mật và vận hành](07-api-bao-mat-va-van-hanh.md) | Quy ước REST, lỗi, bảo mật, audit, retention và health check |
 | 08 | [Triển khai IIS local HTTPS](08-trien-khai-iis-local-https.md) | Yêu cầu gói bàn giao và máy đích IIS/PostgreSQL |
-| 09 | [Bảng đánh giá năng lực](09-bang-danh-gia-nang-luc.md) | AssessmentSheet theo đợt, tích hợp Google Sheet [F01] và PDF [F02]/[F03] |
+| 09 | [Bảng đánh giá năng lực](09-bang-danh-gia-nang-luc.md) | AssessmentSheet theo đợt, PDF preview/upload Drive và đồng bộ Google Sheet nguồn `[F0]` |
 
 ## Thứ tự ưu tiên khi có nội dung cũ mâu thuẫn
 
@@ -26,6 +26,7 @@ Các yêu cầu sau là phiên bản cuối và ghi đè mô tả cũ:
 3. `Chưa điểm danh` là trạng thái được lưu thật với mã `Unmarked`.
 4. Điểm danh nghỉ nửa ngày không còn chọn sáng/chiều ở thao tác mới; chỉ chọn phép/không phép, chi tiết ghi trong ghi chú.
 5. Card điểm danh chính chỉ hiển thị `nickname · studentCode` trong header ngang; không hiển thị họ tên đầy đủ trong card, tooltip hoặc accessible name.
+6. AssessmentSheet không còn tạo/copy Google Sheet riêng `[F01]`; `AssessmentSheetSpreadsheetId`, `export-to-sheet`, `sync-to-sheet`, `generate-plan-pdf`, `generate-result-pdf` là legacy/removed. PDF được render từ UI bằng `html2pdf.js` rồi upload Drive; Google Sheet chỉ còn luồng nạp nguồn `[F0]` và ghi kết quả về `[F0.ĐG]`.
 
 ## Nguồn tổng hợp
 
@@ -40,4 +41,4 @@ Yêu cầu được chắt lọc từ các plan theo thứ tự `BASE → ATT �
 | 05 | ATT + SCH + AUI theo thứ tự, sau đó áp dụng delta recovery/context hiện có trong source |
 | 06 | AUI, yêu cầu UI tiếng Việt của ATT và layout card/recovery hiện có trong source |
 | 08 | Các quyết định triển khai IIS/HTTPS đã chốt trong shared memory và tài liệu deploy |
-| 09 | Mô tả nghiệp vụ AssessmentSheet do người dùng cung cấp trực tiếp, đối chiếu với entity `Assessment`/`AssessmentGroup`/`AssessmentSheetLatest`/`AssessmentRecordLatest` và luồng đồng bộ Google Sheet hiện có trong source; còn nhiều điểm mở cần chốt (xem mục 15 của tài liệu) |
+| 09 | Mô tả nghiệp vụ AssessmentSheet do người dùng cung cấp trực tiếp, đối chiếu với entity `Assessment`/`AssessmentGroup`/`AssessmentSheetLatest`/`AssessmentRecordLatest`, PDF preview/upload Drive và luồng đồng bộ/ghi Google Sheet nguồn `[F0]` hiện có trong source |

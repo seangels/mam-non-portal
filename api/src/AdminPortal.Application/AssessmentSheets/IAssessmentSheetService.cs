@@ -29,19 +29,11 @@ public interface IAssessmentSheetService
         UpdateAssessmentSheetStatusRequest request,
         CancellationToken cancellationToken);
 
-    Task<AssessmentSheetDetailResponse> ExportToSheetAsync(Guid id, CancellationToken cancellationToken);
-
-    Task<AssessmentSheetDetailResponse> SyncToSheetAsync(Guid id, CancellationToken cancellationToken);
-
-    Task<AssessmentSheetDetailResponse> GeneratePlanPdfAsync(Guid id, CancellationToken cancellationToken);
-
     Task<AssessmentSheetDetailResponse> UploadPlanPdfAsync(
         Guid id, string fileName, byte[] content, CancellationToken cancellationToken);
 
     Task<AssessmentSheetDetailResponse> UploadResultPdfAsync(
         Guid id, string fileName, byte[] content, CancellationToken cancellationToken);
-
-    Task<AssessmentSheetDetailResponse> GenerateResultPdfAsync(Guid id, CancellationToken cancellationToken);
 
     Task<AssessmentSheetDetailResponse> SubmitResultsAsync(Guid id, CancellationToken cancellationToken);
 }

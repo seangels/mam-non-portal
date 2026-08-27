@@ -2,6 +2,8 @@
 
 Owner: `frontend`. Phụ thuộc: `ASH-FE-02`, `ASH-BE-04`. Trạng thái: xem [`../status.md`](../status.md). Log lịch sử: [`../log.md`](../log.md).
 
+> Cập nhật 2026-08-27: nút sinh PDF qua `generate-plan-pdf`/`generate-result-pdf` là legacy/removed. UI hiện dùng preview HTML/A4 + `html2pdf.js`, rồi upload Drive qua `upload-plan-pdf`/`upload-result-pdf`; xem `ASH-FE-11`, `ASH-FE-12`, `ASH-CL-01`.
+
 Nguồn: [plan mục 6.3, 7, 9](../../../plans/07-ASH-assessment-sheet.md#7-thiết-kế-sinh-pdf-f02f03), [requirements 09 mục 4, 9, 10, 11](../../../requirements/09-bang-danh-gia-nang-luc.md), [sơ đồ luồng dữ liệu](../../../requirements/09-bang-danh-gia-nang-luc-so-do-du-lieu.md).
 
 ## Mục đích

@@ -2,6 +2,8 @@
 
 Owner: `backend`. Phụ thuộc: `ASH-BE-03`. Trạng thái: xem [`../status.md`](../status.md). Log lịch sử: [`../log.md`](../log.md).
 
+> Cập nhật 2026-08-27: backend không còn sinh PDF từ Google Sheet riêng `[F01]`; `generate-plan-pdf`/`generate-result-pdf` là legacy/removed. PDF hiện do UI preview/html2pdf render và backend chỉ nhận upload Drive; xem `ASH-CL-01`.
+
 Nguồn: [plan mục 7](../../../plans/07-ASH-assessment-sheet.md#7-thiết-kế-sinh-pdf-f02f03), [sơ đồ luồng dữ liệu](../../../requirements/09-bang-danh-gia-nang-luc-so-do-du-lieu.md).
 
 ## Mục đích
