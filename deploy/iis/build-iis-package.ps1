@@ -74,6 +74,8 @@ try {
     Copy-Item -LiteralPath $deployScript -Destination $bundleDeployPath -Force
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot "ui.web.config") -Destination $bundleDeployPath -Force
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot "HUONG-DAN-DEPLOY-IIS.md") -Destination $bundleDeployPath -Force
+    Copy-Item -LiteralPath (Join-Path $PSScriptRoot "copy-files.ps1") -Destination $bundleDeployPath -Force
+    Copy-Item -LiteralPath (Join-Path $PSScriptRoot "copyConfig.json") -Destination $bundleDeployPath -Force
 
     Invoke-RobocopyCopy -Source $apiArtifactPath -Destination (Join-Path $bundleArtifactPath "api") -ExcludedFiles @("*.pdb")
     Invoke-RobocopyCopy -Source $uiArtifactPath -Destination (Join-Path $bundleArtifactPath "ui")

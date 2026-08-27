@@ -1,0 +1,31 @@
+{
+  "settings": {
+    "show_skipped_files": false,
+    "show_copied_files": true,
+    "stop_on_error": true
+  },
+  "jobs": [
+    {
+      "name": "API Portal",
+      "enabled": true,
+      "clean_destination": false,
+      "overwrite": true,
+      "source": "../../artifacts/iis/api",
+      "destination": "C:\\inetpub\\api-gv-portal.local",
+      "exclude_paths": [
+        "web.config"
+      ]
+    },
+    {
+      "name": "Angular Portal",
+      "enabled": true,
+      "clean_destination": true,
+      "overwrite": true,
+      "source": "../../artifacts/iis/ui",
+      "destination": "C:\\inetpub\\gv-portal.local",
+      "exclude_paths": [
+        "*.map"
+      ]
+    }
+  ]
+}
