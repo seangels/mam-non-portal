@@ -45,6 +45,7 @@ Last updated: 2026-08-27
 
 ## Last verified baseline
 
+- 2026-08-27 deploy copy helper: fixed `deploy/iis/copy-files.ps1` relative-path calculation that failed in Windows PowerShell when `.Substring()` was split onto a new line. Verification: PowerShell parser 0 errors; temp harness copied API/UI files, honored `web.config` and `*.map` excludes, preserved API destination when `clean_destination=false`, cleaned UI destination when `clean_destination=true`, exit code 0. Real `C:\inetpub` copy/deploy was not run.
 - Backend Release build: 0 warnings/errors after `TCH-AUTH-READ`.
 - Backend unit tests: 85/85 passed after `TCH-AUTH-READ`.
 - Backend PostgreSQL 17/Testcontainers integration tests: 29/29 passed after `TCH-AUTH-READ`, including Teacher read-only `/teachers` coverage.

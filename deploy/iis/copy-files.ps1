@@ -435,9 +435,7 @@ Destination : $Destination
 
         try {
 
-            $RelativePath = $File.FullName
-                .Substring($Source.Length)
-                .TrimStart('\', '/')
+            $RelativePath = $File.FullName.Substring($Source.Length).TrimStart('\', '/')
 
             # =================================================
             # EXCLUDE
