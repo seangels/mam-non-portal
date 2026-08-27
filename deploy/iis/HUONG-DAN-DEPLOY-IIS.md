@@ -30,7 +30,7 @@ Thư mục artifacts và release đã được đưa vào .gitignore.
 Trên máy có source code, build package mới:
 
     Set-ExecutionPolicy -Scope Process Bypass
-    .\deploy\iis\build-iis-package.ps1
+    .\deploy\iis\build-iis-package.ps1 -SkipNpmInstall
 
 Nếu artifact vừa được build và đã kiểm tra, chỉ đóng gói lại mà không build lần nữa:
 
