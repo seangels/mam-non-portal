@@ -17,6 +17,7 @@ namespace AdminPortal.Api.Controllers;
 public sealed class AssessmentSheetsController(IAssessmentSheetService assessmentSheetService) : ControllerBase
 {
     private const long MaxPdfUploadBytes = 10 * 1024 * 1024;
+    private const long MaxExcelImportBytes = 10 * 1024 * 1024;
 
     [HttpGet]
     [ProducesResponseType<PagedResponse<AssessmentSheetListItemResponse>>(StatusCodes.Status200OK)]
@@ -40,6 +41,34 @@ public sealed class AssessmentSheetsController(IAssessmentSheetService assessmen
     {
         var result = await assessmentSheetService.CreateAsync(request, cancellationToken);
         return CreatedAtAction(nameof(Get), new { id = result.Id }, result);
+    }
+
+    [HttpPost("import-excel/preview")]
+    [Consumes("multipart/form-data")]
+    [RequestSizeLimit(MaxExcelImportBytes)]
+    [ProducesResponseType<ImportAssessmentSheetsPreviewResponse>(StatusCodes.Status200OK)]
+    public async Task<ActionResult<ImportAssessmentSheetsPreviewResponse>> PreviewExcelImport(
+        [FromForm] IFormFile? file,
+        CancellationToken cancellationToken)
+    {
+        ValidateExcelImportFile(file);
+        using var stream = new MemoryStream();
+        await file!.CopyToAsync(stream, cancellationToken);
+        return Ok(await assessmentSheetService.PreviewExcelImportAsync(file.FileName, stream.ToArray(), cancellationToken));
+    }
+
+    [HttpPost("import-excel")]
+    [Consumes("multipart/form-data")]
+    [RequestSizeLimit(MaxExcelImportBytes)]
+    [ProducesResponseType<ImportAssessmentSheetsResponse>(StatusCodes.Status200OK)]
+    public async Task<ActionResult<ImportAssessmentSheetsResponse>> ImportExcel(
+        [FromForm] IFormFile? file,
+        CancellationToken cancellationToken)
+    {
+        ValidateExcelImportFile(file);
+        using var stream = new MemoryStream();
+        await file!.CopyToAsync(stream, cancellationToken);
+        return Ok(await assessmentSheetService.ImportExcelAsync(file.FileName, stream.ToArray(), cancellationToken));
     }
 
     [HttpPut("{id:guid}")]
@@ -144,4 +173,31 @@ public sealed class AssessmentSheetsController(IAssessmentSheetService assessmen
         Guid id,
         CancellationToken cancellationToken) =>
         Ok(await assessmentSheetService.SubmitResultsAsync(id, cancellationToken));
+
+    private static void ValidateExcelImportFile(IFormFile? file)
+    {
+        if (file is null || file.Length == 0)
+        {
+            throw new AppValidationException("File Excel import không hợp lệ.", new Dictionary<string, string[]>
+            {
+                ["file"] = ["Vui lòng chọn file .xlsx có nội dung."]
+            });
+        }
+
+        if (file.Length > MaxExcelImportBytes)
+        {
+            throw new AppValidationException("File Excel import vượt quá dung lượng cho phép.", new Dictionary<string, string[]>
+            {
+                ["file"] = ["Dung lượng tối đa là 10MB."]
+            });
+        }
+
+        if (!file.FileName.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new AppValidationException("File Excel import không hợp lệ.", new Dictionary<string, string[]>
+            {
+                ["file"] = ["Vui lòng chọn file .xlsx."]
+            });
+        }
+    }
 }

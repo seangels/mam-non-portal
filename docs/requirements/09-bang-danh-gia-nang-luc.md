@@ -171,6 +171,7 @@ Cấu trúc mirror theo hình dạng `AssessmentSheet`/`AssessmentRecord` (theo 
 ## 14. Ràng buộc và validation
 
 - Mỗi đợt đánh giá của một học sinh ứng với đúng một `AssessmentSheet` và một `Name`; `Name` bắt buộc và duy nhất trong phạm vi một học sinh. Nhiều học sinh khác nhau có thể dùng chung một `Name` đợt (ví dụ cùng đợt `8.9.10.26` nhưng mỗi học sinh có `AssessmentSheet` riêng).
+- Import Excel AssessmentSheet v1 dùng file `.xlsx` với header `planGrade`, `planNote`, `assessmentCode`, `studentCode`, `studentName`, `startDate`, `dueDate`; backend đọc bằng `ExcelDataReader`, gom sheet theo `studentCode + startDate + dueDate`, tra cứu học sinh/mục đánh giá theo mã, bỏ qua dòng trống, cảnh báo dòng trùng, và rollback toàn bộ nếu có lỗi bắt buộc. UI phải preview/validate trước bằng popup `dxDataGrid` hiển thị toàn bộ dòng import đã parse/validate, lỗi/warning và summary; datagrid filter/search/sort client-side trên dữ liệu local preview, không gọi server paging/filter trong popup; chỉ khi file hợp lệ user mới bấm xác nhận để ghi DB. `planGrade`/`planNote` trong file lưu vào `PlanGrade`/`PlanNote`; `FinalGrade`/`FinalNote` vẫn để trống.
 - Không cho tạo `AssessmentSheet` cho học sinh `Inactive` (nhất quán với ràng buộc học sinh `Inactive` không được thêm dữ liệu nghiệp vụ mới, xem [03](03-hoc-sinh-va-nhom.md)).
 - `DoneDate` chỉ được set khi `Status = Done`; chuyển trạng thái phải đi kèm cập nhật `DoneDate` nhất quán.
 - Không giới hạn số lượng `AssessmentRecord` tối thiểu/tối đa trong một `AssessmentSheet`.

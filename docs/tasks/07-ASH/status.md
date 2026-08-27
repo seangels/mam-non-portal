@@ -38,6 +38,7 @@ Theo mục 13 của plan. Cả 5 quyết định đã được khoá. `ASH-DEC-0
 | Frontend delta | 9 | 0 | 4 | 5 | 0 |
 | Contract delta | 2 | 0 | 0 | 2 | 0 |
 | Cleanup delta | 1 | 0 | 0 | 1 | 0 |
+| Import delta | 1 | 0 | 0 | 1 | 0 |
 | QA | 1 | 1 | 0 | 0 | 0 |
 
 Cập nhật bảng này mỗi khi đổi trạng thái một dòng bên dưới.
@@ -101,6 +102,12 @@ Cập nhật bảng này mỗi khi đổi trạng thái một dòng bên dưới
 | Status | Mã | Việc cần làm | Phụ thuộc |
 |---|---|---|---|
 | `[x]` | [`ASH-CL-01`](details/22-ASH-CL-01.md) | Cleanup luồng Google Sheet riêng `[F01]`: gỡ endpoint/service/config/model/docs cũ; giữ `AssessmentSheetSpreadsheetId` là legacy DB-only. Backend build/unit/integration và UI test/build dev pass; chưa gọi Google thật | `ASH-FE-11`, `ASH-FE-12`, `ASH-CR-02` |
+
+## Import delta — owner: `root` / phối hợp backend + frontend
+
+| Status | Mã | Việc cần làm | Phụ thuộc |
+|---|---|---|---|
+| `[x]` | [`ASH-IMP-01`](details/24-ASH-IMP-01.md) | Import `AssessmentSheet` + `AssessmentRecord` từ Excel mẫu `import_khcn.xlsx`; backend đọc bằng `ExcelDataReader`, preview validate trước khi ghi DB, frontend thêm popup datagrid xác nhận import. Automated gate pass; chưa smoke browser thủ công với file mẫu thật | `ASH-FE-13`, `ASH-BE-02` |
 
 ## QA — owner: chưa có agent QA riêng (root điều phối, backend/frontend tự chạy phần của mình)
 

@@ -69,6 +69,13 @@
         hint="Đồng bộ dữ liệu từ Google Sheets" [disabled]="syncDisabled"
         (onClick)="syncAssessmentsFromGoogleSheets()"></dx-button>
 
+      <input #importFileInput type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        hidden [disabled]="importDisabled" (change)="previewImportExcel($event)" />
+
+      <dx-button [text]="importButtonText" icon="upload" stylingMode="outlined" type="normal"
+        hint="Nhập bảng đánh giá từ file Excel .xlsx" [disabled]="importDisabled"
+        (onClick)="openImportFilePicker(importFileInput)"></dx-button>
+
       <dx-button text="Lọc" icon="filter" type="default" hint="Áp dụng bộ lọc"
         (onClick)="applyFilters()"></dx-button>
 
@@ -78,6 +85,20 @@
       <dx-button text="Ẩn/Hiện cột" icon="column-chooser" stylingMode="outlined" hint="Ẩn/Hiện cột"
         (onClick)="showDialogColumnChooser()"></dx-button>
     </div>
+  </div>
+</section>
+
+<section *ngIf="importResult" class="content-block dx-card import-result-panel" role="status" aria-live="polite">
+  <div>
+    <h2>Kết quả nhập Excel</h2>
+    <p>{{ importSuccessText(importResult) }}</p>
+    <p>Bỏ qua {{ importResult.skippedDuplicateRowCount }} dòng trùng. {{ importSheetCountText(importResult) }}</p>
+  </div>
+  <div *ngIf="importResult.warnings.length > 0" class="import-warning-list">
+    <strong>Cảnh báo</strong>
+    <ul>
+      <li *ngFor="let warning of importResult.warnings">{{ warning }}</li>
+    </ul>
   </div>
 </section>
 
@@ -120,3 +141,76 @@
     <div *dxTemplate="let cell of 'updatedAtCell'">{{ dateText(cell.data.updatedAt) }}</div>
   </dx-data-grid>
 </div>
+
+<dx-popup
+  [(visible)]="importPreviewVisible"
+  title="Xem trước nhập Excel"
+  [dragEnabled]="true"
+  [showCloseButton]="true"
+  [closeOnOutsideClick]="!importing"
+  [width]="'90vw'"
+  [height]="'80vh'"
+  (onHiding)="onImportPreviewHiding($event)">
+  <div *dxTemplate="let data of 'content'" class="import-preview-popup">
+    <div *ngIf="importPreview" class="import-preview-summary" role="status" aria-live="polite">
+      <span>Tổng {{ importPreviewRows.length }} dòng</span>
+      <span>Hợp lệ {{ importPreview.validRowCount }}</span>
+      <span>Lỗi {{ importPreview.errorCount }}</span>
+      <span>Cảnh báo {{ importPreview.warningCount }}</span>
+      <span>Trùng {{ importPreview.skippedDuplicateRowCount }}</span>
+      <span>Nhóm {{ importPreview.groups }}</span>
+    </div>
+
+    <dx-data-grid
+      class="import-preview-grid"
+      [dataSource]="importPreviewRows"
+      [showBorders]="true"
+      [columnAutoWidth]="true"
+      [columnHidingEnabled]="true"
+      [wordWrapEnabled]="true"
+      [rowAlternationEnabled]="true"
+      noDataText="Không có dòng dữ liệu trong file"
+      (onRowPrepared)="onImportPreviewRowPrepared($event)">
+      <dxo-search-panel [visible]="true" placeholder="Tìm trong file import"></dxo-search-panel>
+      <dxo-column-chooser
+        [enabled]="true"
+        mode="select">
+      </dxo-column-chooser>
+      <dxo-filter-row [visible]="true"></dxo-filter-row>
+      <dxo-header-filter [visible]="true"></dxo-header-filter>
+      <dxo-load-panel [enabled]="false"></dxo-load-panel>
+      <dxo-paging [pageSize]="20"></dxo-paging>
+      <dxo-pager [showInfo]="true" [showPageSizeSelector]="true" [allowedPageSizes]="[20, 50, 100]"></dxo-pager>
+      <dxo-sorting mode="multiple"></dxo-sorting>
+      <dxi-column dataField="rowNumber" caption="Dòng" [width]="20"></dxi-column>
+      <dxi-column dataField="planGrade" caption="Kết quả" [width]="40"></dxi-column>
+      <dxi-column dataField="planNote" caption="Ghi chú" [width]="60"></dxi-column>
+      <dxi-column dataField="assessmentCode" caption="Mã đánh giá" [width]="40"></dxi-column>
+      <dxi-column dataField="studentCode" caption="Mã học sinh" [width]="40"></dxi-column>
+      <dxi-column dataField="startDate" caption="Bắt đầu" cellTemplate="importStartDateCell" [width]="40"></dxi-column>
+      <dxi-column dataField="dueDate" caption="Hạn hoàn thành" cellTemplate="importDueDateCell" [width]="40"></dxi-column>
+      <dxi-column dataField="studentName" caption="Học sinh" [width]="100"></dxi-column>
+      <dxi-column dataField="action" caption="Dự kiến" cellTemplate="importActionCell" [width]="40"></dxi-column>
+      <dxi-column dataField="isDuplicate" caption="Trùng" cellTemplate="importDuplicateCell" [width]="40"></dxi-column>
+      <dxi-column dataField="errors" caption="Lỗi" cellTemplate="importErrorsCell" [minWidth]="220"></dxi-column>
+      <dxi-column dataField="warnings" caption="Cảnh báo" cellTemplate="importWarningsCell" [minWidth]="220"></dxi-column>
+
+      <div *dxTemplate="let cell of 'importStartDateCell'">{{ dateText(cell.data.startDate) }}</div>
+      <div *dxTemplate="let cell of 'importDueDateCell'">{{ dateText(cell.data.dueDate) }}</div>
+      <div *dxTemplate="let cell of 'importActionCell'">{{ importActionText(cell.data.action) }}</div>
+      <div *dxTemplate="let cell of 'importDuplicateCell'">{{ importDuplicateText(cell.data) }}</div>
+      <div *dxTemplate="let cell of 'importErrorsCell'">{{ importMessagesText(cell.data.errors) }}</div>
+      <div *dxTemplate="let cell of 'importWarningsCell'">{{ importMessagesText(cell.data.warnings) }}</div>
+    </dx-data-grid>
+
+    <p *ngIf="importPreview && !importPreview.canImport" class="import-preview-blocked" role="alert">
+      File còn dòng lỗi nên chưa thể nhập. Vui lòng sửa file Excel rồi chọn lại.
+    </p>
+
+    <div class="import-preview-actions">
+      <dx-button text="Hủy" stylingMode="outlined" [disabled]="importing" (onClick)="closeImportPreview()"></dx-button>
+      <dx-button text="Nhập dữ liệu" icon="upload" type="default" [disabled]="!canSubmitImport"
+        (onClick)="submitImportExcel()"></dx-button>
+    </div>
+  </div>
+</dx-popup>

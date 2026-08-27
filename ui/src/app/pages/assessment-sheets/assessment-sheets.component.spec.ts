@@ -1,6 +1,7 @@
 import { of } from 'rxjs';
 import { ASSESSMENT_GROUP_LV2_CONFIGS } from '../../core/models/api.models.assessment-sheets';
 import { AssessmentPickerComponent } from './assessment-picker.component';
+import { AssessmentSheetsComponent } from './assessment-sheets.component';
 import {
   buildAssessmentSheetPlanPreview,
   buildAssessmentSheetResultPreview,
@@ -249,6 +250,131 @@ describe('Assessment sheet form request mapping', () => {
     expect(request.records.map(record => record.finalGrade)).toEqual([null, 'C']);
     expect(request.records.map(record => record.planGrade)).toEqual(['B', 'A']);
     expect(request.records.map(record => record.planNote)).toEqual(['Kế hoạch', 'Đang luyện']);
+  });
+});
+
+describe('Assessment sheets Excel import', () => {
+  const xlsxFile = () => new File(['excel'], 'bang-danh-gia.xlsx', {
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+  });
+
+  const createComponent = (previewResult: any, importResult: any) => {
+    const assessmentSheets = {
+      list: jasmine.createSpy('list'),
+      previewImportExcel: jasmine.createSpy('previewImportExcel').and.returnValue(of(previewResult)),
+      importExcel: jasmine.createSpy('importExcel').and.returnValue(of(importResult))
+    };
+    const component = new AssessmentSheetsComponent(
+      assessmentSheets as any,
+      {} as any,
+      {} as any,
+      { navigate: jasmine.createSpy('navigate') } as any
+    );
+    const refresh = jasmine.createSpy('refresh').and.returnValue(Promise.resolve());
+    component.grid = {
+      instance: {
+        refresh,
+        pageIndex: jasmine.createSpy('pageIndex')
+      }
+    } as any;
+    return { component, assessmentSheets, refresh };
+  };
+
+  it('previews an xlsx file before submitting and imports only after confirmation action', async () => {
+    const previewResult = {
+      summary: {
+        canImport: true,
+        validRowCount: 2,
+        errorCount: 0,
+        warningCount: 1,
+        skippedDuplicateRowCount: 0,
+        groups: 1
+      },
+      rows: [
+        {
+          rowNumber: 2,
+          assessmentCode: 'A01',
+          studentCode: 'S101',
+          studentName: 'Bé An',
+          startDate: '2026-08-01',
+          dueDate: '2026-08-31',
+          action: 'Created',
+          errors: [],
+          warnings: ['Sẽ tạo mới']
+        }
+      ]
+    };
+    const importResult = {
+      createdSheetCount: 1,
+      updatedSheetCount: 1,
+      importedRecordCount: 5,
+      skippedDuplicateRowCount: 0,
+      warnings: ['Một dòng có ghi chú dài'],
+      sheets: [{ id: 'sheet-1' }]
+    };
+    const { component, assessmentSheets, refresh } = createComponent(previewResult, importResult);
+    const file = xlsxFile();
+
+    await component.previewImportExcel({ target: { files: [file], value: 'C:\\fakepath\\bang-danh-gia.xlsx' } } as any);
+
+    expect(assessmentSheets.previewImportExcel).toHaveBeenCalledWith(file);
+    expect(component.importPreviewVisible).toBeTrue();
+    expect(component.importPreviewRows.length).toBe(1);
+    expect(component.importActionText('Created')).toBe('Tạo mới');
+    expect(component.importMessagesText(['A', 'B'])).toBe('A; B');
+    expect(component.canSubmitImport).toBeTrue();
+
+    await component.submitImportExcel();
+
+    expect(assessmentSheets.importExcel).toHaveBeenCalledWith(file);
+    expect(component.importPreviewVisible).toBeFalse();
+    expect(component.importResult?.createdSheetCount).toBe(1);
+    expect(component.importSuccessText(component.importResult as any)).toContain('tạo mới 1');
+    expect(refresh).toHaveBeenCalled();
+  });
+
+  it('keeps submit disabled when preview reports validation errors', async () => {
+    const previewResult = {
+      summary: {
+        canImport: false,
+        validRowCount: 0,
+        errorCount: 1,
+        warningCount: 0,
+        skippedDuplicateRowCount: 1,
+        groups: 0
+      },
+      rows: [
+        {
+          rowNumber: 2,
+          assessmentCode: '',
+          studentCode: 'S101',
+          studentName: 'Bé An',
+          startDate: null,
+          dueDate: null,
+          action: 'SkippedDuplicate',
+          errors: ['Thiếu mã đánh giá'],
+          warnings: []
+        }
+      ]
+    };
+    const { component, assessmentSheets } = createComponent(previewResult, {
+      createdSheetCount: 0,
+      updatedSheetCount: 0,
+      importedRecordCount: 0,
+      skippedDuplicateRowCount: 0,
+      warnings: [],
+      sheets: []
+    });
+
+    await component.previewImportExcel({ target: { files: [xlsxFile()], value: 'C:\\fakepath\\loi.xlsx' } } as any);
+
+    expect(component.importRowHasErrors(component.importPreviewRows[0])).toBeTrue();
+    expect(component.importDuplicateText(component.importPreviewRows[0])).toBe('Trùng');
+    expect(component.canSubmitImport).toBeFalse();
+
+    await component.submitImportExcel();
+
+    expect(assessmentSheets.importExcel).not.toHaveBeenCalled();
   });
 });
 

@@ -14,6 +14,16 @@ public interface IAssessmentSheetService
         CreateAssessmentSheetRequest request,
         CancellationToken cancellationToken);
 
+    Task<ImportAssessmentSheetsPreviewResponse> PreviewExcelImportAsync(
+        string fileName,
+        byte[] content,
+        CancellationToken cancellationToken);
+
+    Task<ImportAssessmentSheetsResponse> ImportExcelAsync(
+        string fileName,
+        byte[] content,
+        CancellationToken cancellationToken);
+
     Task<AssessmentSheetDetailResponse> UpdateAsync(
         Guid id,
         UpdateAssessmentSheetRequest request,

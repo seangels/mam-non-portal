@@ -98,6 +98,43 @@ export interface AssessmentSheetDetail extends AssessmentSheet {
   records: AssessmentSheetRecord[];
 }
 
+export interface AssessmentSheetImportExcelResult {
+  createdSheetCount: number;
+  updatedSheetCount: number;
+  importedRecordCount: number;
+  skippedDuplicateRowCount: number;
+  warnings: string[];
+  sheets: AssessmentSheet[];
+}
+
+export interface AssessmentSheetImportExcelPreviewSummaryResult {
+  validRowCount: number;
+  errorCount: number;
+  warningCount: number;
+  skippedDuplicateRowCount: number;
+  groups: number;
+  canImport: boolean;
+}
+export interface AssessmentSheetImportExcelPreviewResult {
+  summary: AssessmentSheetImportExcelPreviewSummaryResult;
+  rows: AssessmentSheetImportExcelPreviewRow[];
+}
+
+export interface AssessmentSheetImportExcelPreviewRow {
+  rowNumber: number;
+  planGrade?: string | null;
+  planNote?: string | null;
+  assessmentCode?: string | null;
+  studentCode?: string | null;
+  studentName?: string | null;
+  startDate?: string | null;
+  dueDate?: string | null;
+  action?: string | null;
+  isDuplicate?: boolean | null;
+  errors: string[];
+  warnings: string[];
+}
+
 export interface CreateAssessmentSheetRequest {
   studentId: string;
   responsibleTeacherId?: string | null;

@@ -1,6 +1,9 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Globalization;
+using System.IO.Compression;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using AdminPortal.Application.Assessments;
@@ -295,6 +298,135 @@ public sealed class AdminPortalApiTests(ApiFactory factory) : IClassFixture<ApiF
                 Assert.Null(second.FinalGrade);
                 Assert.Null(second.FinalNote);
             });
+    }
+
+    [Fact]
+    public async Task AssessmentSheetImportExcelPreviewAndSubmitCreatesThenUpdatesSheets()
+    {
+        using var client = CreateClient();
+        var auth = await LoginAsync(client, ApiFactory.SuperAdminEmail, ApiFactory.SuperAdminPassword);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", auth.AccessToken);
+        var marker = Guid.NewGuid().ToString("N")[..8];
+        var student = await CreateStudentAsync(client, $"IM-{marker}", $"Import Student {marker}");
+        var firstAssessmentId = Guid.NewGuid();
+        var secondAssessmentId = Guid.NewGuid();
+        var firstAssessmentCode = $"IMP-{marker}-001";
+        var secondAssessmentCode = $"IMP-{marker}-002";
+        var now = DateTimeOffset.UtcNow;
+
+        using (var scope = factory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<AdminPortalDbContext>();
+            var actor = await dbContext.Users.AsNoTracking()
+                .SingleAsync(x => x.Email == ApiFactory.SuperAdminEmail);
+            await dbContext.Assessments.AddRangeAsync(
+                new Assessment
+                {
+                    Id = firstAssessmentId,
+                    Code = firstAssessmentCode,
+                    Name = $"Import Assessment {marker} A",
+                    RowIndex = 1,
+                    UpdatedByUserId = actor.Id,
+                    CreatedAt = now,
+                    UpdatedAt = now
+                },
+                new Assessment
+                {
+                    Id = secondAssessmentId,
+                    Code = secondAssessmentCode,
+                    Name = $"Import Assessment {marker} B",
+                    RowIndex = 2,
+                    UpdatedByUserId = actor.Id,
+                    CreatedAt = now,
+                    UpdatedAt = now
+                });
+            await dbContext.SaveChangesAsync();
+        }
+
+        var workbook = CreateImportWorkbook(
+        [
+            ["planGrade", "planNote", "assessmentCode", "studentCode", "studentName", "startDate", "dueDate"],
+            ["Đạt +", "Kế hoạch A", firstAssessmentCode, student.StudentCode.ToLowerInvariant(), student.FullName, "2026-06-01", "2026-08-31"],
+            ["Đạt +", "Dòng trùng", firstAssessmentCode, student.StudentCode, student.FullName, "2026-06-01", "2026-08-31"],
+            ["Hỗ trợ +", "Kế hoạch B", secondAssessmentCode, student.StudentCode, "Tên trong file khác", "2026-06-01", "2026-08-31"]
+        ]);
+
+        var previewResponse = await PostExcelAsync(client, "/api/v1/assessment-sheets/import-excel/preview", workbook);
+        previewResponse.EnsureSuccessStatusCode();
+        var preview = await previewResponse.Content.ReadFromJsonAsync<ImportAssessmentSheetsPreviewResponse>(JsonOptions);
+        Assert.NotNull(preview);
+        Assert.True(preview.Summary.CanImport);
+        Assert.Equal(2, preview.Summary.ValidRowCount);
+        Assert.Equal(0, preview.Summary.ErrorCount);
+        Assert.Equal(2, preview.Summary.WarningCount);
+        Assert.Equal(1, preview.Summary.SkippedDuplicateRowCount);
+        Assert.Equal(1, preview.Summary.Groups);
+        Assert.Equal(3, preview.Rows.Count);
+        Assert.Contains(preview.Rows, row => row.Action == "SkippedDuplicate");
+        Assert.All(preview.Rows, row => Assert.Empty(row.Errors));
+
+        var importResponse = await PostExcelAsync(client, "/api/v1/assessment-sheets/import-excel", workbook);
+        importResponse.EnsureSuccessStatusCode();
+        var imported = await importResponse.Content.ReadFromJsonAsync<ImportAssessmentSheetsResponse>(JsonOptions);
+        Assert.NotNull(imported);
+        Assert.Equal(1, imported.CreatedSheetCount);
+        Assert.Equal(0, imported.UpdatedSheetCount);
+        Assert.Equal(2, imported.ImportedRecordCount);
+        Assert.Equal(1, imported.SkippedDuplicateRowCount);
+        Assert.Single(imported.Sheets);
+        Assert.Equal("Created", imported.Sheets[0].Action);
+
+        var detail = await client.GetFromJsonAsync<AssessmentSheetDetailResponse>(
+            $"/api/v1/assessment-sheets/{imported.Sheets[0].Id}",
+            JsonOptions);
+        Assert.NotNull(detail);
+        Assert.Null(detail.ResponsibleTeacherId);
+        Assert.Equal(2, detail.Records.Count);
+        Assert.Contains(detail.Records, record => record.Assessment.Code == firstAssessmentCode && record.PlanGrade == AssessmentGrade.A && record.PlanNote == "Kế hoạch A");
+        Assert.Contains(detail.Records, record => record.Assessment.Code == secondAssessmentCode && record.PlanGrade == AssessmentGrade.C && record.PlanNote == "Kế hoạch B");
+        Assert.All(detail.Records, record =>
+        {
+            Assert.Null(record.FinalGrade);
+            Assert.Null(record.FinalNote);
+        });
+
+        var updateWorkbook = CreateImportWorkbook(
+        [
+            ["planGrade", "planNote", "assessmentCode", "studentCode", "studentName", "startDate", "dueDate"],
+            ["Hỗ trợ -", "Kế hoạch cập nhật", secondAssessmentCode, student.StudentCode, student.FullName, "2026-06-01", "2026-08-31"]
+        ]);
+        var updateResponse = await PostExcelAsync(client, "/api/v1/assessment-sheets/import-excel", updateWorkbook);
+        updateResponse.EnsureSuccessStatusCode();
+        var updated = await updateResponse.Content.ReadFromJsonAsync<ImportAssessmentSheetsResponse>(JsonOptions);
+        Assert.NotNull(updated);
+        Assert.Equal(0, updated.CreatedSheetCount);
+        Assert.Equal(1, updated.UpdatedSheetCount);
+        Assert.Equal(1, updated.ImportedRecordCount);
+        Assert.Single(updated.Sheets);
+        Assert.Equal(imported.Sheets[0].Id, updated.Sheets[0].Id);
+        Assert.Equal("Updated", updated.Sheets[0].Action);
+
+        var updatedDetail = await client.GetFromJsonAsync<AssessmentSheetDetailResponse>(
+            $"/api/v1/assessment-sheets/{updated.Sheets[0].Id}",
+            JsonOptions);
+        Assert.NotNull(updatedDetail);
+        Assert.Single(updatedDetail.Records);
+        Assert.Equal(secondAssessmentCode, updatedDetail.Records[0].Assessment.Code);
+
+        using (var scope = factory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<AdminPortalDbContext>();
+            var audits = await dbContext.AuditLogs.AsNoTracking()
+                .Where(x => x.EntityId == updated.Sheets[0].Id && x.Action == "AssessmentSheet.ExcelImported")
+                .ToListAsync();
+            Assert.Equal(2, audits.Count);
+            Assert.All(audits, audit =>
+            {
+                var newValues = audit.NewValues ?? string.Empty;
+                Assert.DoesNotContain("PK", newValues, StringComparison.OrdinalIgnoreCase);
+                Assert.Contains("FileSizeBytes", newValues, StringComparison.Ordinal);
+            });
+        }
     }
 
     [Fact]
@@ -921,6 +1053,109 @@ public sealed class AdminPortalApiTests(ApiFactory factory) : IClassFixture<ApiF
         AllowAutoRedirect = false,
         HandleCookies = true
     });
+
+    private static async Task<HttpResponseMessage> PostExcelAsync(HttpClient client, string requestUri, byte[] workbook)
+    {
+        using var multipart = new MultipartFormDataContent();
+        var content = new ByteArrayContent(workbook);
+        content.Headers.ContentType = new MediaTypeHeaderValue(
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        multipart.Add(content, "file", "import_khcn.xlsx");
+        return await client.PostAsync(requestUri, multipart);
+    }
+
+    private static byte[] CreateImportWorkbook(IReadOnlyList<IReadOnlyList<string>> rows)
+    {
+        using var stream = new MemoryStream();
+        using (var archive = new ZipArchive(stream, ZipArchiveMode.Create, leaveOpen: true))
+        {
+            WriteZipEntry(archive, "[Content_Types].xml",
+                """
+                <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+                <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+                  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+                  <Default Extension="xml" ContentType="application/xml"/>
+                  <Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
+                  <Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
+                </Types>
+                """);
+            WriteZipEntry(archive, "_rels/.rels",
+                """
+                <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+                <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+                  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>
+                </Relationships>
+                """);
+            WriteZipEntry(archive, "xl/workbook.xml",
+                """
+                <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+                <workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+                  <sheets><sheet name="Sheet1" sheetId="1" r:id="rId1"/></sheets>
+                </workbook>
+                """);
+            WriteZipEntry(archive, "xl/_rels/workbook.xml.rels",
+                """
+                <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+                <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+                  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>
+                </Relationships>
+                """);
+            WriteZipEntry(archive, "xl/worksheets/sheet1.xml", BuildWorksheetXml(rows));
+        }
+
+        return stream.ToArray();
+    }
+
+    private static string BuildWorksheetXml(IReadOnlyList<IReadOnlyList<string>> rows)
+    {
+        var builder = new StringBuilder();
+        builder.AppendLine("""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>""");
+        builder.AppendLine("""<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>""");
+        for (var rowIndex = 0; rowIndex < rows.Count; rowIndex++)
+        {
+            var rowNumber = rowIndex + 1;
+            builder.Append(CultureInfo.InvariantCulture, $"<row r=\"{rowNumber}\">");
+            for (var columnIndex = 0; columnIndex < rows[rowIndex].Count; columnIndex++)
+            {
+                var cell = $"{ColumnName(columnIndex)}{rowNumber}";
+                builder.Append(CultureInfo.InvariantCulture, $"<c r=\"{cell}\" t=\"inlineStr\"><is><t>");
+                builder.Append(EscapeXml(rows[rowIndex][columnIndex]));
+                builder.Append("</t></is></c>");
+            }
+            builder.AppendLine("</row>");
+        }
+
+        builder.AppendLine("</sheetData></worksheet>");
+        return builder.ToString();
+    }
+
+    private static void WriteZipEntry(ZipArchive archive, string path, string content)
+    {
+        var entry = archive.CreateEntry(path);
+        using var writer = new StreamWriter(entry.Open(), Encoding.UTF8);
+        writer.Write(content);
+    }
+
+    private static string ColumnName(int zeroBasedIndex)
+    {
+        var index = zeroBasedIndex;
+        var name = string.Empty;
+        do
+        {
+            name = (char)('A' + index % 26) + name;
+            index = index / 26 - 1;
+        } while (index >= 0);
+
+        return name;
+    }
+
+    private static string EscapeXml(string value) =>
+        value
+            .Replace("&", "&amp;", StringComparison.Ordinal)
+            .Replace("<", "&lt;", StringComparison.Ordinal)
+            .Replace(">", "&gt;", StringComparison.Ordinal)
+            .Replace("\"", "&quot;", StringComparison.Ordinal)
+            .Replace("'", "&apos;", StringComparison.Ordinal);
 
     private static async Task<AccessTokenResponse> LoginAsync(HttpClient client, string email, string password)
     {

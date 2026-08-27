@@ -7,6 +7,8 @@ import { ApiClient } from './api-client.service';
 import {
   AssessmentSheet,
   AssessmentSheetDetail,
+  AssessmentSheetImportExcelResult,
+  AssessmentSheetImportExcelPreviewResult,
   AssessmentSheetListQuery,
   CreateAssessmentSheetRequest,
   ReplaceAssessmentSheetRecordsRequest,
@@ -44,6 +46,18 @@ export class AssessmentSheetsService {
 
   submitResults(id: string): Observable<AssessmentSheetDetail> {
     return this.api.post<AssessmentSheetDetail>(`assessment-sheets/${id}/submit-results`, {});
+  }
+
+  importExcel(file: File): Observable<AssessmentSheetImportExcelResult> {
+    const formData = new FormData();
+    formData.append('file', file, file.name);
+    return this.api.post<AssessmentSheetImportExcelResult>('assessment-sheets/import-excel', formData);
+  }
+
+  previewImportExcel(file: File): Observable<AssessmentSheetImportExcelPreviewResult> {
+    const formData = new FormData();
+    formData.append('file', file, file.name);
+    return this.api.post<AssessmentSheetImportExcelPreviewResult>('assessment-sheets/import-excel/preview', formData);
   }
 
   uploadPlanPdf(id: string, file: Blob, fileName: string): Observable<AssessmentSheetDetail> {

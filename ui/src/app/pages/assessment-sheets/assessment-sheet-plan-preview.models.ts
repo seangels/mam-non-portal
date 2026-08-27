@@ -111,6 +111,10 @@ export function formatAssessmentPeriod(
   let month = start.getMonth();
   const dueYear = due.getFullYear();
   const dueMonth = due.getMonth();
+  console.log({
+    year, month,
+    dueYear, dueMonth
+  })
   while (year < dueYear || (year === dueYear && month <= dueMonth)) {
     months.push(String(month + 1));
     month += 1;
@@ -212,6 +216,10 @@ function buildAssessmentNameForFileName(
   let month = start.getMonth();
   const dueYear = due.getFullYear();
   const dueMonth = due.getMonth();
+  console.log({
+    year, month,
+    dueYear, dueMonth
+  })
   while (year < dueYear || (year === dueYear && month < dueMonth)) {
     months.push(month + 1);
     month += 1;
@@ -249,6 +257,10 @@ function toCalendarDate(value: Date | string | number | null | undefined): Date 
     return null;
   }
   if (typeof value === 'string') {
+    const date = new Date(value);
+    if(!isNaN(date.getTime())) {
+      return date;
+    }
     const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(value.trim());
     if (match) {
       return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));

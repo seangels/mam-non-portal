@@ -14,9 +14,22 @@
 .status-pill { display: inline-flex; min-height: 24px; align-items: center; border-radius: 12px; padding: 2px 10px; background: #e8f1fb; color: #184f86; font-weight: 600; }
 .status-pill.done { background: #eaf7ee; color: #17623a; }
 .error-panel { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; border: 1px solid #f2b8b5; border-radius: 8px; background: #fff1f0; color: #8a1c16; }
+.import-result-panel { display: flex; flex-direction: column; gap: 10px; padding: 16px 18px; border-left: 4px solid #2e7d32; }
+.import-result-panel h2 { margin: 0 0 6px; font-size: 18px; }
+.import-result-panel p { margin: 0; }
+.import-warning-list { border-radius: 6px; padding: 10px 12px; background: #fff8e1; color: #6f4e00; }
+.import-warning-list ul { margin: 6px 0 0; padding-left: 18px; }
+.import-preview-popup { display: flex; height: 100%; min-height: 0; flex-direction: column; gap: 12px; }
+.import-preview-summary { display: flex; flex-wrap: wrap; gap: 8px; }
+.import-preview-summary span { border-radius: 999px; padding: 4px 10px; background: #eef2f7; color: #344054; font-weight: 600; }
+.import-preview-grid { flex: 1 1 auto; min-height: 280px; }
+.import-preview-blocked { margin: 0; border-radius: 6px; padding: 10px 12px; background: #fff1f0; color: #8a1c16; }
+.import-preview-actions { display: flex; justify-content: flex-end; gap: 10px; }
+:host ::ng-deep .import-preview-grid .import-row-error > td { background-color: #fff1f0 !important; color: #8a1c16; }
+:host ::ng-deep .import-preview-grid .import-row-warning > td { background-color: #fff8e1 !important; color: #6f4e00; }
 
 @media (max-width: 700px) {
-  .page-toolbar, .error-panel, .buttons-row { align-items: stretch; flex-direction: column; }
+  .page-toolbar, .error-panel, .buttons-row, .import-preview-actions { align-items: stretch; flex-direction: column; }
   .buttons-row .primary-action { margin-right: 0; }
-  .page-toolbar dx-button, .error-panel dx-button, .buttons-row dx-button { width: 100%; }
+  .page-toolbar dx-button, .error-panel dx-button, .buttons-row dx-button, .import-preview-actions dx-button { width: 100%; }
 }

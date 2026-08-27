@@ -122,3 +122,49 @@ public sealed record AssessmentSheetRecordRequest(
     [param: MaxLength(2000)] string? FinalNote);
 
 public sealed record UpdateAssessmentSheetStatusRequest(AssessmentSheetStatus Status);
+
+public sealed record ImportAssessmentSheetsPreviewResponse(
+    ImportAssessmentSheetsPreviewSummaryResponse Summary,
+    IReadOnlyList<ImportAssessmentSheetsPreviewRowResponse> Rows);
+
+public sealed record ImportAssessmentSheetsPreviewSummaryResponse(
+    bool CanImport,
+    int ValidRowCount,
+    int ErrorCount,
+    int WarningCount,
+    int SkippedDuplicateRowCount,
+    int Groups);
+
+public sealed record ImportAssessmentSheetsPreviewRowResponse(
+    int RowNumber,
+    string? AssessmentCode,
+    string? StudentCode,
+    string? StudentName,
+    DateTimeOffset? StartDate,
+    DateTimeOffset? DueDate,
+    string? PlanGrade,
+    string? PlanNote,
+    string? NormalizedAssessmentCode,
+    string? NormalizedStudentCode,
+    string? DisplayStartDate,
+    string? DisplayDueDate,
+    string Action,
+    IReadOnlyList<string> Errors,
+    IReadOnlyList<string> Warnings);
+
+public sealed record ImportAssessmentSheetsResponse(
+    int CreatedSheetCount,
+    int UpdatedSheetCount,
+    int ImportedRecordCount,
+    int SkippedDuplicateRowCount,
+    IReadOnlyList<string> Warnings,
+    IReadOnlyList<ImportedAssessmentSheetResponse> Sheets);
+
+public sealed record ImportedAssessmentSheetResponse(
+    Guid Id,
+    string StudentCode,
+    string StudentName,
+    DateTimeOffset StartDate,
+    DateTimeOffset DueDate,
+    string Action,
+    int RecordCount);
