@@ -42,6 +42,10 @@ export class AssessmentSheetsService {
     return this.api.put<AssessmentSheetDetail>(`assessment-sheets/${id}/status`, request);
   }
 
+  submitResults(id: string): Observable<AssessmentSheetDetail> {
+    return this.api.post<AssessmentSheetDetail>(`assessment-sheets/${id}/submit-results`, {});
+  }
+
   uploadPlanPdf(id: string, file: Blob, fileName: string): Observable<AssessmentSheetDetail> {
     const formData = new FormData();
     formData.append('file', file, fileName);

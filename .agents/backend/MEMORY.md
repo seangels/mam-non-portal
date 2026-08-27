@@ -145,3 +145,7 @@ Khi kết thúc một task backend, cập nhật ngắn gọn file này:
 - Nếu sinh package mới, ghi tên file và SHA-256 sau khi đã verify.
 
 Không biến memory thành nhật ký dài theo từng thao tác. Giữ “trạng thái hiện tại + lý do quan trọng + next step”. Tuyệt đối không ghi password, JWT key, token, connection string có credential, private key/certificate secret hoặc giá trị secret từ environment.
+
+## Cập nhật gần nhất
+
+- 2026-08-27 `ASH-CR-02`/`ASH-BE-06`: `GoogleSheetsService.WriteFinalGradesToSourceSheetAsync` now returns the ResultSource cells actually written after comparing current Google Sheet values. It syncs both `FinalGrade` and `FinalNote`; the note cell is the column immediately right of the student result column and must have a blank student-code/header cell. `AssessmentSheetService.SubmitResultsAsync` updates `SubmissionDate`, writes a summary audit and one `AssessmentSheet.ResultSourceCellUpdated` audit per changed cell. `SyncAssessmentsAsync` writes `GoogleSheets.AssessmentsSynced`; plan/result PDF uploads log file/link metadata only. Verification: `dotnet build api/AdminPortal.slnx -c Release --no-restore` pass; `dotnet test api/tests/AdminPortal.UnitTests -c Release --no-restore` pass 85/85; `dotnet test api/tests/AdminPortal.IntegrationTests -c Release --no-restore` pass 30/30 outside sandbox after sandbox Docker pipe access was denied. Real Google Sheet/Drive smoke was not run.

@@ -1,5 +1,7 @@
 namespace AdminPortal.Application.GoogleSheets;
 
+using AdminPortal.Domain.Enums;
+
 public sealed record AssessmentGoogleSheetResponse(
     string? ItemId,
     string? Item,
@@ -30,3 +32,20 @@ public sealed record SyncAssessmentsFromGoogleSheetsResponse(
     int UpdatedRows,
     int DeletedRows
     );
+
+public sealed record ResultSourceCellUpdate(
+    string SpreadsheetId,
+    string SheetName,
+    string Cell,
+    int Row,
+    string Column,
+    string Kind,
+    string? CurrentValue,
+    string NewValue,
+    string StudentCode,
+    string AssessmentCode,
+    string AssessmentName,
+    AssessmentGrade? FinalGrade,
+    string? FinalGradeLabel,
+    string? FinalNote
+);

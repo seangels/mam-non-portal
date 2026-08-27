@@ -162,3 +162,7 @@ After material frontend work, replace/update the relevant current-state sections
 - Remaining risk, blocker, or next action.
 
 Keep chronological detail in `docs/tasks/**`. Never store passwords, connection strings with credentials, JWT keys, tokens, cookies, certificate private keys, `.env` contents, personal records, or other secrets here.
+
+## Cập nhật gần nhất
+
+- 2026-08-27 `ASH-CR-02`: AssessmentSheet edit form has a Vietnamese `Cập nhật Kết Quả` action that calls `POST /assessment-sheets/{id}/submit-results`, disables during load/save/record mutation/submit, confirms when the form is dirty, applies the returned detail, and shows Vietnamese success/error feedback. Verification: `npm --prefix ui run test:ci` pass 118/118 outside sandbox after npm user-directory access was denied in sandbox; `npm --prefix ui run build -- --configuration development` pass with known DevExtreme/html2pdf/canvg CommonJS warnings. No production/IIS build.

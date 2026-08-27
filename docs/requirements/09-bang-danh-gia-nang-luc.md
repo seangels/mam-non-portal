@@ -119,7 +119,10 @@
 
 ## 11. Ghi kết quả vào [F0.ĐG]
 
-- Khi giáo viên bấm nút cập nhật kết quả đánh giá, hệ thống ghi **nhãn** của `FinalGrade` (không phải chữ cái `A/B/C/D` — xem bảng mapping bên dưới, và **không phải** `PlanGrade`) của từng mục đánh giá vào sheet `ĐG` của file nguồn `[F0]` (`[F0.ĐG]`), theo đúng học sinh và mục đánh giá tương ứng. Đây là thao tác thủ công riêng, không tự chạy kèm các bước khác.
+- Khi giáo viên bấm nút `Cập nhật Kết Quả`, hệ thống ghi **nhãn** của `FinalGrade` (không phải chữ cái `A/B/C/D` — xem bảng mapping bên dưới, và **không phải** `PlanGrade`) của từng mục đánh giá vào sheet `ĐG` của file nguồn `[F0]` (`[F0.ĐG]`), theo đúng học sinh và mục đánh giá tương ứng. Đây là thao tác thủ công riêng, không tự chạy kèm các bước khác.
+- Trước khi ghi, hệ thống phải đọc giá trị hiện tại của từng ô ResultSource cần cập nhật và chỉ ghi những ô có thay đổi. Nếu giá trị mới trùng giá trị hiện tại thì bỏ qua cell đó để tránh phát sinh ghi/audit nhiễu.
+- Mỗi cell thật sự được ghi phải có `AuditLog` riêng, tối thiểu lưu vị trí ô/range, giá trị hiện tại, giá trị mới, `studentCode`, `studentName`, `studentId`, `assessmentSheetId`, `startDate`, `dueDate`, `FinalGrade`, `FinalNote`, thông tin mục đánh giá và thời gian/actor. Audit không được lưu token, credential, file bytes hay dữ liệu nhạy cảm không cần thiết.
+- `FinalNote` cũng thuộc phạm vi cần cập nhật ra ResultSource khi có thay đổi. Cột `FinalNote` nằm ngay bên phải cột kết quả của học sinh; cột kết quả là cột có `studentCode` ở hàng định vị mã học sinh, còn ô cùng hàng ở cột `FinalNote` để trống.
 - **Cách định vị ô cần ghi** (đã xác nhận với người dùng):
   - Cột **`E16:E`**: chứa mã mục đánh giá (`item_id`), mỗi dòng một mã, bắt đầu từ dòng 16 — dò cột này để tìm đúng **dòng**.
   - Hàng **`H16:16`**: chứa mã học sinh, mỗi cột một mã, bắt đầu từ cột H — dò hàng này để tìm đúng **cột**.

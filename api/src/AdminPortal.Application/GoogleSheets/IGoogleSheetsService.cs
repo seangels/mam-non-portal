@@ -64,8 +64,12 @@ public interface IGoogleSheetsService
         IReadOnlyList<AssessmentRecord> records, CancellationToken cancellationToken);
 
     /// <summary>
-    /// Ghi nhãn của FinalGrade (bỏ qua record có FinalGrade null) vào [F0.ĐG] theo đúng học sinh,
-    /// dò vị trí ô qua cột E16:E (mã mục) và hàng H16:16 (mã học sinh).
+    /// Đồng bộ FinalGrade và FinalNote vào [F0.ĐG] theo đúng học sinh. Cột kết quả được dò bằng
+    /// studentCode ở hàng định vị mã học sinh; cột FinalNote là cột ngay bên phải và phải để trống
+    /// ở hàng định vị. Chỉ ghi những cell khác giá trị hiện tại và trả về danh sách cell thật sự được ghi.
     /// </summary>
-    Task WriteFinalGradesToSourceSheetAsync(string studentCode, IReadOnlyList<AssessmentRecord> records, CancellationToken cancellationToken);
+    Task<IReadOnlyList<ResultSourceCellUpdate>> WriteFinalGradesToSourceSheetAsync(
+        string studentCode,
+        IReadOnlyList<AssessmentRecord> records,
+        CancellationToken cancellationToken);
 }

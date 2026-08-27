@@ -38,7 +38,7 @@
       </div>
     </div>
 
-    <dx-form #form [formData]="editor" [disabled]="saving || recordMutationInProgress" labelLocation="top"
+    <dx-form #form [formData]="editor" [disabled]="saving || recordMutationInProgress || submittingResults" labelLocation="top"
       [colCountByScreen]="formColCountByScreen">
       <dxi-item dataField="studentId" editorType="dxSelectBox"  [colSpan]="2" [visible]="isCreate"
         [editorOptions]="studentEditorOptions">
@@ -97,6 +97,15 @@
             [disabled]="!canOpenResultPdfPreview()"
             hint="Mở trang preview kết quả trước khi tạo PDF"
             (onClick)="openResultPdfPreview()">
+          </dx-button>
+          <dx-button
+            text="Cập nhật Kết Quả"
+            icon="refresh"
+            stylingMode="outlined"
+            type="default"
+            [disabled]="!canSubmitResults"
+            hint="Cập nhật kết quả đã lưu vào Google Sheet"
+            (onClick)="submitResults()">
           </dx-button>
           <dx-button
             [text]="showAddAssessmentPicker ? 'Ẩn chọn mục' : 'Thêm mục đánh giá'"
@@ -274,9 +283,9 @@
       <small *ngIf="dirty">Có thay đổi chưa lưu</small>
     </span>
     <div class="form-action-buttons">
-      <dx-button text="Hủy" stylingMode="outlined" [disabled]="saving || recordMutationInProgress" (onClick)="cancel()"></dx-button>
+      <dx-button text="Hủy" stylingMode="outlined" [disabled]="saving || recordMutationInProgress || submittingResults" (onClick)="cancel()"></dx-button>
       <dx-button [text]="isCreate ? 'Tạo bảng đánh giá' : 'Lưu thay đổi'" icon="save" type="default"
-        [disabled]="saving || recordMutationInProgress" (onClick)="save()"></dx-button>
+        [disabled]="saving || recordMutationInProgress || submittingResults" (onClick)="save()"></dx-button>
     </div>
   </div>
 </div>

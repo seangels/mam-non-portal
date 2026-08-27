@@ -339,6 +339,149 @@ public sealed class AdminPortalApiTests(ApiFactory factory) : IClassFixture<ApiF
         Assert.Equal(student.Id, googleSheets.UploadedStudentId);
         Assert.Equal("ket-qua-ca-nhan-test.pdf", googleSheets.UploadedFileName);
         Assert.Equal("%PDF-result-test"u8.ToArray(), googleSheets.UploadedContent);
+
+        using (var scope = uploadFactory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<AdminPortalDbContext>();
+            var uploadAudits = await dbContext.AuditLogs.AsNoTracking()
+                .Where(x => x.EntityId == sheet.Id &&
+                    (x.Action == "AssessmentSheet.PlanPdfUploaded" || x.Action == "AssessmentSheet.ResultPdfUploaded"))
+                .OrderBy(x => x.CreatedAt)
+                .ToListAsync();
+
+            Assert.Contains(uploadAudits, x =>
+                x.Action == "AssessmentSheet.PlanPdfUploaded" &&
+                x.NewValues!.Contains("ke-hoach-ca-nhan-test.pdf", StringComparison.Ordinal) &&
+                x.NewValues.Contains("FileSizeBytes", StringComparison.Ordinal) &&
+                x.NewValues.Contains("/plan.pdf", StringComparison.Ordinal));
+            Assert.Contains(uploadAudits, x =>
+                x.Action == "AssessmentSheet.ResultPdfUploaded" &&
+                x.NewValues!.Contains("ket-qua-ca-nhan-test.pdf", StringComparison.Ordinal) &&
+                x.NewValues.Contains("FileSizeBytes", StringComparison.Ordinal) &&
+                x.NewValues.Contains("/result.pdf", StringComparison.Ordinal));
+        }
+    }
+
+    [Fact]
+    public async Task SubmitAssessmentSheetResultsCallsGoogleSheetsAndAuditsChangedCells()
+    {
+        var googleSheets = new FakeGoogleSheetsService();
+        using var uploadFactory = factory.WithWebHostBuilder(builder =>
+        {
+            builder.ConfigureServices(services =>
+            {
+                services.RemoveAll<IGoogleSheetsService>();
+                services.AddSingleton<IGoogleSheetsService>(googleSheets);
+            });
+        });
+        using var client = uploadFactory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            AllowAutoRedirect = false,
+            HandleCookies = true
+        });
+        var auth = await LoginAsync(client, ApiFactory.SuperAdminEmail, ApiFactory.SuperAdminPassword);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", auth.AccessToken);
+        var marker = Guid.NewGuid().ToString("N")[..8];
+        var student = await CreateStudentAsync(client, $"RS-{marker}", $"Result Submit {marker}");
+        var assessmentId = Guid.NewGuid();
+        var now = DateTimeOffset.UtcNow;
+
+        using (var scope = uploadFactory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<AdminPortalDbContext>();
+            var actor = await dbContext.Users.AsNoTracking()
+                .SingleAsync(x => x.Email == ApiFactory.SuperAdminEmail);
+            await dbContext.Assessments.AddAsync(new Assessment
+            {
+                Id = assessmentId,
+                Code = $"RS-A-{marker}",
+                Name = $"Result Source Assessment {marker}",
+                RowIndex = 1,
+                UpdatedByUserId = actor.Id,
+                CreatedAt = now,
+                UpdatedAt = now
+            });
+            await dbContext.SaveChangesAsync();
+        }
+
+        var create = await client.PostAsJsonAsync("/api/v1/assessment-sheets", new
+        {
+            studentId = student.Id,
+            responsibleTeacherId = (Guid?)null,
+            note = (string?)null,
+            startDate = "2026-06-01T00:00:00+07:00",
+            dueDate = "2026-08-31T00:00:00+07:00",
+            records = new[]
+            {
+                new { assessmentId, latestGrade = (AssessmentGrade?)AssessmentGrade.A, note = "plan note" }
+            }
+        }, JsonOptions);
+        create.EnsureSuccessStatusCode();
+        var sheet = await create.Content.ReadFromJsonAsync<AssessmentSheetDetailResponse>(JsonOptions);
+        Assert.NotNull(sheet);
+
+        googleSheets.ResultSourceUpdates =
+        [
+            new ResultSourceCellUpdate(
+                "spreadsheet-test",
+                "F0.ĐG",
+                "H20",
+                20,
+                "H",
+                "FinalGrade",
+                "Chưa đạt",
+                "Đạt",
+                student.StudentCode,
+                $"RS-A-{marker}",
+                $"Result Source Assessment {marker}",
+                AssessmentGrade.A,
+                "Đạt",
+                "ghi chú kết quả"),
+            new ResultSourceCellUpdate(
+                "spreadsheet-test",
+                "F0.ĐG",
+                "I20",
+                20,
+                "I",
+                "FinalNote",
+                "",
+                "ghi chú kết quả",
+                student.StudentCode,
+                $"RS-A-{marker}",
+                $"Result Source Assessment {marker}",
+                AssessmentGrade.A,
+                "Đạt",
+                "ghi chú kết quả")
+        ];
+
+        var submit = await client.PostAsync($"/api/v1/assessment-sheets/{sheet.Id}/submit-results", null);
+        submit.EnsureSuccessStatusCode();
+        var submittedSheet = await submit.Content.ReadFromJsonAsync<AssessmentSheetDetailResponse>(JsonOptions);
+
+        Assert.NotNull(submittedSheet?.SubmissionDate);
+        Assert.Equal(student.StudentCode, googleSheets.SubmittedStudentCode);
+        Assert.Single(googleSheets.SubmittedRecords);
+
+        using (var scope = uploadFactory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<AdminPortalDbContext>();
+            var resultAudits = await dbContext.AuditLogs.AsNoTracking()
+                .Where(x => x.EntityId == sheet.Id &&
+                    (x.Action == "AssessmentSheet.ResultsSubmitted" || x.Action == "AssessmentSheet.ResultSourceCellUpdated"))
+                .ToListAsync();
+
+            Assert.Contains(resultAudits, x =>
+                x.Action == "AssessmentSheet.ResultsSubmitted" &&
+                AuditJsonValueEquals(x.NewValues, "ChangedCellCount", 2));
+            Assert.Contains(resultAudits, x =>
+                x.Action == "AssessmentSheet.ResultSourceCellUpdated" &&
+                AuditJsonValueEquals(x.NewValues, "Cell", "H20") &&
+                AuditJsonValueEquals(x.NewValues, "Kind", "FinalGrade"));
+            Assert.Contains(resultAudits, x =>
+                x.Action == "AssessmentSheet.ResultSourceCellUpdated" &&
+                AuditJsonValueEquals(x.NewValues, "Cell", "I20") &&
+                AuditJsonValueEquals(x.NewValues, "Kind", "FinalNote"));
+        }
     }
 
     [Fact]
@@ -820,12 +963,38 @@ public sealed class AdminPortalApiTests(ApiFactory factory) : IClassFixture<ApiF
         weekdays = new[] { "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday" }
     };
 
+    private static bool AuditJsonValueEquals(string? json, string propertyName, string expectedValue)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+            return false;
+
+        using var document = JsonDocument.Parse(json);
+        return document.RootElement.TryGetProperty(propertyName, out var property) &&
+            property.ValueKind == JsonValueKind.String &&
+            string.Equals(property.GetString(), expectedValue, StringComparison.Ordinal);
+    }
+
+    private static bool AuditJsonValueEquals(string? json, string propertyName, int expectedValue)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+            return false;
+
+        using var document = JsonDocument.Parse(json);
+        return document.RootElement.TryGetProperty(propertyName, out var property) &&
+            property.ValueKind == JsonValueKind.Number &&
+            property.TryGetInt32(out var actualValue) &&
+            actualValue == expectedValue;
+    }
+
     private sealed class FakeGoogleSheetsService : IGoogleSheetsService
     {
         public Guid UploadedAssessmentSheetId { get; private set; }
         public Guid UploadedStudentId { get; private set; }
         public string? UploadedFileName { get; private set; }
         public byte[]? UploadedContent { get; private set; }
+        public string? SubmittedStudentCode { get; private set; }
+        public IReadOnlyList<AssessmentRecord> SubmittedRecords { get; private set; } = [];
+        public IReadOnlyList<ResultSourceCellUpdate> ResultSourceUpdates { get; set; } = [];
 
         public Task<SyncAssessmentsFromGoogleSheetsResponse> SyncAssessmentsAsync(
             SyncAssessmentsFromGoogleSheetsRequest request,
@@ -889,10 +1058,14 @@ public sealed class AdminPortalApiTests(ApiFactory factory) : IClassFixture<ApiF
             CancellationToken cancellationToken) =>
             throw new NotImplementedException();
 
-        public Task WriteFinalGradesToSourceSheetAsync(
+        public Task<IReadOnlyList<ResultSourceCellUpdate>> WriteFinalGradesToSourceSheetAsync(
             string studentCode,
             IReadOnlyList<AssessmentRecord> records,
-            CancellationToken cancellationToken) =>
-            throw new NotImplementedException();
+            CancellationToken cancellationToken)
+        {
+            SubmittedStudentCode = studentCode;
+            SubmittedRecords = records;
+            return Task.FromResult(ResultSourceUpdates);
+        }
     }
 }

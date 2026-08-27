@@ -14,6 +14,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using EFCore.BulkExtensions;
+using System.Text.Json;
 
 namespace AdminPortal.Application.GoogleSheets;
 
@@ -512,13 +513,34 @@ public class GoogleSheetsService : IGoogleSheetsService, IDisposable
             );
         }
 
-        return new SyncAssessmentsFromGoogleSheetsResponse(
+        var response = new SyncAssessmentsFromGoogleSheetsResponse(
             SheetsTotalRows: data.Count,
             DatabaseTotalRows: sheetLatestByStudentId.Count,
             InsertedRows: assessmentToInsert.Count,
             UpdatedRows: recordLatestsToInsert.Count,
             DeletedRows: 0
         );
+
+        AddGoogleSheetsAudit(actor, "GoogleSheets.AssessmentsSynced", null, new
+        {
+            googleSheetsSettings.SpreadsheetId,
+            response.SheetsTotalRows,
+            response.DatabaseTotalRows,
+            response.InsertedRows,
+            response.UpdatedRows,
+            response.DeletedRows,
+            AssessmentsReadRows = assessments.Count,
+            LatestResultReadRows = data.Count,
+            StudentLatestMirrorCount = sheetLatestByStudentId.Count,
+            AssessmentInsertCount = assessmentToInsert.Count,
+            RecordLatestInsertOrUpdateCount = recordLatestsToInsert.Count,
+            ActorUserId = actor.UserId,
+            ActorRole = actor.Role.ToString(),
+            SyncedAt = now
+        });
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return response;
     }
 
     public async Task<string> EnsureAssessmentSheetSpreadsheetAsync(AssessmentSheet sheet, CancellationToken cancellationToken)
@@ -610,11 +632,13 @@ public class GoogleSheetsService : IGoogleSheetsService, IDisposable
         return await SavePdfToDriveAsync(studentId, existingFileLink, assessmentSheetId, "result.pdf", bytes, cancellationToken);
     }
 
-    public async Task WriteFinalGradesToSourceSheetAsync(string studentCode, IReadOnlyList<AssessmentRecord> records, CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<ResultSourceCellUpdate>> WriteFinalGradesToSourceSheetAsync(
+        string studentCode,
+        IReadOnlyList<AssessmentRecord> records,
+        CancellationToken cancellationToken)
     {
-        var toWrite = records.Where(x => x.FinalGrade is not null).ToList();
-        if (toWrite.Count == 0)
-            return;
+        if (records.Count == 0)
+            return [];
 
         List<string?> itemCodes;
         List<string?> studentCodes;
@@ -647,8 +671,20 @@ public class GoogleSheetsService : IGoogleSheetsService, IDisposable
                         .ToArray()
                 });
         }
-        _ = int.TryParse(_resultSource_FirstStudentColumnIndexString, out int _resultSource_FirstStudentColumnIndex);
-        _ = int.TryParse(_resultSource_FirstDataRowString, out int _resultSource_FirstDataRow);
+        if (!int.TryParse(_resultSource_FirstStudentColumnIndexString, out int _resultSource_FirstStudentColumnIndex) ||
+            !int.TryParse(_resultSource_FirstDataRowString, out int _resultSource_FirstDataRow))
+        {
+            throw new AppValidationException(
+                "Sheet config ResultSource khÃ´ng há»£p lá»‡.",
+                new Dictionary<string, string[]>
+                {
+                    ["invalid_config_keyvalue"] =
+                    [
+                        ResultSource_FirstStudentColumnIndex,
+                        ResultSource_FirstDataRow
+                    ]
+                });
+        }
         try
         {
             var itemCodesResponse = await _sheetsService.Value.Spreadsheets.Values
@@ -669,14 +705,26 @@ public class GoogleSheetsService : IGoogleSheetsService, IDisposable
             throw GoogleOperationFailed("Lỗi khi đọc vị trí mã mục đánh giá/mã học sinh trong [F0.ĐG].", ex);
         }
 
-        var columnIndex = GoogleSheetsGridLocator.FindAbsoluteColumnIndex(studentCodes, studentCode, _resultSource_FirstStudentColumnIndex)
+        var gradeColumnIndex = GoogleSheetsGridLocator.FindAbsoluteColumnIndex(studentCodes, studentCode, _resultSource_FirstStudentColumnIndex)
             ?? throw GoogleOperationFailed(
                 $"Không tìm thấy mã học sinh '{studentCode}' trong hàng {_resultSource_FirstDataRow} của sheet {_resultSource_SheetName}.");
-        var columnLetter = GoogleSheetsGridLocator.ColumnIndexToLetter(columnIndex);
+        var gradeColumnLetter = GoogleSheetsGridLocator.ColumnIndexToLetter(gradeColumnIndex);
+        var noteColumnIndex = gradeColumnIndex + 1;
+        var noteColumnLetter = GoogleSheetsGridLocator.ColumnIndexToLetter(noteColumnIndex);
+        var noteColumnOffset = noteColumnIndex - _resultSource_FirstStudentColumnIndex;
+        var noteHeaderValue = noteColumnOffset >= 0 && noteColumnOffset < studentCodes.Count
+            ? studentCodes[noteColumnOffset]
+            : null;
+        if (!string.IsNullOrWhiteSpace(noteHeaderValue))
+        {
+            throw GoogleOperationFailed(
+                $"Cột ghi chú kế bên cột kết quả của học sinh '{studentCode}' phải để trống ở hàng định vị mã học sinh.");
+        }
 
-        var updates = new List<Google.Apis.Sheets.v4.Data.ValueRange>();
+        var pendingUpdates = new List<PendingResultSourceUpdate>();
         var notFound = new List<string>();
-        foreach (var record in toWrite)
+        var sheetPrefix = QuoteSheetName(_resultSource_SheetName);
+        foreach (var record in records)
         {
             var row = GoogleSheetsGridLocator.FindAbsoluteRow(itemCodes, record.AssessmentSnapshot.Code, _resultSource_FirstDataRow);
             if (row is null)
@@ -685,24 +733,93 @@ public class GoogleSheetsService : IGoogleSheetsService, IDisposable
                 continue;
             }
 
-            updates.Add(new Google.Apis.Sheets.v4.Data.ValueRange
-            {
-                Range = $"{_resultSource_SheetName}!{columnLetter}{row}",
-                Values = [[AssessmentSheetRules.GradeLabel(record.FinalGrade!.Value)]]
-            });
+            var finalGradeLabel = record.FinalGrade is null
+                ? string.Empty
+                : AssessmentSheetRules.GradeLabel(record.FinalGrade.Value);
+            var finalNote = record.FinalNote ?? string.Empty;
+            pendingUpdates.Add(new PendingResultSourceUpdate(
+                Record: record,
+                Row: row.Value,
+                ColumnIndex: gradeColumnIndex,
+                Column: gradeColumnLetter,
+                Cell: $"{gradeColumnLetter}{row}",
+                Range: $"{sheetPrefix}{gradeColumnLetter}{row}",
+                Kind: "FinalGrade",
+                NewValue: finalGradeLabel));
+            pendingUpdates.Add(new PendingResultSourceUpdate(
+                Record: record,
+                Row: row.Value,
+                ColumnIndex: noteColumnIndex,
+                Column: noteColumnLetter,
+                Cell: $"{noteColumnLetter}{row}",
+                Range: $"{sheetPrefix}{noteColumnLetter}{row}",
+                Kind: "FinalNote",
+                NewValue: finalNote));
         }
 
         if (notFound.Count > 0)
             throw GoogleOperationFailed($"Không tìm thấy mã mục đánh giá trong sheet {_resultSource_SheetName}: {string.Join(", ", notFound)}.");
+        if (pendingUpdates.Count == 0)
+            return [];
 
         try
         {
+            var batchGetRequest = _sheetsService.Value.Spreadsheets.Values.BatchGet(_spreadsheetId);
+            batchGetRequest.Ranges = pendingUpdates.Select(x => x.Range).ToList();
+            var currentValuesResponse = await batchGetRequest.ExecuteAsync(cancellationToken);
+            var currentValuesByRange = new Dictionary<string, string?>(StringComparer.Ordinal);
+            for (var i = 0; i < pendingUpdates.Count; i++)
+            {
+                var valueRange = currentValuesResponse.ValueRanges is not null && i < currentValuesResponse.ValueRanges.Count
+                    ? currentValuesResponse.ValueRanges[i]
+                    : null;
+                currentValuesByRange[pendingUpdates[i].Range] = valueRange?.Values?.FirstOrDefault()?.FirstOrDefault()?.ToString();
+            }
+
+            var changedUpdates = new List<PendingResultSourceUpdate>();
+            var valueRanges = new List<Google.Apis.Sheets.v4.Data.ValueRange>();
+            foreach (var pendingUpdate in pendingUpdates)
+            {
+                currentValuesByRange.TryGetValue(pendingUpdate.Range, out var currentValue);
+                currentValue ??= string.Empty;
+                if (string.Equals(currentValue, pendingUpdate.NewValue, StringComparison.Ordinal))
+                    continue;
+
+                changedUpdates.Add(pendingUpdate with { CurrentValue = currentValue });
+                valueRanges.Add(new Google.Apis.Sheets.v4.Data.ValueRange
+                {
+                    Range = pendingUpdate.Range,
+                    Values = [[pendingUpdate.NewValue]]
+                });
+            }
+
+            if (valueRanges.Count == 0)
+                return [];
+
             var batchRequest = new Google.Apis.Sheets.v4.Data.BatchUpdateValuesRequest
             {
                 ValueInputOption = "USER_ENTERED",
-                Data = updates
+                Data = valueRanges
             };
             await _sheetsService.Value.Spreadsheets.Values.BatchUpdate(batchRequest, _spreadsheetId).ExecuteAsync(cancellationToken);
+
+            return changedUpdates
+                .Select(x => new ResultSourceCellUpdate(
+                    SpreadsheetId: _spreadsheetId,
+                    SheetName: _resultSource_SheetName,
+                    Cell: x.Cell,
+                    Row: x.Row,
+                    Column: x.Column,
+                    Kind: x.Kind,
+                    CurrentValue: x.CurrentValue,
+                    NewValue: x.NewValue,
+                    StudentCode: studentCode,
+                    AssessmentCode: x.Record.AssessmentSnapshot.Code,
+                    AssessmentName: x.Record.AssessmentSnapshot.Name,
+                    FinalGrade: x.Record.FinalGrade,
+                    FinalGradeLabel: x.Record.FinalGrade is null ? null : AssessmentSheetRules.GradeLabel(x.Record.FinalGrade.Value),
+                    FinalNote: x.Record.FinalNote))
+                .ToList();
         }
         catch (Exception ex)
         {
@@ -862,6 +979,35 @@ public class GoogleSheetsService : IGoogleSheetsService, IDisposable
     {
         if (actor.Role is not (UserRole.SuperAdmin or UserRole.Admin or UserRole.Teacher))
             throw new ForbiddenException("Không đủ quyền.");
+    }
+
+    private void AddGoogleSheetsAudit(ActorContext actor, string action, Guid? entityId, object? newValue) =>
+        dbContext.AuditLogs.Add(new AuditLog
+        {
+            ActorUserId = actor.UserId,
+            Action = action,
+            EntityType = "GoogleSheets",
+            EntityId = entityId,
+            OldValues = null,
+            NewValues = newValue is null ? null : JsonSerializer.Serialize(newValue),
+            IpAddress = actor.IpAddress,
+            CreatedAt = timeProvider.GetUtcNow()
+        });
+
+    private static string QuoteSheetName(string sheetName) =>
+        $"'{sheetName.Replace("'", "''")}'!";
+
+    private sealed record PendingResultSourceUpdate(
+        AssessmentRecord Record,
+        int Row,
+        int ColumnIndex,
+        string Column,
+        string Cell,
+        string Range,
+        string Kind,
+        string NewValue)
+    {
+        public string? CurrentValue { get; init; }
     }
 
     private static NormalException GoogleOperationFailed(string message, Exception? exception = null) =>

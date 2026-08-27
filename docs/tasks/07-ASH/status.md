@@ -33,9 +33,10 @@ Theo mục 13 của plan. Cả 5 quyết định đã được khoá. `ASH-DEC-0
 |---|---:|---:|---:|---:|---:|
 | Planning | 1 | 0 | 0 | 1 | 0 |
 | Backend | 6 | 0 | 3 | 3 | 0 |
+| Backend delta | 1 | 0 | 0 | 1 | 0 |
 | Frontend | 6 | 5 | 0 | 1 | 0 |
 | Frontend delta | 8 | 0 | 4 | 4 | 0 |
-| Contract delta | 1 | 0 | 0 | 1 | 0 |
+| Contract delta | 2 | 0 | 0 | 2 | 0 |
 | QA | 1 | 1 | 0 | 0 | 0 |
 
 Cập nhật bảng này mỗi khi đổi trạng thái một dòng bên dưới.
@@ -56,6 +57,12 @@ Cập nhật bảng này mỗi khi đổi trạng thái một dòng bên dưới
 | `[~]` | [`ASH-BE-03`](details/05-ASH-BE-03.md) | Mở rộng `GoogleSheetsService` (copy file mẫu → `[F01]` riêng, ghi sheet `data`, `[F0.ĐG]`, nạp lại) — đủ 4/4 mục đã code thật (kể cả upsert `AssessmentSheetLatest`/`AssessmentRecordLatest` từ `_data_DG`); chưa đánh `[x]` vì chưa gọi Google API thật lần nào để xác nhận | `ASH-BE-02` |
 | `[~]` | [`ASH-BE-04`](details/06-ASH-BE-04.md) | Sinh PDF `[F02]`/`[F03]` (ghi trực tiếp vào sheet sẵn có trong `[F01]` → export) — đã code thật theo `ASH-DEC-01`, dùng mapping cột tạm (chưa xác nhận); **chưa gọi Google API thật lần nào nên chưa được đánh `[x]`** theo quy ước (chỉ tick khi đã chạy kiểm tra tương ứng) | `ASH-BE-03` |
 | `[~]` | [`ASH-BE-05`](details/07-ASH-BE-05.md) | Test, README/`requests.http`, default gate, smoke phần backend | `ASH-BE-04` |
+
+### Backend delta — owner: `backend`
+
+| Status | Mã | Việc cần làm | Phụ thuộc |
+|---|---|---|---|
+| `[x]` | [`ASH-BE-06`](details/21-ASH-BE-06.md) | Đã bổ sung/chuẩn hoá AuditLog cho đồng bộ Google Sheet và upload Drive kế hoạch/kết quả; không lưu bytes/secret trong audit. Automated gate pass; chưa gọi Google thật cho sync/upload | `ASH-FE-11`, `ASH-FE-12` |
 
 ## Frontend — owner: `frontend`
 
@@ -85,6 +92,7 @@ Cập nhật bảng này mỗi khi đổi trạng thái một dòng bên dưới
 | Status | Mã | Việc cần làm | Phụ thuộc |
 |---|---|---|---|
 | `[x]` | `ASH-CR-01` | `POST /assessment-sheets` đổi payload tạo mới từ `assessmentIds[]` sang `records[]` gồm `assessmentId`, `latestGrade`, `note`; backend lưu vào `PlanGrade`/`PlanNote`, UI picker gửi dữ liệu latest đang hiển thị | `ASH-FE-05`, latest contract `/assessments?studentId=...` |
+| `[x]` | [`ASH-CR-02`](details/20-ASH-CR-02.md) | Đã thêm nút `Cập nhật Kết Quả` gọi `submit-results`; backend ghi ResultSource chỉ với cell có thay đổi và audit từng cell được ghi. `FinalNote` ghi vào cột kế bên phải cột kết quả của học sinh; automated gate pass, chưa smoke Google Sheet thật | `ASH-FE-10`, `ASH-BE-03` |
 
 ## QA — owner: chưa có agent QA riêng (root điều phối, backend/frontend tự chạy phần của mình)
 

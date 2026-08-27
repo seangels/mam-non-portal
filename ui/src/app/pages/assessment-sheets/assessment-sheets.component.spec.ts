@@ -557,6 +557,83 @@ describe('Assessment sheet form DevExtreme option stability', () => {
     expect(component.canOpenResultPdfPreview()).toBeFalse();
   });
 
+  it('enables submitting results only for saved edit sheets with records and no active mutation', () => {
+    const component = createComponent('edit');
+    component.isCreate = false;
+    component.assessmentSheetId = 'sheet-1';
+    component.records = [{ id: 'record-1' } as any];
+
+    expect(component.canSubmitResults).toBeTrue();
+
+    component.submittingResults = true;
+    expect(component.canSubmitResults).toBeFalse();
+
+    component.submittingResults = false;
+    component.saving = true;
+    expect(component.canSubmitResults).toBeFalse();
+
+    component.saving = false;
+    component.records = [];
+    expect(component.canSubmitResults).toBeFalse();
+
+    component.records = [{ id: 'record-1' } as any];
+    component.isCreate = true;
+    expect(component.canSubmitResults).toBeFalse();
+  });
+
+  it('calls submit-results and applies the returned sheet detail', async () => {
+    const savedSheet = {
+      id: 'sheet-1',
+      status: 'Done',
+      studentId: 'student-1',
+      studentSnapshot: {
+        studentCode: 'S101',
+        fullName: 'Bé An',
+        nickName: 'An'
+      },
+      responsibleTeacherFullName: 'Cô Lan',
+      note: null,
+      feedback: null,
+      records: [
+        {
+          id: 'record-1',
+          assessment: { code: 'A01', name: 'Ngôn ngữ' },
+          planGrade: 'B',
+          finalGrade: 'A',
+          finalNote: 'Đã đạt',
+          createdAt: '',
+          updatedAt: ''
+        }
+      ],
+      createdAt: '',
+      updatedAt: '',
+      submissionDate: '2026-08-27T06:00:00Z'
+    } as any;
+    const assessmentSheets = {
+      submitResults: jasmine.createSpy('submitResults').and.returnValue(of(savedSheet))
+    };
+    const component = new AssessmentSheetFormComponent(
+      assessmentSheets as any,
+      {} as any,
+      { user: { role: 'Admin' } } as any,
+      {} as any,
+      {} as any,
+      { snapshot: { data: { mode: 'edit' }, paramMap: { get: () => 'sheet-1' } } } as any,
+      {} as any
+    );
+    component.isCreate = false;
+    component.assessmentSheetId = 'sheet-1';
+    component.records = [{ id: 'record-1', assessment: { code: 'A01', name: 'Ngôn ngữ' } } as any];
+    (component as any).baseline = (component as any).serialize(component.editor);
+
+    await component.submitResults();
+
+    expect(assessmentSheets.submitResults).toHaveBeenCalledWith('sheet-1');
+    expect(component.originalStatus).toBe('Done');
+    expect(component.studentSummary).toBe('S101 · Bé An (An)');
+    expect(component.records[0].finalGrade).toBe('A');
+  });
+
   it('locks add and remove immediately from the currently selected status while keeping Planed record values editable', () => {
     const component = createComponent('edit');
     component.isCreate = false;

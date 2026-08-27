@@ -242,7 +242,8 @@ public sealed class AssessmentSheetService(
         }
 
         var sheet = await FindRequiredAsync(id, cancellationToken);
-        var old = SnapshotForAudit(sheet);
+        var oldLink = sheet.PlanFileLinkPdf;
+        var old = PdfUploadAuditSnapshot(sheet, "Plan", fileName, content.LongLength, oldLink, oldLink);
         var link = await googleSheetsService.UploadAssessmentSheetPlanPdfAsync(
             sheet.Id, sheet.StudentId, sheet.PlanFileLinkPdf, fileName, content, cancellationToken);
 
@@ -251,7 +252,8 @@ public sealed class AssessmentSheetService(
         sheet.UpdatedByUserId = actor.UserId;
         sheet.UpdatedAt = now;
 
-        AddAudit(actor, "AssessmentSheet.PlanPdfUploaded", sheet.Id, old, SnapshotForAudit(sheet));
+        AddAudit(actor, "AssessmentSheet.PlanPdfUploaded", sheet.Id, old,
+            PdfUploadAuditSnapshot(sheet, "Plan", fileName, content.LongLength, oldLink, link));
         await dbContext.SaveChangesAsync(cancellationToken);
 
         return await BuildDetailAsync(id, cancellationToken);
@@ -271,7 +273,8 @@ public sealed class AssessmentSheetService(
         }
 
         var sheet = await FindRequiredAsync(id, cancellationToken);
-        var old = SnapshotForAudit(sheet);
+        var oldLink = sheet.ResultFileLinkPdf;
+        var old = PdfUploadAuditSnapshot(sheet, "Result", fileName, content.LongLength, oldLink, oldLink);
         var link = await googleSheetsService.UploadAssessmentSheetResultPdfAsync(
             sheet.Id, sheet.StudentId, sheet.ResultFileLinkPdf, fileName, content, cancellationToken);
 
@@ -280,7 +283,8 @@ public sealed class AssessmentSheetService(
         sheet.UpdatedByUserId = actor.UserId;
         sheet.UpdatedAt = now;
 
-        AddAudit(actor, "AssessmentSheet.ResultPdfUploaded", sheet.Id, old, SnapshotForAudit(sheet));
+        AddAudit(actor, "AssessmentSheet.ResultPdfUploaded", sheet.Id, old,
+            PdfUploadAuditSnapshot(sheet, "Result", fileName, content.LongLength, oldLink, link));
         await dbContext.SaveChangesAsync(cancellationToken);
 
         return await BuildDetailAsync(id, cancellationToken);
@@ -317,12 +321,23 @@ public sealed class AssessmentSheetService(
             ?? throw new ConflictException(
                 "Bảng đánh giá thiếu mã học sinh trong snapshot, không thể ghi vào [F0.ĐG].",
                 ProblemCodes.AssessmentSheetGoogleOperationFailed);
-        await googleSheetsService.WriteFinalGradesToSourceSheetAsync(studentCode, records, cancellationToken);
+        var resultSourceUpdates = await googleSheetsService.WriteFinalGradesToSourceSheetAsync(studentCode, records, cancellationToken);
 
+        var old = SnapshotForAudit(sheet);
         var now = timeProvider.GetUtcNow();
         sheet.SubmissionDate = now;
         sheet.UpdatedByUserId = actor.UserId;
         sheet.UpdatedAt = now;
+        AddAudit(actor, "AssessmentSheet.ResultsSubmitted", sheet.Id, old, SubmitResultsAuditSnapshot(sheet, resultSourceUpdates.Count));
+        foreach (var resultSourceUpdate in resultSourceUpdates)
+        {
+            AddAudit(
+                actor,
+                "AssessmentSheet.ResultSourceCellUpdated",
+                sheet.Id,
+                ResultSourceCellAuditSnapshot(sheet, resultSourceUpdate, resultSourceUpdate.CurrentValue, now),
+                ResultSourceCellAuditSnapshot(sheet, resultSourceUpdate, resultSourceUpdate.NewValue, now));
+        }
         await dbContext.SaveChangesAsync(cancellationToken);
 
         return await BuildDetailAsync(id, cancellationToken);
@@ -433,6 +448,67 @@ public sealed class AssessmentSheetService(
         sheet.DueDate,
         sheet.DoneDate,
         sheet.SubmissionDate
+    };
+
+    private static object SubmitResultsAuditSnapshot(AssessmentSheet sheet, int changedCellCount) => new
+    {
+        Status = sheet.AssessmentSheetStatus.ToString(),
+        sheet.StudentId,
+        StudentCode = sheet.StudentSnapshot.StudentCode,
+        StudentName = sheet.StudentSnapshot.FullName,
+        AssessmentSheetId = sheet.Id,
+        sheet.StartDate,
+        sheet.DueDate,
+        sheet.SubmissionDate,
+        ChangedCellCount = changedCellCount
+    };
+
+    private static object PdfUploadAuditSnapshot(
+        AssessmentSheet sheet,
+        string kind,
+        string fileName,
+        long fileSizeBytes,
+        string? oldLink,
+        string? newLink) => new
+    {
+        Kind = kind,
+        AssessmentSheetId = sheet.Id,
+        sheet.StudentId,
+        StudentCode = sheet.StudentSnapshot.StudentCode,
+        StudentName = sheet.StudentSnapshot.FullName,
+        sheet.StartDate,
+        sheet.DueDate,
+        FileName = fileName,
+        FileSizeBytes = fileSizeBytes,
+        OldLink = oldLink,
+        NewLink = newLink
+    };
+
+    private static object ResultSourceCellAuditSnapshot(
+        AssessmentSheet sheet,
+        ResultSourceCellUpdate update,
+        string? value,
+        DateTimeOffset submittedAt) => new
+    {
+        update.SpreadsheetId,
+        update.SheetName,
+        update.Cell,
+        update.Row,
+        update.Column,
+        update.Kind,
+        Value = value,
+        update.StudentCode,
+        StudentName = sheet.StudentSnapshot.FullName,
+        sheet.StudentId,
+        AssessmentSheetId = sheet.Id,
+        sheet.StartDate,
+        sheet.DueDate,
+        update.AssessmentCode,
+        update.AssessmentName,
+        update.FinalGrade,
+        update.FinalGradeLabel,
+        update.FinalNote,
+        SubmittedAt = submittedAt
     };
 
     private static IQueryable<AssessmentSheetListItemResponse> ProjectList(IQueryable<AssessmentSheet> query) =>

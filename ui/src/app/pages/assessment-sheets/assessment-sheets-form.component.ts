@@ -359,6 +359,7 @@ export class AssessmentSheetFormComponent implements OnInit {
   saving = false;
   addingRecord = false;
   removingRecordId: string | null = null;
+  submittingResults = false;
   loadError = '';
   formError = '';
   conflict = false;
@@ -454,16 +455,28 @@ export class AssessmentSheetFormComponent implements OnInit {
     return this.addingRecord || !!this.removingRecordId;
   }
 
+  get canSubmitResults(): boolean {
+    return !this.isCreate
+      && !!this.assessmentSheetId
+      && !this.loading
+      && !this.saving
+      && !this.recordMutationInProgress
+      && !this.submittingResults
+      && this.hasRecords;
+  }
+
   get canMutateRecords(): boolean {
     return !this.loading
       && !this.saving
       && !this.recordMutationInProgress
+      && !this.submittingResults
       && canMutateAssessmentSheetRecords(this.editor.status);
   }
 
   get recordValueControlsDisabled(): boolean {
     return this.saving
       || this.recordMutationInProgress
+      || this.submittingResults
       || !canEditAssessmentSheetRecordValues(this.editor.status);
   }
 
@@ -500,7 +513,7 @@ export class AssessmentSheetFormComponent implements OnInit {
 
   @HostListener('window:beforeunload', ['$event'])
   beforeUnload(event: BeforeUnloadEvent): void {
-    if (this.dirty && !this.saving && !this.recordMutationInProgress) {
+    if (this.dirty && !this.saving && !this.recordMutationInProgress && !this.submittingResults) {
       event.preventDefault();
       event.returnValue = '';
     }
@@ -510,7 +523,7 @@ export class AssessmentSheetFormComponent implements OnInit {
     if (this.allowPreviewNavigationOnce) {
       return true;
     }
-    if (!this.dirty || this.saving || this.recordMutationInProgress) {
+    if (!this.dirty || this.saving || this.recordMutationInProgress || this.submittingResults) {
       return true;
     }
     return confirm('Bạn có thay đổi chưa lưu. Rời trang và bỏ các thay đổi này?', 'Xác nhận rời trang');
@@ -518,7 +531,7 @@ export class AssessmentSheetFormComponent implements OnInit {
 
   async save(event?: Event): Promise<void> {
     event?.preventDefault();
-    if (this.saving || this.recordMutationInProgress || this.loading) {
+    if (this.saving || this.recordMutationInProgress || this.submittingResults || this.loading) {
       return;
     }
 
@@ -586,6 +599,36 @@ export class AssessmentSheetFormComponent implements OnInit {
     await this.openPdfPreview('result');
   }
 
+  async submitResults(): Promise<void> {
+    if (!this.canSubmitResults) {
+      return;
+    }
+    if (this.dirty) {
+      const accepted = await confirm(
+        'Bạn có thay đổi chưa lưu. Hệ thống sẽ cập nhật kết quả bằng dữ liệu đã lưu hiện tại. Nếu muốn cập nhật dữ liệu mới nhất, hãy lưu thay đổi trước.',
+        'Cập nhật Kết Quả'
+      );
+      if (!accepted) {
+        return;
+      }
+    }
+
+    this.submittingResults = true;
+    this.formError = '';
+    this.conflict = false;
+    try {
+      const saved = await firstValueFrom(this.assessmentSheets.submitResults(this.assessmentSheetId));
+      this.applyAssessmentSheet(saved);
+      notify('Đã cập nhật kết quả vào Google Sheet.', 'success', 2500);
+    } catch (error) {
+      const apiError = ApiError.from(error);
+      this.formError = this.withTrace(apiError);
+      this.conflict = apiError.code === 'AssessmentSheetVersionConflict';
+    } finally {
+      this.submittingResults = false;
+    }
+  }
+
   private async openPdfPreview(kind: 'plan' | 'result'): Promise<void> {
     const canOpen = kind === 'result'
       ? this.canOpenResultPdfPreview()
@@ -616,19 +659,19 @@ export class AssessmentSheetFormComponent implements OnInit {
   }
 
   canOpenPlanPdfPreview(): boolean {
-    return !this.loading
-      && !this.saving
-      && !this.recordMutationInProgress
-      && this.hasRecords
-      && this.originalStatus !== 'Open';
+    return this.canUseSavedRecordAction() && this.originalStatus !== 'Open';
   }
 
   canOpenResultPdfPreview(): boolean {
+    return this.canUseSavedRecordAction() && this.originalStatus !== 'Open';
+  }
+
+  private canUseSavedRecordAction(): boolean {
     return !this.loading
       && !this.saving
       && !this.recordMutationInProgress
-      && this.hasRecords
-      && this.originalStatus !== 'Open';
+      && !this.submittingResults
+      && this.hasRecords;
   }
 
   toggleAddAssessmentPicker(): void {
