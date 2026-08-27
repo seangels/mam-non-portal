@@ -127,7 +127,7 @@ describe('Assessment sheet form request mapping', () => {
           assessmentId: 'assessment-2',
           planGrade: 'A',
           planNote: 'Ghi chú gần nhất',
-          finalGrade: 'A',
+          finalGrade: null,
           finalNote: null
         }
       ]
@@ -218,30 +218,37 @@ describe('Assessment sheet form request mapping', () => {
     });
   });
 
-  it('defaults empty current results from plan grade when initializing and saving records', () => {
+  it('keeps empty current results empty while preserving plan grade and plan note', () => {
     const initialized = initializeAssessmentSheetRecords([
       {
         id: 'record-1',
         assessment: { code: 'A01', name: 'Ngôn ngữ' },
         planGrade: 'B',
-        finalGrade: null
+        planNote: 'Kế hoạch',
+        finalGrade: null,
+        finalNote: null
       } as any,
       {
         id: 'record-2',
         assessment: { code: 'A02', name: 'Vận động' },
         planGrade: 'A',
+        planNote: 'Đang luyện',
         finalGrade: 'C'
       } as any
     ]);
 
-    expect(initialized.map(record => record.finalGrade)).toEqual(['B', 'C']);
+    expect(initialized.map(record => record.finalGrade)).toEqual([null, 'C']);
+    expect(initialized.map(record => record.planGrade)).toEqual(['B', 'A']);
+    expect(initialized.map(record => record.planNote)).toEqual(['Kế hoạch', 'Đang luyện']);
 
     const request = buildSaveAssessmentSheetRecordsRequest(initialized, [
       { id: 'assessment-1', code: 'A01' } as any,
       { id: 'assessment-2', code: 'A02' } as any
     ]);
 
-    expect(request.records.map(record => record.finalGrade)).toEqual(['B', 'C']);
+    expect(request.records.map(record => record.finalGrade)).toEqual([null, 'C']);
+    expect(request.records.map(record => record.planGrade)).toEqual(['B', 'A']);
+    expect(request.records.map(record => record.planNote)).toEqual(['Kế hoạch', 'Đang luyện']);
   });
 });
 

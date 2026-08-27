@@ -150,7 +150,7 @@ export function buildReplaceAssessmentSheetRecordsRequest(
       assessmentId: assessment.id,
       planGrade: record.planGrade ?? null,
       planNote: record.planNote ?? null,
-      finalGrade: recordFinalGrade(record),
+      finalGrade: record.finalGrade ?? null,
       finalNote: record.finalNote ?? null
     };
   });
@@ -160,7 +160,7 @@ export function buildReplaceAssessmentSheetRecordsRequest(
     assessmentId: assessmentToAdd.id,
     planGrade: addedPlanGrade,
     planNote: normalizeOptional(assessmentToAdd.latestNote),
-    finalGrade: addedPlanGrade,
+    finalGrade: null,
     finalNote: null
   });
 
@@ -195,7 +195,7 @@ export function buildRemoveAssessmentSheetRecordRequest(
       assessmentId: assessment.id,
       planGrade: record.planGrade ?? null,
       planNote: record.planNote ?? null,
-      finalGrade: recordFinalGrade(record),
+      finalGrade: record.finalGrade ?? null,
       finalNote: record.finalNote ?? null
     };
   });
@@ -237,7 +237,8 @@ export function assessmentGradeBgColor(value: string | null | undefined): string
 export function initializeAssessmentSheetRecords(records: AssessmentSheetRecord[]): AssessmentSheetRecord[] {
   return records.map(record => ({
     ...record,
-    finalGrade: recordFinalGrade(record)
+    finalGrade: record.finalGrade ?? null,
+    finalNote: record.finalNote ?? null
   }));
 }
 
@@ -956,7 +957,7 @@ export class AssessmentSheetFormComponent implements OnInit {
       code: record.assessment.code,
       planGrade: record.planGrade ?? null,
       planNote: record.planNote ?? null,
-      finalGrade: recordFinalGrade(record),
+      finalGrade: record.finalGrade ?? null,
       finalNote: record.finalNote ?? ''
     }));
   }
@@ -1033,13 +1034,9 @@ function buildRecordRequestFromRecord(
     assessmentId: assessment.id,
     planGrade: record.planGrade ?? null,
     planNote: record.planNote ?? null,
-    finalGrade: recordFinalGrade(record),
+    finalGrade: record.finalGrade ?? null,
     finalNote: record.finalNote ?? null
   };
-}
-
-function recordFinalGrade(record: AssessmentSheetRecord): AssessmentGrade | null {
-  return record.finalGrade ?? record.planGrade ?? null;
 }
 
 function normalizeGroupName(value: string | null | undefined): string {
