@@ -12,6 +12,8 @@ public interface IGoogleSheetsSettings
 
 public interface IGoogleSheetsService
 {
+    Task<GoogleSheetsCredentialSmokeResponse> SmokeTestCredentialAsync(CancellationToken cancellationToken);
+
     Task<SyncAssessmentsFromGoogleSheetsResponse> SyncAssessmentsAsync(SyncAssessmentsFromGoogleSheetsRequest request, CancellationToken cancellationToken);
 
     /// <summary>

@@ -189,6 +189,7 @@ PUT    /api/v1/assessment-sheets/{id}/status
 POST   /api/v1/assessment-sheets/{id}/upload-plan-pdf
 POST   /api/v1/assessment-sheets/{id}/upload-result-pdf
 POST   /api/v1/assessment-sheets/{id}/submit-results
+GET    /api/v1/google-sheets/credential-smoke
 POST   /api/v1/google-sheets/sync-assessments
 ```
 
@@ -256,6 +257,7 @@ Các conflict/validation code ổn định: `TeacherNotFound`, `TeacherCodeAlrea
 - `GET /assessment-sheets/plan-candidates` dùng để chọn plan lúc tạo/sửa: lọc theo `studentId` (bắt buộc), `groupLv1Name`/`groupLv2Name`/`groupLv3Name`, `latestGradeAtOrBelow` (thang `A > B > C > D`), có `search`.
 - `upload-plan-pdf` và `upload-result-pdf` là luồng PDF do UI preview HTML tạo bằng `html2pdf.js`: endpoint nhận `multipart/form-data` field `file` (`application/pdf`, tối đa 10 MB), upload PDF đó lên đúng `Student.DriveFolderId`, cập nhật lần lượt `PlanFileLinkPdf` hoặc `ResultFileLinkPdf` và trả lại `AssessmentSheetDetail`. Luồng này không gọi `generate-*-pdf`, không copy/ghi `[F01]`, và nếu học sinh chưa có `driveFolderId` thì trả `409 StudentDriveFolderRequired`.
 - `submit-results` ghi nhãn `finalGrade` và `finalNote` vào `[F0.ĐG]` (dò `E16:E`/`H16:16`, `finalNote` nằm ở cột kế bên cột kết quả của học sinh), chỉ ghi cell có thay đổi, audit từng cell và set `submissionDate`. Lỗi Google/Drive thật trả `409 AssessmentSheetGoogleOperationFailed`.
+- `GET /google-sheets/credential-smoke` là endpoint anonymous chỉ dành cho smoke thủ công/local: kích hoạt OAuth credential Google nếu chưa có token cache, đọc metadata nhẹ của `GoogleSheets:SpreadsheetId`, rồi trả DTO an toàn gồm `success`, trạng thái cấu hình, spreadsheet id, tiêu đề spreadsheet/sheet đầu tiên nếu đọc được. Endpoint này không yêu cầu portal login, không trả token/secret và khi lỗi chỉ trả `errorCode` thô như `SpreadsheetIdNotConfigured` hoặc `GoogleSheetsReadFailed`.
 - `Student.DriveFolderId`: id thư mục Google Drive riêng của học sinh, nhập thủ công qua `POST`/`PUT /students` (field `driveFolderId`, không bắt buộc) — backend chỉ đọc để upload PDF vào đúng thư mục, không tự tạo thư mục.
 - `POST /google-sheets/sync-assessments` giờ mở cho cả `Teacher` (trước đây chỉ `Admin`/`SuperAdmin`); đồng bộ lại `Assessment` (từ `_data_DG_only_item`) và nạp lại/ghi đè hoàn toàn `AssessmentSheetLatest`/`AssessmentRecordLatest` (dữ liệu gợi ý `planGrade`, từ sheet `_data_DG`, cột `ma_hs`/`item_id`/`ket_qua`). Dòng có mã học sinh/mục đánh giá/nhãn kết quả không khớp dữ liệu hiện có sẽ bị bỏ qua (best-effort theo từng dòng, không làm fail cả lượt đồng bộ).
 - Tên/vị trí sheet dùng trong tích hợp Google Sheets nguồn (`ĐG` và vị trí dò ô `E16:E`/`H16:16`, sheet `_data_DG` và dòng header/dữ liệu) đều **cấu hình được** qua mục `GoogleSheets` trong `appsettings.json` (`ResultSourceSheetName`, `ResultSourceFirstDataRow`, `ResultSourceFirstStudentColumnIndex`, `LatestResultsSheetName`, `LatestResultsHeaderRow`, `LatestResultsFirstDataRow`) — không còn hardcode trong `GoogleSheetsService.cs`, đổi cấu trúc sheet nguồn không cần build lại.

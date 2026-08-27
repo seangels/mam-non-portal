@@ -71,6 +71,47 @@ public sealed class AdminPortalApiTests(ApiFactory factory) : IClassFixture<ApiF
     }
 
     [Fact]
+    public async Task GoogleSheetsCredentialSmokeIsAnonymousAndReturnsSafeMetadata()
+    {
+        var googleSheets = new FakeGoogleSheetsService
+        {
+            SmokeResponse = new GoogleSheetsCredentialSmokeResponse(
+                Success: true,
+                IsConfigured: true,
+                SpreadsheetId: "spreadsheet-test-id",
+                SpreadsheetTitle: "Configured source",
+                FirstSheetTitle: "Data",
+                ReadRange: null,
+                ReadRowCount: null,
+                ErrorCode: null)
+        };
+        using var smokeFactory = factory.WithWebHostBuilder(builder => builder.ConfigureServices(services =>
+        {
+            services.RemoveAll<IGoogleSheetsService>();
+            services.AddSingleton<IGoogleSheetsService>(googleSheets);
+        }));
+        using var client = smokeFactory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            BaseAddress = new Uri("https://localhost"),
+            AllowAutoRedirect = false,
+            HandleCookies = false
+        });
+
+        var response = await client.GetAsync("/api/v1/google-sheets/credential-smoke");
+
+        response.EnsureSuccessStatusCode();
+        Assert.True(googleSheets.SmokeWasCalled);
+        var smoke = await response.Content.ReadFromJsonAsync<GoogleSheetsCredentialSmokeResponse>(JsonOptions);
+        Assert.NotNull(smoke);
+        Assert.True(smoke.Success);
+        Assert.True(smoke.IsConfigured);
+        Assert.Equal("spreadsheet-test-id", smoke.SpreadsheetId);
+        Assert.Equal("Configured source", smoke.SpreadsheetTitle);
+        Assert.Equal("Data", smoke.FirstSheetTitle);
+        Assert.Null(smoke.ErrorCode);
+    }
+
+    [Fact]
     public async Task AssessmentListWithStudentIdReturnsAllAssessmentsAndLatestRecordColumns()
     {
         using var client = CreateClient();
@@ -995,6 +1036,22 @@ public sealed class AdminPortalApiTests(ApiFactory factory) : IClassFixture<ApiF
         public string? SubmittedStudentCode { get; private set; }
         public IReadOnlyList<AssessmentRecord> SubmittedRecords { get; private set; } = [];
         public IReadOnlyList<ResultSourceCellUpdate> ResultSourceUpdates { get; set; } = [];
+        public bool SmokeWasCalled { get; private set; }
+        public GoogleSheetsCredentialSmokeResponse SmokeResponse { get; set; } = new(
+            Success: true,
+            IsConfigured: true,
+            SpreadsheetId: "fake-spreadsheet-id",
+            SpreadsheetTitle: "Fake spreadsheet",
+            FirstSheetTitle: "Fake sheet",
+            ReadRange: null,
+            ReadRowCount: null,
+            ErrorCode: null);
+
+        public Task<GoogleSheetsCredentialSmokeResponse> SmokeTestCredentialAsync(CancellationToken cancellationToken)
+        {
+            SmokeWasCalled = true;
+            return Task.FromResult(SmokeResponse);
+        }
 
         public Task<SyncAssessmentsFromGoogleSheetsResponse> SyncAssessmentsAsync(
             SyncAssessmentsFromGoogleSheetsRequest request,

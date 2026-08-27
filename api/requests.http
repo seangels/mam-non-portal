@@ -391,6 +391,12 @@ Authorization: Bearer {{accessToken}}
 
 ###
 
+# Smoke anonymous/local: kích hoạt OAuth credential Google nếu cần và đọc metadata nhẹ của spreadsheet cấu hình.
+# Không cần Authorization; response không chứa token/secret.
+GET {{host}}/api/v1/google-sheets/credential-smoke
+
+###
+
 POST {{host}}/api/v1/google-sheets/sync-assessments
 Authorization: Bearer {{accessToken}}
 Content-Type: application/json

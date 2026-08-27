@@ -17,6 +17,13 @@ namespace AdminPortal.Api.Controllers;
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
 public sealed class GoogleSheetsController(IGoogleSheetsService googleSheetsService) : ControllerBase
 {
+    [AllowAnonymous]
+    [HttpGet("credential-smoke")]
+    [ProducesResponseType<GoogleSheetsCredentialSmokeResponse>(StatusCodes.Status200OK)]
+    public async Task<ActionResult<GoogleSheetsCredentialSmokeResponse>> SmokeTestCredential(
+        CancellationToken cancellationToken) =>
+        Ok(await googleSheetsService.SmokeTestCredentialAsync(cancellationToken));
+
     [HttpPost("sync-assessments")]
     [ProducesResponseType<SyncAssessmentsFromGoogleSheetsResponse>(StatusCodes.Status200OK)]
     public async Task<ActionResult<SyncAssessmentsFromGoogleSheetsResponse>> SyncAssessmentsFromGoogleSheets(

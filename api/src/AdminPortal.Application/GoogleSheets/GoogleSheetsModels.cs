@@ -33,6 +33,17 @@ public sealed record SyncAssessmentsFromGoogleSheetsResponse(
     int DeletedRows
     );
 
+public sealed record GoogleSheetsCredentialSmokeResponse(
+    bool Success,
+    bool IsConfigured,
+    string? SpreadsheetId,
+    string? SpreadsheetTitle,
+    string? FirstSheetTitle,
+    string? ReadRange,
+    int? ReadRowCount,
+    string? ErrorCode
+);
+
 public sealed record ResultSourceCellUpdate(
     string SpreadsheetId,
     string SheetName,

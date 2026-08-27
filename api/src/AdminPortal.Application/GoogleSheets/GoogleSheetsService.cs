@@ -72,6 +72,12 @@ public class GoogleSheetsService : IGoogleSheetsService, IDisposable
     private const string ResultSource_AssessmentCodeRange = "ResultSource_AssessmentCodeRange";
     private const string ResultSource_StudentCodeRange = "ResultSource_StudentCodeRange";
     private Dictionary<string, string>? ResultLatestSheetConfigCacheInTransient;
+    private static readonly Action<ILogger, string, Exception?> GoogleSheetsCredentialSmokeFailed =
+        LoggerMessage.Define<string>(
+            LogLevel.Warning,
+            new EventId(1, nameof(GoogleSheetsCredentialSmokeFailed)),
+            "Google Sheets credential smoke failed with {ExceptionType}.");
+
     public GoogleSheetsService(
         IOptions<GoogleSheetsSettings> configuration,
         IApplicationDbContext dbContext,
@@ -356,6 +362,58 @@ public class GoogleSheetsService : IGoogleSheetsService, IDisposable
                 if (_driveService.IsValueCreated) _driveService.Value.Dispose();
             }
             _disposed = true;
+        }
+    }
+
+    public async Task<GoogleSheetsCredentialSmokeResponse> SmokeTestCredentialAsync(CancellationToken cancellationToken)
+    {
+        var spreadsheetId = googleSheetsSettings.SpreadsheetId?.Trim();
+        if (string.IsNullOrWhiteSpace(spreadsheetId))
+        {
+            return new GoogleSheetsCredentialSmokeResponse(
+                Success: false,
+                IsConfigured: false,
+                SpreadsheetId: null,
+                SpreadsheetTitle: null,
+                FirstSheetTitle: null,
+                ReadRange: null,
+                ReadRowCount: null,
+                ErrorCode: "SpreadsheetIdNotConfigured");
+        }
+
+        try
+        {
+            var request = _sheetsService.Value.Spreadsheets.Get(spreadsheetId);
+            request.IncludeGridData = false;
+            request.Fields = "spreadsheetId,properties.title,sheets.properties.title";
+            var spreadsheet = await request.ExecuteAsync(cancellationToken);
+
+            return new GoogleSheetsCredentialSmokeResponse(
+                Success: true,
+                IsConfigured: true,
+                SpreadsheetId: spreadsheet.SpreadsheetId ?? spreadsheetId,
+                SpreadsheetTitle: spreadsheet.Properties?.Title,
+                FirstSheetTitle: spreadsheet.Sheets?.FirstOrDefault()?.Properties?.Title,
+                ReadRange: null,
+                ReadRowCount: null,
+                ErrorCode: null);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            GoogleSheetsCredentialSmokeFailed(logger, ex.GetType().Name, null);
+            return new GoogleSheetsCredentialSmokeResponse(
+                Success: false,
+                IsConfigured: true,
+                SpreadsheetId: spreadsheetId,
+                SpreadsheetTitle: null,
+                FirstSheetTitle: null,
+                ReadRange: null,
+                ReadRowCount: null,
+                ErrorCode: "GoogleSheetsReadFailed");
         }
     }
 
