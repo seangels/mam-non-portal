@@ -92,7 +92,7 @@ Cập nhật bảng này mỗi khi đổi trạng thái một dòng bên dưới
 | Status | Mã | Việc cần làm | Phụ thuộc |
 |---|---|---|---|
 | `[x]` | `ASH-CR-01` | `POST /assessment-sheets` đổi payload tạo mới từ `assessmentIds[]` sang `records[]` gồm `assessmentId`, `latestGrade`, `note`; backend lưu vào `PlanGrade`/`PlanNote`, UI picker gửi dữ liệu latest đang hiển thị | `ASH-FE-05`, latest contract `/assessments?studentId=...` |
-| `[x]` | [`ASH-CR-02`](details/20-ASH-CR-02.md) | Đã thêm nút `Cập nhật Kết Quả` gọi `submit-results`; backend ghi ResultSource chỉ với cell có thay đổi và audit từng cell được ghi. `FinalNote` ghi vào cột kế bên phải cột kết quả của học sinh; automated gate pass, chưa smoke Google Sheet thật | `ASH-FE-10`, `ASH-BE-03` |
+| `[x]` | [`ASH-CR-02`](details/20-ASH-CR-02.md) | Đã thêm nút `Cập nhật Kết Quả` gọi `submit-results`; UI chỉ hiện khi sheet `Done` và disable cho role `Teacher`, còn backend không chặn riêng Teacher. Backend ghi ResultSource chỉ với cell có thay đổi và audit từng cell được ghi; `FinalNote` ghi vào cột kế bên phải cột kết quả của học sinh; automated gate pass, chưa smoke Google Sheet thật | `ASH-FE-10`, `ASH-BE-03` |
 
 ## QA — owner: chưa có agent QA riêng (root điều phối, backend/frontend tự chạy phần của mình)
 

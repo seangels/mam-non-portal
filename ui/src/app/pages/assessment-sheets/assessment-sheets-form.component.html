@@ -99,6 +99,7 @@
             (onClick)="openResultPdfPreview()">
           </dx-button>
           <dx-button
+            *ngIf="canShowSubmitResults"
             text="Cập nhật Kết Quả"
             icon="refresh"
             stylingMode="outlined"

@@ -16,6 +16,7 @@ Thêm luồng `Cập nhật Kết Quả` trên màn edit AssessmentSheet để g
 8. ✅ Sau khi ghi thành công, backend cập nhật `SubmissionDate`, `UpdatedAt`, `UpdatedByUserId`.
 9. ✅ Không đổi database schema nếu dùng `AuditLog` hiện có.
 10. ✅ Không đổi auth, hash routing, IIS hay production/deploy.
+11. ✅ UI chỉ hiện nút khi `AssessmentSheetStatus = Done`; nếu role là `Teacher` thì nút bị disable. Backend không đổi quyền và không chặn riêng Teacher.
 
 ## Phạm vi
 
@@ -55,7 +56,8 @@ Thêm luồng `Cập nhật Kết Quả` trên màn edit AssessmentSheet để g
     - ✅ actorUserId/ipAddress/createdAt đã có ở `AuditLog`.
 - ✅ Frontend:
   - ✅ Thêm nút `Cập nhật Kết Quả` cạnh nhóm action records.
-  - ✅ Disable khi create mới, đang loading/saving/mutate hoặc không có record.
+  - ✅ Chỉ hiển thị nút khi sheet đã lưu và trạng thái saved là `Done`.
+  - ✅ Disable khi role `Teacher`, đang loading/saving/mutate/submit hoặc không có record.
   - ✅ Nếu form dirty, hỏi xác nhận: phải lưu trước nếu muốn ghi dữ liệu mới nhất.
   - ✅ Khi user xác nhận, gọi `submit-results`.
   - ✅ Hiển thị loading/notify tiếng Việt.

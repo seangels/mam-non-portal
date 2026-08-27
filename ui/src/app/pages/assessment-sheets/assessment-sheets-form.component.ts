@@ -455,14 +455,20 @@ export class AssessmentSheetFormComponent implements OnInit {
     return this.addingRecord || !!this.removingRecordId;
   }
 
-  get canSubmitResults(): boolean {
+  get canShowSubmitResults(): boolean {
     return !this.isCreate
       && !!this.assessmentSheetId
+      && this.originalStatus === 'Done';
+  }
+
+  get canSubmitResults(): boolean {
+    return this.canShowSubmitResults
       && !this.loading
       && !this.saving
       && !this.recordMutationInProgress
       && !this.submittingResults
-      && this.hasRecords;
+      && this.hasRecords
+      && this.auth.user?.role !== 'Teacher';
   }
 
   get canMutateRecords(): boolean {

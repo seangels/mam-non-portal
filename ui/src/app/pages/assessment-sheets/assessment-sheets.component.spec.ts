@@ -474,11 +474,11 @@ describe('Assessment sheet plan PDF preview mapping', () => {
 });
 
 describe('Assessment sheet form DevExtreme option stability', () => {
-  const createComponent = (mode = 'create'): AssessmentSheetFormComponent =>
+  const createComponent = (mode = 'create', role = 'Admin'): AssessmentSheetFormComponent =>
     new AssessmentSheetFormComponent(
       {} as any,
       {} as any,
-      { user: { role: 'Admin' } } as any,
+      { user: { role } } as any,
       {} as any,
       {} as any,
       { snapshot: { data: { mode }, paramMap: { get: () => null } } } as any,
@@ -557,15 +557,22 @@ describe('Assessment sheet form DevExtreme option stability', () => {
     expect(component.canOpenResultPdfPreview()).toBeFalse();
   });
 
-  it('enables submitting results only for saved edit sheets with records and no active mutation', () => {
+  it('shows submit results only for Done sheets and disables it for Teacher role', () => {
     const component = createComponent('edit');
     component.isCreate = false;
     component.assessmentSheetId = 'sheet-1';
     component.records = [{ id: 'record-1' } as any];
 
+    component.originalStatus = 'Planed';
+    expect(component.canShowSubmitResults).toBeFalse();
+    expect(component.canSubmitResults).toBeFalse();
+
+    component.originalStatus = 'Done';
+    expect(component.canShowSubmitResults).toBeTrue();
     expect(component.canSubmitResults).toBeTrue();
 
     component.submittingResults = true;
+    expect(component.canShowSubmitResults).toBeTrue();
     expect(component.canSubmitResults).toBeFalse();
 
     component.submittingResults = false;
@@ -578,7 +585,16 @@ describe('Assessment sheet form DevExtreme option stability', () => {
 
     component.records = [{ id: 'record-1' } as any];
     component.isCreate = true;
+    expect(component.canShowSubmitResults).toBeFalse();
     expect(component.canSubmitResults).toBeFalse();
+
+    const teacherComponent = createComponent('edit', 'Teacher');
+    teacherComponent.isCreate = false;
+    teacherComponent.assessmentSheetId = 'sheet-1';
+    teacherComponent.records = [{ id: 'record-1' } as any];
+    teacherComponent.originalStatus = 'Done';
+    expect(teacherComponent.canShowSubmitResults).toBeTrue();
+    expect(teacherComponent.canSubmitResults).toBeFalse();
   });
 
   it('calls submit-results and applies the returned sheet detail', async () => {
@@ -623,6 +639,7 @@ describe('Assessment sheet form DevExtreme option stability', () => {
     );
     component.isCreate = false;
     component.assessmentSheetId = 'sheet-1';
+    component.originalStatus = 'Done';
     component.records = [{ id: 'record-1', assessment: { code: 'A01', name: 'Ngôn ngữ' } } as any];
     (component as any).baseline = (component as any).serialize(component.editor);
 
