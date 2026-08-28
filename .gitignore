@@ -7,3 +7,4 @@
 # Google OAuth client + tokens for deploy/iis/upload-release-to-drive.ps1
 deploy/iis/client_secret.json
 deploy/iis/*.token.json
+deploy/iis/upload-release-to-drive.json
