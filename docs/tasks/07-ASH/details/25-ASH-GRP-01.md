@@ -7,7 +7,8 @@
 3. ✅ Nút `Áp dụng` trong popup **chỉ đổi tên nhóm trên state UI** (các `AssessmentRecord.AssessmentSnapshot` thuộc đúng ô merge) và đánh dấu form dirty; **không gọi API**.
 4. ✅ Tên nhóm snapshot chỉ được lưu khi bấm `Lưu thay đổi` của cả bảng đánh giá — gộp `groupLv2Name`/`groupLv3Name` vào `PUT /assessment-sheets/{id}/records`.
 5. ✅ Mỗi ô merge có nút icon `Hoàn tác`, chỉ hiện khi ô đó đã khác giá trị lúc tải; bấm là trả các dòng trong ô về tên nhóm ban đầu.
-5b. ✅ Checkbox `Hiện` ở tiêu đề cột `Nhóm nhỏ` bật/tắt cột `Di chuyển nhóm` (giữa `Nhóm lớn` và `Nhóm nhỏ`); nút lên/xuống ở ô merge nhóm nhỏ di chuyển cả dải record của nhóm nhỏ đó lên/xuống trong phạm vi nhóm lớn, đánh lại `displayOrder`.
+5b. ✅ Checkbox `Hiện` ở tiêu đề cột `Nhóm nhỏ` bật/tắt cột `Di chuyển` (giữa `Nhóm lớn` và `Nhóm nhỏ`); nút lên/xuống ở ô merge nhóm nhỏ di chuyển cả dải record của nhóm nhỏ đó lên/xuống trong phạm vi nhóm lớn, đánh lại `displayOrder`.
+5c. ✅ Checkbox `Hiện` ở tiêu đề cột `Nhóm lớn` bật/tắt cột `Di chuyển` (trước cột `Nhóm lớn`); di chuyển cả một nhóm lớn lên/xuống. Thứ tự tùy chỉnh (`groupLv2Order`) ghi đè thứ tự cấu hình `ASSESSMENT_GROUP_LV2_CONFIGS` và được `deriveLoadedGroupLv2Order` khôi phục khi tải lại (qua `displayOrder`).
 6. ✅ Nút riêng `Cập nhật Assessment gốc` (chỉ Admin/SuperAdmin) gọi ngay `PATCH /api/v1/assessments/group` cập nhật bảng `Assessment` danh mục cho các mã trong ô, đồng thời áp tên lên UI.
 7. ✅ Popup có checkbox `Ghi ngược Google Sheet`, nhưng checkbox bị disable và có chú thích `Chưa hỗ trợ`; backend Google write-back chưa thuộc phạm vi task này.
 8. ✅ Đã gỡ `PATCH /assessment-sheets/{id}/record-group` và `UpdateRecordGroupAsync`; quyền/trạng thái, contract và UI mới đã triển khai; automated gate bắt buộc đã pass.

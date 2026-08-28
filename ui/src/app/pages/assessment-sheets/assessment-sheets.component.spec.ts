@@ -28,6 +28,7 @@ import {
   buildReplaceAssessmentSheetRecordsRequest,
   buildSaveAssessmentSheetRecordsRequest,
   buildUpdateAssessmentSheetRequest,
+  deriveLoadedGroupLv2Order,
   canEditAssessmentSheetRecordGroups,
   canEditAssessmentSheetRecordValues,
   canMutateAssessmentSheetRecords,
@@ -1026,6 +1027,56 @@ describe('Assessment sheet form DevExtreme option stability', () => {
 
     expect(component.canMoveGroupLv3(component.recordRows[0], 1)).toBeFalse();
     expect(component.canMoveGroupLv3(component.recordRows[1], -1)).toBeFalse();
+  });
+
+  it('moves a whole Lv2 group and keeps the custom order on rebuild', () => {
+    const component = createComponent('edit', 'Teacher');
+    const records = [
+      groupRecord('r1', 'A01', 'Phát triển thể chất', 'Vận động'),
+      groupRecord('r2', 'A02', 'Phát triển ngôn ngữ', 'Nghe')
+    ];
+    component.isCreate = false;
+    component.records = records;
+    (component as any).rebuildRecordRows();
+
+    expect(component.recordRows.map(row => row.record.id)).toEqual(['r1', 'r2']);
+    expect(component.canMoveGroupLv2(component.recordRows[0], 1)).toBeTrue();
+    expect(component.canMoveGroupLv2(component.recordRows[0], -1)).toBeFalse();
+
+    component.moveGroupLv2(component.recordRows[0], 1);
+
+    expect(component.recordRows.map(row => row.record.id)).toEqual(['r2', 'r1']);
+    expect(component.groupLv2Order).toEqual(['Phát triển ngôn ngữ', 'Phát triển thể chất']);
+    expect(component.recordRows.map(row => row.record.displayOrder)).toEqual([1, 2]);
+  });
+
+  it('deriveLoadedGroupLv2Order returns null for config order and the appearance order when it deviates', () => {
+    const canonical = [
+      groupRecord('r1', 'A01', 'Phát triển thể chất', 'x'),
+      groupRecord('r2', 'A02', 'Phát triển ngôn ngữ', 'y')
+    ] as any;
+    expect(deriveLoadedGroupLv2Order(canonical)).toBeNull();
+
+    const moved = [
+      groupRecord('r2', 'A02', 'Phát triển ngôn ngữ', 'y'),
+      groupRecord('r1', 'A01', 'Phát triển thể chất', 'x')
+    ] as any;
+    expect(deriveLoadedGroupLv2Order(moved)).toEqual(['Phát triển ngôn ngữ', 'Phát triển thể chất']);
+  });
+
+  it('keeps a previously reordered Lv2 group order when the sheet reloads', () => {
+    const component = createComponent('edit', 'Teacher');
+    const records = [
+      groupRecord('r2', 'A02', 'Phát triển ngôn ngữ', 'y'),
+      groupRecord('r1', 'A01', 'Phát triển thể chất', 'x')
+    ];
+    component.isCreate = false;
+    (component as any).applyAssessmentSheet({
+      id: 'sheet-1', status: 'Open', studentId: 's-1', studentSnapshot: {}, records
+    } as any);
+
+    expect(component.groupLv2Order).toEqual(['Phát triển ngôn ngữ', 'Phát triển thể chất']);
+    expect(component.recordRows.map(row => row.record.id)).toEqual(['r2', 'r1']);
   });
 
 });

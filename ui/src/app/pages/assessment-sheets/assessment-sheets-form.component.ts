@@ -321,7 +321,13 @@ export function initializeAssessmentSheetRecords(records: AssessmentSheetRecord[
   }));
 }
 
-export function buildAssessmentSheetRecordRows(records: AssessmentSheetRecord[]): AssessmentSheetRecordTableRow[] {
+export function buildAssessmentSheetRecordRows(
+  records: AssessmentSheetRecord[],
+  groupLv2Order?: readonly string[]
+): AssessmentSheetRecordTableRow[] {
+  const explicitOrder = groupLv2Order && groupLv2Order.length > 0
+    ? new Map(groupLv2Order.map((name, index) => [name, index] as const))
+    : null;
   const rows = records
     .map((record, originalIndex) => ({
       row: {
@@ -339,7 +345,8 @@ export function buildAssessmentSheetRecordRows(records: AssessmentSheetRecord[])
       originalIndex
     }))
     .sort((left, right) => {
-      const orderDelta = groupLv2DisplayOrder(left.row.groupLv2Name) - groupLv2DisplayOrder(right.row.groupLv2Name);
+      const orderDelta = groupLv2SortKey(left.row.groupLv2Name, explicitOrder)
+        - groupLv2SortKey(right.row.groupLv2Name, explicitOrder);
       return orderDelta || left.originalIndex - right.originalIndex;
     })
     .map(item => item.row);
@@ -438,8 +445,11 @@ export class AssessmentSheetFormComponent implements OnInit, OnDestroy {
   existingAssessmentCodes: string[] = [];
   showAddAssessmentPicker = false;
   showCodeColumn = false;
-  showGroupMoveColumn = false;
+  showGroupLv2MoveColumn = false;
+  showGroupLv3MoveColumn = false;
   showPlanColumn = false;
+  // Thứ tự nhóm lớn tùy chỉnh khi người dùng dời nhóm lớn; null = dùng thứ tự cấu hình mặc định.
+  groupLv2Order: string[] | null = null;
   loading = false;
   saving = false;
   addingRecord = false;
@@ -1055,7 +1065,7 @@ export class AssessmentSheetFormComponent implements OnInit, OnDestroy {
         record.assessment.groupLv3Name = baseline.groupLv3Name;
       }
     });
-    this.recordRows = buildAssessmentSheetRecordRows(this.records);
+    this.rebuildRecordRows();
   }
 
   private resolveGroupCellRecordIds(row: AssessmentSheetRecordTableRow, level: AssessmentSheetRecordGroupLevel): string[] {
@@ -1078,7 +1088,7 @@ export class AssessmentSheetFormComponent implements OnInit, OnDestroy {
         record.assessment.groupLv3Name = name;
       }
     });
-    this.recordRows = buildAssessmentSheetRecordRows(this.records);
+    this.rebuildRecordRows();
   }
 
   canMoveRecordUp(row: AssessmentSheetRecordTableRow): boolean {
@@ -1117,11 +1127,8 @@ export class AssessmentSheetFormComponent implements OnInit, OnDestroy {
       return;
     }
     [this.records[currentIndex], this.records[targetIndex]] = [this.records[targetIndex], this.records[currentIndex]];
-    this.recordRows = buildAssessmentSheetRecordRows(this.records);
-    // Chốt STT theo thứ tự hiển thị hiện tại để lưu lại giữ đúng vị trí đã sắp.
-    this.recordRows.forEach((current, position) => {
-      current.record.displayOrder = position + 1;
-    });
+    this.rebuildRecordRows();
+    this.renumberDisplayOrder();
     this.highlightMovedRecords([currentRecord.id], [targetRecord.id]);
   }
 
@@ -1149,20 +1156,72 @@ export class AssessmentSheetFormComponent implements OnInit, OnDestroy {
     const rows = this.recordRows;
     const start = rows.indexOf(row);
     const blockLen = row.groupLv3RowSpan;
+    const { otherStart, otherLen } = this.resolveAdjacentBlock(start, blockLen, direction, current => current.showGroupLv3);
+    const { block, other } = this.swapAdjacentDisplayBlocks(start, blockLen, otherStart, otherLen, direction);
+    this.rebuildRecordRows();
+    this.renumberDisplayOrder();
+    this.highlightMovedRecords(block.map(record => record.id), other.map(record => record.id));
+  }
 
-    let otherStart: number;
-    let otherLen: number;
+  // Di chuyển cả một nhóm lớn (dải record cùng groupLv2) lên/xuống; thứ tự mới được ghi vào groupLv2Order
+  // và giữ qua lần lưu nhờ displayOrder.
+  canMoveGroupLv2(row: AssessmentSheetRecordTableRow, direction: -1 | 1): boolean {
+    if (this.recordValueControlsDisabled || !row.showGroupLv2) {
+      return false;
+    }
+    const start = this.recordRows.indexOf(row);
+    if (start < 0) {
+      return false;
+    }
+    return direction === -1
+      ? start > 0
+      : start + row.groupLv2RowSpan < this.recordRows.length;
+  }
+
+  moveGroupLv2(row: AssessmentSheetRecordTableRow, direction: -1 | 1): void {
+    if (!this.canMoveGroupLv2(row, direction)) {
+      return;
+    }
+    const start = this.recordRows.indexOf(row);
+    const blockLen = row.groupLv2RowSpan;
+    const { otherStart, otherLen } = this.resolveAdjacentBlock(start, blockLen, direction, current => current.showGroupLv2);
+    const { block, other } = this.swapAdjacentDisplayBlocks(start, blockLen, otherStart, otherLen, direction);
+    this.groupLv2Order = distinctGroupLv2Names(this.records);
+    this.rebuildRecordRows();
+    this.renumberDisplayOrder();
+    this.highlightMovedRecords(block.map(record => record.id), other.map(record => record.id));
+  }
+
+  private resolveAdjacentBlock(
+    start: number,
+    blockLen: number,
+    direction: -1 | 1,
+    isBlockStart: (row: AssessmentSheetRecordTableRow) => boolean
+  ): { otherStart: number; otherLen: number } {
+    const rows = this.recordRows;
     if (direction === -1) {
-      otherStart = start - 1;
-      while (otherStart > 0 && !rows[otherStart].showGroupLv3) {
+      let otherStart = start - 1;
+      while (otherStart > 0 && !isBlockStart(rows[otherStart])) {
         otherStart -= 1;
       }
-      otherLen = start - otherStart;
-    } else {
-      otherStart = start + blockLen;
-      otherLen = rows[otherStart].groupLv3RowSpan;
+      return { otherStart, otherLen: start - otherStart };
     }
+    const otherStart = start + blockLen;
+    let otherLen = 1;
+    while (otherStart + otherLen < rows.length && !isBlockStart(rows[otherStart + otherLen])) {
+      otherLen += 1;
+    }
+    return { otherStart, otherLen };
+  }
 
+  private swapAdjacentDisplayBlocks(
+    start: number,
+    blockLen: number,
+    otherStart: number,
+    otherLen: number,
+    direction: -1 | 1
+  ): { block: AssessmentSheetRecord[]; other: AssessmentSheetRecord[] } {
+    const rows = this.recordRows;
     const block = rows.slice(start, start + blockLen).map(current => current.record);
     const other = rows.slice(otherStart, otherStart + otherLen).map(current => current.record);
     const spanStart = Math.min(start, otherStart);
@@ -1178,12 +1237,18 @@ export class AssessmentSheetFormComponent implements OnInit, OnDestroy {
     });
     newSpan.forEach((record, offset) => order.set(record.id, spanStart + offset));
     this.records = [...this.records].sort((left, right) => (order.get(left.id) ?? 0) - (order.get(right.id) ?? 0));
+    return { block, other };
+  }
 
-    this.recordRows = buildAssessmentSheetRecordRows(this.records);
+  private rebuildRecordRows(): void {
+    this.recordRows = buildAssessmentSheetRecordRows(this.records, this.groupLv2Order ?? undefined);
+  }
+
+  private renumberDisplayOrder(): void {
+    // Chốt STT theo thứ tự hiển thị hiện tại để lưu lại giữ đúng vị trí đã sắp.
     this.recordRows.forEach((current, position) => {
       current.record.displayOrder = position + 1;
     });
-    this.highlightMovedRecords(block.map(record => record.id), other.map(record => record.id));
   }
 
   // Dòng người dùng vừa bấm nút Di chuyển (nháy nền nổi bật hơn).
@@ -1328,7 +1393,8 @@ export class AssessmentSheetFormComponent implements OnInit, OnDestroy {
     this.studentSummary = this.buildStudentSummary(sheet);
     this.responsibleTeacherSummary = sheet.responsibleTeacherFullName ?? 'Chưa chọn giáo viên phụ trách';
     this.records = initializeAssessmentSheetRecords(sheet.records ?? []);
-    this.recordRows = buildAssessmentSheetRecordRows(this.records);
+    this.groupLv2Order = deriveLoadedGroupLv2Order(this.records);
+    this.rebuildRecordRows();
     this.recordGroupBaseline = new Map(this.records.map(record => [record.id, {
       groupLv2Name: record.assessment.groupLv2Name ?? null,
       groupLv3Name: record.assessment.groupLv3Name ?? null
@@ -1495,6 +1561,44 @@ function normalizeGroupName(value: string | null | undefined): string {
 
 function groupLv2DisplayOrder(groupLv2Name: string): number {
   return GROUP_LV2_DISPLAY_ORDER_INDEX.get(normalizeVietnamese(groupLv2Name)) ?? Number.MAX_SAFE_INTEGER;
+}
+
+// Khoá sắp xếp nhóm lớn: nếu có thứ tự tùy chỉnh (user đã dời nhóm lớn) thì ưu tiên nó,
+// nhóm chưa nằm trong danh sách tùy chỉnh xếp sau theo thứ tự cấu hình mặc định.
+function groupLv2SortKey(groupLv2Name: string, explicitOrder: Map<string, number> | null): number {
+  if (!explicitOrder) {
+    return groupLv2DisplayOrder(groupLv2Name);
+  }
+  const explicit = explicitOrder.get(groupLv2Name);
+  if (explicit !== undefined) {
+    return explicit;
+  }
+  const configIndex = GROUP_LV2_DISPLAY_ORDER_INDEX.get(normalizeVietnamese(groupLv2Name));
+  return configIndex !== undefined ? explicitOrder.size + configIndex : Number.MAX_SAFE_INTEGER;
+}
+
+// Tên nhóm lớn theo thứ tự xuất hiện đầu tiên trong mảng record.
+export function distinctGroupLv2Names(records: AssessmentSheetRecord[]): string[] {
+  const seen = new Set<string>();
+  const order: string[] = [];
+  records.forEach(record => {
+    const name = normalizeGroupName(record.assessment.groupLv2Name);
+    if (!seen.has(name)) {
+      seen.add(name);
+      order.push(name);
+    }
+  });
+  return order;
+}
+
+// Khi tải sheet: nếu thứ tự nhóm lớn theo record đã khác thứ tự cấu hình mặc định
+// (do lần lưu trước người dùng đã dời nhóm), giữ lại thứ tự đó; ngược lại trả null (canonical).
+export function deriveLoadedGroupLv2Order(records: AssessmentSheetRecord[]): string[] | null {
+  const appearance = distinctGroupLv2Names(records);
+  const canonical = [...appearance].sort((left, right) =>
+    (groupLv2DisplayOrder(left) - groupLv2DisplayOrder(right)) || (appearance.indexOf(left) - appearance.indexOf(right)));
+  const deviates = appearance.some((name, index) => name !== canonical[index]);
+  return deviates ? appearance : null;
 }
 
 function countFollowingRows(

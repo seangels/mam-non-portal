@@ -136,15 +136,27 @@
         <table class="records-table">
           <thead>
             <tr>
-              <th class="group-lv2-column" scope="col">Nhóm lớn</th>
-              <th *ngIf="showGroupMoveColumn" class="group-move-column" scope="col">Di chuyển nhóm</th>
+              <th *ngIf="showGroupLv2MoveColumn" class="group-move-column" scope="col">Di chuyển</th>
+              <th class="group-lv2-column" scope="col">
+                <div class="content-header">
+                  <span>Nhóm lớn</span>
+                  <label class="code-toggle">
+                    <input
+                      type="checkbox"
+                      [(ngModel)]="showGroupLv2MoveColumn"
+                      [ngModelOptions]="standaloneNgModelOptions" />
+                    <span>Hiện</span>
+                  </label>
+                </div>
+              </th>
+              <th *ngIf="showGroupLv3MoveColumn" class="group-move-column" scope="col">Di chuyển</th>
               <th class="group-lv3-column" scope="col">
                 <div class="content-header">
                   <span>Nhóm nhỏ</span>
                   <label class="code-toggle">
                     <input
                       type="checkbox"
-                      [(ngModel)]="showGroupMoveColumn"
+                      [(ngModel)]="showGroupLv3MoveColumn"
                       [ngModelOptions]="standaloneNgModelOptions" />
                     <span>Hiện</span>
                   </label>
@@ -187,6 +199,27 @@
             <tr *ngFor="let row of recordRows; trackBy: trackRecordRow" [style.backgroundColor]="row.groupColor"
               [class.record-row--moved-primary]="isRecordMovePrimary(row.record.id)"
               [class.record-row--moved-secondary]="isRecordMoveSecondary(row.record.id)">
+              <td *ngIf="showGroupLv2MoveColumn && row.showGroupLv2" class="group-move-cell"
+                [attr.rowspan]="row.groupLv2RowSpan">
+                <div class="move-buttons">
+                  <dx-button
+                    icon="spinup"
+                    stylingMode="text"
+                    [disabled]="!canMoveGroupLv2(row, -1)"
+                    hint="Di chuyển nhóm lớn lên"
+                    [attr.aria-label]="'Di chuyển nhóm lớn lên: ' + row.groupLv2Name"
+                    (onClick)="moveGroupLv2(row, -1)">
+                  </dx-button>
+                  <dx-button
+                    icon="spindown"
+                    stylingMode="text"
+                    [disabled]="!canMoveGroupLv2(row, 1)"
+                    hint="Di chuyển nhóm lớn xuống"
+                    [attr.aria-label]="'Di chuyển nhóm lớn xuống: ' + row.groupLv2Name"
+                    (onClick)="moveGroupLv2(row, 1)">
+                  </dx-button>
+                </div>
+              </td>
               <td *ngIf="row.showGroupLv2" class="group-cell group-lv2-cell"
                 [class.single-row-group]="row.groupLv2RowSpan === 1"
                 [attr.rowspan]="row.groupLv2RowSpan">
@@ -214,7 +247,7 @@
                   </dx-button>
                 </div>
               </td>
-              <td *ngIf="showGroupMoveColumn && row.showGroupLv3" class="group-move-cell"
+              <td *ngIf="showGroupLv3MoveColumn && row.showGroupLv3" class="group-move-cell"
                 [attr.rowspan]="row.groupLv3RowSpan">
                 <div class="move-buttons">
                   <dx-button
