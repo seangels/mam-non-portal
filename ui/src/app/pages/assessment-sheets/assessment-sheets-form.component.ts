@@ -1,4 +1,4 @@
-import { Component, HostListener, OnInit, ViewChild } from '@angular/core';
+import { Component, HostListener, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import CustomStore from 'devextreme/data/custom_store';
@@ -31,6 +31,8 @@ import { normalizeVietnamese } from '../../core/utils/vietnamese-search';
 import { AssessmentPickerComponent } from './assessment-picker.component';
 
 const ASSESSMENT_CACHE_PAGE_SIZE = 100;
+// Thời gian giữ highlight cho các dòng vừa được bấm Di chuyển; khớp với animation trong SCSS.
+const MOVE_HIGHLIGHT_DURATION_MS = 1400;
 const UNGROUPED_LABEL = 'Chưa phân nhóm';
 const EMPTY_GRADE_OPTION: { value: null; text: string; color: string; bgcolor: string } = {
   value: null,
@@ -312,7 +314,7 @@ export function buildAssessmentSheetRecordRows(records: AssessmentSheetRecord[])
   templateUrl: './assessment-sheets-form.component.html',
   styleUrls: ['./assessment-sheets-form.component.scss']
 })
-export class AssessmentSheetFormComponent implements OnInit {
+export class AssessmentSheetFormComponent implements OnInit, OnDestroy {
   @ViewChild(DxFormComponent) form?: DxFormComponent;
   @ViewChild(AssessmentPickerComponent) assessmentPicker?: AssessmentPickerComponent;
 
@@ -359,6 +361,9 @@ export class AssessmentSheetFormComponent implements OnInit {
   responsibleTeacherSummary = '';
   records: AssessmentSheetRecord[] = [];
   recordRows: AssessmentSheetRecordTableRow[] = [];
+  recentlyMovedRecordIds = new Set<string>();
+  private moveHighlightStartTimer: ReturnType<typeof setTimeout> | null = null;
+  private moveHighlightClearTimer: ReturnType<typeof setTimeout> | null = null;
   existingAssessmentCodes: string[] = [];
   showAddAssessmentPicker = false;
   showCodeColumn = false;
@@ -529,6 +534,15 @@ export class AssessmentSheetFormComponent implements OnInit {
       void this.load(this.assessmentSheetId);
     } else {
       this.loadError = 'Không tìm thấy mã bảng đánh giá trong đường dẫn.';
+    }
+  }
+
+  ngOnDestroy(): void {
+    if (this.moveHighlightStartTimer) {
+      clearTimeout(this.moveHighlightStartTimer);
+    }
+    if (this.moveHighlightClearTimer) {
+      clearTimeout(this.moveHighlightClearTimer);
     }
   }
 
@@ -847,6 +861,31 @@ export class AssessmentSheetFormComponent implements OnInit {
     // Chốt STT theo thứ tự hiển thị hiện tại để lưu lại giữ đúng vị trí đã sắp.
     this.recordRows.forEach((current, position) => {
       current.record.displayOrder = position + 1;
+    });
+    this.highlightMovedRecords(currentRecord.id, targetRecord.id);
+  }
+
+  isRecordRecentlyMoved(recordId: string): boolean {
+    return this.recentlyMovedRecordIds.has(recordId);
+  }
+
+  // Nháy nền hai dòng vừa hoán đổi vị trí. Xoá highlight cũ trong một tick để
+  // Angular gỡ class khỏi DOM, nhờ đó animation CSS chạy lại khi bấm liên tục.
+  private highlightMovedRecords(...recordIds: string[]): void {
+    if (this.moveHighlightStartTimer) {
+      clearTimeout(this.moveHighlightStartTimer);
+    }
+    if (this.moveHighlightClearTimer) {
+      clearTimeout(this.moveHighlightClearTimer);
+    }
+    this.recentlyMovedRecordIds = new Set();
+    this.moveHighlightStartTimer = setTimeout(() => {
+      this.moveHighlightStartTimer = null;
+      this.recentlyMovedRecordIds = new Set(recordIds);
+      this.moveHighlightClearTimer = setTimeout(() => {
+        this.moveHighlightClearTimer = null;
+        this.recentlyMovedRecordIds = new Set();
+      }, MOVE_HIGHLIGHT_DURATION_MS);
     });
   }
 

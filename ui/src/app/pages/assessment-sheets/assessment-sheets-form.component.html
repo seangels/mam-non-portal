@@ -172,7 +172,8 @@
             </tr>
           </thead>
           <tbody>
-            <tr *ngFor="let row of recordRows; trackBy: trackRecordRow" [style.backgroundColor]="row.groupColor">
+            <tr *ngFor="let row of recordRows; trackBy: trackRecordRow" [style.backgroundColor]="row.groupColor"
+              [class.record-row--moved]="isRecordRecentlyMoved(row.record.id)">
               <td *ngIf="row.showGroupLv2" class="group-cell group-lv2-cell"
                 [class.single-row-group]="row.groupLv2RowSpan === 1"
                 [attr.rowspan]="row.groupLv2RowSpan">
