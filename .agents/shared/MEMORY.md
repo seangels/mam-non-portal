@@ -43,6 +43,7 @@ Last updated: 2026-08-28
 - IIS local HTTPS hostnames are `api-gv-portal.local` and `gv-portal.local`, both on port 443 with SNI.
 - IIS physical paths are `C:\inetpub\api-gv-portal.local` and `C:\inetpub\gv-portal.local`.
 - `deploy/iis/build-iis-package.ps1` creates the transfer ZIP and SHA-256 file. `deploy/iis/deploy-iis.ps1` runs on the target and prompts for PostgreSQL/JWT secrets as SecureString.
+- `deploy/iis/deploy-iis.change.ps1` is a target-side convenience wrapper: dropped into a folder holding many `gv-portal-iis-*.zip` packages, it sets Process-scope Bypass, picks the package whose `YYYYMMDD-HHMMSS` name stamp is newest, verifies `.sha256` if present, `Expand-Archive`s it next to the zip, then invokes `deploy/iis/copy-files.ps1` from inside the extracted folder and propagates its exit code. Params: `-PackageDirectory`, `-PackagePattern`, `-SkipChecksum`, `-KeepExistingExtract`.
 - The target needs IIS, the .NET 10 Hosting Bundle, PostgreSQL 17, and elevated Windows PowerShell 5.1. It does not need source, .NET SDK, Node, or npm.
 - The deploy script creates/trusts a local SAN certificate by default, updates hosts entries, configures separate app pools, injects Production settings into deployed API `web.config`, and exposes HTTPS only.
 - Generated `artifacts/` and `release/` are ignored and may not exist in a new clone/session.
