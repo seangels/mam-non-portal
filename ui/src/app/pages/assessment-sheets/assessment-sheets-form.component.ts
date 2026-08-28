@@ -825,6 +825,10 @@ export class AssessmentSheetFormComponent implements OnInit {
       && this.recordRows[index + 1].groupLv2Name === row.groupLv2Name;
   }
 
+  trackRecordRow(_index: number, row: AssessmentSheetRecordTableRow): string {
+    return row.record.id;
+  }
+
   moveRecord(row: AssessmentSheetRecordTableRow, direction: -1 | 1): void {
     const canMove = direction === -1 ? this.canMoveRecordUp(row) : this.canMoveRecordDown(row);
     if (!canMove) {
