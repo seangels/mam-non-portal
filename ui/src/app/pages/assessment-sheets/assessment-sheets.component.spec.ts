@@ -102,7 +102,8 @@ describe('Assessment sheet form request mapping', () => {
         planGrade: 'B',
         planNote: 'Kế hoạch cũ',
         finalGrade: 'C',
-        finalNote: 'Kết quả cũ'
+        finalNote: 'Kết quả cũ',
+        displayOrder: 5
       } as any
     ], {
       id: 'assessment-2',
@@ -122,14 +123,16 @@ describe('Assessment sheet form request mapping', () => {
           planGrade: 'B',
           planNote: 'Kế hoạch cũ',
           finalGrade: 'C',
-          finalNote: 'Kết quả cũ'
+          finalNote: 'Kết quả cũ',
+          displayOrder: 5
         },
         {
           assessmentId: 'assessment-2',
           planGrade: 'A',
           planNote: 'Ghi chú gần nhất',
           finalGrade: null,
-          finalNote: null
+          finalNote: null,
+          displayOrder: null
         }
       ]
     });
@@ -173,7 +176,8 @@ describe('Assessment sheet form request mapping', () => {
           planGrade: 'A',
           planNote: 'Kế hoạch',
           finalGrade: 'D',
-          finalNote: 'Kết quả'
+          finalNote: 'Kết quả',
+          displayOrder: null
         }
       ]
     });
@@ -213,7 +217,8 @@ describe('Assessment sheet form request mapping', () => {
           planGrade: 'B',
           planNote: 'Kế hoạch',
           finalGrade: 'A',
-          finalNote: 'Đã đạt'
+          finalNote: 'Đã đạt',
+          displayOrder: null
         }
       ]
     });

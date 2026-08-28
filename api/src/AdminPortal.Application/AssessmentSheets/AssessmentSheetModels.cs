@@ -65,6 +65,7 @@ public sealed record AssessmentSheetRecordResponse(
     Guid Id,
     Guid AssessmentSheetId,
     int? AssessmentRowIndex,
+    int? DisplayOrder,
     AssessmentSnapshotResponse Assessment,
     AssessmentGrade? PlanGrade,
     string? PlanNote,
@@ -121,7 +122,8 @@ public sealed record AssessmentSheetRecordRequest(
     AssessmentGrade? PlanGrade,
     [param: MaxLength(2000)] string? PlanNote,
     AssessmentGrade? FinalGrade,
-    [param: MaxLength(2000)] string? FinalNote);
+    [param: MaxLength(2000)] string? FinalNote,
+    [param: Range(0, int.MaxValue)] int? DisplayOrder = null);
 
 public sealed record UpdateAssessmentSheetStatusRequest(AssessmentSheetStatus Status);
 

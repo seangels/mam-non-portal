@@ -22,6 +22,14 @@
 .group-lv2-column { width: 142px; }
 .group-lv3-column { width: 180px; }
 .number-column { width: 40px; }
+.move-column { width: 40px; }
+.move-cell { text-align: center; }
+.move-buttons { display: inline-flex; flex-direction: row; align-items: center; gap: 1px; }
+.move-buttons .dx-button { min-width: 20px; width: 24px; height: 24px; }
+:host ::ng-deep .move-buttons .dx-button { background: #eef4ff; }
+:host ::ng-deep .move-buttons .dx-button.dx-state-hover { background: #dbe8ff; }
+:host ::ng-deep .move-buttons .dx-button.dx-state-disabled { background: #f4f6f9; }
+:host ::ng-deep .move-buttons .dx-button .dx-button-content { padding: 0; }
 .code-column { width: 40px; }
 .plan-column { width: 80px; }
 .grade-column { width: 100px; }

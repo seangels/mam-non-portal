@@ -14,6 +14,12 @@ public sealed class AssessmentRecord
     public required AssessmentSheet AssessmentSheet {get;set;}
     public int? AssessmentRowIndex {get;set;}
 
+    /// <summary>
+    /// STT hiển thị do người dùng chỉnh và lưu trên form bảng đánh giá. Tách biệt với <see cref="AssessmentRowIndex"/>
+    /// (khóa sắp xếp gốc theo mục đánh giá). Null nghĩa là chưa đặt; UI tự đếm tăng dần theo nhóm lv3.
+    /// </summary>
+    public int? DisplayOrder {get;set;}
+
     [Column(TypeName = "jsonb")]
     public required AssessmentSnapshot AssessmentSnapshot { get; set; }
     public AssessmentGrade? PlanGrade { get; set; }

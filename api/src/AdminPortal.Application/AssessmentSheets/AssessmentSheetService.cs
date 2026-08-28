@@ -839,7 +839,8 @@ public sealed partial class AssessmentSheetService(
     private async Task<List<AssessmentRecord>> LoadRecordEntitiesAsync(Guid sheetId, CancellationToken cancellationToken) =>
         await dbContext.AssessmentRecords.AsNoTracking()
             .Where(x => x.AssessmentSheetId == sheetId)
-            .OrderBy(x => x.AssessmentRowIndex ?? int.MaxValue)
+            .OrderBy(x => x.DisplayOrder ?? int.MaxValue)
+            .ThenBy(x => x.AssessmentRowIndex ?? int.MaxValue)
             .ToListAsync(cancellationToken);
 
     private async Task<AssessmentSheetDetailResponse> BuildDetailAsync(Guid id, CancellationToken cancellationToken)
@@ -851,12 +852,14 @@ public sealed partial class AssessmentSheetService(
             ?? throw AssessmentSheetNotFound();
         var records = await dbContext.AssessmentRecords.AsNoTracking()
             .Where(x => x.AssessmentSheetId == id)
-            .OrderBy(x => x.AssessmentRowIndex ?? int.MaxValue)
+            .OrderBy(x => x.DisplayOrder ?? int.MaxValue)
+            .ThenBy(x => x.AssessmentRowIndex ?? int.MaxValue)
             .ThenBy(x => x.AssessmentSnapshot.Code)
             .Select(x => new AssessmentSheetRecordResponse(
                 x.Id,
                 x.AssessmentSheetId,
                 x.AssessmentRowIndex,
+                x.DisplayOrder,
                 ToResponse(x.AssessmentSnapshot),
                 x.PlanGrade,
                 x.PlanNote,

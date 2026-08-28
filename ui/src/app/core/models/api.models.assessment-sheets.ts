@@ -70,6 +70,7 @@ export interface AssessmentSheetRecord {
   id: string;
   assessmentSheetId: string;
   assessmentRowIndex?: number | null;
+  displayOrder?: number | null;
   assessment: AssessmentSnapshot;
   planGrade?: AssessmentGrade | null;
   planNote?: string | null;
@@ -89,6 +90,7 @@ export interface AssessmentSheetRecordRequest {
   planNote?: string | null;
   finalGrade?: AssessmentGrade | null;
   finalNote?: string | null;
+  displayOrder?: number | null;
 }
 
 export interface AssessmentSheetDetail extends AssessmentSheet {

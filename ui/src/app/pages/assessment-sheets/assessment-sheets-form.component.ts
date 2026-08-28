@@ -155,7 +155,8 @@ export function buildReplaceAssessmentSheetRecordsRequest(
       planGrade: record.planGrade ?? null,
       planNote: record.planNote ?? null,
       finalGrade: record.finalGrade ?? null,
-      finalNote: record.finalNote ?? null
+      finalNote: record.finalNote ?? null,
+      displayOrder: record.displayOrder ?? null
     };
   });
   const addedPlanGrade = normalizeAssessmentGrade(assessmentToAdd.latestGrade);
@@ -165,7 +166,8 @@ export function buildReplaceAssessmentSheetRecordsRequest(
     planGrade: addedPlanGrade,
     planNote: normalizeOptional(assessmentToAdd.latestNote),
     finalGrade: null,
-    finalNote: null
+    finalNote: null,
+    displayOrder: null
   });
 
   return { records };
@@ -200,7 +202,8 @@ export function buildRemoveAssessmentSheetRecordRequest(
       planGrade: record.planGrade ?? null,
       planNote: record.planNote ?? null,
       finalGrade: record.finalGrade ?? null,
-      finalNote: record.finalNote ?? null
+      finalNote: record.finalNote ?? null,
+      displayOrder: record.displayOrder ?? null
     };
   });
 
@@ -804,6 +807,45 @@ export class AssessmentSheetFormComponent implements OnInit {
     record.finalNote = value ?? '';
   }
 
+  canMoveRecordUp(row: AssessmentSheetRecordTableRow): boolean {
+    if (this.recordValueControlsDisabled) {
+      return false;
+    }
+    const index = this.recordRows.indexOf(row);
+    return index > 0 && this.recordRows[index - 1].groupLv2Name === row.groupLv2Name;
+  }
+
+  canMoveRecordDown(row: AssessmentSheetRecordTableRow): boolean {
+    if (this.recordValueControlsDisabled) {
+      return false;
+    }
+    const index = this.recordRows.indexOf(row);
+    return index >= 0
+      && index < this.recordRows.length - 1
+      && this.recordRows[index + 1].groupLv2Name === row.groupLv2Name;
+  }
+
+  moveRecord(row: AssessmentSheetRecordTableRow, direction: -1 | 1): void {
+    const canMove = direction === -1 ? this.canMoveRecordUp(row) : this.canMoveRecordDown(row);
+    if (!canMove) {
+      return;
+    }
+    const index = this.recordRows.indexOf(row);
+    const currentRecord = this.recordRows[index].record;
+    const targetRecord = this.recordRows[index + direction].record;
+    const currentIndex = this.records.indexOf(currentRecord);
+    const targetIndex = this.records.indexOf(targetRecord);
+    if (currentIndex < 0 || targetIndex < 0) {
+      return;
+    }
+    [this.records[currentIndex], this.records[targetIndex]] = [this.records[targetIndex], this.records[currentIndex]];
+    this.recordRows = buildAssessmentSheetRecordRows(this.records);
+    // Chốt STT theo thứ tự hiển thị hiện tại để lưu lại giữ đúng vị trí đã sắp.
+    this.recordRows.forEach((current, position) => {
+      current.record.displayOrder = position + 1;
+    });
+  }
+
   private recordStructureLockedMessage(): string {
     if (this.editor.status === 'Planed') {
       return 'Bảng đánh giá đang ở trạng thái Kế hoạch nên không thể thêm hoặc xóa mục đánh giá.';
@@ -975,7 +1017,8 @@ export class AssessmentSheetFormComponent implements OnInit {
       planGrade: record.planGrade ?? null,
       planNote: record.planNote ?? null,
       finalGrade: record.finalGrade ?? null,
-      finalNote: record.finalNote ?? ''
+      finalNote: record.finalNote ?? '',
+      displayOrder: record.displayOrder ?? null
     }));
   }
 
@@ -1052,7 +1095,8 @@ function buildRecordRequestFromRecord(
     planGrade: record.planGrade ?? null,
     planNote: record.planNote ?? null,
     finalGrade: record.finalGrade ?? null,
-    finalNote: record.finalNote ?? null
+    finalNote: record.finalNote ?? null,
+    displayOrder: record.displayOrder ?? null
   };
 }
 

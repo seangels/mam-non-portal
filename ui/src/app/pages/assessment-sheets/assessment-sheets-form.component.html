@@ -139,6 +139,7 @@
               <th class="group-lv2-column" scope="col">Nhóm lớn</th>
               <th class="group-lv3-column" scope="col">Nhóm nhỏ</th>
               <th class="number-column" scope="col">STT</th>
+              <th *ngIf="showCodeColumn" class="move-column" scope="col">Di chuyển</th>
               <th *ngIf="showCodeColumn" class="code-column" scope="col">Mã</th>
               <th scope="col">
                 <div class="content-header">
@@ -183,6 +184,26 @@
                 <span>{{ row.groupLv3Name }}</span>
               </td>
               <td class="number-cell">{{ row.rowNumber }}</td>
+              <td *ngIf="showCodeColumn" class="move-cell">
+                <div class="move-buttons">
+                  <dx-button
+                    icon="spinup"
+                    stylingMode="text"
+                    [disabled]="!canMoveRecordUp(row)"
+                    hint="Di chuyển hàng lên"
+                    [attr.aria-label]="'Di chuyển lên: ' + row.record.assessment.code"
+                    (onClick)="moveRecord(row, -1)">
+                  </dx-button>
+                  <dx-button
+                    icon="spindown"
+                    stylingMode="text"
+                    [disabled]="!canMoveRecordDown(row)"
+                    hint="Di chuyển hàng xuống"
+                    [attr.aria-label]="'Di chuyển xuống: ' + row.record.assessment.code"
+                    (onClick)="moveRecord(row, 1)">
+                  </dx-button>
+                </div>
+              </td>
               <td *ngIf="showCodeColumn" class="code-cell">{{ row.record.assessment.code }}</td>
               <td class="content-cell">
                 {{ row.record.assessment.name }}

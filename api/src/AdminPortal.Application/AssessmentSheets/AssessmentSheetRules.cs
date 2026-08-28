@@ -113,6 +113,8 @@ public static class AssessmentSheetRules
             AssessmentSheetId = sheet.Id,
             AssessmentSheet = sheet,
             AssessmentRowIndex = assessment.RowIndex,
+            // STT hiển thị do người dùng chỉnh trên form; null nghĩa là chưa đặt (UI tự đếm theo nhóm lv3).
+            DisplayOrder = requestRecord.DisplayOrder,
             AssessmentSnapshot = new AssessmentSnapshot
             {
                 Code = assessment.Code,
