@@ -19,15 +19,24 @@
 .records-table th { position: sticky; top: 0; z-index: 2; padding: 7px 8px; background: #fff; color: #111827; font-weight: 700; text-align: center; }
 .records-table td { padding: 0px 2px; }
 /* Nháy nền hai dòng vừa bấm Di chuyển để người dùng thấy vị trí mới. Animation
-   ghi đè inline background-color của <tr>, kết thúc trong suốt để trả lại màu nhóm. */
-@keyframes record-row-moved-flash {
-  0% { background-color: #fde68a; box-shadow: inset 0 0 0 9999px #fde68a80; }
-  60% { background-color: #fef3c7; box-shadow: inset 0 0 0 9999px #fef3c74d; }
+   ghi đè inline background-color của <tr>, kết thúc trong suốt để trả lại màu nhóm.
+   Dòng chủ động di chuyển (primary) nháy cam đậm 2 nhịp; dòng bị đẩy chỗ
+   (secondary) chỉ nháy vàng nhạt 1 nhịp. */
+@keyframes record-row-moved-primary {
+  0% { background-color: #fb923c; box-shadow: inset 0 0 0 9999px #fb923c73; }
+  25% { background-color: #fdba74; box-shadow: inset 0 0 0 9999px #fdba7440; }
+  50% { background-color: #fb923c; box-shadow: inset 0 0 0 9999px #fb923c73; }
   100% { background-color: transparent; box-shadow: inset 0 0 0 9999px transparent; }
 }
-.records-table tr.record-row--moved > td { animation: record-row-moved-flash 1.4s ease-out; }
+@keyframes record-row-moved-secondary {
+  0% { background-color: #fef08a; box-shadow: inset 0 0 0 9999px #fef08a4d; }
+  100% { background-color: transparent; box-shadow: inset 0 0 0 9999px transparent; }
+}
+.records-table tr.record-row--moved-primary > td { animation: record-row-moved-primary 1.6s ease-out; }
+.records-table tr.record-row--moved-secondary > td { animation: record-row-moved-secondary 1.4s ease-out; }
 @media (prefers-reduced-motion: reduce) {
-  .records-table tr.record-row--moved > td { animation: none; background-color: #fde68a; }
+  .records-table tr.record-row--moved-primary > td { animation: none; background-color: #fb923c; }
+  .records-table tr.record-row--moved-secondary > td { animation: none; background-color: #fef08a; }
 }
 
 .action-column { width: 42px; }

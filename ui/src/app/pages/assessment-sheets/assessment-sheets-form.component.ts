@@ -31,8 +31,8 @@ import { normalizeVietnamese } from '../../core/utils/vietnamese-search';
 import { AssessmentPickerComponent } from './assessment-picker.component';
 
 const ASSESSMENT_CACHE_PAGE_SIZE = 100;
-// Thời gian giữ highlight cho các dòng vừa được bấm Di chuyển; khớp với animation trong SCSS.
-const MOVE_HIGHLIGHT_DURATION_MS = 1400;
+// Thời gian giữ highlight cho các dòng vừa được bấm Di chuyển; phải >= animation dài nhất trong SCSS.
+const MOVE_HIGHLIGHT_DURATION_MS = 1600;
 const UNGROUPED_LABEL = 'Chưa phân nhóm';
 const EMPTY_GRADE_OPTION: { value: null; text: string; color: string; bgcolor: string } = {
   value: null,
@@ -361,7 +361,8 @@ export class AssessmentSheetFormComponent implements OnInit, OnDestroy {
   responsibleTeacherSummary = '';
   records: AssessmentSheetRecord[] = [];
   recordRows: AssessmentSheetRecordTableRow[] = [];
-  recentlyMovedRecordIds = new Set<string>();
+  movedPrimaryRecordId: string | null = null;
+  movedSecondaryRecordId: string | null = null;
   private moveHighlightStartTimer: ReturnType<typeof setTimeout> | null = null;
   private moveHighlightClearTimer: ReturnType<typeof setTimeout> | null = null;
   existingAssessmentCodes: string[] = [];
@@ -865,26 +866,36 @@ export class AssessmentSheetFormComponent implements OnInit, OnDestroy {
     this.highlightMovedRecords(currentRecord.id, targetRecord.id);
   }
 
-  isRecordRecentlyMoved(recordId: string): boolean {
-    return this.recentlyMovedRecordIds.has(recordId);
+  // Dòng người dùng vừa bấm nút Di chuyển (nháy nền nổi bật hơn).
+  isRecordMovePrimary(recordId: string): boolean {
+    return recordId === this.movedPrimaryRecordId;
   }
 
-  // Nháy nền hai dòng vừa hoán đổi vị trí. Xoá highlight cũ trong một tick để
-  // Angular gỡ class khỏi DOM, nhờ đó animation CSS chạy lại khi bấm liên tục.
-  private highlightMovedRecords(...recordIds: string[]): void {
+  // Dòng bị đẩy chỗ do lần Di chuyển vừa rồi (nháy nền nhẹ hơn).
+  isRecordMoveSecondary(recordId: string): boolean {
+    return recordId === this.movedSecondaryRecordId;
+  }
+
+  // Nháy nền hai dòng vừa hoán đổi vị trí, hai màu khác nhau. Xoá highlight cũ
+  // trong một tick để Angular gỡ class khỏi DOM, nhờ đó animation CSS chạy lại
+  // khi bấm liên tục.
+  private highlightMovedRecords(primaryRecordId: string, secondaryRecordId: string): void {
     if (this.moveHighlightStartTimer) {
       clearTimeout(this.moveHighlightStartTimer);
     }
     if (this.moveHighlightClearTimer) {
       clearTimeout(this.moveHighlightClearTimer);
     }
-    this.recentlyMovedRecordIds = new Set();
+    this.movedPrimaryRecordId = null;
+    this.movedSecondaryRecordId = null;
     this.moveHighlightStartTimer = setTimeout(() => {
       this.moveHighlightStartTimer = null;
-      this.recentlyMovedRecordIds = new Set(recordIds);
+      this.movedPrimaryRecordId = primaryRecordId;
+      this.movedSecondaryRecordId = secondaryRecordId;
       this.moveHighlightClearTimer = setTimeout(() => {
         this.moveHighlightClearTimer = null;
-        this.recentlyMovedRecordIds = new Set();
+        this.movedPrimaryRecordId = null;
+        this.movedSecondaryRecordId = null;
       }, MOVE_HIGHLIGHT_DURATION_MS);
     });
   }
