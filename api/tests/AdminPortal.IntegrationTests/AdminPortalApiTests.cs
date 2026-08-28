@@ -430,6 +430,95 @@ public sealed class AdminPortalApiTests(ApiFactory factory) : IClassFixture<ApiF
     }
 
     [Fact]
+    public async Task AssessmentSheetImportExcelMapsSttAndGroupNamesIntoSnapshotAndKeepsThemOnRecordReplace()
+    {
+        using var client = CreateClient();
+        var auth = await LoginAsync(client, ApiFactory.SuperAdminEmail, ApiFactory.SuperAdminPassword);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", auth.AccessToken);
+        var marker = Guid.NewGuid().ToString("N")[..8];
+        var student = await CreateStudentAsync(client, $"GS-{marker}", $"Group Snapshot {marker}");
+        var codeA = $"GRP-{marker}-001";
+        var codeB = $"GRP-{marker}-002";
+        var codeC = $"GRP-{marker}-003";
+        var idA = Guid.NewGuid();
+        var idB = Guid.NewGuid();
+        var idC = Guid.NewGuid();
+        var now = DateTimeOffset.UtcNow;
+
+        using (var scope = factory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<AdminPortalDbContext>();
+            var actor = await dbContext.Users.AsNoTracking().SingleAsync(x => x.Email == ApiFactory.SuperAdminEmail);
+            await dbContext.Assessments.AddRangeAsync(
+                new Assessment { Id = idA, Code = codeA, Name = "Cat A", RowIndex = 10, GroupLv1Name = "Age", GroupLv2Name = "Catalog Lv2", GroupLv3Name = "Catalog Lv3 X", UpdatedByUserId = actor.Id, CreatedAt = now, UpdatedAt = now },
+                new Assessment { Id = idB, Code = codeB, Name = "Cat B", RowIndex = 11, GroupLv1Name = "Age", GroupLv2Name = "Catalog Lv2", GroupLv3Name = "Catalog Lv3 X", UpdatedByUserId = actor.Id, CreatedAt = now, UpdatedAt = now },
+                new Assessment { Id = idC, Code = codeC, Name = "Cat C", RowIndex = 12, GroupLv1Name = "Age", GroupLv2Name = "Catalog Lv2", GroupLv3Name = "Catalog Lv3 X", UpdatedByUserId = actor.Id, CreatedAt = now, UpdatedAt = now });
+            await dbContext.SaveChangesAsync();
+        }
+
+        // groupLv2Name/groupLv3Name theo kiểu ô merge: chỉ điền ở dòng đầu mỗi cụm. STT reset theo nhóm lv3.
+        var workbook = CreateImportWorkbook(
+        [
+            ["planGrade", "planNote", "assessmentCode", "studentCode", "studentName", "startDate", "dueDate", "STT", "groupLv2Name", "groupLv3Name"],
+            ["", "", codeA, student.StudentCode, student.FullName, "2026-06-01", "2026-08-31", "1", "PHÁT TRIỂN THỂ CHẤT", "vận động thô"],
+            ["", "", codeB, student.StudentCode, student.FullName, "2026-06-01", "2026-08-31", "2", "", ""],
+            ["", "", codeC, student.StudentCode, student.FullName, "2026-06-01", "2026-08-31", "1", "", "vận động tinh"]
+        ]);
+
+        var previewResponse = await PostExcelAsync(client, "/api/v1/assessment-sheets/import-excel/preview", workbook);
+        previewResponse.EnsureSuccessStatusCode();
+        var preview = await previewResponse.Content.ReadFromJsonAsync<ImportAssessmentSheetsPreviewResponse>(JsonOptions);
+        Assert.NotNull(preview);
+        Assert.True(preview.Summary.CanImport);
+        var previewByCode = preview.Rows.ToDictionary(x => x.AssessmentCode!, x => x);
+        Assert.Equal("PHÁT TRIỂN THỂ CHẤT", previewByCode[codeA].GroupLv2Name);
+        Assert.Equal("PHÁT TRIỂN THỂ CHẤT", previewByCode[codeB].GroupLv2Name); // fill-down
+        Assert.Equal("vận động thô", previewByCode[codeB].GroupLv3Name); // fill-down
+        Assert.Equal("vận động tinh", previewByCode[codeC].GroupLv3Name);
+        Assert.Equal(1, previewByCode[codeA].Stt);
+        Assert.Equal(1, previewByCode[codeC].Stt);
+
+        var importResponse = await PostExcelAsync(client, "/api/v1/assessment-sheets/import-excel", workbook);
+        importResponse.EnsureSuccessStatusCode();
+        var imported = await importResponse.Content.ReadFromJsonAsync<ImportAssessmentSheetsResponse>(JsonOptions);
+        Assert.NotNull(imported);
+        var sheetId = imported.Sheets[0].Id;
+
+        var detail = await client.GetFromJsonAsync<AssessmentSheetDetailResponse>($"/api/v1/assessment-sheets/{sheetId}", JsonOptions);
+        Assert.NotNull(detail);
+        var recordByCode = detail.Records.ToDictionary(x => x.Assessment.Code, x => x);
+        Assert.Equal("PHÁT TRIỂN THỂ CHẤT", recordByCode[codeA].Assessment.GroupLv2Name);
+        Assert.Equal("PHÁT TRIỂN THỂ CHẤT", recordByCode[codeB].Assessment.GroupLv2Name);
+        Assert.Equal("vận động thô", recordByCode[codeB].Assessment.GroupLv3Name);
+        Assert.Equal("vận động tinh", recordByCode[codeC].Assessment.GroupLv3Name);
+        // DisplayOrder là số chạy toàn cục theo thứ tự dòng file.
+        Assert.Equal(new int?[] { 1, 2, 3 }, detail.Records.OrderBy(x => x.DisplayOrder).Select(x => x.DisplayOrder).ToArray());
+
+        // Thay toàn bộ records (đổi planNote) không được làm mất tên nhóm snapshot đã import.
+        var replaceBody = new
+        {
+            records = detail.Records.Select(x => new
+            {
+                assessmentId = x.Assessment.Code == codeA ? idA : x.Assessment.Code == codeB ? idB : idC,
+                planGrade = (string?)null,
+                planNote = "đã chỉnh",
+                finalGrade = (string?)null,
+                finalNote = (string?)null,
+                displayOrder = x.DisplayOrder
+            }).ToArray()
+        };
+        var replaceResponse = await client.PutAsJsonAsync($"/api/v1/assessment-sheets/{sheetId}/records", replaceBody, JsonOptions);
+        replaceResponse.EnsureSuccessStatusCode();
+        var afterReplace = await replaceResponse.Content.ReadFromJsonAsync<AssessmentSheetDetailResponse>(JsonOptions);
+        Assert.NotNull(afterReplace);
+        var afterByCode = afterReplace.Records.ToDictionary(x => x.Assessment.Code, x => x);
+        Assert.Equal("PHÁT TRIỂN THỂ CHẤT", afterByCode[codeA].Assessment.GroupLv2Name);
+        Assert.Equal("vận động thô", afterByCode[codeB].Assessment.GroupLv3Name);
+        Assert.Equal("vận động tinh", afterByCode[codeC].Assessment.GroupLv3Name);
+        Assert.All(afterReplace.Records, x => Assert.Equal("đã chỉnh", x.PlanNote));
+    }
+
+    [Fact]
     public async Task AssessmentSheetUploadPlanAndResultPdfSaveDriveLinksWithoutUsingLegacyGenerateEndpoints()
     {
         var googleSheets = new FakeGoogleSheetsService();

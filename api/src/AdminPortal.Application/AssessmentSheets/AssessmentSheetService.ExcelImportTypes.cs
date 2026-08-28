@@ -15,6 +15,14 @@ public sealed partial class AssessmentSheetService
         public DateTimeOffset? DueDate { get; set; }
         public string? PlanGrade { get; init; }
         public string? PlanNote { get; init; }
+        /// <summary>STT trong file (cột tùy chọn). Null nghĩa là không có/không hợp lệ; import tự đánh số theo thứ tự dòng.</summary>
+        public int? Stt { get; set; }
+        /// <summary>Tên nhóm lớn lấy từ file (cột tùy chọn, kiểu ô merge). Sau fill-down mới có giá trị cho mọi dòng trong cụm.</summary>
+        public string? GroupLv2Name { get; set; }
+        /// <summary>Tên nhóm nhỏ lấy từ file (cột tùy chọn, kiểu ô merge). Sau fill-down mới có giá trị cho mọi dòng trong cụm.</summary>
+        public string? GroupLv3Name { get; set; }
+        /// <summary>STT toàn cục theo thứ tự dòng trong file, gán khi import để ghi vào <c>AssessmentRecord.DisplayOrder</c>.</summary>
+        public int? DisplayOrder { get; set; }
         public string? NormalizedAssessmentCode { get; init; }
         public string? NormalizedStudentCode { get; init; }
         public string Action { get; set; } = "Invalid";

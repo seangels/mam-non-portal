@@ -345,6 +345,14 @@ Content-Type: application/json
 }
 
 ###
+# Import Excel (multipart/form-data field `file`, .xlsx <= 10 MB):
+#   POST {{host}}/api/v1/assessment-sheets/import-excel/preview   -> validate, không ghi DB
+#   POST {{host}}/api/v1/assessment-sheets/import-excel           -> ghi DB
+# Header bắt buộc: planGrade, planNote, assessmentCode, studentCode, studentName, startDate, dueDate
+# Header tùy chọn: STT (-> displayOrder, số chạy toàn cục theo thứ tự dòng),
+#                  groupLv2Name, groupLv3Name (fill-down kiểu ô merge -> assessmentSnapshot)
+
+###
 
 PUT {{host}}/api/v1/assessment-sheets/{{assessmentSheetId}}/status
 Authorization: Bearer {{accessToken}}

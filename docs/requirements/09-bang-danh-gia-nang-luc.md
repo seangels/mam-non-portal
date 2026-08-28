@@ -87,6 +87,19 @@
 - Các thay đổi này **không được ghi ngược** vào `AssessmentSheetLatest`/`AssessmentRecordLatest`; hai bảng đó là chỉ-đọc, chỉ được cập nhật qua luồng đồng bộ từ `[F0.data_DG]` (mục 12) — không qua thao tác chỉnh sửa plan của một `AssessmentSheet` cụ thể, và cũng không qua việc ghi kết quả chính thức ở mục 11.
 - Chỉnh sửa plan chỉ lưu trong portal; không còn bước đồng bộ plan sang Google Sheet riêng.
 
+### 7.1. Chỉnh tên nhóm snapshot tại records-panel
+
+- Mỗi ô merge `Nhóm lớn` (`GroupLv2Name`) hoặc `Nhóm nhỏ` (`GroupLv3Name`) có một nút icon sửa. Bấm nút mở popup nhỏ với textbox nhập tên mới.
+- Mặc định thao tác chỉ cập nhật tên trong `AssessmentSnapshot` của toàn bộ `AssessmentRecord` thuộc đúng ô merge đang chọn.
+- Popup có checkbox `Cập nhật Assessment gốc`, mặc định bỏ chọn. Khi chọn, cùng thao tác cập nhật các `Assessment` xuất hiện trong ô merge; không rename toàn bộ Assessment khác chỉ vì trùng tên group.
+- Popup có checkbox `Ghi ngược Google Sheet`, nhưng checkbox phải bị disable và hiển thị chú thích `Chưa hỗ trợ`; không có backend write-back Google Sheet trong phiên bản này.
+- Khi chọn cập nhật Assessment gốc, UI phải cảnh báo thay đổi có thể bị lần `Đồng bộ GGSheet` tiếp theo ghi đè.
+- Quyền/trạng thái:
+  - Teacher/Admin/SuperAdmin được sửa snapshot khi sheet `Open` hoặc `Planed`.
+  - Chỉ Admin/SuperAdmin được chọn `Cập nhật Assessment gốc`.
+  - Sheet `Done` khóa toàn bộ thao tác sửa group.
+- Snapshot tùy chỉnh phải được giữ lại khi lưu grade/note hoặc thêm/xóa record; luồng replace record không được âm thầm dựng lại và ghi đè snapshot đã chỉnh.
+
 ## 8. Sinh PDF [F02] — Kế hoạch cá nhân
 
 - Khi người dùng bấm nút `In Kế hoạch PDF` (không tự động), UI mở trang preview HTML/A4, render dữ liệu kế hoạch hiện tại (`PlanGrade`/`PlanNote`) bằng `html2pdf.js`.
@@ -171,7 +184,12 @@ Cấu trúc mirror theo hình dạng `AssessmentSheet`/`AssessmentRecord` (theo 
 ## 14. Ràng buộc và validation
 
 - Mỗi đợt đánh giá của một học sinh ứng với đúng một `AssessmentSheet` và một `Name`; `Name` bắt buộc và duy nhất trong phạm vi một học sinh. Nhiều học sinh khác nhau có thể dùng chung một `Name` đợt (ví dụ cùng đợt `8.9.10.26` nhưng mỗi học sinh có `AssessmentSheet` riêng).
-- Import Excel AssessmentSheet v1 dùng file `.xlsx` với header `planGrade`, `planNote`, `assessmentCode`, `studentCode`, `studentName`, `startDate`, `dueDate`; backend đọc bằng `ExcelDataReader`, gom sheet theo `studentCode + startDate + dueDate`, tra cứu học sinh/mục đánh giá theo mã, bỏ qua dòng trống, cảnh báo dòng trùng, và rollback toàn bộ nếu có lỗi bắt buộc. UI phải preview/validate trước bằng popup `dxDataGrid` hiển thị toàn bộ dòng import đã parse/validate, lỗi/warning và summary; datagrid filter/search/sort client-side trên dữ liệu local preview, không gọi server paging/filter trong popup; chỉ khi file hợp lệ user mới bấm xác nhận để ghi DB. `planGrade`/`planNote` trong file lưu vào `PlanGrade`/`PlanNote`; `FinalGrade`/`FinalNote` vẫn để trống.
+- Import Excel AssessmentSheet v1 dùng file `.xlsx` với header bắt buộc `planGrade`, `planNote`, `assessmentCode`, `studentCode`, `studentName`, `startDate`, `dueDate`; backend đọc bằng `ExcelDataReader`, gom sheet theo `studentCode + startDate + dueDate`, tra cứu học sinh/mục đánh giá theo mã, bỏ qua dòng trống, cảnh báo dòng trùng, và rollback toàn bộ nếu có lỗi bắt buộc. UI phải preview/validate trước bằng popup `dxDataGrid` hiển thị toàn bộ dòng import đã parse/validate, lỗi/warning và summary; datagrid filter/search/sort client-side trên dữ liệu local preview, không gọi server paging/filter trong popup; chỉ khi file hợp lệ user mới bấm xác nhận để ghi DB. `planGrade`/`planNote` trong file lưu vào `PlanGrade`/`PlanNote`; `FinalGrade`/`FinalNote` vẫn để trống.
+- File import còn hỗ trợ 3 cột **tùy chọn** (file không có 3 cột này vẫn import bình thường):
+  - `STT`: trong file thường reset số theo từng nhóm nhỏ. Import bỏ qua con số per-nhóm và ghi `AssessmentRecord.DisplayOrder` là số chạy toàn cục `1..N` theo đúng thứ tự dòng của mỗi sheet, để form giữ đúng thứ tự file khi tải lại. `STT` không phải số nguyên chỉ tạo cảnh báo, không chặn import.
+  - `groupLv2Name`, `groupLv3Name`: điền kiểu ô merge (chỉ ở dòng đầu mỗi cụm). Import fill-down giá trị non-empty gần nhất phía trên cho từng cột độc lập, reset theo từng cụm học sinh, rồi ghi giá trị hiệu lực vào `AssessmentSnapshot.GroupLv2Name`/`GroupLv3Name`; ô trống và không có gì để kế thừa thì dùng tên nhóm của `Assessment`. `Code`/`Name`/`GroupLv1Name`/`RowIndex` của snapshot vẫn lấy từ `Assessment`.
+  - Preview trả thêm `stt`, `groupLv2Name`, `groupLv3Name` (giá trị hiệu lực) và popup hiển thị 3 cột tương ứng.
+- Trong form bảng đánh giá, tên nhóm `GroupLv2Name`/`GroupLv3Name` hiển thị/gộp ô/tô màu/sắp xếp **theo snapshot** của `AssessmentRecord`, không đọc lại từ danh mục `Assessment`. Tên nhóm snapshot (do import khcn hoặc chỉnh tay ở mục 7.1) phải được giữ nguyên khi lưu grade/note hoặc thêm/xóa/sắp lại record — `PUT /assessment-sheets/{id}/records` map record cũ theo `Assessment.Code` để giữ tên nhóm snapshot thay vì dựng lại từ `Assessment`.
 - Không cho tạo `AssessmentSheet` cho học sinh `Inactive` (nhất quán với ràng buộc học sinh `Inactive` không được thêm dữ liệu nghiệp vụ mới, xem [03](03-hoc-sinh-va-nhom.md)).
 - `DoneDate` chỉ được set khi `Status = Done`; chuyển trạng thái phải đi kèm cập nhật `DoneDate` nhất quán.
 - Không giới hạn số lượng `AssessmentRecord` tối thiểu/tối đa trong một `AssessmentSheet`.

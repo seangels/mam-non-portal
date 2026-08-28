@@ -303,6 +303,9 @@ describe('Assessment sheets Excel import', () => {
           studentName: 'Bé An',
           startDate: '2026-08-01',
           dueDate: '2026-08-31',
+          stt: 1,
+          groupLv2Name: 'PHÁT TRIỂN THỂ CHẤT',
+          groupLv3Name: 'vận động thô',
           action: 'Created',
           errors: [],
           warnings: ['Sẽ tạo mới']
@@ -325,6 +328,9 @@ describe('Assessment sheets Excel import', () => {
     expect(assessmentSheets.previewImportExcel).toHaveBeenCalledWith(file);
     expect(component.importPreviewVisible).toBeTrue();
     expect(component.importPreviewRows.length).toBe(1);
+    expect(component.importPreviewRows[0].stt).toBe(1);
+    expect(component.importPreviewRows[0].groupLv2Name).toBe('PHÁT TRIỂN THỂ CHẤT');
+    expect(component.importPreviewRows[0].groupLv3Name).toBe('vận động thô');
     expect(component.importActionText('Created')).toBe('Tạo mới');
     expect(component.importMessagesText(['A', 'B'])).toBe('A; B');
     expect(component.canSubmitImport).toBeTrue();
@@ -401,6 +407,22 @@ describe('Assessment sheet records table layout', () => {
     expect(assessmentGroupLv2Color(' Tiền tiểu học ')).toBe('#DCC1CF');
     expect(assessmentGroupLv2Color('PHAT TRIEN THE CHAT')).toBe('#C9DAF8');
     expect(assessmentGroupLv2Color('Nhóm khác')).toBe('#FFFFFF');
+  });
+
+  it('groups by the snapshot groupLv2/groupLv3 names even when they differ from the assessment catalog casing', () => {
+    // Import khcn ghi tên nhóm từ file vào snapshot (thường viết HOA); form phải nhóm/tô màu theo snapshot.
+    const rows = buildAssessmentSheetRecordRows([
+      record('record-1', 'PHÁT TRIỂN THỂ CHẤT', 'VẬN ĐỘNG THÔ', 10),
+      record('record-2', 'PHÁT TRIỂN THỂ CHẤT', 'VẬN ĐỘNG THÔ', 11),
+      record('record-3', 'PHÁT TRIỂN THỂ CHẤT', 'VẬN ĐỘNG TINH', 12)
+    ]);
+
+    expect(rows.map(row => row.record.id)).toEqual(['record-1', 'record-2', 'record-3']);
+    expect(rows[0].groupColor).toBe('#C9DAF8');
+    expect(rows[0].groupLv2RowSpan).toBe(3);
+    expect(rows[0].groupLv3RowSpan).toBe(2);
+    expect(rows[2].showGroupLv3).toBeTrue();
+    expect(rows[2].rowNumber).toBe(1);
   });
 
   it('maps grade badge colors from the shared grade options', () => {

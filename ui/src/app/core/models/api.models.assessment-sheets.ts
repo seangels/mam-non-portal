@@ -131,6 +131,9 @@ export interface AssessmentSheetImportExcelPreviewRow {
   studentName?: string | null;
   startDate?: string | null;
   dueDate?: string | null;
+  stt?: number | null;
+  groupLv2Name?: string | null;
+  groupLv3Name?: string | null;
   action?: string | null;
   isDuplicate?: boolean | null;
   errors: string[];

@@ -106,6 +106,7 @@ public static class AssessmentSheetRules
         AssessmentSheet sheet,
         Assessment assessment,
         AssessmentSheetRecordRequest requestRecord,
+        AssessmentSnapshot? previousSnapshot,
         DateTimeOffset now,
         Guid actorUserId) => new()
         {
@@ -120,8 +121,9 @@ public static class AssessmentSheetRules
                 Code = assessment.Code,
                 Name = assessment.Name,
                 GroupLv1Name = assessment.GroupLv1Name,
-                GroupLv2Name = assessment.GroupLv2Name,
-                GroupLv3Name = assessment.GroupLv3Name,
+                // Ưu tiên tên nhóm snapshot đã tùy chỉnh trước đó (import khcn / ASH-GRP-01); chỉ dùng Assessment gốc khi chưa có.
+                GroupLv2Name = previousSnapshot?.GroupLv2Name ?? assessment.GroupLv2Name,
+                GroupLv3Name = previousSnapshot?.GroupLv3Name ?? assessment.GroupLv3Name,
                 RowIndex = assessment.RowIndex
             },
             PlanGrade = requestRecord.PlanGrade,

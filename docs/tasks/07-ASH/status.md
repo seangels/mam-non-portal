@@ -38,8 +38,8 @@ Theo mục 13 của plan. Cả 5 quyết định đã được khoá. `ASH-DEC-0
 | Frontend delta | 9 | 0 | 4 | 5 | 0 |
 | Contract delta | 2 | 0 | 0 | 2 | 0 |
 | Cleanup delta | 1 | 0 | 0 | 1 | 0 |
-| Import delta | 1 | 0 | 0 | 1 | 0 |
-| Group editing delta | 1 | 0 | 0 | 0 | 1 |
+| Import delta | 2 | 0 | 1 | 1 | 0 |
+| Group editing delta | 1 | 1 | 0 | 0 | 0 |
 | QA | 1 | 1 | 0 | 0 | 0 |
 
 Cập nhật bảng này mỗi khi đổi trạng thái một dòng bên dưới.
@@ -109,12 +109,13 @@ Cập nhật bảng này mỗi khi đổi trạng thái một dòng bên dưới
 | Status | Mã | Việc cần làm | Phụ thuộc |
 |---|---|---|---|
 | `[x]` | [`ASH-IMP-01`](details/24-ASH-IMP-01.md) | Import `AssessmentSheet` + `AssessmentRecord` từ Excel mẫu `import_khcn.xlsx`; backend đọc bằng `ExcelDataReader`, preview validate trước khi ghi DB, frontend thêm popup datagrid xác nhận import. Automated gate pass; chưa smoke browser thủ công với file mẫu thật | `ASH-FE-13`, `ASH-BE-02` |
+| `[~]` | [`ASH-IMP-02`](details/26-ASH-IMP-02.md) | File import thêm cột tùy chọn `STT` → `DisplayOrder` (số chạy toàn cục theo thứ tự dòng), `groupLv2Name`/`groupLv3Name` fill-down kiểu ô merge → `AssessmentSnapshot`; `PUT .../records` giữ tên nhóm snapshot; preview + popup thêm 3 cột. Backend build + unit pass; integration chưa chạy (Docker daemon off), frontend `test:ci`/build chưa chạy (ổ C: đầy) | `ASH-IMP-01`, `ASH-STT-01` |
 
 ## Group editing delta — owner: `root` / phối hợp backend + frontend
 
 | Status | Mã | Việc cần làm | Phụ thuộc |
 |---|---|---|---|
-| `[!]` | [`ASH-GRP-01`](details/25-ASH-GRP-01.md) | Chế độ chỉnh `GroupLv2/GroupLv3` tại ô merge: lưu snapshot riêng và popup chuyển/đổi tên group gốc. Đang chờ khóa phạm vi bulk update, quyền, status và cách tồn tại qua Google sync | `ASH-FE-09`, `PUT /assessment-sheets/{id}/records`, `sync-assessments` |
+| `[ ]` | [`ASH-GRP-01`](details/25-ASH-GRP-01.md) | Mỗi ô merge có nút mở popup nhập tên mới; mặc định chỉ sửa snapshot, checkbox tùy chọn cập nhật Assessment gốc, checkbox ghi Google Sheet hiển thị disabled. Quyền/status đã chốt, sẵn sàng triển khai | `ASH-FE-09`, `PUT /assessment-sheets/{id}/records`, `sync-assessments` |
 
 ## QA — owner: chưa có agent QA riêng (root điều phối, backend/frontend tự chạy phần của mình)
 

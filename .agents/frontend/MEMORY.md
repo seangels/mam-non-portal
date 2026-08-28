@@ -1,8 +1,10 @@
 # Frontend role memory
 
-Last updated: 2026-08-28 (ASH final result no auto-fill)
+Last updated: 2026-08-28 (ASH-IMP-02 import columns)
 
 ## Resume here
+
+- 2026-08-28 (ASH-IMP-02): AssessmentSheet Excel import preview row gained 3 optional fields — `AssessmentSheetImportExcelPreviewRow` now has `stt?: number`, `groupLv2Name?: string`, `groupLv3Name?: string` (backend returns effective values incl. merged-cell fill-down + fallback to the matched Assessment). `normalizePreviewResult` already spreads `...row`, so no mapping change was needed; only the interface + 3 new `dxi-column`s in the import preview popup (`STT` / `Nhóm lớn` / `Nhóm nhỏ`, inserted after `assessmentCode`). No form change: `buildAssessmentSheetRecordRows` and the plan/result PDF preview already read `record.assessment.groupLv2Name/groupLv3Name` (the snapshot), so group/color/sort is snapshot-driven; added a records-table spec asserting this holds when the snapshot name differs in casing from `ASSESSMENT_GROUP_LV2_CONFIGS`. Backend now also keeps snapshot group names through `PUT /assessment-sheets/{id}/records`, so imported/edited group names survive STT reorder / add / remove / note save. Files: `core/models/api.models.assessment-sheets.ts`, `pages/assessment-sheets/assessment-sheets.component.html`, `pages/assessment-sheets/assessment-sheets.component.spec.ts`. Verification: **not run this session** — disk C: full (~7 MB free, ENOSPC in temp). Needs `npm --prefix ui run test:ci` + `build -- --configuration development` once disk is freed. No backend/REST change from the UI side, no production/IIS/deploy.
 
 - 2026-08-28 (ASH-FE-13): AssessmentSheet edit records no longer auto-fill `FinalGrade`/`FinalNote` from `PlanGrade`/`PlanNote` or latest data. `PlanGrade`/`PlanNote` still auto-fill from picker latest when creating/adding records. The records table `Kết quả hiện tại` select-box binds only `finalGrade`; blank current results stay blank/null through init, add/remove/save full-replace mapping, and are not highlighted as different from plan until a `FinalGrade` exists. Verification: sandbox npm still fails `EPERM lstat C:\Users\sangn`; outside sandbox `npm --prefix ui run test:ci` pass 118/118 and `npm --prefix ui run build -- --configuration development` pass hash `75afc3b9148aa5cfc68c`. No backend/REST, Google live, production/IIS/deploy.
 

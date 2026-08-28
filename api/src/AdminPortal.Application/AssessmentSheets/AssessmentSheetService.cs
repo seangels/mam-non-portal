@@ -209,6 +209,7 @@ public sealed partial class AssessmentSheetService(
                     plan.SkippedDuplicateRowCount));
             }
 
+            var displayOrder = 0;
             foreach (var row in group.Rows)
             {
                 AssessmentGrade? planGrade = null;
@@ -217,11 +218,16 @@ public sealed partial class AssessmentSheetService(
                 {
                     planGrade = planGradeOut;
                 }
+                // STT trong file reset theo từng nhóm lv3; ghi DisplayOrder là số chạy toàn cục theo thứ tự dòng
+                // để giữ đúng thứ tự file khi hiển thị (form tự đếm lại STT hiển thị theo nhóm lv3).
                 dbContext.AssessmentRecords.Add(BuildImportedRecord(
                     sheet,
                     row.Assessment!,
                     planGrade,
                     row.PlanNote,
+                    ++displayOrder,
+                    row.GroupLv2Name,
+                    row.GroupLv3Name,
                     now, actor.UserId));
             }
 
@@ -298,12 +304,19 @@ public sealed partial class AssessmentSheetService(
             .ToListAsync(cancellationToken);
         var now = timeProvider.GetUtcNow();
 
+        // Giữ lại tên nhóm snapshot đã tùy chỉnh (import khcn hoặc ASH-GRP-01) khi thay toàn bộ records:
+        // map record cũ theo Assessment.Code để BuildReplacementRecord ưu tiên snapshot cũ thay vì dựng lại từ Assessment gốc.
+        var previousSnapshotByCode = oldRecords
+            .GroupBy(x => x.AssessmentSnapshot.Code, StringComparer.Ordinal)
+            .ToDictionary(x => x.Key, x => x.First().AssessmentSnapshot, StringComparer.Ordinal);
+
         dbContext.AssessmentRecords.RemoveRange(oldRecords);
         foreach (var requestRecord in request.Records)
         {
             var assessment = assessmentById[requestRecord.AssessmentId];
+            previousSnapshotByCode.TryGetValue(assessment.Code, out var previousSnapshot);
             dbContext.AssessmentRecords.Add(
-                AssessmentSheetRules.BuildReplacementRecord(sheet, assessment, requestRecord, now, actor.UserId));
+                AssessmentSheetRules.BuildReplacementRecord(sheet, assessment, requestRecord, previousSnapshot, now, actor.UserId));
         }
 
         sheet.UpdatedByUserId = actor.UserId;
@@ -594,6 +607,11 @@ public sealed partial class AssessmentSheetService(
             });
         }
 
+        // Cột tùy chọn: file cũ không có vẫn import được. STT -> DisplayOrder, groupLv2Name/groupLv3Name -> snapshot.
+        var sttColumn = headerMap.TryGetValue("STT", out var sttIndex) ? sttIndex : (int?)null;
+        var groupLv2Column = headerMap.TryGetValue("groupLv2Name", out var groupLv2Index) ? groupLv2Index : (int?)null;
+        var groupLv3Column = headerMap.TryGetValue("groupLv3Name", out var groupLv3Index) ? groupLv3Index : (int?)null;
+
         var rows = new List<ExcelImportRow>();
         var rowNumber = 1;
         while (reader.Read())
@@ -605,6 +623,7 @@ public sealed partial class AssessmentSheetService(
             if (values.Values.All(string.IsNullOrWhiteSpace) && startDateValue is null && dueDateValue is null)
                 continue;
 
+            var sttText = sttColumn is null ? null : ReadCellString(reader, sttColumn.Value);
             var row = new ExcelImportRow
             {
                 RowNumber = rowNumber,
@@ -613,9 +632,19 @@ public sealed partial class AssessmentSheetService(
                 StudentName = values["studentName"],
                 PlanGrade = NormalizeCellString(values["planGrade"]),
                 PlanNote = NormalizeCellString(values["planNote"]),
+                GroupLv2Name = groupLv2Column is null ? null : NormalizeCellString(ReadCellString(reader, groupLv2Column.Value)),
+                GroupLv3Name = groupLv3Column is null ? null : NormalizeCellString(ReadCellString(reader, groupLv3Column.Value)),
                 NormalizedAssessmentCode = NormalizeImportCode(values["assessmentCode"]),
                 NormalizedStudentCode = NormalizeStudentCode(values["studentCode"])
             };
+
+            if (!string.IsNullOrWhiteSpace(sttText))
+            {
+                if (TryParseImportInt(sttText, out var stt))
+                    row.Stt = stt;
+                else
+                    row.Warnings.Add("STT không hợp lệ, bỏ qua giá trị này.");
+            }
 
             if (row.NormalizedAssessmentCode is null)
                 row.Errors.Add("assessmentCode là bắt buộc.");
@@ -640,7 +669,60 @@ public sealed partial class AssessmentSheetService(
             rows.Add(row);
         }
 
+        ApplyGroupNameFillDown(rows);
         return rows;
+    }
+
+    /// <summary>
+    /// groupLv2Name/groupLv3Name trong file chỉ điền ở dòng đầu mỗi cụm (kiểu ô merge). Kế thừa giá trị non-empty
+    /// gần nhất phía trên cho từng cột độc lập; reset khi sang cụm học sinh khác (studentCode + startDate + dueDate).
+    /// </summary>
+    private static void ApplyGroupNameFillDown(List<ExcelImportRow> rows)
+    {
+        string? carryLv2 = null;
+        string? carryLv3 = null;
+        (string?, DateTimeOffset?, DateTimeOffset?) currentKey = default;
+        var hasKey = false;
+        foreach (var row in rows)
+        {
+            var key = (row.NormalizedStudentCode, row.StartDate, row.DueDate);
+            if (!hasKey || !key.Equals(currentKey))
+            {
+                carryLv2 = null;
+                carryLv3 = null;
+                currentKey = key;
+                hasKey = true;
+            }
+
+            if (!string.IsNullOrWhiteSpace(row.GroupLv2Name))
+                carryLv2 = row.GroupLv2Name;
+            else
+                row.GroupLv2Name = carryLv2;
+
+            if (!string.IsNullOrWhiteSpace(row.GroupLv3Name))
+                carryLv3 = row.GroupLv3Name;
+            else
+                row.GroupLv3Name = carryLv3;
+        }
+    }
+
+    private static bool TryParseImportInt(string? value, out int result)
+    {
+        result = 0;
+        var text = value?.Trim();
+        if (string.IsNullOrWhiteSpace(text))
+            return false;
+        if (int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out result))
+            return true;
+        // Excel hay trả số dạng double ("1.0"); chấp nhận nếu là số nguyên.
+        if (double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var number) &&
+            Math.Abs(number - Math.Round(number)) < double.Epsilon)
+        {
+            result = (int)Math.Round(number);
+            return true;
+        }
+
+        return false;
     }
 
     private static Dictionary<string, int> ReadHeaderMap(IExcelDataReader reader)
@@ -696,6 +778,9 @@ public sealed partial class AssessmentSheetService(
                 x.DueDate,
                 x.PlanGrade,
                 x.PlanNote,
+                x.Stt,
+                x.GroupLv2Name ?? x.Assessment?.GroupLv2Name,
+                x.GroupLv3Name ?? x.Assessment?.GroupLv3Name,
                 x.NormalizedAssessmentCode,
                 x.NormalizedStudentCode,
                 FormatImportDate(x.StartDate),
@@ -733,6 +818,9 @@ public sealed partial class AssessmentSheetService(
         Assessment assessment,
         AssessmentGrade? planGrade,
         string? planNode,
+        int displayOrder,
+        string? groupLv2Name,
+        string? groupLv3Name,
         DateTimeOffset now,
         Guid actorUserId) => new()
         {
@@ -740,13 +828,15 @@ public sealed partial class AssessmentSheetService(
             AssessmentSheetId = sheet.Id,
             AssessmentSheet = sheet,
             AssessmentRowIndex = assessment.RowIndex,
+            DisplayOrder = displayOrder,
             AssessmentSnapshot = new AssessmentSnapshot
             {
                 Code = assessment.Code,
                 Name = assessment.Name,
                 GroupLv1Name = assessment.GroupLv1Name,
-                GroupLv2Name = assessment.GroupLv2Name,
-                GroupLv3Name = assessment.GroupLv3Name,
+                // groupLv2Name/groupLv3Name từ file (đã fill-down) được ưu tiên; trống thì dùng giá trị của Assessment.
+                GroupLv2Name = string.IsNullOrWhiteSpace(groupLv2Name) ? assessment.GroupLv2Name : groupLv2Name.Trim(),
+                GroupLv3Name = string.IsNullOrWhiteSpace(groupLv3Name) ? assessment.GroupLv3Name : groupLv3Name.Trim(),
                 RowIndex = assessment.RowIndex
             },
             PlanGrade = planGrade,

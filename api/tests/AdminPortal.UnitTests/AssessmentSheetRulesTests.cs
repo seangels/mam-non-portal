@@ -169,7 +169,7 @@ public sealed class AssessmentSheetRulesTests
         var changedFinalOnly = AssessmentSheetRules.BuildReplacementRecord(
             sheet, assessment,
             new AssessmentSheetRecordRequest(assessment.Id, AssessmentGrade.A, "plan note", AssessmentGrade.C, "final note"),
-            now, actorId);
+            null, now, actorId);
         Assert.Equal(AssessmentGrade.A, changedFinalOnly.PlanGrade);
         Assert.Equal("plan note", changedFinalOnly.PlanNote);
         Assert.Equal(AssessmentGrade.C, changedFinalOnly.FinalGrade);
@@ -178,7 +178,7 @@ public sealed class AssessmentSheetRulesTests
         var changedPlanOnly = AssessmentSheetRules.BuildReplacementRecord(
             sheet, assessment,
             new AssessmentSheetRecordRequest(assessment.Id, AssessmentGrade.D, "plan note", AssessmentGrade.C, "final note"),
-            now, actorId);
+            null, now, actorId);
         Assert.Equal(AssessmentGrade.D, changedPlanOnly.PlanGrade);
         Assert.Equal(AssessmentGrade.C, changedPlanOnly.FinalGrade);
     }
@@ -192,9 +192,42 @@ public sealed class AssessmentSheetRulesTests
         var record = AssessmentSheetRules.BuildReplacementRecord(
             sheet, assessment,
             new AssessmentSheetRecordRequest(assessment.Id, null, "  ghi chú  ", null, "   "),
-            DateTimeOffset.UtcNow, Guid.NewGuid());
+            null, DateTimeOffset.UtcNow, Guid.NewGuid());
 
         Assert.Equal("ghi chú", record.PlanNote);
         Assert.Null(record.FinalNote);
+    }
+
+    [Fact]
+    public void BuildReplacementRecordPrefersPreviousSnapshotGroupNamesThenFallsBackToAssessment()
+    {
+        var sheet = new AssessmentSheet { AssessmentSheetStatus = AssessmentSheetStatus.Open, StudentSnapshot = new StudentSnapshot() };
+        var assessment = CreateAssessment("A01");
+        assessment.GroupLv1Name = "Nhóm tuổi";
+        assessment.GroupLv2Name = "Nhóm lớn gốc";
+        assessment.GroupLv3Name = "Nhóm nhỏ gốc";
+        var now = DateTimeOffset.UtcNow;
+        var actorId = Guid.NewGuid();
+        var request = new AssessmentSheetRecordRequest(assessment.Id, null, null, null, null, 7);
+
+        var withoutPrevious = AssessmentSheetRules.BuildReplacementRecord(sheet, assessment, request, null, now, actorId);
+        Assert.Equal("Nhóm lớn gốc", withoutPrevious.AssessmentSnapshot.GroupLv2Name);
+        Assert.Equal("Nhóm nhỏ gốc", withoutPrevious.AssessmentSnapshot.GroupLv3Name);
+        Assert.Equal(7, withoutPrevious.DisplayOrder);
+
+        var previousSnapshot = new AssessmentSnapshot
+        {
+            Code = assessment.Code,
+            Name = assessment.Name,
+            GroupLv1Name = "Nhóm tuổi",
+            GroupLv2Name = "PHÁT TRIỂN THỂ CHẤT",
+            GroupLv3Name = "vận động tinh",
+            RowIndex = assessment.RowIndex
+        };
+        var withPrevious = AssessmentSheetRules.BuildReplacementRecord(sheet, assessment, request, previousSnapshot, now, actorId);
+        Assert.Equal("PHÁT TRIỂN THỂ CHẤT", withPrevious.AssessmentSnapshot.GroupLv2Name);
+        Assert.Equal("vận động tinh", withPrevious.AssessmentSnapshot.GroupLv3Name);
+        // Code/Name vẫn bám theo Assessment gốc, chỉ tên nhóm là ưu tiên snapshot cũ.
+        Assert.Equal("A01", withPrevious.AssessmentSnapshot.Code);
     }
 }
