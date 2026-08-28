@@ -58,11 +58,15 @@
 .action-cell, .number-cell, .code-cell, .plan-cell, .grade-cell { text-align: center; }
 .action-cell { background: #ffffff80; }
 .group-cell { padding: 0px 2px; color: #111827; font-weight: 700; text-align: center; }
-.group-cell span { display: inline-block; line-height: 1.25; letter-spacing: .01em; }
+.group-cell span { display: inline-block; line-height: 1.25; letter-spacing: .01em; white-space: pre-line; }
 .group-cell.single-row-group { font-size: smaller; }
 .group-lv2-cell { text-transform: uppercase; }
 .content-cell { min-width: 330px; }
 .content-cell strong { display: block; font-weight: 500; }
+/* Giữ xuống dòng có sẵn trong text (tên assessment/nhóm, ghi chú kế hoạch)
+   sau khi sync Google Sheet không còn ép về một dòng. Chỉ áp cho ô hiển thị
+   text thuần; ô kết quả dùng dx-text-area nên tự xử lý xuống dòng. */
+.content-cell, .plan-note-cell { white-space: pre-line; }
 .code-cell { color: #111827; white-space: nowrap; }
 .plan-cell { color: #344054; }
 .content-header,

@@ -207,9 +207,7 @@
                 </div>
               </td>
               <td *ngIf="showCodeColumn" class="code-cell">{{ row.record.assessment.code }}</td>
-              <td class="content-cell">
-                {{ row.record.assessment.name }}
-              </td>
+              <td class="content-cell">{{ row.record.assessment.name }}</td>
               <td *ngIf="showPlan" class="plan-cell">
                 <dx-button
                   class="plan-grade-button"
@@ -260,9 +258,7 @@
                   </dx-select-box>
                 </div>
               </td>
-              <td *ngIf="showPlan" class="note-cell">
-                {{row.record.planNote}}
-              </td>
+              <td *ngIf="showPlan" class="note-cell plan-note-cell">{{ row.record.planNote }}</td>
               <td *ngIf="showResult" class="note-cell">
                 <dx-text-area
                   class="record-note-textarea"
