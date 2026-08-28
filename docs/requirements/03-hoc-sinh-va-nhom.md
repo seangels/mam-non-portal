@@ -14,6 +14,7 @@ Thông tin học sinh:
 - Trạng thái `Active` hoặc `Inactive`.
 - Tên và số điện thoại người giám hộ tùy chọn.
 - Ghi chú tùy chọn.
+- Thư mục Google Drive tùy chọn: form cho nhập ID thư mục hoặc full link Google Drive; API chuẩn hóa và chỉ lưu folder ID.
 - Nhóm hiện tại.
 - Lịch học hiện tại và version.
 

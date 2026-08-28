@@ -63,7 +63,7 @@ public sealed record CreateStudentRequest(
     [param: MaxLength(200)] string? GuardianName,
     [param: MaxLength(30)] string? GuardianPhone,
     [param: MaxLength(2000)] string? Note,
-    [param: MaxLength(200)] string? DriveFolderId,
+    [param: MaxLength(2048, ErrorMessage = "Link hoặc Drive Folder ID không được vượt quá 2048 ký tự.")] string? DriveFolderId,
     [param: Required] StudyScheduleRequest StudySchedule);
 
 public sealed record UpdateStudentRequest(
@@ -76,6 +76,6 @@ public sealed record UpdateStudentRequest(
     [param: MaxLength(200)] string? GuardianName,
     [param: MaxLength(30)] string? GuardianPhone,
     [param: MaxLength(2000)] string? Note,
-    [param: MaxLength(200)] string? DriveFolderId,
+    [param: MaxLength(2048, ErrorMessage = "Link hoặc Drive Folder ID không được vượt quá 2048 ký tự.")] string? DriveFolderId,
     [param: Required] StudyScheduleRequest StudySchedule,
     [param: Range(1, int.MaxValue)] int ExpectedVersion);

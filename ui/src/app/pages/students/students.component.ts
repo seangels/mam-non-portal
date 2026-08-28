@@ -50,6 +50,7 @@ interface StudentEditor {
   guardianName: string;
   guardianPhone: string;
   note: string;
+  driveFolderId: string;
   studyMode: StudyMode;
   studyWeekdays: StudyWeekday[];
   groupId: string | null;
@@ -362,6 +363,7 @@ export class StudentsComponent {
       guardianName: this.editor.guardianName.trim() || null,
       guardianPhone: this.editor.guardianPhone.trim() || null,
       note: this.editor.note.trim() || null,
+      driveFolderId: this.editor.driveFolderId.trim() || null,
       studySchedule: {
         mode: this.editor.studyMode,
         weekdays: this.canonicalWeekdays(this.editor.studyWeekdays)
@@ -525,6 +527,7 @@ export class StudentsComponent {
       guardianName: student.guardianName ?? '',
       guardianPhone: student.guardianPhone ?? '',
       note: student.note ?? '',
+      driveFolderId: student.driveFolderId ?? '',
       studyMode: student.studySchedule.mode,
       studyWeekdays: this.canonicalWeekdays(student.studySchedule.weekdays),
       groupId: student.groupId ?? null,
@@ -547,6 +550,7 @@ export class StudentsComponent {
       guardianName: '',
       guardianPhone: '',
       note: '',
+      driveFolderId: '',
       studyMode: 'FullDay',
       studyWeekdays: [...CANONICAL_WEEKDAYS],
       groupId: null,

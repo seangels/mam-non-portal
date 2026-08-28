@@ -90,7 +90,7 @@
   </dx-data-grid>
 </div>
 
-<dx-popup [(visible)]="editorVisible" [title]="editorTitle" [width]="760" [maxWidth]="'96vw'"
+<dx-popup [(visible)]="editorVisible" [title]="editorTitle" [width]="1120" [maxWidth]="'96vw'"
   [height]="'auto'" [maxHeight]="'94vh'" [showCloseButton]="!saving" [dragEnabled]="false"
   [closeOnOutsideClick]="!saving" (onHiding)="onEditorHiding($event)">
   <form *dxTemplate="let _ of 'content'" class="student-form" (submit)="save($event)">
@@ -104,8 +104,8 @@
       Nhóm hiện tại: <strong>{{ editor.groupCode }} · {{ editor.responsibleTeacherName }}</strong>. Cần gỡ khỏi nhóm trước khi ngừng học hoặc xóa.
     </div>
 
-    <dx-form [formData]="editor" [disabled]="saving" labelLocation="top" [colCount]="2"
-      [colCountByScreen]="{ xs: 1, sm: 1, md: 2, lg: 2 }">
+    <dx-form [formData]="editor" [disabled]="saving" labelLocation="top" [colCount]="4"
+      [colCountByScreen]="{ xs: 1, sm: 2, md: 4, lg: 4 }">
       <dxi-item dataField="studentCode" [editorOptions]="{ valueChangeEvent: 'input' }"><dxo-label text="Mã học sinh"></dxo-label>
         <dxi-validation-rule type="required" message="Vui lòng nhập mã học sinh"></dxi-validation-rule>
         <dxi-validation-rule type="stringLength" [max]="50" message="Mã học sinh tối đa 50 ký tự"></dxi-validation-rule>
@@ -138,32 +138,46 @@
       <dxi-item dataField="guardianPhone" [editorOptions]="{ valueChangeEvent: 'input' }"><dxo-label text="SĐT người giám hộ"></dxo-label>
         <dxi-validation-rule type="stringLength" [max]="30" message="Số điện thoại tối đa 30 ký tự"></dxi-validation-rule>
       </dxi-item>
+      <dxi-item dataField="driveFolderId" [colSpan]="2"
+        [editorOptions]="{ maxLength: 2048, placeholder: 'Dán link thư mục Google Drive hoặc nhập ID', valueChangeEvent: 'input' }">
+        <dxo-label text="Thư mục Google Drive (link hoặc ID)"></dxo-label>
+        <dxi-validation-rule type="stringLength" [max]="2048"
+          message="Link hoặc ID thư mục Google Drive tối đa 2.048 ký tự"></dxi-validation-rule>
+      </dxi-item>
       <dxi-item dataField="note" editorType="dxTextArea" [colSpan]="2"
-        [editorOptions]="{ height: 90, maxLength: 2000, valueChangeEvent: 'input' }"><dxo-label text="Ghi chú"></dxo-label></dxi-item>
+        [editorOptions]="{ height: 36, maxLength: 2000, valueChangeEvent: 'input' }"><dxo-label text="Ghi chú"></dxo-label></dxi-item>
     </dx-form>
 
     <section class="schedule-editor" aria-labelledby="schedule-heading">
-      <h2 id="schedule-heading">Lịch học hằng tuần</h2>
-      <p>Chọn hình thức và các ngày học cố định từ Thứ Hai đến Thứ Bảy.</p>
-      <fieldset class="mode-options" [disabled]="saving" [class.invalid]="scheduleModeError">
-        <legend>Hình thức học</legend>
-        <label *ngFor="let mode of studyModes">
-          <input type="radio" name="study-mode" [value]="mode.value" [(ngModel)]="editor.studyMode" />
-          <span>{{ mode.text }}</span>
-        </label>
-      </fieldset>
-      <p *ngIf="scheduleModeError" class="validation" role="alert">{{ scheduleModeError }}</p>
+      <div class="schedule-heading">
+        <h2 id="schedule-heading">Lịch học hằng tuần</h2>
+        <span>Chọn hình thức và ngày học từ Thứ Hai đến Thứ Bảy.</span>
+      </div>
+      <div class="schedule-controls">
+        <div>
+          <fieldset class="mode-options" [disabled]="saving" [class.invalid]="scheduleModeError">
+            <legend>Hình thức học</legend>
+            <label *ngFor="let mode of studyModes">
+              <input type="radio" name="study-mode" [value]="mode.value" [(ngModel)]="editor.studyMode" />
+              <span>{{ mode.text }}</span>
+            </label>
+          </fieldset>
+          <p *ngIf="scheduleModeError" class="validation" role="alert">{{ scheduleModeError }}</p>
+        </div>
 
-      <fieldset #weekdayFieldset class="weekday-options" [disabled]="saving"
-        [class.invalid]="scheduleWeekdaysError" tabindex="-1">
-        <legend>Ngày học trong tuần</legend>
-        <label *ngFor="let weekday of weekdays">
-          <input type="checkbox" [checked]="isWeekdaySelected(weekday.value)"
-            (change)="toggleWeekday(weekday.value, $any($event.target).checked)" />
-          <span>{{ weekday.text }}</span>
-        </label>
-      </fieldset>
-      <p *ngIf="scheduleWeekdaysError" class="validation" role="alert">{{ scheduleWeekdaysError }}</p>
+        <div>
+          <fieldset #weekdayFieldset class="weekday-options" [disabled]="saving"
+            [class.invalid]="scheduleWeekdaysError" tabindex="-1">
+            <legend>Ngày học trong tuần</legend>
+            <label *ngFor="let weekday of weekdays">
+              <input type="checkbox" [checked]="isWeekdaySelected(weekday.value)"
+                (change)="toggleWeekday(weekday.value, $any($event.target).checked)" />
+              <span>{{ weekday.text }}</span>
+            </label>
+          </fieldset>
+          <p *ngIf="scheduleWeekdaysError" class="validation" role="alert">{{ scheduleWeekdaysError }}</p>
+        </div>
+      </div>
     </section>
 
     <div class="popup-actions">

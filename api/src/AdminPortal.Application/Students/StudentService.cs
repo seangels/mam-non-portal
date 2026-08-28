@@ -87,6 +87,7 @@ public sealed class StudentService(
         ValidateRequired(request.NickName, "nickName", "Tên thường gọi là bắt buộc.");
         ValidateDateOfBirth(request.DateOfBirth);
         var weekdayMask = StudentScheduleRules.Encode(request.StudySchedule);
+        var driveFolderId = NormalizeDriveFolderId(request.DriveFolderId);
 
         var code = NormalizeCode(request.StudentCode);
         if (await dbContext.Students.AnyAsync(student => student.StudentCode == code, cancellationToken))
@@ -107,7 +108,7 @@ public sealed class StudentService(
             GuardianName = NormalizeOptional(request.GuardianName),
             GuardianPhone = NormalizeOptional(request.GuardianPhone),
             Note = NormalizeOptional(request.Note),
-            DriveFolderId = NormalizeOptional(request.DriveFolderId),
+            DriveFolderId = driveFolderId,
             StudyMode = request.StudySchedule.Mode,
             StudyWeekdayMask = weekdayMask,
             Version = 1,
@@ -139,6 +140,7 @@ public sealed class StudentService(
         ValidateRequired(request.NickName, "nickName", "Tên thường gọi không được để trống.");
         ValidateDateOfBirth(request.DateOfBirth);
         var weekdayMask = StudentScheduleRules.Encode(request.StudySchedule);
+        var driveFolderId = NormalizeDriveFolderId(request.DriveFolderId);
         var code = NormalizeCode(request.StudentCode);
         if (code != student.StudentCode &&
             await dbContext.Students.AnyAsync(candidate => candidate.StudentCode == code && candidate.Id != id, cancellationToken))
@@ -151,7 +153,7 @@ public sealed class StudentService(
             throw new ConflictException("Không thể ngừng hoạt động học sinh đang thuộc nhóm.", ProblemCodes.StudentHasCurrentGroup);
         }
 
-        var changedFields = ChangedFields(student, request, code, weekdayMask);
+        var changedFields = ChangedFields(student, request, code, driveFolderId, weekdayMask);
         var scheduleChanged = student.StudyMode != request.StudySchedule.Mode ||
             student.StudyWeekdayMask != weekdayMask;
         var snapshotChanged = student.GroupId is not null &&
@@ -168,7 +170,7 @@ public sealed class StudentService(
         student.GuardianName = NormalizeOptional(request.GuardianName);
         student.GuardianPhone = NormalizeOptional(request.GuardianPhone);
         student.Note = NormalizeOptional(request.Note);
-        student.DriveFolderId = NormalizeOptional(request.DriveFolderId);
+        student.DriveFolderId = driveFolderId;
         student.StudyMode = request.StudySchedule.Mode;
         student.StudyWeekdayMask = weekdayMask;
         student.Version++;
@@ -333,6 +335,7 @@ public sealed class StudentService(
         Student student,
         UpdateStudentRequest request,
         string normalizedCode,
+        string? normalizedDriveFolderId,
         short weekdayMask)
     {
         var fields = new List<string>();
@@ -345,7 +348,7 @@ public sealed class StudentService(
         if (student.GuardianName != NormalizeOptional(request.GuardianName)) fields.Add("guardianName");
         if (student.GuardianPhone != NormalizeOptional(request.GuardianPhone)) fields.Add("guardianPhone");
         if (student.Note != NormalizeOptional(request.Note)) fields.Add("note");
-        if (student.DriveFolderId != NormalizeOptional(request.DriveFolderId)) fields.Add("driveFolderId");
+        if (student.DriveFolderId != normalizedDriveFolderId) fields.Add("driveFolderId");
         if (student.StudyMode != request.StudySchedule.Mode) fields.Add("studySchedule.mode");
         if (student.StudyWeekdayMask != weekdayMask) fields.Add("studySchedule.weekdays");
         return fields.ToArray();
@@ -471,6 +474,62 @@ public sealed class StudentService(
 
     private static string NormalizeCode(string code) => code.Trim().ToUpperInvariant();
     private static string? NormalizeOptional(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private static string? NormalizeDriveFolderId(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return null;
+
+        var input = value.Trim();
+        var folderId = Uri.TryCreate(input, UriKind.Absolute, out var uri)
+            ? ExtractDriveFolderId(uri)
+            : input;
+
+        if (!IsValidDriveFolderId(folderId))
+        {
+            const string message = "Drive Folder ID không hợp lệ. Hãy nhập ID thư mục hoặc link Google Drive có dạng /folders/{id} hay ?id={id}.";
+            throw new AppValidationException(message, new Dictionary<string, string[]>
+            {
+                ["driveFolderId"] = [message]
+            });
+        }
+
+        return folderId;
+    }
+
+    private static string? ExtractDriveFolderId(Uri uri)
+    {
+        if (uri.Scheme is not ("http" or "https") ||
+            !uri.Host.Equals("drive.google.com", StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        var segments = uri.AbsolutePath.Split('/', StringSplitOptions.RemoveEmptyEntries);
+        for (var index = 0; index < segments.Length - 1; index++)
+        {
+            if (segments[index].Equals("folders", StringComparison.OrdinalIgnoreCase))
+                return Uri.UnescapeDataString(segments[index + 1]);
+        }
+
+        foreach (var pair in uri.Query.TrimStart('?').Split('&', StringSplitOptions.RemoveEmptyEntries))
+        {
+            var separatorIndex = pair.IndexOf('=');
+            var key = separatorIndex < 0 ? pair : pair[..separatorIndex];
+            if (!Uri.UnescapeDataString(key).Equals("id", StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            var encodedValue = separatorIndex < 0 ? string.Empty : pair[(separatorIndex + 1)..];
+            return Uri.UnescapeDataString(encodedValue.Replace('+', ' '));
+        }
+
+        return null;
+    }
+
+    private static bool IsValidDriveFolderId(string? value) =>
+        !string.IsNullOrWhiteSpace(value) &&
+        value.Length <= 200 &&
+        value.All(character => char.IsAsciiLetterOrDigit(character) || character is '-' or '_');
 
     private void ValidateDateOfBirth(DateOnly value) =>
         StudentRules.ValidateDateOfBirth(value, DateOnly.FromDateTime(timeProvider.GetUtcNow().UtcDateTime));

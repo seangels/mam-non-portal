@@ -102,6 +102,7 @@ export interface Student {
   guardianName?: string | null;
   guardianPhone?: string | null;
   note?: string | null;
+  driveFolderId?: string | null;
   groupId?: string | null;
   groupCode?: string | null;
   groupName?: string | null;
@@ -122,6 +123,7 @@ export interface CreateStudentRequest {
   guardianName: string | null;
   guardianPhone: string | null;
   note: string | null;
+  driveFolderId: string | null;
   studySchedule: StudySchedule;
 }
 
