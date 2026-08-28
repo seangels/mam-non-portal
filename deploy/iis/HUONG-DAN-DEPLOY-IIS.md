@@ -17,6 +17,7 @@ Certificate mặc định là self-signed certificate dùng cho local, có SAN c
 
 - deploy\iis\deploy-iis.ps1: build artifact hoặc deploy artifact đã build.
 - deploy\iis\build-iis-package.ps1: chỉ dùng trong repository ở máy build để tạo ZIP; máy IIS đích không cần file này.
+- deploy\iis\upload-release-to-drive.ps1 + upload-release-to-drive.json: tải package mới nhất trong release\ lên một thư mục Google Drive (xem mục 2.2). Chỉ chạy ở máy build.
 - deploy\iis\ui.web.config: cấu hình IIS static site và security headers cho Angular.
 - ui\src\environments\environment.iis.ts: Angular gọi API qua https://api-gv-portal.local/api/v1.
 - artifacts\iis\api: API artifact sau khi build.
@@ -57,6 +58,34 @@ Giải nén:
     Get-ChildItem -Recurse | Unblock-File
 
 Từ thư mục vừa giải nén, chạy deploy-iis.ps1 theo mục 6. Không dùng tham số Build trên máy IIS đích. Máy đích không cần source, .NET SDK, Node hoặc npm.
+
+## 2.2. Tải package lên Google Drive
+
+Sau khi build xong, có thể đẩy package mới nhất lên một thư mục Google Drive để máy IIS tải về:
+
+    Set-ExecutionPolicy -Scope Process Bypass
+    .\deploy\iis\upload-release-to-drive.ps1
+
+Chuẩn bị một lần:
+
+- Đặt `deploy\iis\client_secret.json` (OAuth client loại Desktop app, tải từ Google Cloud Console). File này và `*.token.json` đã nằm trong .gitignore, không commit.
+- Sửa `deploy\iis\upload-release-to-drive.json`, điền `driveFolder` bằng link hoặc id thư mục Drive đích. Các khóa khác đều có mặc định:
+
+      driveFolder            link hoặc id thư mục Drive (bắt buộc)
+      releaseDirectory       thư mục quét package, mặc định ..\..\release
+      packagePattern         mặc định gv-portal-iis-*.zip
+      uploadChecksumSidecar  upload kèm file .sha256, mặc định true
+      clientSecretFile       mặc định client_secret.json
+      tokenFile              nơi lưu refresh token, mặc định upload-release-to-drive.token.json
+      scope                  mặc định https://www.googleapis.com/auth/drive
+
+Script sẽ:
+
+1. Chọn package có timestamp trong tên file mới nhất (YYYYMMDD-HHMMSS) trong `releaseDirectory`.
+2. Lần chạy đầu: mở trình duyệt để cấp quyền Google (loopback OAuth), lưu refresh token vào `tokenFile`. Lần sau chạy không cần thao tác.
+3. Kiểm tra thư mục Drive đã có file cùng tên chưa. Chưa có thì upload (resumable), đã có thì bỏ qua và in link.
+
+Tham số tùy chọn: `-ConfigFile <path>` dùng config khác, `-Force` upload lại dù đã tồn tại, `-ReAuth` bỏ token đã lưu và cấp quyền lại.
 
 ## 3. Điều kiện cần
 

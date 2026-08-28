@@ -1,0 +1,9 @@
+{
+  "driveFolder": "https://drive.google.com/drive/folders/REPLACE_WITH_FOLDER_ID",
+  "releaseDirectory": "..\\..\\release",
+  "packagePattern": "gv-portal-iis-*.zip",
+  "uploadChecksumSidecar": true,
+  "clientSecretFile": "client_secret.json",
+  "tokenFile": "upload-release-to-drive.token.json",
+  "scope": "https://www.googleapis.com/auth/drive"
+}
