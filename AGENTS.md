@@ -69,7 +69,6 @@ Backend:
 
     dotnet build api/AdminPortal.slnx --no-restore
     dotnet test api/tests/AdminPortal.UnitTests --no-restore
-    dotnet test api/tests/AdminPortal.IntegrationTests -c Release --no-restore
 
 Frontend:
 
@@ -78,7 +77,7 @@ Frontend:
 
 Production/IIS verification is intentionally excluded from the default gate. Invoke `$gv-portal-production` when it is required.
 
-If the user explicitly limits a checkpoint to build/unit verification and no DB runtime, do not run backend integration tests for that checkpoint. Record integration as skipped/not run rather than passed. Otherwise, API contract and persistence changes should include the integration suite.
+Tests that require a running Docker engine are **not part of the required gate**. The backend integration suite (`dotnet test api/tests/AdminPortal.IntegrationTests -c Release --no-restore`) uses Testcontainers PostgreSQL and therefore needs Docker. Agents are not required to start Docker or run it. Run it only when Docker is already available and the change touches auth/setup/persistence/API contract, or when the user explicitly asks for it. When it is not run, record it as "not run (Docker not available)" in the owning memory/task log — this is not a blocker and does not hold up marking a task done. Never mark it passed without running it, and never substitute a non-PostgreSQL provider.
 
 ## Legacy task file
 

@@ -71,11 +71,11 @@ Chạy từ `api/` với mức kiểm tra tương xứng thay đổi:
 dotnet restore AdminPortal.slnx
 dotnet build AdminPortal.slnx --no-restore
 dotnet test tests/AdminPortal.UnitTests --no-restore
-dotnet test tests/AdminPortal.IntegrationTests --no-restore
 ```
 
-- Integration test dùng PostgreSQL thật qua Testcontainers nên Docker engine phải chạy. Nếu bị chặn bởi môi trường, ghi chính xác blocker; không đánh dấu pass và không thay bằng provider khác. Nếu user chủ động giới hạn checkpoint là build/unit/no DB runtime, bỏ qua integration trong checkpoint đó và ghi rõ "not run/skipped", không ghi là pass.
-- Với thay đổi auth/setup/persistence/API contract, ưu tiên chạy cả integration suite từ database sạch. Với model change, chạy thêm `migrations has-pending-model-changes`.
+- Gate bắt buộc chỉ gồm build + unit test ở trên. Integration test (`dotnet test tests/AdminPortal.IntegrationTests --no-restore`) dùng PostgreSQL thật qua Testcontainers nên **cần Docker engine đang chạy** — đây là bước **tùy chọn, không bắt buộc**. Agent không phải tự bật Docker và không bị chặn vì thiếu Docker.
+- Chỉ chạy integration khi Docker đã sẵn sàng và thay đổi động tới auth/setup/persistence/API contract, hoặc khi user yêu cầu rõ. Khi không chạy, ghi "not run (Docker not available)" vào memory/task log; điều này không cản việc đánh dấu task done. Không bao giờ ghi là pass khi chưa chạy, và không thay bằng provider khác (không SQLite).
+- Với model change, chạy `migrations has-pending-model-changes` (không cần Docker).
 - Không dùng `--no-build` nếu chưa build đúng configuration trong cùng lượt kiểm tra. Ghi lại command, configuration và số test pass/fail trong handoff.
 
 ## IIS và đóng gói máy khác
@@ -88,7 +88,7 @@ dotnet test tests/AdminPortal.IntegrationTests --no-restore
 
 ## Definition of Done và handoff
 
-Một thay đổi backend chỉ hoàn tất khi contract/validation/authorization đúng, không lộ entity hoặc dữ liệu nhạy cảm, migration/index đầy đủ nếu cần, test phù hợp đã chạy, build không warning và tài liệu/sample request đã đồng bộ khi có thay đổi vận hành.
+Một thay đổi backend chỉ hoàn tất khi contract/validation/authorization đúng, không lộ entity hoặc dữ liệu nhạy cảm, migration/index đầy đủ nếu cần, build không warning và unit test đã chạy, và tài liệu/sample request đã đồng bộ khi có thay đổi vận hành. Integration test (cần Docker) là tùy chọn — nếu không chạy thì ghi rõ "not run" trong handoff, không phải điều kiện chặn done.
 
 Cuối mỗi nhiệm vụ có thay đổi hoặc phát hiện quan trọng:
 
