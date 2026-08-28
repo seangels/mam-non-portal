@@ -1,0 +1,6 @@
+{
+  "packageDirectory": "C:\\deploy\\packages",
+  "packagePattern": "gv-portal-iis-*.zip",
+  "verifyChecksum": true,
+  "copyFilesScript": "deploy\\iis\\copy-files.ps1"
+}
