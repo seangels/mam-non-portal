@@ -41,6 +41,7 @@ describe('StudentsService', () => {
       status: 'Active' as const,
       guardianName: null,
       guardianPhone: null,
+      driveFolderId: null,
       note: null,
       studySchedule: { mode: 'FullDay' as const, weekdays: ['Monday' as const] }
     };

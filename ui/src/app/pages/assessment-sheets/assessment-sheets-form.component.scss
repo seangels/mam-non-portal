@@ -59,6 +59,10 @@
 .action-cell { background: #ffffff80; }
 .group-cell { padding: 0px 2px; color: #111827; font-weight: 700; text-align: center; }
 .group-cell span { display: inline-block; line-height: 1.25; letter-spacing: .01em; white-space: pre-line; }
+.group-cell-content { display: flex; align-items: center; justify-content: center; gap: 2px; }
+.group-cell-content > span { flex: 1 1 auto; }
+:host ::ng-deep .group-edit-button.dx-button { flex: 0 0 24px; width: 24px; height: 24px; min-width: 24px; background: #ffffff80; }
+:host ::ng-deep .group-edit-button .dx-button-content { padding: 0; }
 .group-cell.single-row-group { font-size: smaller; }
 .group-lv2-cell { text-transform: uppercase; }
 .content-cell { min-width: 330px; }
@@ -106,6 +110,16 @@
 :host ::ng-deep .plan-grade-button .dx-button-content { padding: 2px 12px; }
 :host ::ng-deep .plan-grade-button .dx-button-text { color: inherit; font: inherit; line-height: 1.2; text-transform: none; }
 .form-actions { position: sticky; z-index: 5; bottom: 12px; display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-top: 16px; padding: 12px 16px; border: 1px solid #d0d5dd; border-radius: 9px; background: #fff; box-shadow: 0 5px 20px #1018282e; }
+.group-edit-popup { display: flex; flex-direction: column; gap: 14px; padding: 4px 2px; }
+.group-edit-field { display: flex; flex-direction: column; gap: 6px; color: #344054; font-weight: 600; }
+.group-edit-google-option { display: flex; align-items: center; gap: 8px; }
+.group-edit-google-option small { color: #667085; }
+.group-edit-hint { margin: -6px 0 0; color: #667085; font-size: 12px; }
+.group-edit-catalog { display: flex; flex-direction: column; gap: 8px; padding-top: 4px; border-top: 1px dashed #e0e0e0; }
+.group-edit-warning, .group-edit-error { margin: -4px 0 0; padding: 10px 12px; border-radius: 6px; }
+.group-edit-warning { border: 1px solid #f5c26b; background: #fff8e7; color: #8a4b08; }
+.group-edit-error { border: 1px solid #f2b8b5; background: #fff1f0; color: #8a1c16; }
+.group-edit-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 4px; }
 .form-action-buttons { display: flex; justify-content: flex-end; gap: 10px; margin-left: auto; }
 .action-summary { display: flex; flex-direction: column; color: #344054; }
 .action-summary strong { font-size: 18px; }

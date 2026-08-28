@@ -115,7 +115,7 @@ Cập nhật bảng này mỗi khi đổi trạng thái một dòng bên dưới
 
 | Status | Mã | Việc cần làm | Phụ thuộc |
 |---|---|---|---|
-| `[ ]` | [`ASH-GRP-01`](details/25-ASH-GRP-01.md) | Mỗi ô merge có nút mở popup nhập tên mới; mặc định chỉ sửa snapshot, checkbox tùy chọn cập nhật Assessment gốc, checkbox ghi Google Sheet hiển thị disabled. Quyền/status đã chốt, sẵn sàng triển khai | `ASH-FE-09`, `PUT /assessment-sheets/{id}/records`, `sync-assessments` |
+| `[x]` | [`ASH-GRP-01`](details/25-ASH-GRP-01.md) | Điều chỉnh 2026-08-28: popup `Áp dụng` chỉ đổi state UI + đánh dấu dirty; lưu snapshot khi bấm `Lưu thay đổi` (gộp `groupLv2Name`/`groupLv3Name` vào `PUT .../records`). Mỗi ô merge có nút hoàn tác về giá trị lúc tải. `Cập nhật Assessment gốc` tách thành nút riêng gọi `PATCH /api/v1/assessments/group` (Admin/SuperAdmin). Đã gỡ `PATCH /assessment-sheets/{id}/record-group`. Backend unit 95/95 + Release build 0/0; frontend 132/132 + dev build pass; integration project build pass, suite chưa chạy (Docker không sẵn) | `ASH-FE-09`, `PUT /assessment-sheets/{id}/records` |
 
 ## QA — owner: chưa có agent QA riêng (root điều phối, backend/frontend tự chạy phần của mình)
 

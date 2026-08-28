@@ -123,7 +123,9 @@ public sealed record AssessmentSheetRecordRequest(
     [param: MaxLength(2000)] string? PlanNote,
     AssessmentGrade? FinalGrade,
     [param: MaxLength(2000)] string? FinalNote,
-    [param: Range(0, int.MaxValue)] int? DisplayOrder = null);
+    [param: Range(0, int.MaxValue)] int? DisplayOrder = null,
+    [param: MaxLength(500)] string? GroupLv2Name = null,
+    [param: MaxLength(500)] string? GroupLv3Name = null);
 
 public sealed record UpdateAssessmentSheetStatusRequest(AssessmentSheetStatus Status);
 

@@ -29,6 +29,11 @@ export class ApiClient {
       .pipe(catchError(error => throwError(() => ApiError.from(error))));
   }
 
+  patch<T>(path: string, body: unknown): Observable<T> {
+    return this.http.patch<T>(this.url(path), body, { withCredentials: true })
+      .pipe(catchError(error => throwError(() => ApiError.from(error))));
+  }
+
   delete(path: string, query?: object): Observable<void> {
     return this.http.delete<void>(this.url(path), {
       params: this.toParams(query),

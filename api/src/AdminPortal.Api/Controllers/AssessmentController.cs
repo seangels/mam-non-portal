@@ -26,4 +26,11 @@ public sealed class AssessmentController(IAssessmentService assessmentService) :
     [ProducesResponseType<AssessmentDetailResponse>(StatusCodes.Status200OK)]
     public async Task<ActionResult<AssessmentDetailResponse>> Get(Guid id, CancellationToken cancellationToken) =>
         Ok(await assessmentService.GetAsync(id, cancellationToken));
+
+    [HttpPatch("group")]
+    [ProducesResponseType<UpdateAssessmentGroupResponse>(StatusCodes.Status200OK)]
+    public async Task<ActionResult<UpdateAssessmentGroupResponse>> UpdateGroup(
+        UpdateAssessmentGroupRequest request,
+        CancellationToken cancellationToken) =>
+        Ok(await assessmentService.UpdateGroupAsync(request, cancellationToken));
 }

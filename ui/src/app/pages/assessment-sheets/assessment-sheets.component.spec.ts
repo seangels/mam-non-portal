@@ -21,14 +21,17 @@ import {
   assessmentGradeColor,
   assessmentGradeText,
   assessmentGroupLv2Color,
+  buildAssessmentSheetRecordGroupTarget,
   buildAssessmentSheetRecordRows,
   buildCreateAssessmentSheetRequest,
   buildRemoveAssessmentSheetRecordRequest,
   buildReplaceAssessmentSheetRecordsRequest,
   buildSaveAssessmentSheetRecordsRequest,
   buildUpdateAssessmentSheetRequest,
+  canEditAssessmentSheetRecordGroups,
   canEditAssessmentSheetRecordValues,
   canMutateAssessmentSheetRecords,
+  canUpdateAssessmentCatalogGroups,
   initializeAssessmentSheetRecords
 } from './assessment-sheets-form.component';
 
@@ -41,6 +44,8 @@ describe('Assessment sheet form request mapping', () => {
     status: 'Open',
     note: '',
     feedback: '',
+    planFileLinkPdf: '',
+    resultFileLinkPdf: '',
     assessmentIds: [],
     ...override
   });
@@ -91,6 +96,8 @@ describe('Assessment sheet form request mapping', () => {
       note: null,
       startDate: '2026-08-25',
       dueDate: '2026-08-30',
+      planFileLinkPdf: null,
+      resultFileLinkPdf: null,
       feedback: 'Nhận xét cuối kỳ'
     });
   });
@@ -124,7 +131,9 @@ describe('Assessment sheet form request mapping', () => {
           planNote: 'Kế hoạch cũ',
           finalGrade: 'C',
           finalNote: 'Kết quả cũ',
-          displayOrder: 5
+          displayOrder: 5,
+          groupLv2Name: null,
+          groupLv3Name: null
         },
         {
           assessmentId: 'assessment-2',
@@ -132,7 +141,9 @@ describe('Assessment sheet form request mapping', () => {
           planNote: 'Ghi chú gần nhất',
           finalGrade: null,
           finalNote: null,
-          displayOrder: null
+          displayOrder: null,
+          groupLv2Name: null,
+          groupLv3Name: null
         }
       ]
     });
@@ -177,7 +188,9 @@ describe('Assessment sheet form request mapping', () => {
           planNote: 'Kế hoạch',
           finalGrade: 'D',
           finalNote: 'Kết quả',
-          displayOrder: null
+          displayOrder: null,
+          groupLv2Name: null,
+          groupLv3Name: null
         }
       ]
     });
@@ -218,7 +231,9 @@ describe('Assessment sheet form request mapping', () => {
           planNote: 'Kế hoạch',
           finalGrade: 'A',
           finalNote: 'Đã đạt',
-          displayOrder: null
+          displayOrder: null,
+          groupLv2Name: null,
+          groupLv3Name: null
         }
       ]
     });
@@ -490,6 +505,37 @@ describe('Assessment sheet records table layout', () => {
     ]);
   });
 
+  it('targets only the contiguous records represented by the clicked merged group cell', () => {
+    const rows = buildAssessmentSheetRecordRows([
+      record('record-1', 'Phát triển thể chất', 'Vận động', 1),
+      record('record-2', 'Phát triển thể chất', 'Thăng bằng', 2),
+      record('record-3', 'Phát triển thể chất', 'Vận động', 3)
+    ]);
+
+    expect(buildAssessmentSheetRecordGroupTarget(rows, rows[0], 2).recordIds).toEqual([
+      'record-1',
+      'record-2',
+      'record-3'
+    ]);
+    expect(buildAssessmentSheetRecordGroupTarget(rows, rows[0], 3).recordIds).toEqual(['record-1']);
+    expect(buildAssessmentSheetRecordGroupTarget(rows, rows[2], 3).recordIds).toEqual(['record-3']);
+  });
+
+  it('exposes distinct assessment codes for the clicked merged group cell (used by the catalog update button)', () => {
+    const rows = buildAssessmentSheetRecordRows([
+      record('record-1', 'Phát triển ngôn ngữ', 'Nghe và nói', 1),
+      record('record-2', 'Phát triển ngôn ngữ', 'Nghe và nói', 2)
+    ]);
+    const target = buildAssessmentSheetRecordGroupTarget(rows, rows[0], 3);
+
+    expect(target.level).toBe(3);
+    expect(target.recordIds).toEqual(['record-1', 'record-2']);
+    expect(target.assessmentCodes).toEqual(['A1', 'A2']);
+    expect(target.expectedGroupLv2Name).toBe('Phát triển ngôn ngữ');
+    expect(target.expectedGroupLv3Name).toBe('Nghe và nói');
+    expect(target.currentName).toBe('Nghe và nói');
+  });
+
   it('sorts rows by the shared groupLv2 display order before grouping', () => {
     const rows = buildAssessmentSheetRecordRows([
       record('record-1', 'Tiền tiểu học', 'Chuẩn bị', 1),
@@ -533,6 +579,20 @@ describe('Assessment sheet edit permissions', () => {
     expect(canEditAssessmentSheetRecordValues('Planed')).toBeTrue();
     expect(canEditAssessmentSheetRecordValues('Done')).toBeFalse();
     expect(canEditAssessmentSheetRecordValues(null)).toBeFalse();
+  });
+
+  it('allows snapshot group edits for all portal roles in Open or Planed, but locks Done', () => {
+    expect(canEditAssessmentSheetRecordGroups('Open', 'Teacher')).toBeTrue();
+    expect(canEditAssessmentSheetRecordGroups('Planed', 'Admin')).toBeTrue();
+    expect(canEditAssessmentSheetRecordGroups('Planed', 'SuperAdmin')).toBeTrue();
+    expect(canEditAssessmentSheetRecordGroups('Done', 'SuperAdmin')).toBeFalse();
+    expect(canEditAssessmentSheetRecordGroups('Open', null)).toBeFalse();
+  });
+
+  it('allows updating original assessments only for Admin and SuperAdmin', () => {
+    expect(canUpdateAssessmentCatalogGroups('Teacher')).toBeFalse();
+    expect(canUpdateAssessmentCatalogGroups('Admin')).toBeTrue();
+    expect(canUpdateAssessmentCatalogGroups('SuperAdmin')).toBeTrue();
   });
 });
 
@@ -826,6 +886,111 @@ describe('Assessment sheet form DevExtreme option stability', () => {
     component.editor.status = 'Done';
     expect(component.canMutateRecords).toBeFalse();
     expect(component.recordValueControlsDisabled).toBeTrue();
+  });
+
+  const groupRecord = (id: string, code: string, groupLv2Name: string, groupLv3Name: string) => ({
+    id,
+    assessment: { code, name: `Mục ${code}`, groupLv2Name, groupLv3Name }
+  } as any);
+
+  it('opens the group popup with the current snapshot name for Teacher on a Planed sheet', () => {
+    const component = createComponent('edit', 'Teacher');
+    const records = [groupRecord('record-1', 'A01', 'Phát triển ngôn ngữ', 'Nghe và nói')];
+    component.isCreate = false;
+    component.originalStatus = 'Planed';
+    component.editor.status = 'Planed';
+    component.records = records;
+    component.recordRows = buildAssessmentSheetRecordRows(records);
+    (component as any).baseline = (component as any).serialize(component.editor);
+
+    component.openGroupEdit(component.recordRows[0], 3);
+
+    expect(component.groupEditVisible).toBeTrue();
+    expect(component.groupEditTarget?.recordIds).toEqual(['record-1']);
+    expect(component.groupEditName).toBe('Nghe và nói');
+    expect(component.canUpdateAssessmentGroups).toBeFalse();
+  });
+
+  it('applyGroupEdit only mutates the UI snapshot, marks the form dirty, and does not call the API', () => {
+    const component = createComponent('edit', 'Teacher');
+    const records = [
+      groupRecord('record-1', 'A01', 'Phát triển ngôn ngữ', 'Nghe và nói'),
+      groupRecord('record-2', 'A02', 'Phát triển ngôn ngữ', 'Nghe và nói')
+    ];
+    component.isCreate = false;
+    component.originalStatus = 'Open';
+    component.editor.status = 'Open';
+    (component as any).applyAssessmentSheet({
+      id: 'sheet-1',
+      status: 'Open',
+      studentId: 's-1',
+      studentSnapshot: {},
+      records
+    } as any);
+
+    expect(component.dirty).toBeFalse();
+    component.openGroupEdit(component.recordRows[0], 3);
+    component.groupEditName = '  Giao tiếp  ';
+    component.applyGroupEdit();
+
+    expect(component.groupEditVisible).toBeFalse();
+    expect(component.records.every(r => r.assessment.groupLv3Name === 'Giao tiếp')).toBeTrue();
+    expect(component.recordRows.every(r => r.groupLv3Name === 'Giao tiếp')).toBeTrue();
+    expect(component.dirty).toBeTrue();
+  });
+
+  it('resetGroupCell reverts a merged cell to the loaded baseline group name', () => {
+    const component = createComponent('edit', 'Teacher');
+    const records = [
+      groupRecord('record-1', 'A01', 'Phát triển ngôn ngữ', 'Nghe và nói'),
+      groupRecord('record-2', 'A02', 'Phát triển ngôn ngữ', 'Nghe và nói')
+    ];
+    component.isCreate = false;
+    component.originalStatus = 'Open';
+    component.editor.status = 'Open';
+    (component as any).applyAssessmentSheet({
+      id: 'sheet-1', status: 'Open', studentId: 's-1', studentSnapshot: {}, records
+    } as any);
+
+    component.openGroupEdit(component.recordRows[0], 3);
+    component.groupEditName = 'Giao tiếp';
+    component.applyGroupEdit();
+    expect(component.canResetGroupCell(component.recordRows[0], 3)).toBeTrue();
+
+    component.resetGroupCell(component.recordRows[0], 3);
+    expect(component.records.every(r => r.assessment.groupLv3Name === 'Nghe và nói')).toBeTrue();
+    expect(component.canResetGroupCell(component.recordRows[0], 3)).toBeFalse();
+    expect(component.dirty).toBeFalse();
+  });
+
+  it('keeps all group edit actions locked for Done sheets', () => {
+    const component = createComponent('edit', 'SuperAdmin');
+    component.isCreate = false;
+    component.originalStatus = 'Done';
+    component.editor.status = 'Done';
+    (component as any).baseline = (component as any).serialize(component.editor);
+
+    expect(component.canShowGroupEditAction).toBeTrue();
+    expect(component.canUpdateAssessmentGroups).toBeTrue();
+    expect(component.groupEditActionDisabled).toBeTrue();
+    expect(component.groupEditActionHint).toContain('hoàn tất');
+  });
+
+  it('does not lock the group edit action just because the form is dirty', () => {
+    const component = createComponent('edit', 'Teacher');
+    const records = [groupRecord('record-1', 'A01', 'Phát triển ngôn ngữ', 'Nghe và nói')];
+    component.isCreate = false;
+    component.originalStatus = 'Open';
+    component.editor.status = 'Open';
+    (component as any).applyAssessmentSheet({
+      id: 'sheet-1', status: 'Open', studentId: 's-1', studentSnapshot: {}, records
+    } as any);
+    component.openGroupEdit(component.recordRows[0], 3);
+    component.groupEditName = 'Giao tiếp';
+    component.applyGroupEdit();
+
+    expect(component.dirty).toBeTrue();
+    expect(component.groupEditActionDisabled).toBeFalse();
   });
 
 });

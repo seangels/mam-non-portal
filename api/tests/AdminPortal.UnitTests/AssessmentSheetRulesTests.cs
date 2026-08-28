@@ -230,4 +230,33 @@ public sealed class AssessmentSheetRulesTests
         // Code/Name vẫn bám theo Assessment gốc, chỉ tên nhóm là ưu tiên snapshot cũ.
         Assert.Equal("A01", withPrevious.AssessmentSnapshot.Code);
     }
+
+    [Fact]
+    public void BuildReplacementRecordUsesRequestGroupNamesOverPreviousSnapshotAndAssessment()
+    {
+        var sheet = new AssessmentSheet { AssessmentSheetStatus = AssessmentSheetStatus.Open, StudentSnapshot = new StudentSnapshot() };
+        var assessment = CreateAssessment("A01");
+        assessment.GroupLv2Name = "Nhóm lớn gốc";
+        assessment.GroupLv3Name = "Nhóm nhỏ gốc";
+        var previousSnapshot = new AssessmentSnapshot
+        {
+            Code = assessment.Code,
+            Name = assessment.Name,
+            GroupLv2Name = "Nhóm lớn snapshot cũ",
+            GroupLv3Name = "Nhóm nhỏ snapshot cũ"
+        };
+        var now = DateTimeOffset.UtcNow;
+
+        var request = new AssessmentSheetRecordRequest(
+            assessment.Id, null, null, null, null, null, "  Nhóm lớn UI  ", "  Nhóm nhỏ UI  ");
+        var record = AssessmentSheetRules.BuildReplacementRecord(sheet, assessment, request, previousSnapshot, now, Guid.NewGuid());
+        Assert.Equal("Nhóm lớn UI", record.AssessmentSnapshot.GroupLv2Name);
+        Assert.Equal("Nhóm nhỏ UI", record.AssessmentSnapshot.GroupLv3Name);
+
+        // Bỏ trống trên request thì vẫn giữ hành vi cũ: ưu tiên snapshot cũ, rồi Assessment gốc.
+        var blankRequest = new AssessmentSheetRecordRequest(assessment.Id, null, null, null, null, null, "   ", null);
+        var fallback = AssessmentSheetRules.BuildReplacementRecord(sheet, assessment, blankRequest, previousSnapshot, now, Guid.NewGuid());
+        Assert.Equal("Nhóm lớn snapshot cũ", fallback.AssessmentSnapshot.GroupLv2Name);
+        Assert.Equal("Nhóm nhỏ snapshot cũ", fallback.AssessmentSnapshot.GroupLv3Name);
+    }
 }

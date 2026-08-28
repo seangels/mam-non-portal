@@ -91,6 +91,8 @@ export interface AssessmentSheetRecordRequest {
   finalGrade?: AssessmentGrade | null;
   finalNote?: string | null;
   displayOrder?: number | null;
+  groupLv2Name?: string | null;
+  groupLv3Name?: string | null;
 }
 
 export interface AssessmentSheetDetail extends AssessmentSheet {
@@ -167,4 +169,20 @@ export interface UpdateAssessmentSheetRequest {
 
 export interface UpdateAssessmentSheetStatusRequest {
   status: AssessmentSheetStatus;
+}
+
+export type AssessmentSheetRecordGroupLevel = 2 | 3;
+
+/**
+ * Cập nhật nhóm trên bảng Assessment danh mục (PATCH /assessments/group).
+ * Không đụng snapshot của bất kỳ AssessmentSheet nào — snapshot đổi qua PUT .../records.
+ */
+export interface UpdateAssessmentGroupRequest {
+  level: AssessmentSheetRecordGroupLevel;
+  assessmentCodes: string[];
+  name: string;
+}
+
+export interface UpdateAssessmentGroupResult {
+  updatedCount: number;
 }

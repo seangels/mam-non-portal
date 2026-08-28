@@ -6,6 +6,10 @@ import {
   AssessmentDetail,
   AssessmentListQuery,
 } from '../models/api.models';
+import {
+  UpdateAssessmentGroupRequest,
+  UpdateAssessmentGroupResult
+} from '../models/api.models.assessment-sheets';
 import { ApiClient } from './api-client.service';
 
 @Injectable({ providedIn: 'root' })
@@ -18,5 +22,9 @@ export class AssessmentsService {
 
   get(id: string): Observable<AssessmentDetail> {
     return this.api.get<AssessmentDetail>(`assessments/${id}`);
+  }
+
+  updateGroup(request: UpdateAssessmentGroupRequest): Observable<UpdateAssessmentGroupResult> {
+    return this.api.patch<UpdateAssessmentGroupResult>('assessments/group', request);
   }
 }

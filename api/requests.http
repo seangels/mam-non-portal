@@ -339,9 +339,23 @@ Content-Type: application/json
       "planNote": null,
       "finalGrade": null,
       "finalNote": null,
-      "displayOrder": 1
+      "displayOrder": 1,
+      "groupLv2Name": "Phát triển thể chất",
+      "groupLv3Name": "Vận động thô"
     }
   ]
+}
+
+###
+# Cập nhật nhóm trên bảng Assessment danh mục (Admin/SuperAdmin). Không đụng snapshot của sheet.
+PATCH {{host}}/api/v1/assessments/group
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "level": 3,
+  "assessmentCodes": ["{{assessmentCode}}"],
+  "name": "Vận động thô"
 }
 
 ###

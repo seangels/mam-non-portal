@@ -6,7 +6,7 @@ import { confirm } from 'devextreme/ui/dialog';
 import notify from 'devextreme/ui/notify';
 import { DxFormComponent } from 'devextreme-angular/ui/form';
 import { ApiError } from '../../core/models/api-error';
-import { Assessment, Student, Teacher } from '../../core/models/api.models';
+import { Assessment, Student, Teacher, UserRole } from '../../core/models/api.models';
 import { asLegacyWidgetDataSource } from '../../core/models/devextreme-legacy.types';
 import {
   AssessmentGrade,
@@ -19,6 +19,8 @@ import {
   CreateAssessmentSheetRequest,
   AssessmentSheetRecordRequest,
   ReplaceAssessmentSheetRecordsRequest,
+  AssessmentSheetRecordGroupLevel,
+  UpdateAssessmentGroupRequest,
   UpdateAssessmentSheetRequest
 } from '../../core/models/api.models.assessment-sheets';
 import { AssessmentSheetsService } from '../../core/services/assessment-sheets.service';
@@ -77,6 +79,68 @@ export interface AssessmentSheetRecordTableRow {
   groupLv2RowSpan: number;
   groupLv3RowSpan: number;
   rowNumber: number;
+}
+
+export interface AssessmentSheetRecordGroupTarget {
+  level: AssessmentSheetRecordGroupLevel;
+  recordIds: string[];
+  assessmentCodes: string[];
+  expectedGroupLv2Name: string | null;
+  expectedGroupLv3Name: string | null;
+  currentName: string;
+}
+
+export function canEditAssessmentSheetRecordGroups(
+  status: AssessmentSheetStatus | null | undefined,
+  role: UserRole | null | undefined
+): boolean {
+  const roleAllowed = role === 'Teacher' || role === 'Admin' || role === 'SuperAdmin';
+  return roleAllowed && (status === 'Open' || status === 'Planed');
+}
+
+export function canUpdateAssessmentCatalogGroups(role: UserRole | null | undefined): boolean {
+  return role === 'Admin' || role === 'SuperAdmin';
+}
+
+export function buildAssessmentSheetRecordGroupTarget(
+  rows: AssessmentSheetRecordTableRow[],
+  row: AssessmentSheetRecordTableRow,
+  level: AssessmentSheetRecordGroupLevel
+): AssessmentSheetRecordGroupTarget {
+  const startIndex = rows.indexOf(row);
+  const isGroupStart = level === 2 ? row.showGroupLv2 : row.showGroupLv3;
+  if (startIndex < 0 || !isGroupStart) {
+    throw new Error('Không thể xác định ô nhóm cần sửa. Vui lòng tải lại trang.');
+  }
+
+  const rowSpan = level === 2 ? row.groupLv2RowSpan : row.groupLv3RowSpan;
+  const recordsInCell = rows.slice(startIndex, startIndex + rowSpan);
+  const displayedGroupLv2Name = row.groupLv2Name;
+  const displayedGroupLv3Name = level === 3 ? row.groupLv3Name : null;
+  const expectedGroupLv2Name = normalizeOptional(row.record.assessment.groupLv2Name);
+  const expectedGroupLv3Name = level === 3
+    ? normalizeOptional(row.record.assessment.groupLv3Name)
+    : null;
+  const belongsToCell = (candidate: AssessmentSheetRecordTableRow): boolean =>
+    candidate.groupLv2Name === displayedGroupLv2Name
+    && (level === 2 || candidate.groupLv3Name === displayedGroupLv3Name);
+
+  if (recordsInCell.length !== rowSpan || recordsInCell.some(candidate => !belongsToCell(candidate))) {
+    throw new Error('Dữ liệu nhóm đã thay đổi. Vui lòng tải lại trang trước khi sửa.');
+  }
+
+  return {
+    level,
+    recordIds: recordsInCell.map(candidate => candidate.record.id),
+    assessmentCodes: Array.from(new Set(
+      recordsInCell
+        .map(candidate => candidate.record.assessment.code?.trim())
+        .filter((code): code is string => !!code)
+    )),
+    expectedGroupLv2Name,
+    expectedGroupLv3Name,
+    currentName: level === 2 ? row.groupLv2Name : row.groupLv3Name
+  };
 }
 
 export function buildCreateAssessmentSheetRequest(
@@ -158,7 +222,9 @@ export function buildReplaceAssessmentSheetRecordsRequest(
       planNote: record.planNote ?? null,
       finalGrade: record.finalGrade ?? null,
       finalNote: record.finalNote ?? null,
-      displayOrder: record.displayOrder ?? null
+      displayOrder: record.displayOrder ?? null,
+      groupLv2Name: record.assessment.groupLv2Name ?? null,
+      groupLv3Name: record.assessment.groupLv3Name ?? null
     };
   });
   const addedPlanGrade = normalizeAssessmentGrade(assessmentToAdd.latestGrade);
@@ -169,7 +235,9 @@ export function buildReplaceAssessmentSheetRecordsRequest(
     planNote: normalizeOptional(assessmentToAdd.latestNote),
     finalGrade: null,
     finalNote: null,
-    displayOrder: null
+    displayOrder: null,
+    groupLv2Name: assessmentToAdd.groupLv2Name ?? null,
+    groupLv3Name: assessmentToAdd.groupLv3Name ?? null
   });
 
   return { records };
@@ -205,7 +273,9 @@ export function buildRemoveAssessmentSheetRecordRequest(
       planNote: record.planNote ?? null,
       finalGrade: record.finalGrade ?? null,
       finalNote: record.finalNote ?? null,
-      displayOrder: record.displayOrder ?? null
+      displayOrder: record.displayOrder ?? null,
+      groupLv2Name: record.assessment.groupLv2Name ?? null,
+      groupLv3Name: record.assessment.groupLv3Name ?? null
     };
   });
 
@@ -374,6 +444,12 @@ export class AssessmentSheetFormComponent implements OnInit, OnDestroy {
   addingRecord = false;
   removingRecordId: string | null = null;
   submittingResults = false;
+  groupEditVisible = false;
+  groupEditName = '';
+  groupCatalogSaving = false;
+  groupEditError = '';
+  groupEditTarget: AssessmentSheetRecordGroupTarget | null = null;
+  private recordGroupBaseline = new Map<string, { groupLv2Name: string | null; groupLv3Name: string | null }>();
   loadError = '';
   formError = '';
   conflict = false;
@@ -473,7 +549,32 @@ export class AssessmentSheetFormComponent implements OnInit, OnDestroy {
   }
 
   get recordMutationInProgress(): boolean {
-    return this.addingRecord || !!this.removingRecordId;
+    return this.addingRecord || !!this.removingRecordId || this.groupCatalogSaving;
+  }
+
+  get canShowGroupEditAction(): boolean {
+    const role = this.auth.user?.role;
+    return role === 'Teacher' || role === 'Admin' || role === 'SuperAdmin';
+  }
+
+  get canUpdateAssessmentGroups(): boolean {
+    return canUpdateAssessmentCatalogGroups(this.auth.user?.role);
+  }
+
+  get groupEditActionDisabled(): boolean {
+    return !canEditAssessmentSheetRecordGroups(this.originalStatus, this.auth.user?.role)
+      || !canEditAssessmentSheetRecordGroups(this.editor.status, this.auth.user?.role)
+      || this.loading
+      || this.saving
+      || this.recordMutationInProgress
+      || this.submittingResults;
+  }
+
+  get groupEditActionHint(): string {
+    if (this.originalStatus === 'Done' || this.editor.status === 'Done') {
+      return 'Bảng đánh giá đã hoàn tất nên không thể sửa nhóm.';
+    }
+    return 'Sửa tên nhóm (áp dụng khi bấm Lưu thay đổi)';
   }
 
   get canShowSubmitResults(): boolean {
@@ -822,6 +923,163 @@ export class AssessmentSheetFormComponent implements OnInit, OnDestroy {
     record.finalNote = value ?? '';
   }
 
+  openGroupEdit(row: AssessmentSheetRecordTableRow, level: AssessmentSheetRecordGroupLevel): void {
+    if (this.groupEditActionDisabled) {
+      return;
+    }
+    try {
+      const target = buildAssessmentSheetRecordGroupTarget(this.recordRows, row, level);
+      this.groupEditTarget = target;
+      this.groupEditName = target.currentName === UNGROUPED_LABEL ? '' : target.currentName;
+      this.groupEditError = '';
+      this.groupEditVisible = true;
+    } catch (error) {
+      this.formError = error instanceof Error ? error.message : 'Không thể mở phần sửa nhóm.';
+    }
+  }
+
+  closeGroupEdit(): void {
+    if (this.groupCatalogSaving) {
+      return;
+    }
+    this.resetGroupEdit();
+  }
+
+  onGroupEditHiding(event: { cancel?: boolean }): void {
+    if (this.groupCatalogSaving) {
+      event.cancel = true;
+      return;
+    }
+    this.resetGroupEdit();
+  }
+
+  /**
+   * Chỉ áp dụng tên nhóm mới lên state UI (đánh dấu form dirty). Việc lưu thật đi kèm
+   * PUT .../records khi người dùng bấm "Lưu thay đổi".
+   */
+  applyGroupEdit(): void {
+    if (this.groupCatalogSaving || !this.groupEditTarget || this.groupEditActionDisabled) {
+      return;
+    }
+    const name = this.groupEditName.trim();
+    if (!name) {
+      this.groupEditError = 'Vui lòng nhập tên nhóm.';
+      return;
+    }
+    this.applyGroupNameToTarget(this.groupEditTarget, name);
+    this.resetGroupEdit();
+    notify('Đã áp dụng tên nhóm mới. Bấm "Lưu thay đổi" để lưu.', 'info', 2500);
+  }
+
+  /** Nút riêng cho Admin/SuperAdmin: cập nhật ngay bảng Assessment gốc, đồng thời áp dụng lên UI. */
+  async updateCatalogGroup(): Promise<void> {
+    if (this.groupCatalogSaving || !this.groupEditTarget || this.groupEditActionDisabled || !this.canUpdateAssessmentGroups) {
+      return;
+    }
+    const target = this.groupEditTarget;
+    const name = this.groupEditName.trim();
+    if (!name) {
+      this.groupEditError = 'Vui lòng nhập tên nhóm.';
+      return;
+    }
+    if (target.assessmentCodes.length === 0) {
+      this.groupEditError = 'Không xác định được mã mục đánh giá của ô này.';
+      return;
+    }
+
+    const accepted = await confirm(
+      'Cập nhật tên nhóm trên bảng Assessment gốc cho các mục trong ô này? Tên gốc có thể bị lần Đồng bộ GGSheet sau ghi đè.',
+      'Cập nhật Assessment gốc'
+    );
+    if (!accepted) {
+      return;
+    }
+
+    const request: UpdateAssessmentGroupRequest = {
+      level: target.level,
+      assessmentCodes: [...target.assessmentCodes],
+      name
+    };
+    this.groupCatalogSaving = true;
+    this.groupEditError = '';
+    try {
+      await firstValueFrom(this.assessments.updateGroup(request));
+      this.applyGroupNameToTarget(target, name);
+      this.resetGroupEdit();
+      notify('Đã cập nhật nhóm trên Assessment gốc.', 'success', 2500);
+    } catch (error) {
+      this.groupEditError = this.withTrace(ApiError.from(error));
+    } finally {
+      this.groupCatalogSaving = false;
+    }
+  }
+
+  canResetGroupCell(row: AssessmentSheetRecordTableRow, level: AssessmentSheetRecordGroupLevel): boolean {
+    const isGroupStart = level === 2 ? row.showGroupLv2 : row.showGroupLv3;
+    if (!isGroupStart) {
+      return false;
+    }
+    const recordIds = this.resolveGroupCellRecordIds(row, level);
+    return recordIds.some(id => {
+      const baseline = this.recordGroupBaseline.get(id);
+      const record = this.records.find(candidate => candidate.id === id);
+      if (!baseline || !record) {
+        return false;
+      }
+      const current = level === 2 ? record.assessment.groupLv2Name : record.assessment.groupLv3Name;
+      const original = level === 2 ? baseline.groupLv2Name : baseline.groupLv3Name;
+      return (current ?? null) !== (original ?? null);
+    });
+  }
+
+  resetGroupCell(row: AssessmentSheetRecordTableRow, level: AssessmentSheetRecordGroupLevel): void {
+    if (this.groupEditActionDisabled) {
+      return;
+    }
+    const recordIds = new Set(this.resolveGroupCellRecordIds(row, level));
+    if (recordIds.size === 0) {
+      return;
+    }
+    this.records.forEach(record => {
+      if (!recordIds.has(record.id)) {
+        return;
+      }
+      const baseline = this.recordGroupBaseline.get(record.id);
+      if (!baseline) {
+        return;
+      }
+      if (level === 2) {
+        record.assessment.groupLv2Name = baseline.groupLv2Name;
+      } else {
+        record.assessment.groupLv3Name = baseline.groupLv3Name;
+      }
+    });
+    this.recordRows = buildAssessmentSheetRecordRows(this.records);
+  }
+
+  private resolveGroupCellRecordIds(row: AssessmentSheetRecordTableRow, level: AssessmentSheetRecordGroupLevel): string[] {
+    try {
+      return buildAssessmentSheetRecordGroupTarget(this.recordRows, row, level).recordIds;
+    } catch {
+      return [];
+    }
+  }
+
+  private applyGroupNameToTarget(target: AssessmentSheetRecordGroupTarget, name: string): void {
+    const recordIds = new Set(target.recordIds);
+    this.records.forEach(record => {
+      if (!recordIds.has(record.id)) {
+        return;
+      }
+      if (target.level === 2) {
+        record.assessment.groupLv2Name = name;
+      } else {
+        record.assessment.groupLv3Name = name;
+      }
+    });
+    this.recordRows = buildAssessmentSheetRecordRows(this.records);
+  }
+
   canMoveRecordUp(row: AssessmentSheetRecordTableRow): boolean {
     if (this.recordValueControlsDisabled) {
       return false;
@@ -1009,10 +1267,21 @@ export class AssessmentSheetFormComponent implements OnInit, OnDestroy {
     this.responsibleTeacherSummary = sheet.responsibleTeacherFullName ?? 'Chưa chọn giáo viên phụ trách';
     this.records = initializeAssessmentSheetRecords(sheet.records ?? []);
     this.recordRows = buildAssessmentSheetRecordRows(this.records);
+    this.recordGroupBaseline = new Map(this.records.map(record => [record.id, {
+      groupLv2Name: record.assessment.groupLv2Name ?? null,
+      groupLv3Name: record.assessment.groupLv3Name ?? null
+    }]));
     this.existingAssessmentCodes = this.records
       .map(record => record.assessment.code)
       .filter(Boolean);
     this.baseline = this.serialize(this.editor);
+  }
+
+  private resetGroupEdit(): void {
+    this.groupEditVisible = false;
+    this.groupEditTarget = null;
+    this.groupEditName = '';
+    this.groupEditError = '';
   }
 
   private focusFirstServerField(error: ApiError): void {
@@ -1068,6 +1337,8 @@ export class AssessmentSheetFormComponent implements OnInit, OnDestroy {
     return records.map(record => ({
       id: record.id,
       code: record.assessment.code,
+      groupLv2Name: record.assessment.groupLv2Name ?? null,
+      groupLv3Name: record.assessment.groupLv3Name ?? null,
       planGrade: record.planGrade ?? null,
       planNote: record.planNote ?? null,
       finalGrade: record.finalGrade ?? null,
@@ -1150,7 +1421,9 @@ function buildRecordRequestFromRecord(
     planNote: record.planNote ?? null,
     finalGrade: record.finalGrade ?? null,
     finalNote: record.finalNote ?? null,
-    displayOrder: record.displayOrder ?? null
+    displayOrder: record.displayOrder ?? null,
+    groupLv2Name: record.assessment.groupLv2Name ?? null,
+    groupLv3Name: record.assessment.groupLv3Name ?? null
   };
 }
 

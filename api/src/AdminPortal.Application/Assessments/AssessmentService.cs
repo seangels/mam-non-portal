@@ -17,18 +17,103 @@ namespace AdminPortal.Application.Assessments;
 
 public interface IAssessmentService : IQueryService<Assessment, AssessmentListQuery, AssessmentListItemResponse, AssessmentDetailResponse>
 {
-
+    Task<UpdateAssessmentGroupResponse> UpdateGroupAsync(
+        UpdateAssessmentGroupRequest request,
+        CancellationToken cancellationToken);
 }
 
 public sealed partial class AssessmentService(
     IApplicationDbContext dbContext,
     ICurrentActor currentActor,
+    TimeProvider timeProvider,
     ILogger<AssessmentService> logger) : IAssessmentService
 {
     private static void EnsureAssessmentRole(ActorContext actor)
     {
         if (actor.Role is not (UserRole.SuperAdmin or UserRole.Admin or UserRole.Teacher))
             throw new ForbiddenException("Không đủ quyền.");
+    }
+
+    public async Task<UpdateAssessmentGroupResponse> UpdateGroupAsync(
+        UpdateAssessmentGroupRequest request,
+        CancellationToken cancellationToken)
+    {
+        var actor = currentActor.GetRequired();
+        if (actor.Role is not (UserRole.SuperAdmin or UserRole.Admin))
+            throw new ForbiddenException("Chỉ quản trị viên được cập nhật nhóm mục đánh giá gốc.");
+        if (request.Level is not (2 or 3))
+        {
+            throw new AppValidationException("Cấp nhóm không hợp lệ.", new Dictionary<string, string[]>
+            {
+                ["level"] = ["Chỉ hỗ trợ cấp nhóm 2 hoặc 3."]
+            });
+        }
+
+        var name = request.Name?.Trim();
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            throw new AppValidationException("Tên nhóm không hợp lệ.", new Dictionary<string, string[]>
+            {
+                ["name"] = ["Tên nhóm không được để trống."]
+            });
+        }
+
+        var codes = request.AssessmentCodes
+            .Select(x => x?.Trim())
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x!)
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+        if (codes.Length == 0)
+        {
+            throw new AppValidationException("Danh sách mục đánh giá không hợp lệ.", new Dictionary<string, string[]>
+            {
+                ["assessmentCodes"] = ["Cần ít nhất một mã mục đánh giá hợp lệ."]
+            });
+        }
+
+        var assessments = await dbContext.Assessments
+            .Where(x => codes.Contains(x.Code))
+            .ToListAsync(cancellationToken);
+        var byCode = assessments.GroupBy(x => x.Code, StringComparer.Ordinal).ToArray();
+        if (byCode.Any(x => x.Count() != 1))
+            throw new ConflictException("Mã mục đánh giá không duy nhất, không thể cập nhật nhóm gốc.", ProblemCodes.SnapshotChanged);
+        if (byCode.Length != codes.Length)
+            throw new NotFoundException("Không tìm thấy đủ mục đánh giá theo mã.", ProblemCodes.AssessmentNotFound);
+
+        var now = timeProvider.GetUtcNow();
+        var oldGroups = assessments
+            .Select(x => new { x.Code, Name = request.Level == 2 ? x.GroupLv2Name : x.GroupLv3Name })
+            .ToArray();
+        foreach (var assessment in assessments)
+        {
+            if (request.Level == 2)
+                assessment.GroupLv2Name = name;
+            else
+                assessment.GroupLv3Name = name;
+            assessment.UpdatedByUserId = actor.UserId;
+            assessment.UpdatedAt = now;
+        }
+
+        dbContext.AuditLogs.Add(new AuditLog
+        {
+            ActorUserId = actor.UserId,
+            Action = "Assessment.GroupUpdated",
+            EntityType = "Assessment",
+            EntityId = Guid.Empty,
+            OldValues = JsonSerializer.Serialize(new { request.Level, Groups = oldGroups }),
+            NewValues = JsonSerializer.Serialize(new
+            {
+                request.Level,
+                GroupName = name,
+                AssessmentCount = assessments.Count,
+                AssessmentCodes = codes
+            }),
+            IpAddress = actor.IpAddress,
+            CreatedAt = now
+        });
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return new UpdateAssessmentGroupResponse(assessments.Count);
     }
     public async Task<PagedResponse<AssessmentListItemResponse>> ListAsync(
         AssessmentListQuery query,

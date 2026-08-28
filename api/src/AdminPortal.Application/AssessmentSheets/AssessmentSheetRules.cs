@@ -121,9 +121,10 @@ public static class AssessmentSheetRules
                 Code = assessment.Code,
                 Name = assessment.Name,
                 GroupLv1Name = assessment.GroupLv1Name,
-                // Ưu tiên tên nhóm snapshot đã tùy chỉnh trước đó (import khcn / ASH-GRP-01); chỉ dùng Assessment gốc khi chưa có.
-                GroupLv2Name = previousSnapshot?.GroupLv2Name ?? assessment.GroupLv2Name,
-                GroupLv3Name = previousSnapshot?.GroupLv3Name ?? assessment.GroupLv3Name,
+                // Tên nhóm snapshot: ưu tiên giá trị request gửi lên (UI ASH-GRP-01 đổi tại chỗ), rồi tới snapshot
+                // tùy chỉnh trước đó (import khcn), cuối cùng mới fallback Assessment gốc.
+                GroupLv2Name = NormalizeOptional(requestRecord.GroupLv2Name) ?? previousSnapshot?.GroupLv2Name ?? assessment.GroupLv2Name,
+                GroupLv3Name = NormalizeOptional(requestRecord.GroupLv3Name) ?? previousSnapshot?.GroupLv3Name ?? assessment.GroupLv3Name,
                 RowIndex = assessment.RowIndex
             },
             PlanGrade = requestRecord.PlanGrade,

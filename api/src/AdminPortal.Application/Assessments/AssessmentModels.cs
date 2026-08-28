@@ -40,4 +40,11 @@ public sealed record AssessmentDetailResponse(
     string? GroupLv3Name
     );
 
+public sealed record UpdateAssessmentGroupRequest(
+    [param: Range(2, 3)] int Level,
+    [param: Required, MinLength(1), MaxLength(5000)] IReadOnlyList<string> AssessmentCodes,
+    [param: Required, MaxLength(500)] string Name);
+
+public sealed record UpdateAssessmentGroupResponse(int UpdatedCount);
+
 

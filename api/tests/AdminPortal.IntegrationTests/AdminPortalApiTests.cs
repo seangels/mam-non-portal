@@ -519,6 +519,201 @@ public sealed class AdminPortalApiTests(ApiFactory factory) : IClassFixture<ApiF
     }
 
     [Fact]
+    public async Task AssessmentSheetRecordReplacePersistsRequestProvidedSnapshotGroupNamesWithoutTouchingCatalog()
+    {
+        using var client = CreateClient();
+        var superAdmin = await LoginAsync(client, ApiFactory.SuperAdminEmail, ApiFactory.SuperAdminPassword);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", superAdmin.AccessToken);
+        var marker = Guid.NewGuid().ToString("N")[..8];
+        var student = await CreateStudentAsync(client, $"RG-{marker}", $"Record Group {marker}");
+        var firstAssessmentId = Guid.NewGuid();
+        var secondAssessmentId = Guid.NewGuid();
+        var firstCode = $"RG-{marker}-001";
+        var secondCode = $"RG-{marker}-002";
+        var now = DateTimeOffset.UtcNow;
+
+        using (var scope = factory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<AdminPortalDbContext>();
+            var actor = await dbContext.Users.AsNoTracking().SingleAsync(x => x.Email == ApiFactory.SuperAdminEmail);
+            await dbContext.Assessments.AddRangeAsync(
+                new Assessment
+                {
+                    Id = firstAssessmentId,
+                    Code = firstCode,
+                    Name = $"Record Group {marker} A",
+                    GroupLv1Name = "Nhóm tuổi",
+                    GroupLv2Name = "Phát triển thể chất",
+                    GroupLv3Name = "Vận động",
+                    UpdatedByUserId = actor.Id,
+                    CreatedAt = now,
+                    UpdatedAt = now
+                },
+                new Assessment
+                {
+                    Id = secondAssessmentId,
+                    Code = secondCode,
+                    Name = $"Record Group {marker} B",
+                    GroupLv1Name = "Nhóm tuổi",
+                    GroupLv2Name = "Phát triển thể chất",
+                    GroupLv3Name = "Vận động",
+                    UpdatedByUserId = actor.Id,
+                    CreatedAt = now,
+                    UpdatedAt = now
+                });
+            await dbContext.SaveChangesAsync();
+        }
+
+        var createResponse = await client.PostAsJsonAsync("/api/v1/assessment-sheets", new
+        {
+            studentId = student.Id,
+            responsibleTeacherId = (Guid?)null,
+            note = (string?)null,
+            startDate = "2026-08-01T00:00:00+07:00",
+            dueDate = "2026-08-31T00:00:00+07:00",
+            records = new[]
+            {
+                new { assessmentId = firstAssessmentId, latestGrade = (string?)null, note = (string?)null },
+                new { assessmentId = secondAssessmentId, latestGrade = (string?)null, note = (string?)null }
+            }
+        });
+        createResponse.EnsureSuccessStatusCode();
+        var sheet = await createResponse.Content.ReadFromJsonAsync<AssessmentSheetDetailResponse>(JsonOptions);
+        Assert.NotNull(sheet);
+
+        // UI ASH-GRP-01: đổi tên nhóm ngay trên ô merge được gửi kèm PUT .../records khi bấm "Lưu thay đổi".
+        var replaceBody = new
+        {
+            records = sheet.Records.Select(x => new
+            {
+                assessmentId = x.Assessment.Code == firstCode ? firstAssessmentId : secondAssessmentId,
+                planGrade = (string?)null,
+                planNote = (string?)null,
+                finalGrade = (string?)null,
+                finalNote = (string?)null,
+                displayOrder = x.DisplayOrder,
+                groupLv2Name = "  Phát triển thể chất (đổi)  ",
+                groupLv3Name = "  Vận động mới  "
+            }).ToArray()
+        };
+        var replaceResponse = await client.PutAsJsonAsync($"/api/v1/assessment-sheets/{sheet.Id}/records", replaceBody, JsonOptions);
+        replaceResponse.EnsureSuccessStatusCode();
+        var afterReplace = await replaceResponse.Content.ReadFromJsonAsync<AssessmentSheetDetailResponse>(JsonOptions);
+        Assert.NotNull(afterReplace);
+        Assert.All(afterReplace.Records, x => Assert.Equal("Phát triển thể chất (đổi)", x.Assessment.GroupLv2Name));
+        Assert.All(afterReplace.Records, x => Assert.Equal("Vận động mới", x.Assessment.GroupLv3Name));
+
+        // Bỏ trống group name trên request thì giữ nguyên snapshot đã lưu (không rơi về Assessment gốc).
+        var keepBody = new
+        {
+            records = afterReplace.Records.Select(x => new
+            {
+                assessmentId = x.Assessment.Code == firstCode ? firstAssessmentId : secondAssessmentId,
+                planGrade = (string?)null,
+                planNote = "đã chỉnh",
+                finalGrade = (string?)null,
+                finalNote = (string?)null,
+                displayOrder = x.DisplayOrder,
+                groupLv2Name = (string?)null,
+                groupLv3Name = (string?)null
+            }).ToArray()
+        };
+        var keepResponse = await client.PutAsJsonAsync($"/api/v1/assessment-sheets/{sheet.Id}/records", keepBody, JsonOptions);
+        keepResponse.EnsureSuccessStatusCode();
+        var afterKeep = await keepResponse.Content.ReadFromJsonAsync<AssessmentSheetDetailResponse>(JsonOptions);
+        Assert.NotNull(afterKeep);
+        Assert.All(afterKeep.Records, x => Assert.Equal("Phát triển thể chất (đổi)", x.Assessment.GroupLv2Name));
+        Assert.All(afterKeep.Records, x => Assert.Equal("Vận động mới", x.Assessment.GroupLv3Name));
+        Assert.All(afterKeep.Records, x => Assert.Equal("đã chỉnh", x.PlanNote));
+
+        // Bảng Assessment danh mục không đổi khi chỉ lưu snapshot của sheet.
+        using (var scope = factory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<AdminPortalDbContext>();
+            var catalog = await dbContext.Assessments.AsNoTracking()
+                .Where(x => x.Id == firstAssessmentId || x.Id == secondAssessmentId)
+                .ToListAsync();
+            Assert.Equal(2, catalog.Count);
+            Assert.All(catalog, x => Assert.Equal("Phát triển thể chất", x.GroupLv2Name));
+            Assert.All(catalog, x => Assert.Equal("Vận động", x.GroupLv3Name));
+        }
+    }
+
+    [Fact]
+    public async Task AssessmentGroupCatalogPatchUpdatesCatalogForManagersOnlyAndAudits()
+    {
+        using var client = CreateClient();
+        var superAdmin = await LoginAsync(client, ApiFactory.SuperAdminEmail, ApiFactory.SuperAdminPassword);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", superAdmin.AccessToken);
+        var marker = Guid.NewGuid().ToString("N")[..8];
+        var firstAssessmentId = Guid.NewGuid();
+        var secondAssessmentId = Guid.NewGuid();
+        var firstCode = $"CG-{marker}-001";
+        var secondCode = $"CG-{marker}-002";
+        var now = DateTimeOffset.UtcNow;
+
+        using (var scope = factory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<AdminPortalDbContext>();
+            var actor = await dbContext.Users.AsNoTracking().SingleAsync(x => x.Email == ApiFactory.SuperAdminEmail);
+            await dbContext.Assessments.AddRangeAsync(
+                new Assessment { Id = firstAssessmentId, Code = firstCode, Name = $"Catalog {marker} A", GroupLv1Name = "Nhóm tuổi", GroupLv2Name = "Phát triển thể chất", GroupLv3Name = "Vận động", UpdatedByUserId = actor.Id, CreatedAt = now, UpdatedAt = now },
+                new Assessment { Id = secondAssessmentId, Code = secondCode, Name = $"Catalog {marker} B", GroupLv1Name = "Nhóm tuổi", GroupLv2Name = "Phát triển thể chất", GroupLv3Name = "Vận động", UpdatedByUserId = actor.Id, CreatedAt = now, UpdatedAt = now });
+            await dbContext.SaveChangesAsync();
+        }
+
+        var teacherEmail = $"cg-teacher-{marker}@example.test";
+        var createTeacher = await client.PostAsJsonAsync("/api/v1/teachers", new
+        {
+            teacherCode = $"CG-{marker}",
+            email = teacherEmail,
+            fullName = $"Teacher {marker}",
+            phoneNumber = (string?)null,
+            status = "Active",
+            password = "StrongTeacherPassword1!",
+            note = (string?)null
+        });
+        createTeacher.EnsureSuccessStatusCode();
+
+        using var teacherClient = CreateClient();
+        var teacher = await LoginAsync(teacherClient, teacherEmail, "StrongTeacherPassword1!");
+        teacherClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", teacher.AccessToken);
+        var forbidden = await teacherClient.PatchAsJsonAsync("/api/v1/assessments/group", new
+        {
+            level = 3,
+            assessmentCodes = new[] { firstCode, secondCode },
+            name = "Không được lưu"
+        });
+        Assert.Equal(HttpStatusCode.Forbidden, forbidden.StatusCode);
+
+        var managerPatch = await client.PatchAsJsonAsync("/api/v1/assessments/group", new
+        {
+            level = 3,
+            assessmentCodes = new[] { firstCode, secondCode },
+            name = "  Vận động chính thức  "
+        });
+        managerPatch.EnsureSuccessStatusCode();
+
+        using (var scope = factory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<AdminPortalDbContext>();
+            var catalog = await dbContext.Assessments.AsNoTracking()
+                .Where(x => x.Id == firstAssessmentId || x.Id == secondAssessmentId)
+                .ToListAsync();
+            Assert.Equal(2, catalog.Count);
+            Assert.All(catalog, x => Assert.Equal("Vận động chính thức", x.GroupLv3Name));
+            Assert.All(catalog, x => Assert.Equal("Phát triển thể chất", x.GroupLv2Name));
+
+            var audit = await dbContext.AuditLogs.AsNoTracking()
+                .SingleAsync(x => x.EntityType == "Assessment" &&
+                    x.Action == "Assessment.GroupUpdated" &&
+                    x.NewValues!.Contains("Vận động chính thức"));
+            Assert.Contains("AssessmentCodes", audit.NewValues, StringComparison.Ordinal);
+            Assert.DoesNotContain("password", audit.NewValues, StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
+    [Fact]
     public async Task AssessmentSheetUploadPlanAndResultPdfSaveDriveLinksWithoutUsingLegacyGenerateEndpoints()
     {
         var googleSheets = new FakeGoogleSheetsService();

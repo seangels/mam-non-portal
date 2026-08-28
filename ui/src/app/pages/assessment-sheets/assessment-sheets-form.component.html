@@ -178,12 +178,56 @@
               <td *ngIf="row.showGroupLv2" class="group-cell group-lv2-cell"
                 [class.single-row-group]="row.groupLv2RowSpan === 1"
                 [attr.rowspan]="row.groupLv2RowSpan">
-                <span>{{ row.groupLv2Name }}</span>
+                <div class="group-cell-content">
+                  <span>{{ row.groupLv2Name }}</span>
+                  <dx-button
+                    *ngIf="canShowGroupEditAction"
+                    class="group-edit-button"
+                    icon="edit"
+                    stylingMode="text"
+                    [disabled]="groupEditActionDisabled"
+                    [hint]="groupEditActionHint"
+                    [attr.aria-label]="'Sửa nhóm lớn: ' + row.groupLv2Name"
+                    (onClick)="openGroupEdit(row, 2)">
+                  </dx-button>
+                  <dx-button
+                    *ngIf="canShowGroupEditAction && canResetGroupCell(row, 2)"
+                    class="group-edit-button group-reset-button"
+                    icon="undo"
+                    stylingMode="text"
+                    [disabled]="groupEditActionDisabled"
+                    hint="Hoàn tác về tên nhóm ban đầu"
+                    [attr.aria-label]="'Hoàn tác nhóm lớn: ' + row.groupLv2Name"
+                    (onClick)="resetGroupCell(row, 2)">
+                  </dx-button>
+                </div>
               </td>
               <td *ngIf="row.showGroupLv3" class="group-cell group-lv3-cell"
                 [class.single-row-group]="row.groupLv3RowSpan === 1"
                 [attr.rowspan]="row.groupLv3RowSpan">
-                <span>{{ row.groupLv3Name }}</span>
+                <div class="group-cell-content">
+                  <span>{{ row.groupLv3Name }}</span>
+                  <dx-button
+                    *ngIf="canShowGroupEditAction"
+                    class="group-edit-button"
+                    icon="edit"
+                    stylingMode="text"
+                    [disabled]="groupEditActionDisabled"
+                    [hint]="groupEditActionHint"
+                    [attr.aria-label]="'Sửa nhóm nhỏ: ' + row.groupLv3Name"
+                    (onClick)="openGroupEdit(row, 3)">
+                  </dx-button>
+                  <dx-button
+                    *ngIf="canShowGroupEditAction && canResetGroupCell(row, 3)"
+                    class="group-edit-button group-reset-button"
+                    icon="undo"
+                    stylingMode="text"
+                    [disabled]="groupEditActionDisabled"
+                    hint="Hoàn tác về tên nhóm ban đầu"
+                    [attr.aria-label]="'Hoàn tác nhóm nhỏ: ' + row.groupLv3Name"
+                    (onClick)="resetGroupCell(row, 3)">
+                  </dx-button>
+                </div>
               </td>
               <td class="number-cell">{{ row.rowNumber }}</td>
               <td *ngIf="showCodeColumn" class="move-cell">
@@ -291,6 +335,59 @@
       Bảng đánh giá đã hoàn tất. Nếu cần sửa thông tin chung, hãy chuyển trạng thái khỏi “Hoàn tất” rồi lưu.
     </p>
   </form>
+
+  <dx-popup
+    [(visible)]="groupEditVisible"
+    [title]="groupEditTarget?.level === 2 ? 'Sửa nhóm lớn' : 'Sửa nhóm nhỏ'"
+    [width]="480"
+    [maxWidth]="'94vw'"
+    [height]="'auto'"
+    [dragEnabled]="false"
+    [showCloseButton]="!groupCatalogSaving"
+    [closeOnOutsideClick]="!groupCatalogSaving"
+    (onHiding)="onGroupEditHiding($event)">
+    <div *dxTemplate="let data of 'content'" class="group-edit-popup">
+      <label class="group-edit-field">
+        <span>Tên nhóm <b aria-hidden="true">*</b></span>
+        <dx-text-box
+          [(value)]="groupEditName"
+          [maxLength]="500"
+          [disabled]="groupCatalogSaving"
+          valueChangeEvent="input"
+          [inputAttr]="{ 'aria-label': 'Tên nhóm mới' }">
+        </dx-text-box>
+      </label>
+
+      <p class="group-edit-hint">
+        “Áp dụng” chỉ đổi trên giao diện; bấm “Lưu thay đổi” của bảng đánh giá để lưu.
+      </p>
+
+      <div class="group-edit-catalog" *ngIf="canUpdateAssessmentGroups">
+        <dx-button
+          text="Cập nhật Assessment gốc"
+          icon="save"
+          stylingMode="outlined"
+          [disabled]="groupCatalogSaving"
+          (onClick)="updateCatalogGroup()">
+        </dx-button>
+        <p class="group-edit-warning" role="note">
+          Thao tác này cập nhật ngay bảng Assessment gốc cho các mục trong ô; tên có thể bị lần Đồng bộ GGSheet sau ghi đè.
+        </p>
+      </div>
+
+      <div class="group-edit-google-option">
+        <dx-check-box text="Ghi ngược Google Sheet" [value]="false" [disabled]="true"></dx-check-box>
+        <small>Chưa hỗ trợ</small>
+      </div>
+
+      <p *ngIf="groupEditError" class="group-edit-error" role="alert" aria-live="assertive">{{ groupEditError }}</p>
+
+      <div class="group-edit-actions">
+        <dx-button text="Hủy" stylingMode="outlined" [disabled]="groupCatalogSaving" (onClick)="closeGroupEdit()"></dx-button>
+        <dx-button text="Áp dụng" icon="check" type="default" [disabled]="groupCatalogSaving" (onClick)="applyGroupEdit()"></dx-button>
+      </div>
+    </div>
+  </dx-popup>
 
   <app-assessment-picker
     *ngIf="isCreate"

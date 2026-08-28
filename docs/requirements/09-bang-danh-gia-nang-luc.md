@@ -90,13 +90,14 @@
 ### 7.1. Chỉnh tên nhóm snapshot tại records-panel
 
 - Mỗi ô merge `Nhóm lớn` (`GroupLv2Name`) hoặc `Nhóm nhỏ` (`GroupLv3Name`) có một nút icon sửa. Bấm nút mở popup nhỏ với textbox nhập tên mới.
-- Mặc định thao tác chỉ cập nhật tên trong `AssessmentSnapshot` của toàn bộ `AssessmentRecord` thuộc đúng ô merge đang chọn.
-- Popup có checkbox `Cập nhật Assessment gốc`, mặc định bỏ chọn. Khi chọn, cùng thao tác cập nhật các `Assessment` xuất hiện trong ô merge; không rename toàn bộ Assessment khác chỉ vì trùng tên group.
+- Nút `Áp dụng` trong popup **chỉ cập nhật tên nhóm trên giao diện** cho toàn bộ `AssessmentRecord` thuộc đúng ô merge đang chọn (đổi `AssessmentSnapshot` trong bộ nhớ, đánh dấu form có thay đổi chưa lưu). Tên nhóm mới **chỉ được ghi xuống DB khi người dùng bấm `Lưu thay đổi` của cả bảng đánh giá** (đi cùng luồng lưu records).
+- Mỗi ô merge có nút `Hoàn tác`, chỉ hiện khi tên nhóm của ô đã khác giá trị lúc mở bảng; bấm là trả các dòng trong ô về tên nhóm ban đầu.
+- Popup có nút riêng `Cập nhật Assessment gốc` (chỉ Admin/SuperAdmin). Bấm sẽ cập nhật ngay các `Assessment` danh mục xuất hiện trong ô merge (theo mã); không rename Assessment khác chỉ vì trùng tên group. UI đồng thời áp tên mới lên giao diện.
 - Popup có checkbox `Ghi ngược Google Sheet`, nhưng checkbox phải bị disable và hiển thị chú thích `Chưa hỗ trợ`; không có backend write-back Google Sheet trong phiên bản này.
-- Khi chọn cập nhật Assessment gốc, UI phải cảnh báo thay đổi có thể bị lần `Đồng bộ GGSheet` tiếp theo ghi đè.
+- Nút/confirm `Cập nhật Assessment gốc` phải cảnh báo thay đổi có thể bị lần `Đồng bộ GGSheet` tiếp theo ghi đè.
 - Quyền/trạng thái:
-  - Teacher/Admin/SuperAdmin được sửa snapshot khi sheet `Open` hoặc `Planed`.
-  - Chỉ Admin/SuperAdmin được chọn `Cập nhật Assessment gốc`.
+  - Teacher/Admin/SuperAdmin được đổi tên nhóm snapshot khi sheet `Open` hoặc `Planed`.
+  - Chỉ Admin/SuperAdmin dùng được `Cập nhật Assessment gốc`.
   - Sheet `Done` khóa toàn bộ thao tác sửa group.
 - Snapshot tùy chỉnh phải được giữ lại khi lưu grade/note hoặc thêm/xóa record; luồng replace record không được âm thầm dựng lại và ghi đè snapshot đã chỉnh.
 
