@@ -1,4 +1,4 @@
-# ============================================================
+﻿# ============================================================
 # deploy-iis.change.ps1
 # ============================================================
 # Đặt script này (kèm file config deploy-iis.change.json) trong
@@ -81,13 +81,7 @@ function Get-ConfigBool {
 # ============================================================
 # 1. SET EXECUTION POLICY CHO TIẾN TRÌNH HIỆN TẠI
 # ============================================================
-try {
-    Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
-    Write-Host "Execution policy (Process) = Bypass" -ForegroundColor DarkGray
-}
-catch {
-    Write-Host "Không set được execution policy: $($_.Exception.Message)" -ForegroundColor Yellow
-}
+
 
 # ============================================================
 # 2. ĐỌC CONFIG
