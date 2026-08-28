@@ -137,7 +137,19 @@
           <thead>
             <tr>
               <th class="group-lv2-column" scope="col">Nhóm lớn</th>
-              <th class="group-lv3-column" scope="col">Nhóm nhỏ</th>
+              <th *ngIf="showGroupMoveColumn" class="group-move-column" scope="col">Di chuyển nhóm</th>
+              <th class="group-lv3-column" scope="col">
+                <div class="content-header">
+                  <span>Nhóm nhỏ</span>
+                  <label class="code-toggle">
+                    <input
+                      type="checkbox"
+                      [(ngModel)]="showGroupMoveColumn"
+                      [ngModelOptions]="standaloneNgModelOptions" />
+                    <span>Hiện</span>
+                  </label>
+                </div>
+              </th>
               <th class="number-column" scope="col">STT</th>
               <th *ngIf="showCodeColumn" class="move-column" scope="col">Di chuyển</th>
               <th *ngIf="showCodeColumn" class="code-column" scope="col">Mã</th>
@@ -199,6 +211,27 @@
                     hint="Hoàn tác về tên nhóm ban đầu"
                     [attr.aria-label]="'Hoàn tác nhóm lớn: ' + row.groupLv2Name"
                     (onClick)="resetGroupCell(row, 2)">
+                  </dx-button>
+                </div>
+              </td>
+              <td *ngIf="showGroupMoveColumn && row.showGroupLv3" class="group-move-cell"
+                [attr.rowspan]="row.groupLv3RowSpan">
+                <div class="move-buttons">
+                  <dx-button
+                    icon="spinup"
+                    stylingMode="text"
+                    [disabled]="!canMoveGroupLv3(row, -1)"
+                    hint="Di chuyển nhóm nhỏ lên"
+                    [attr.aria-label]="'Di chuyển nhóm nhỏ lên: ' + row.groupLv3Name"
+                    (onClick)="moveGroupLv3(row, -1)">
+                  </dx-button>
+                  <dx-button
+                    icon="spindown"
+                    stylingMode="text"
+                    [disabled]="!canMoveGroupLv3(row, 1)"
+                    hint="Di chuyển nhóm nhỏ xuống"
+                    [attr.aria-label]="'Di chuyển nhóm nhỏ xuống: ' + row.groupLv3Name"
+                    (onClick)="moveGroupLv3(row, 1)">
                   </dx-button>
                 </div>
               </td>

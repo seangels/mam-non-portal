@@ -92,6 +92,7 @@
 - Mỗi ô merge `Nhóm lớn` (`GroupLv2Name`) hoặc `Nhóm nhỏ` (`GroupLv3Name`) có một nút icon sửa. Bấm nút mở popup nhỏ với textbox nhập tên mới.
 - Nút `Áp dụng` trong popup **chỉ cập nhật tên nhóm trên giao diện** cho toàn bộ `AssessmentRecord` thuộc đúng ô merge đang chọn (đổi `AssessmentSnapshot` trong bộ nhớ, đánh dấu form có thay đổi chưa lưu). Tên nhóm mới **chỉ được ghi xuống DB khi người dùng bấm `Lưu thay đổi` của cả bảng đánh giá** (đi cùng luồng lưu records).
 - Mỗi ô merge có nút `Hoàn tác`, chỉ hiện khi tên nhóm của ô đã khác giá trị lúc mở bảng; bấm là trả các dòng trong ô về tên nhóm ban đầu.
+- Tiêu đề cột `Nhóm nhỏ` có checkbox `Hiện` bật/tắt một cột `Di chuyển nhóm` nằm giữa cột `Nhóm lớn` và `Nhóm nhỏ`. Cột này có nút lên/xuống ở ô merge của từng nhóm nhỏ, cho phép di chuyển cả dải record của một nhóm nhỏ lên/xuống **trong phạm vi nhóm lớn của nó**; STT/`displayOrder` được đánh lại theo thứ tự hiển thị mới. Không di chuyển nhóm nhỏ vượt ra ngoài nhóm lớn.
 - Popup có nút riêng `Cập nhật Assessment gốc` (chỉ Admin/SuperAdmin). Bấm sẽ cập nhật ngay các `Assessment` danh mục xuất hiện trong ô merge (theo mã); không rename Assessment khác chỉ vì trùng tên group. UI đồng thời áp tên mới lên giao diện.
 - Popup có checkbox `Ghi ngược Google Sheet`, nhưng checkbox phải bị disable và hiển thị chú thích `Chưa hỗ trợ`; không có backend write-back Google Sheet trong phiên bản này.
 - Nút/confirm `Cập nhật Assessment gốc` phải cảnh báo thay đổi có thể bị lần `Đồng bộ GGSheet` tiếp theo ghi đè.

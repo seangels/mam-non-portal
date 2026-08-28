@@ -431,13 +431,14 @@ export class AssessmentSheetFormComponent implements OnInit, OnDestroy {
   responsibleTeacherSummary = '';
   records: AssessmentSheetRecord[] = [];
   recordRows: AssessmentSheetRecordTableRow[] = [];
-  movedPrimaryRecordId: string | null = null;
-  movedSecondaryRecordId: string | null = null;
+  movedPrimaryRecordIds: string[] = [];
+  movedSecondaryRecordIds: string[] = [];
   private moveHighlightStartTimer: ReturnType<typeof setTimeout> | null = null;
   private moveHighlightClearTimer: ReturnType<typeof setTimeout> | null = null;
   existingAssessmentCodes: string[] = [];
   showAddAssessmentPicker = false;
   showCodeColumn = false;
+  showGroupMoveColumn = false;
   showPlanColumn = false;
   loading = false;
   saving = false;
@@ -1121,39 +1122,100 @@ export class AssessmentSheetFormComponent implements OnInit, OnDestroy {
     this.recordRows.forEach((current, position) => {
       current.record.displayOrder = position + 1;
     });
-    this.highlightMovedRecords(currentRecord.id, targetRecord.id);
+    this.highlightMovedRecords([currentRecord.id], [targetRecord.id]);
+  }
+
+  // Cho phép di chuyển cả một nhóm nhỏ (dải record cùng groupLv3) lên/xuống trong phạm vi nhóm lớn.
+  canMoveGroupLv3(row: AssessmentSheetRecordTableRow, direction: -1 | 1): boolean {
+    if (this.recordValueControlsDisabled || !row.showGroupLv3) {
+      return false;
+    }
+    const start = this.recordRows.indexOf(row);
+    if (start < 0) {
+      return false;
+    }
+    if (direction === -1) {
+      return start > 0 && this.recordRows[start - 1].groupLv2Name === row.groupLv2Name;
+    }
+    const nextIndex = start + row.groupLv3RowSpan;
+    return nextIndex < this.recordRows.length
+      && this.recordRows[nextIndex].groupLv2Name === row.groupLv2Name;
+  }
+
+  moveGroupLv3(row: AssessmentSheetRecordTableRow, direction: -1 | 1): void {
+    if (!this.canMoveGroupLv3(row, direction)) {
+      return;
+    }
+    const rows = this.recordRows;
+    const start = rows.indexOf(row);
+    const blockLen = row.groupLv3RowSpan;
+
+    let otherStart: number;
+    let otherLen: number;
+    if (direction === -1) {
+      otherStart = start - 1;
+      while (otherStart > 0 && !rows[otherStart].showGroupLv3) {
+        otherStart -= 1;
+      }
+      otherLen = start - otherStart;
+    } else {
+      otherStart = start + blockLen;
+      otherLen = rows[otherStart].groupLv3RowSpan;
+    }
+
+    const block = rows.slice(start, start + blockLen).map(current => current.record);
+    const other = rows.slice(otherStart, otherStart + otherLen).map(current => current.record);
+    const spanStart = Math.min(start, otherStart);
+    const spanEnd = Math.max(start + blockLen, otherStart + otherLen);
+    const newSpan = direction === -1 ? [...block, ...other] : [...other, ...block];
+
+    // Chỉ hoán vị đoạn hiển thị giữa spanStart..spanEnd; phần còn lại giữ nguyên vị trí.
+    const order = new Map<string, number>();
+    rows.forEach((current, index) => {
+      if (index < spanStart || index >= spanEnd) {
+        order.set(current.record.id, index);
+      }
+    });
+    newSpan.forEach((record, offset) => order.set(record.id, spanStart + offset));
+    this.records = [...this.records].sort((left, right) => (order.get(left.id) ?? 0) - (order.get(right.id) ?? 0));
+
+    this.recordRows = buildAssessmentSheetRecordRows(this.records);
+    this.recordRows.forEach((current, position) => {
+      current.record.displayOrder = position + 1;
+    });
+    this.highlightMovedRecords(block.map(record => record.id), other.map(record => record.id));
   }
 
   // Dòng người dùng vừa bấm nút Di chuyển (nháy nền nổi bật hơn).
   isRecordMovePrimary(recordId: string): boolean {
-    return recordId === this.movedPrimaryRecordId;
+    return this.movedPrimaryRecordIds.includes(recordId);
   }
 
   // Dòng bị đẩy chỗ do lần Di chuyển vừa rồi (nháy nền nhẹ hơn).
   isRecordMoveSecondary(recordId: string): boolean {
-    return recordId === this.movedSecondaryRecordId;
+    return this.movedSecondaryRecordIds.includes(recordId);
   }
 
-  // Nháy nền hai dòng vừa hoán đổi vị trí, hai màu khác nhau. Xoá highlight cũ
+  // Nháy nền các dòng vừa hoán đổi vị trí, hai màu khác nhau. Xoá highlight cũ
   // trong một tick để Angular gỡ class khỏi DOM, nhờ đó animation CSS chạy lại
   // khi bấm liên tục.
-  private highlightMovedRecords(primaryRecordId: string, secondaryRecordId: string): void {
+  private highlightMovedRecords(primaryRecordIds: string[], secondaryRecordIds: string[]): void {
     if (this.moveHighlightStartTimer) {
       clearTimeout(this.moveHighlightStartTimer);
     }
     if (this.moveHighlightClearTimer) {
       clearTimeout(this.moveHighlightClearTimer);
     }
-    this.movedPrimaryRecordId = null;
-    this.movedSecondaryRecordId = null;
+    this.movedPrimaryRecordIds = [];
+    this.movedSecondaryRecordIds = [];
     this.moveHighlightStartTimer = setTimeout(() => {
       this.moveHighlightStartTimer = null;
-      this.movedPrimaryRecordId = primaryRecordId;
-      this.movedSecondaryRecordId = secondaryRecordId;
+      this.movedPrimaryRecordIds = primaryRecordIds;
+      this.movedSecondaryRecordIds = secondaryRecordIds;
       this.moveHighlightClearTimer = setTimeout(() => {
         this.moveHighlightClearTimer = null;
-        this.movedPrimaryRecordId = null;
-        this.movedSecondaryRecordId = null;
+        this.movedPrimaryRecordIds = [];
+        this.movedSecondaryRecordIds = [];
       }, MOVE_HIGHLIGHT_DURATION_MS);
     });
   }

@@ -44,7 +44,9 @@
 .group-lv3-column { width: 180px; }
 .number-column { width: 40px; }
 .move-column { width: 40px; }
+.group-move-column { width: 56px; }
 .move-cell { text-align: center; }
+.group-move-cell { text-align: center; vertical-align: middle; }
 .move-buttons { display: inline-flex; flex-direction: row; align-items: center; gap: 1px; }
 .move-buttons .dx-button { min-width: 20px; width: 24px; height: 24px; }
 :host ::ng-deep .move-buttons .dx-button { background: #eef4ff; }

@@ -993,6 +993,41 @@ describe('Assessment sheet form DevExtreme option stability', () => {
     expect(component.groupEditActionDisabled).toBeFalse();
   });
 
+  it('moves a whole Lv3 group within its Lv2 parent and renumbers display order', () => {
+    const component = createComponent('edit', 'Teacher');
+    const records = [
+      groupRecord('r1', 'A01', 'Phát triển thể chất', 'Vận động thô'),
+      groupRecord('r2', 'A02', 'Phát triển thể chất', 'Vận động thô'),
+      groupRecord('r3', 'A03', 'Phát triển thể chất', 'Vận động tinh')
+    ];
+    component.isCreate = false;
+    component.records = records;
+    component.recordRows = buildAssessmentSheetRecordRows(records);
+
+    expect(component.canMoveGroupLv3(component.recordRows[0], 1)).toBeTrue();
+    expect(component.canMoveGroupLv3(component.recordRows[0], -1)).toBeFalse();
+
+    component.moveGroupLv3(component.recordRows[0], 1);
+
+    expect(component.recordRows.map(row => row.record.id)).toEqual(['r3', 'r1', 'r2']);
+    expect(component.records.map(record => record.id)).toEqual(['r3', 'r1', 'r2']);
+    expect(component.recordRows.map(row => row.record.displayOrder)).toEqual([1, 2, 3]);
+  });
+
+  it('does not move a Lv3 group past its Lv2 group boundary', () => {
+    const component = createComponent('edit', 'Teacher');
+    const records = [
+      groupRecord('r1', 'A01', 'Phát triển thể chất', 'Vận động'),
+      groupRecord('r2', 'A02', 'Phát triển ngôn ngữ', 'Nghe')
+    ];
+    component.isCreate = false;
+    component.records = records;
+    component.recordRows = buildAssessmentSheetRecordRows(records);
+
+    expect(component.canMoveGroupLv3(component.recordRows[0], 1)).toBeFalse();
+    expect(component.canMoveGroupLv3(component.recordRows[1], -1)).toBeFalse();
+  });
+
 });
 
 describe('Assessment picker filter and selection', () => {
