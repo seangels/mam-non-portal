@@ -254,17 +254,25 @@ public sealed partial class AssessmentSheetService(
         var actor = currentActor.GetRequired();
         AssessmentSheetRules.EnsureAssessmentSheetRole(actor);
         var sheet = await FindRequiredAsync(id, cancellationToken);
-        AssessmentSheetRules.EnsureOpen(sheet);
-        var responsibleTeacher = await LoadResponsibleTeacherAsync(request.ResponsibleTeacherId, cancellationToken);
         var old = SnapshotForAudit(sheet);
         var now = timeProvider.GetUtcNow();
 
-        sheet.ResponsibleTeacherId = responsibleTeacher?.Id;
-        sheet.ResponsibleTeacherFullNameSnapshot = responsibleTeacher?.User.FullName;
-        sheet.Note = NormalizeOptional(request.Note);
-        sheet.StartDate = NormalizeTimestamp(request.StartDate);
-        sheet.DueDate = NormalizeTimestamp(request.DueDate);
-        sheet.Feedback = NormalizeOptional(request.Feedback);
+        if (sheet.AssessmentSheetStatus == AssessmentSheetStatus.Open)
+        {
+            var responsibleTeacher = await LoadResponsibleTeacherAsync(request.ResponsibleTeacherId, cancellationToken);
+            sheet.ResponsibleTeacherId = responsibleTeacher?.Id;
+            sheet.ResponsibleTeacherFullNameSnapshot = responsibleTeacher?.User.FullName;
+            sheet.Note = NormalizeOptional(request.Note);
+            sheet.StartDate = NormalizeTimestamp(request.StartDate);
+            sheet.DueDate = NormalizeTimestamp(request.DueDate);
+            sheet.Feedback = NormalizeOptional(request.Feedback);
+        }
+        else
+        {
+            sheet.PlanFileLinkPdf = NormalizeOptional(request.PlanFileLinkPdf);
+            sheet.ResultFileLinkPdf = NormalizeOptional(request.ResultFileLinkPdf);
+        }
+
         sheet.UpdatedByUserId = actor.UserId;
         sheet.UpdatedAt = now;
 

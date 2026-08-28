@@ -53,6 +53,8 @@ export interface AssessmentSheetEditor {
   status: AssessmentSheetStatus;
   note: string;
   feedback: string;
+  planFileLinkPdf: string;
+  resultFileLinkPdf: string;
   assessmentIds: string[];
 }
 
@@ -105,7 +107,9 @@ export function buildUpdateAssessmentSheetRequest(editor: AssessmentSheetEditor)
     note: editor.note.trim() || null,
     startDate: toDateOnly(editor.startDate) ?? null,
     dueDate: toDateOnly(editor.dueDate) ?? null,
-    feedback: editor.feedback.trim() || null
+    feedback: editor.feedback.trim() || null,
+    planFileLinkPdf: editor.planFileLinkPdf.trim() || null,
+    resultFileLinkPdf: editor.resultFileLinkPdf.trim() || null
   };
 }
 
@@ -417,6 +421,13 @@ export class AssessmentSheetFormComponent implements OnInit {
     autoResizeEnabled: true,
     valueChangeEvent: 'input'
   };
+  get pdfLinkEditorOptions(): Record<string, unknown> {
+    return {
+      maxLength: 2000,
+      readOnly: this.originalStatus === 'Open',
+      valueChangeEvent: 'input'
+    };
+  }
   readonly standaloneNgModelOptions = { standalone: true };
   get showPlan(): boolean {
     return this.showPlanColumn || this.originalStatus === 'Open'
@@ -894,6 +905,8 @@ export class AssessmentSheetFormComponent implements OnInit {
       status: sheet.status,
       note: sheet.note ?? '',
       feedback: sheet.feedback ?? '',
+      planFileLinkPdf: sheet.planFileLinkPdf ?? '',
+      resultFileLinkPdf: sheet.resultFileLinkPdf ?? '',
       assessmentIds: []
     };
     this.studentSummary = this.buildStudentSummary(sheet);
@@ -928,6 +941,8 @@ export class AssessmentSheetFormComponent implements OnInit {
       status: 'Open',
       note: '',
       feedback: '',
+      planFileLinkPdf: '',
+      resultFileLinkPdf: '',
       assessmentIds: []
     };
   }
@@ -941,6 +956,8 @@ export class AssessmentSheetFormComponent implements OnInit {
       status: editor.status,
       note: editor.note,
       feedback: editor.feedback,
+      planFileLinkPdf: editor.planFileLinkPdf,
+      resultFileLinkPdf: editor.resultFileLinkPdf,
       assessmentIds: this.isCreate ? Array.from(new Set(editor.assessmentIds.filter(Boolean))).sort() : [],
       records: this.isCreate ? [] : this.serializeRecords(this.records)
     });

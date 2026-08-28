@@ -156,6 +156,8 @@ export interface UpdateAssessmentSheetRequest {
   startDate?: string | null;
   dueDate?: string | null;
   feedback?: string | null;
+  planFileLinkPdf?: string | null;
+  resultFileLinkPdf?: string | null;
 }
 
 export interface UpdateAssessmentSheetStatusRequest {

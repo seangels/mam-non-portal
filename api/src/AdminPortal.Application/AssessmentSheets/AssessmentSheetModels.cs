@@ -109,7 +109,9 @@ public sealed record UpdateAssessmentSheetRequest(
     [param: MaxLength(2000)] string? Note,
     DateTimeOffset? StartDate,
     DateTimeOffset? DueDate,
-    [param: MaxLength(2000)] string? Feedback);
+    [param: MaxLength(2000)] string? Feedback,
+    [param: MaxLength(2000)] string? PlanFileLinkPdf,
+    [param: MaxLength(2000)] string? ResultFileLinkPdf);
 
 public sealed record ReplaceAssessmentSheetRecordsRequest(
     [param: Required, MinLength(1), MaxLength(5000)] IReadOnlyList<AssessmentSheetRecordRequest> Records);
