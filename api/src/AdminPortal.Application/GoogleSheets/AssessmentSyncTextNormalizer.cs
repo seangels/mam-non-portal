@@ -1,37 +1,15 @@
-using System.Text;
-
 namespace AdminPortal.Application.GoogleSheets;
 
+/// <summary>
+/// Chuẩn hoá text danh mục <c>Assessment</c> (Name, GroupLv1/2/3Name) khi đồng bộ từ Google Sheets.
+/// Chỉ cắt whitespace ở hai đầu; giữ nguyên nội dung bên trong, bao gồm xuống dòng, space thừa và
+/// dòng trống — tên/nhóm được phép nhiều dòng và phải giữ nguyên xi từ sync cho tới snapshot.
+/// </summary>
 public static class AssessmentSyncTextNormalizer
 {
     public static string NormalizeRequiredName(string? value) =>
         NormalizeOptionalName(value) ?? string.Empty;
 
-    public static string? NormalizeOptionalName(string? value)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-            return null;
-
-        var normalized = new StringBuilder(value.Length);
-        var hasPendingSeparator = false;
-
-        foreach (var character in value)
-        {
-            if (char.IsWhiteSpace(character))
-            {
-                hasPendingSeparator = normalized.Length > 0;
-                continue;
-            }
-
-            if (hasPendingSeparator)
-            {
-                normalized.Append(' ');
-                hasPendingSeparator = false;
-            }
-
-            normalized.Append(character);
-        }
-
-        return normalized.ToString();
-    }
+    public static string? NormalizeOptionalName(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }

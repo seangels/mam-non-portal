@@ -434,7 +434,22 @@ export interface AssessmentGroupDetail extends AssessmentGroup {
 }
 
 
+/**
+ * Tùy chọn 2 của popup đồng bộ: ghi đè các trường đã chọn từ catalog Assessment mới vào
+ * snapshot đông cứng của AssessmentRecord, giới hạn theo trạng thái bảng đánh giá.
+ */
+export interface AssessmentRecordSnapshotReplacement {
+  name: boolean;
+  groupLv1Name: boolean;
+  groupLv2Name: boolean;
+  groupLv3Name: boolean;
+  rowIndex: boolean;
+  sheetStatuses: Array<'Open' | 'Planed' | 'Done'>;
+}
+
 export interface SyncAssessmentFromGoogleSheetsRequest {
+  /** Bỏ trống = đồng bộ mặc định (không đụng snapshot bản ghi). */
+  replaceRecordSnapshots?: AssessmentRecordSnapshotReplacement | null;
 }
 
 export interface SyncAssessmentFromGoogleSheetsResponse {
@@ -443,4 +458,5 @@ export interface SyncAssessmentFromGoogleSheetsResponse {
   insertedRows: number;
   updatedRows: number;
   deletedRows: number;
+  replacedRecordSnapshots: number;
 }

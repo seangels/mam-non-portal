@@ -1,6 +1,6 @@
 # Shared workspace memory
 
-Last updated: 2026-08-28
+Last updated: 2026-08-29
 
 ## Product and ownership
 
@@ -40,6 +40,8 @@ Last updated: 2026-08-28
 - AssessmentSheet result PDF preview contract (`ASH-FE-12`): UI route `/#/assessment-sheets/:id/result-pdf-preview` renders an A4 HTML preview from saved `AssessmentSheetDetail` using `FinalGrade`/`FinalNote`; the edit button is enabled only when the saved sheet status is not `Open` and records exist. The preview opens a blob PDF via `html2pdf.js` or uploads that UI-rendered PDF to `POST /api/v1/assessment-sheets/{id}/upload-result-pdf` as multipart field `file`. The endpoint stores the PDF in `Student.DriveFolderId`, updates `ResultFileLinkPdf`, returns `AssessmentSheetDetail`, and returns `409 StudentDriveFolderRequired` when the student has no Drive folder. This flow does not call `generate-result-pdf` and does not create/write `[F01]`.
 
 - Google credential smoke endpoint: `GET /api/v1/google-sheets/credential-smoke` is intentionally anonymous for local/manual smoke. It triggers the existing OAuth credential flow and performs a metadata-only read of configured `GoogleSheets:SpreadsheetId`, returning only safe status/metadata and coarse error codes. It must not return tokens, credential contents, or raw Google exception details, and it must not reintroduce legacy `[F01]` behavior.
+
+- `POST /api/v1/google-sheets/sync-assessments` optional `replaceRecordSnapshots` (`ASH-SYNC-01`, 2026-08-29): body may omit it (default sync: rebuild `Assessment` catalog + `AssessmentSheetLatest`/`AssessmentRecordLatest` mirror, untouched `AssessmentRecord` snapshots — unchanged, still `Teacher`/`Admin`/`SuperAdmin`). When present it is `{ name, groupLv1Name, groupLv2Name, groupLv3Name, rowIndex: bool, sheetStatuses: ('Open'|'Planed'|'Done')[] }`: after the catalog rebuild the API overwrites the selected fields of `AssessmentRecord.AssessmentSnapshot` from the freshly-synced `Assessment` (match on `Code`), only for `AssessmentSheet`s whose status is in `sheetStatuses`. `Code` is the match key and never replaced; records whose code is absent from the new catalog are left as-is. `Teacher` + `replaceRecordSnapshots` → `403`; no field selected or empty `sheetStatuses` → `400`. Response adds `replacedRecordSnapshots` (count of rows actually changed); audit `GoogleSheets.AssessmentsSynced` records the field flags + statuses. This mode deliberately overrides the "snapshot group names stay customizable/preserved" rule from `ASH-GRP-01`/`ASH-IMP-02`. Note (`ASH-SYNC-02`, 2026-08-29): `Assessment.Name`/`GroupLv1/2/3Name` and the copied `AssessmentSnapshot` fields **preserve newlines** — sync/import/replace only trim the two ends, they no longer collapse inner CRLF/whitespace to a single line (this reversed the 2026-08-28 single-line normalization). UI: the "Đồng bộ GGSheet" popup is component `app-google-sheets-sync-dialog` (`ui/src/app/shared/components/google-sheets-sync-dialog/`), used only on the assessments catalog page (`pages/assessments` — "DS Đánh giá"); the sync buttons that previously existed on the assessment-sheets list and the assessment picker were removed (2026-08-29, single entry point). Mode 2 is `SuperAdmin`/`Admin` only (Teacher sees it disabled). The dialog only collects options and emits the request; the host makes the API call.
 
 ## Deployment decision
 

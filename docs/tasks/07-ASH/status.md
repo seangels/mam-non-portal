@@ -117,6 +117,14 @@ Cập nhật bảng này mỗi khi đổi trạng thái một dòng bên dưới
 |---|---|---|---|
 | `[x]` | [`ASH-GRP-01`](details/25-ASH-GRP-01.md) | Điều chỉnh 2026-08-28: popup `Áp dụng` chỉ đổi state UI + đánh dấu dirty; lưu snapshot khi bấm `Lưu thay đổi` (gộp `groupLv2Name`/`groupLv3Name` vào `PUT .../records`). Mỗi ô merge có nút hoàn tác về giá trị lúc tải. `Cập nhật Assessment gốc` tách thành nút riêng gọi `PATCH /api/v1/assessments/group` (Admin/SuperAdmin). Đã gỡ `PATCH /assessment-sheets/{id}/record-group`. Backend unit 95/95 + Release build 0/0; frontend 132/132 + dev build pass; integration project build pass, suite chưa chạy (Docker không sẵn) | `ASH-FE-09`, `PUT /assessment-sheets/{id}/records` |
 
+## Google Sheets sync delta — owner: `root` / phối hợp backend + frontend
+
+| Status | Mã | Việc cần làm | Phụ thuộc |
+|---|---|---|---|
+| `[~]` | [`ASH-SYNC-01`](details/27-ASH-SYNC-01.md) | Popup "Đồng bộ GGSheet" thêm 2 chế độ: (1) mặc định như cũ; (2) chỉ `Admin`/`SuperAdmin` — sau rebuild catalog, ghi đè các trường đã chọn (`Name`/`Lv1`/`Lv2`/`Lv3`/`RowIndex`) vào `AssessmentRecord.AssessmentSnapshot`, giới hạn theo trạng thái sheet đã chọn. `Teacher` disable UI + backend `403`; thiếu trường/status → `400`. Popup là component `app-google-sheets-sync-dialog`; **chỉ để 1 nút ở màn DS Đánh giá** (`pages/assessments`), đã gỡ nút đồng bộ khỏi màn danh sách bảng đánh giá và picker chọn mục. Backend build + unit 101/101; frontend `test:ci` 142/142 + dev build pass; integration suite không chạy (luồng cần Google live). Smoke thủ công chưa chạy | `ASH-GRP-01`, `ASH-IMP-02`, `POST /google-sheets/sync-assessments` |
+
+| `[~]` | [`ASH-SYNC-02`](details/28-ASH-SYNC-02.md) | Đảo quyết định "một dòng" (2026-08-28): `Assessment.Name`/`GroupLv1/2/3Name` giữ **nguyên xuống dòng** từ sync tới `AssessmentSnapshot`. `AssessmentSyncTextNormalizer` giờ chỉ `Trim()` hai đầu. Các đường ghi khác đã trim-only, không cần sửa. Backend build (Application) 0/0 + unit 102/102; integration không chạy (Google live). UI rendering newline ngoài phạm vi | `ASH-SYNC-01` |
+
 ## QA — owner: chưa có agent QA riêng (root điều phối, backend/frontend tự chạy phần của mình)
 
 | Status | Mã | Việc cần làm | Phụ thuộc |

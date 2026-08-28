@@ -421,6 +421,16 @@ public class GoogleSheetsService : IGoogleSheetsService, IDisposable
     {
         var actor = currentActor.GetRequired();
         EnsureAssessmentSyncRole(actor);
+
+        var replacement = request.ReplaceRecordSnapshots;
+        if (replacement is not null)
+        {
+            // Tùy chọn 2 (ghi đè snapshot bản ghi) chỉ dành cho quản trị; teacher chỉ được đồng bộ mặc định.
+            if (actor.Role is not (UserRole.SuperAdmin or UserRole.Admin))
+                throw new ForbiddenException("Không đủ quyền thay thế snapshot bảng đánh giá.");
+            AssessmentSnapshotReplacementRules.Validate(replacement);
+        }
+
         var data = new List<AssessmentLastResultGoogleSheetResponse>();
         var assessments = new List<AssessmentGoogleSheetResponse>();
         try
@@ -561,12 +571,29 @@ public class GoogleSheetsService : IGoogleSheetsService, IDisposable
             );
         }
 
+        var replacedRecordSnapshots = 0;
+        if (replacement is not null)
+        {
+            var statuses = replacement.SheetStatuses!.Distinct().ToArray();
+            var recordsInScope = await dbContext.AssessmentRecords
+                .Include(x => x.AssessmentSheet)
+                .Where(x => statuses.Contains(x.AssessmentSheet.AssessmentSheetStatus))
+                .ToListAsync(cancellationToken);
+
+            replacedRecordSnapshots = AssessmentSnapshotReplacementRules.Apply(
+                recordsInScope, assessmentByCode, replacement, now, actor.UserId);
+
+            if (replacedRecordSnapshots > 0)
+                await dbContext.SaveChangesAsync(cancellationToken);
+        }
+
         var response = new SyncAssessmentsFromGoogleSheetsResponse(
             SheetsTotalRows: data.Count,
             DatabaseTotalRows: sheetLatestByStudentId.Count,
             InsertedRows: assessmentToInsert.Count,
             UpdatedRows: recordLatestsToInsert.Count,
-            DeletedRows: 0
+            DeletedRows: 0,
+            ReplacedRecordSnapshots: replacedRecordSnapshots
         );
 
         AddGoogleSheetsAudit(actor, "GoogleSheets.AssessmentsSynced", null, new
@@ -582,6 +609,18 @@ public class GoogleSheetsService : IGoogleSheetsService, IDisposable
             StudentLatestMirrorCount = sheetLatestByStudentId.Count,
             AssessmentInsertCount = assessmentToInsert.Count,
             RecordLatestInsertOrUpdateCount = recordLatestsToInsert.Count,
+            response.ReplacedRecordSnapshots,
+            ReplaceRecordSnapshotFields = replacement is null
+                ? null
+                : new
+                {
+                    replacement.Name,
+                    replacement.GroupLv1Name,
+                    replacement.GroupLv2Name,
+                    replacement.GroupLv3Name,
+                    replacement.RowIndex
+                },
+            ReplaceRecordSnapshotSheetStatuses = replacement?.SheetStatuses?.Select(x => x.ToString()).ToArray(),
             ActorUserId = actor.UserId,
             ActorRole = actor.Role.ToString(),
             SyncedAt = now

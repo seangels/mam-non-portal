@@ -3,11 +3,10 @@ import { Component, OnDestroy, ViewChild } from '@angular/core';
 import { Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import CustomStore from 'devextreme/data/custom_store';
-import { confirm, custom } from 'devextreme/ui/dialog';
 import notify from 'devextreme/ui/notify';
 import { DxDataGridComponent } from 'devextreme-angular/ui/data-grid';
 import { ApiError } from '../../core/models/api-error';
-import { AssessmentGroup, Assessment } from '../../core/models/api.models';
+import { AssessmentGroup, Assessment, SyncAssessmentFromGoogleSheetsRequest } from '../../core/models/api.models';
 import { asLegacyWidgetDataSource, LegacyWidgetDataSource } from '../../core/models/devextreme-legacy.types';
 import { USER_STATUS_LABELS } from '../../core/i18n/ui-labels';
 import { AssessmentGroupsService } from '../../core/services/assessment-groups.service';
@@ -35,6 +34,10 @@ export class AssessmentsComponent implements OnDestroy {
   groupLv3Placeholder: string = 'Nhóm 3';
   filtersExpanded = true;
   loadError = '';
+
+  // Popup đồng bộ Google Sheets dùng chung (app-google-sheets-sync-dialog)
+  syncDialogVisible = false;
+
   private searchTimer?: number;
   groupLv2DataSource: LegacyWidgetDataSource | [] = [];
   groupLv3DataSource: LegacyWidgetDataSource | [] = [];
@@ -251,32 +254,20 @@ export class AssessmentsComponent implements OnDestroy {
   get saveButtonText(): string {
     return this.saving ? 'Đang đồng bộ…' : 'Đồng bộ GGSheet';
   }
-  async syncAssessmentsFromGGSheet(): Promise<void> {
+  openSyncDialog(): void {
+    this.syncDialogVisible = true;
+  }
+
+  async onSyncConfirmed(request: SyncAssessmentFromGoogleSheetsRequest): Promise<void> {
     this.saving = true;
     this.loadError = '';
     try {
-      const resultConfirm = await custom({
-        title: "Xác nhận",
-        messageHtml: "<i>Yêu cầu đồng bộ dữ liệu từ Google Sheets?</i>",
-        buttons: [
-          {
-            text: "Không",
-            onClick: () => false,
-            focusStateEnabled: true,
-            elementAttr: { class: "dx-button-focused" }
-          },
-          {
-            text: "Có",
-            onClick: () => true,
-            elementAttr: { class: "dx-button-danger" }
-          }
-        ]
-      }).show();
-      if (resultConfirm) {
-        const result = await firstValueFrom(this.googleSheet.syncFromGoogleSheets({}));
-        this.retryLoad()
-        notify(`Đã đồng bộ dữ liệu từ GGSheet. Thêm mới [${result.insertedRows}] dòng`, 'success', 2500);
-      }
+      const result = await firstValueFrom(this.googleSheet.syncFromGoogleSheets(request));
+      this.retryLoad();
+      const replacedNote = result.replacedRecordSnapshots > 0
+        ? ` Đã thay thế snapshot [${result.replacedRecordSnapshots}] dòng bản ghi.`
+        : '';
+      notify(`Đã đồng bộ dữ liệu từ GGSheet. Thêm mới [${result.insertedRows}] dòng.${replacedNote}`, 'success', 3000);
     } catch (error) {
       const apiError = ApiError.from(error);
       this.loadError = this.withTrace(apiError);

@@ -5,12 +5,16 @@ namespace AdminPortal.UnitTests;
 public sealed class AssessmentSyncTextNormalizerTests
 {
     [Theory]
-    [InlineData("Nội dung dòng 1\r\nNội dung dòng 2", "Nội dung dòng 1 Nội dung dòng 2")]
-    [InlineData("Nhóm 1\nNhóm 2", "Nhóm 1 Nhóm 2")]
-    [InlineData("Nhóm 1\rNhóm 2", "Nhóm 1 Nhóm 2")]
-    [InlineData("  Nhóm\t\tphát triển   ngôn ngữ  ", "Nhóm phát triển ngôn ngữ")]
-    public void NormalizeRequiredNameCollapsesNewlinesAndWhitespace(string value, string expected) =>
+    [InlineData("Nội dung dòng 1\r\nNội dung dòng 2", "Nội dung dòng 1\r\nNội dung dòng 2")]
+    [InlineData("Nhóm 1\nNhóm 2", "Nhóm 1\nNhóm 2")]
+    [InlineData("Nhóm\t\tphát triển   ngôn ngữ", "Nhóm\t\tphát triển   ngôn ngữ")]
+    [InlineData("  Phát triển\r\n\r\nnhận thức  ", "Phát triển\r\n\r\nnhận thức")]
+    public void NormalizeRequiredNameKeepsInnerContentAndOnlyTrimsEnds(string value, string expected) =>
         Assert.Equal(expected, AssessmentSyncTextNormalizer.NormalizeRequiredName(value));
+
+    [Fact]
+    public void NormalizeRequiredNameReturnsEmptyForBlank() =>
+        Assert.Equal(string.Empty, AssessmentSyncTextNormalizer.NormalizeRequiredName("  \r\n\t "));
 
     [Theory]
     [InlineData(null)]
@@ -20,15 +24,13 @@ public sealed class AssessmentSyncTextNormalizerTests
         Assert.Null(AssessmentSyncTextNormalizer.NormalizeOptionalName(value));
 
     [Fact]
-    public void NormalizeOptionalNamePreservesTextWhileMakingItSingleLine()
+    public void NormalizeOptionalNamePreservesNewlinesAndInnerWhitespace()
     {
         const string source = "  Phát triển\r\n\r\nnhận thức  ";
 
         var normalized = AssessmentSyncTextNormalizer.NormalizeOptionalName(source);
 
-        Assert.Equal("Phát triển nhận thức", normalized);
-        Assert.NotNull(normalized);
-        Assert.DoesNotContain('\r', normalized);
-        Assert.DoesNotContain('\n', normalized);
+        Assert.Equal("Phát triển\r\n\r\nnhận thức", normalized);
+        Assert.Contains('\n', normalized!);
     }
 }

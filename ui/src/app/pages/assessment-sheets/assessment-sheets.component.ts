@@ -2,7 +2,6 @@ import { Component, OnDestroy, ViewChild } from '@angular/core';
 import { Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import CustomStore from 'devextreme/data/custom_store';
-import { custom } from 'devextreme/ui/dialog';
 import notify from 'devextreme/ui/notify';
 import { DxDataGridComponent } from 'devextreme-angular/ui/data-grid';
 import { ApiError } from '../../core/models/api-error';
@@ -18,7 +17,6 @@ import {
 import { Student } from '../../core/models/api.models';
 import { asLegacyWidgetDataSource } from '../../core/models/devextreme-legacy.types';
 import { AssessmentSheetsService } from '../../core/services/assessment-sheets.service';
-import { GoogleSheetsService } from '../../core/services/google-sheets.service';
 import { StudentsService } from '../../core/services/students.service';
 import { formatDateOnly, toDateOnly } from '../../core/utils/date-only';
 
@@ -39,7 +37,6 @@ export class AssessmentSheetsComponent implements OnDestroy {
   @ViewChild(DxDataGridComponent) grid?: DxDataGridComponent;
 
   search = '';
-  syncing = false;
   status: AssessmentSheetStatus | null = null;
   studentId: string | null = null;
   dateFrom: Date | string | number = '';
@@ -110,7 +107,6 @@ export class AssessmentSheetsComponent implements OnDestroy {
   constructor(
     private readonly assessmentSheets: AssessmentSheetsService,
     private readonly students: StudentsService,
-    private readonly googleSheet: GoogleSheetsService,
     public readonly router: Router
   ) {}
 
@@ -279,38 +275,6 @@ export class AssessmentSheetsComponent implements OnDestroy {
     }
   }
 
-  async syncAssessmentsFromGoogleSheets(): Promise<void> {
-    if (this.syncing) {
-      return;
-    }
-
-    const accepted = await custom({
-      title: 'Xác nhận',
-      messageHtml: '<i>Đồng bộ dữ liệu đánh giá từ Google Sheets?</i>',
-      buttons: [
-        { text: 'Không', onClick: () => false },
-        { text: 'Có', onClick: () => true }
-      ]
-    }).show();
-    if (!accepted) {
-      return;
-    }
-
-    this.syncing = true;
-    this.loadError = '';
-    try {
-      const result = await firstValueFrom(this.googleSheet.syncFromGoogleSheets({}));
-      await this.grid?.instance.refresh();
-      notify(`Đã đồng bộ Google Sheets. Thêm mới ${result.insertedRows} dòng.`, 'success', 2500);
-    } catch (error) {
-      const apiError = ApiError.from(error);
-      this.loadError = this.withTrace(apiError);
-      notify(this.loadError, 'error', 3500);
-    } finally {
-      this.syncing = false;
-    }
-  }
-
   statusText(status: AssessmentSheetStatus): string {
     return this.statuses.find(item => item.value === status)?.text ?? 'Không xác định';
   }
@@ -340,16 +304,8 @@ export class AssessmentSheetsComponent implements OnDestroy {
     return error.traceId ? `${error.message} Mã tra cứu: ${error.traceId}` : error.message;
   }
 
-  get syncDisabled(): boolean {
-    return this.syncing || this.importing || this.importPreviewLoading;
-  }
-
-  get syncButtonText(): string {
-    return this.syncing ? 'Đang đồng bộ...' : 'Đồng bộ Google Sheets';
-  }
-
   get importDisabled(): boolean {
-    return this.importing || this.importPreviewLoading || this.syncing;
+    return this.importing || this.importPreviewLoading;
   }
 
   get importButtonText(): string {

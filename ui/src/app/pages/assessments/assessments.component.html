@@ -82,7 +82,7 @@
         icon="save"
         type="default"
         [disabled]="saveDisabled"
-        (onClick)="syncAssessmentsFromGGSheet()">
+        (onClick)="openSyncDialog()">
       </dx-button>
 
       <dx-button
@@ -146,3 +146,8 @@
 
   </dx-data-grid>
 </div>
+
+<app-google-sheets-sync-dialog
+  [(visible)]="syncDialogVisible"
+  (confirmSync)="onSyncConfirmed($event)">
+</app-google-sheets-sync-dialog>

@@ -23,14 +23,33 @@ public sealed record AssessmentLastResultGoogleSheetResponse(
     string? GhiChu
 );
 
-public sealed record SyncAssessmentsFromGoogleSheetsRequest();
+public sealed record SyncAssessmentsFromGoogleSheetsRequest(
+    AssessmentRecordSnapshotReplacement? ReplaceRecordSnapshots = null);
+
+/// <summary>
+/// Tùy chọn 2 của popup đồng bộ: sau khi rebuild catalog, ghi đè các trường đã chọn từ
+/// <see cref="AdminPortal.Domain.Entities.Assessment"/> mới vào snapshot đông cứng trên
+/// <see cref="AdminPortal.Domain.Entities.AssessmentRecord"/>, khớp theo mã và giới hạn theo trạng thái bảng.
+/// Null = giữ hành vi mặc định (tùy chọn 1), không đụng snapshot bản ghi.
+/// </summary>
+public sealed record AssessmentRecordSnapshotReplacement(
+    bool Name = false,
+    bool GroupLv1Name = false,
+    bool GroupLv2Name = false,
+    bool GroupLv3Name = false,
+    bool RowIndex = false,
+    IReadOnlyList<AssessmentSheetStatus>? SheetStatuses = null)
+{
+    public bool HasAnyField => Name || GroupLv1Name || GroupLv2Name || GroupLv3Name || RowIndex;
+}
 
 public sealed record SyncAssessmentsFromGoogleSheetsResponse(
     int SheetsTotalRows,
     int DatabaseTotalRows,
     int InsertedRows,
     int UpdatedRows,
-    int DeletedRows
+    int DeletedRows,
+    int ReplacedRecordSnapshots
     );
 
 public sealed record GoogleSheetsCredentialSmokeResponse(

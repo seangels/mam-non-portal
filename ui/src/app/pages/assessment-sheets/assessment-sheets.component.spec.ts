@@ -288,7 +288,6 @@ describe('Assessment sheets Excel import', () => {
     const component = new AssessmentSheetsComponent(
       assessmentSheets as any,
       {} as any,
-      {} as any,
       { navigate: jasmine.createSpy('navigate') } as any
     );
     const refresh = jasmine.createSpy('refresh').and.returnValue(Promise.resolve());
@@ -1101,12 +1100,8 @@ describe('Assessment picker filter and selection', () => {
       })),
       get: jasmine.createSpy('get').and.returnValue(of({}))
     };
-    const googleSheet = {
-      syncFromGoogleSheets: jasmine.createSpy('syncFromGoogleSheets')
-    };
-
     return {
-      component: new AssessmentPickerComponent(assessments as any, googleSheet as any),
+      component: new AssessmentPickerComponent(assessments as any),
       assessments
     };
   };

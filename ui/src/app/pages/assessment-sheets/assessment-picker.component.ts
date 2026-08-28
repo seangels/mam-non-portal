@@ -1,13 +1,11 @@
 import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
-import { custom } from 'devextreme/ui/dialog';
 import notify from 'devextreme/ui/notify';
 import { DxDataGridComponent } from 'devextreme-angular/ui/data-grid';
 import { ApiError } from '../../core/models/api-error';
 import { Assessment, AssessmentGroup, AssessmentListQuery } from '../../core/models/api.models';
 import { AssessmentGrade, ASSESSMENT_GRADE_OPTIONS } from '../../core/models/api.models.assessment-sheets';
 import { AssessmentsService } from '../../core/services/assessments.service';
-import { GoogleSheetsService } from '../../core/services/google-sheets.service';
 import { includesVietnamese } from '../../core/utils/vietnamese-search';
 
 const SELECTED_ROW_CLASS = 'assessment-picker-selected-row';
@@ -43,7 +41,6 @@ export class AssessmentPickerComponent implements OnChanges, OnInit, OnDestroy {
   filtersExpanded = true;
   loadError = '';
   loading = false;
-  saving = false;
   allAssessments: Assessment[] = [];
   filteredAssessments: Assessment[] = [];
   groupLv1DataSource: AssessmentGroup[] = [];
@@ -76,8 +73,7 @@ export class AssessmentPickerComponent implements OnChanges, OnInit, OnDestroy {
   readonly groupDisplay = (group: AssessmentGroup | null): string => group ? `${group.name}` : '';
 
   constructor(
-    private readonly assessments: AssessmentsService,
-    private readonly googleSheet: GoogleSheetsService
+    private readonly assessments: AssessmentsService
   ) {}
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -293,14 +289,6 @@ export class AssessmentPickerComponent implements OnChanges, OnInit, OnDestroy {
     }
   }
 
-  get saveDisabled(): boolean {
-    return this.saving || this.loading;
-  }
-
-  get saveButtonText(): string {
-    return this.saving ? 'Đang đồng bộ…' : 'Đồng bộ GGSheet';
-  }
-
   get selectAllVisibleValue(): boolean | null {
     if (this.visibleAssessmentIds.length === 0) {
       return false;
@@ -326,44 +314,6 @@ export class AssessmentPickerComponent implements OnChanges, OnInit, OnDestroy {
     }
     const selectedCount = this.visibleAssessmentIds.filter(id => this.selectedIdSet.has(id)).length;
     return `Chọn tất cả (${selectedCount}/${this.visibleAssessmentIds.length})`;
-  }
-
-  async syncAssessmentsFromGGSheet(): Promise<void> {
-    if (this.saving) {
-      return;
-    }
-    this.saving = true;
-    this.loadError = '';
-    try {
-      const resultConfirm = await custom({
-        title: 'Xác nhận',
-        messageHtml: '<i>Yêu cầu đồng bộ dữ liệu từ Google Sheets?</i>',
-        buttons: [
-          {
-            text: 'Không',
-            onClick: () => false,
-            focusStateEnabled: true,
-            elementAttr: { class: 'dx-button-focused' }
-          },
-          {
-            text: 'Có',
-            onClick: () => true,
-            elementAttr: { class: 'dx-button-danger' }
-          }
-        ]
-      }).show();
-      if (resultConfirm) {
-        const result = await firstValueFrom(this.googleSheet.syncFromGoogleSheets({}));
-        await this.loadAssessmentsFromServer();
-        notify(`Đã đồng bộ dữ liệu từ GGSheet. Thêm mới [${result.insertedRows}] dòng`, 'success', 2500);
-      }
-    } catch (error) {
-      const apiError = ApiError.from(error);
-      this.loadError = this.withTrace(apiError);
-      this.notifyError(apiError);
-    } finally {
-      this.saving = false;
-    }
   }
 
   async loadAssessmentsFromServer(): Promise<void> {

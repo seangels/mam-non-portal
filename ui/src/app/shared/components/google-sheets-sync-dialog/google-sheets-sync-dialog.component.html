@@ -1,0 +1,54 @@
+<dx-popup
+  [visible]="visible"
+  (visibleChange)="setVisible($event)"
+  (onShowing)="onShowing()"
+  [width]="500"
+  height="auto"
+  [showTitle]="true"
+  title="Đồng bộ dữ liệu từ Google Sheets"
+  [dragEnabled]="false"
+  [closeOnOutsideClick]="true"
+  [showCloseButton]="true">
+  <div *dxTemplate="let data of 'content'" class="gs-sync-dialog">
+    <p class="gs-sync-dialog__question">Chọn kiểu đồng bộ:</p>
+    <dx-radio-group
+      [items]="syncModeOptions"
+      valueExpr="value"
+      displayExpr="text"
+      layout="vertical"
+      [(value)]="syncMode">
+    </dx-radio-group>
+
+    <ng-container *ngIf="syncMode === 'replace'">
+      <div *ngIf="!canReplaceSnapshot" class="gs-sync-dialog__hint gs-sync-dialog__hint--warn">
+        Chỉ quản trị viên (Admin, Super Admin) mới dùng được tùy chọn này.
+      </div>
+
+      <div *ngIf="canReplaceSnapshot" class="gs-sync-dialog__section">
+        <p class="gs-sync-dialog__label">Trường sẽ ghi đè vào snapshot bản ghi:</p>
+        <dx-check-box class="gs-sync-dialog__check" text="Nội dung" [(value)]="replaceFields.name"></dx-check-box>
+        <dx-check-box class="gs-sync-dialog__check" text="Nhóm tuổi" [(value)]="replaceFields.groupLv1Name"></dx-check-box>
+        <dx-check-box class="gs-sync-dialog__check" text="Nhóm 2" [(value)]="replaceFields.groupLv2Name"></dx-check-box>
+        <dx-check-box class="gs-sync-dialog__check" text="Nhóm 3" [(value)]="replaceFields.groupLv3Name"></dx-check-box>
+        <dx-check-box class="gs-sync-dialog__check" text="RowIndex" [(value)]="replaceFields.rowIndex"></dx-check-box>
+
+        <p class="gs-sync-dialog__label">Áp dụng cho bảng đánh giá ở trạng thái:</p>
+        <dx-check-box
+          *ngFor="let status of sheetStatusOptions"
+          class="gs-sync-dialog__check"
+          [text]="status.text"
+          [(value)]="replaceStatuses[status.value]">
+        </dx-check-box>
+
+        <p *ngIf="!anyReplaceFieldChecked || !anyReplaceStatusChecked" class="gs-sync-dialog__hint gs-sync-dialog__hint--warn">
+          Chọn ít nhất một trường và một trạng thái.
+        </p>
+      </div>
+    </ng-container>
+
+    <div class="gs-sync-dialog__actions">
+      <dx-button text="Huỷ" stylingMode="outlined" (onClick)="cancel()"></dx-button>
+      <dx-button text="Đồng bộ" type="danger" [disabled]="confirmDisabled" (onClick)="confirm()"></dx-button>
+    </div>
+  </div>
+</dx-popup>

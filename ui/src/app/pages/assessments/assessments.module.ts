@@ -11,6 +11,7 @@ import { DxPopupModule } from 'devextreme-angular/ui/popup';
 import { DxSelectBoxModule } from 'devextreme-angular/ui/select-box';
 import { DxTextAreaModule } from 'devextreme-angular/ui/text-area';
 import { DxTextBoxModule } from 'devextreme-angular/ui/text-box';
+import { GoogleSheetsSyncDialogModule } from '../../shared/components';
 import { AssessmentsComponent } from './assessments.component';
 
 @NgModule({
@@ -29,7 +30,8 @@ import { AssessmentsComponent } from './assessments.component';
     DxPopupModule,
     DxSelectBoxModule,
     DxTextAreaModule,
-    DxTextBoxModule
+    DxTextBoxModule,
+    GoogleSheetsSyncDialogModule
   ],
   exports: [AssessmentsComponent]
 })

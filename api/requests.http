@@ -420,11 +420,31 @@ GET {{host}}/api/v1/google-sheets/credential-smoke
 
 ###
 
+# Tùy chọn 1 (mặc định): body rỗng hoặc bỏ replaceRecordSnapshots.
 POST {{host}}/api/v1/google-sheets/sync-assessments
 Authorization: Bearer {{accessToken}}
 Content-Type: application/json
 
 {}
+
+###
+
+# Tùy chọn 2 (chỉ Admin/SuperAdmin): sau khi rebuild catalog, ghi đè các trường đã chọn
+# vào AssessmentRecord.AssessmentSnapshot cho các bảng đánh giá thuộc trạng thái liệt kê.
+POST {{host}}/api/v1/google-sheets/sync-assessments
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "replaceRecordSnapshots": {
+    "name": true,
+    "groupLv1Name": true,
+    "groupLv2Name": true,
+    "groupLv3Name": true,
+    "rowIndex": true,
+    "sheetStatuses": ["Open", "Planed", "Done"]
+  }
+}
 
 ###
 

@@ -1,0 +1,18 @@
+.gs-sync-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+
+  &__question { margin: 0; font-weight: 600; }
+  &__section { display: flex; flex-direction: column; gap: 6px; }
+  &__label { margin: 8px 0 2px; font-weight: 600; }
+  &__check { display: block; }
+  &__hint { margin: 4px 0 0; font-size: 13px; color: #667085; }
+  &__hint--warn { color: #8a1c16; }
+  &__actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 12px;
+  }
+}

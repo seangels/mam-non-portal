@@ -65,10 +65,6 @@
       <dx-button class="primary-action" text="Thêm bảng đánh giá" icon="plus" type="default"
         hint="Tạo bảng đánh giá" (onClick)="openCreate()"></dx-button>
 
-      <dx-button [text]="syncButtonText" icon="refresh" stylingMode="outlined" type="normal"
-        hint="Đồng bộ dữ liệu từ Google Sheets" [disabled]="syncDisabled"
-        (onClick)="syncAssessmentsFromGoogleSheets()"></dx-button>
-
       <input #importFileInput type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         hidden [disabled]="importDisabled" (change)="previewImportExcel($event)" />
 
