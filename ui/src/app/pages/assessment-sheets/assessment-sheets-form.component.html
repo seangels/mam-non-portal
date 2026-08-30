@@ -110,12 +110,12 @@
           </dx-button>
           <dx-button
             *ngIf="canShowSubmitResults"
-            text="Cập nhật Kết Quả"
+            [text]="preparingResultsSubmit ? 'Đang kiểm tra...' : 'Cập nhật Kết Quả'"
             icon="refresh"
             stylingMode="outlined"
             type="default"
             [disabled]="!canSubmitResults"
-            hint="Cập nhật kết quả đã lưu vào Google Sheet"
+            hint="Xem trước các ô sẽ ghi rồi xác nhận cập nhật vào Google Sheet"
             (onClick)="submitResults()">
           </dx-button>
           <dx-button
@@ -452,6 +452,80 @@
       <div class="group-edit-actions">
         <dx-button text="Hủy" stylingMode="outlined" [disabled]="groupCatalogSaving" (onClick)="closeGroupEdit()"></dx-button>
         <dx-button text="Áp dụng" icon="check" type="default" [disabled]="groupCatalogSaving" (onClick)="applyGroupEdit()"></dx-button>
+      </div>
+    </div>
+  </dx-popup>
+
+  <dx-popup
+    [(visible)]="submitConfirmVisible"
+    title="Xác nhận cập nhật kết quả vào Google Sheet"
+    [width]="720"
+    [maxWidth]="'96vw'"
+    [height]="'auto'"
+    [maxHeight]="'90vh'"
+    [dragEnabled]="false"
+    [showCloseButton]="!submittingResults"
+    [closeOnOutsideClick]="!submittingResults"
+    (onHiding)="closeSubmitConfirm()">
+    <div *dxTemplate="let data of 'content'" class="submit-confirm-popup">
+      <ng-container *ngIf="submitPreview as preview">
+        <div class="submit-confirm-stats" aria-label="Thống kê số lượng kết quả">
+          <span
+            *ngFor="let stat of preview.gradeSummary"
+            class="submit-confirm-stat"
+            [style.borderColor]="gradeColor(stat.grade)"
+            [style.backgroundColor]="stat.grade ? gradeBgColor(stat.grade) : ''"
+            [style.color]="gradeColor(stat.grade)">
+            <span class="submit-confirm-stat-label">{{ stat.label }}</span>
+            <span class="submit-confirm-stat-count">{{ stat.count }}</span>
+          </span>
+        </div>
+
+        <p class="submit-confirm-total">
+          Tổng số ô sẽ cập nhật: <strong>{{ preview.totalChangedCells }}</strong>
+          <span class="submit-confirm-total-sub">/ {{ preview.totalRecords }} mục đánh giá</span>
+        </p>
+
+        <p *ngIf="submitPreviewDirty" class="submit-confirm-warning" role="note">
+          Bảng đánh giá đang có thay đổi chưa lưu. Nội dung dưới đây dựa trên dữ liệu <strong>đã lưu</strong>;
+          hãy Hủy và bấm “Lưu thay đổi” trước nếu muốn ghi dữ liệu mới nhất.
+        </p>
+
+        <div class="submit-confirm-table-wrapper">
+          <table class="submit-confirm-table">
+            <thead>
+              <tr>
+                <th scope="col">Ô</th>
+                <th scope="col">Loại</th>
+                <th scope="col">Mã</th>
+                <th scope="col">Nội dung đánh giá</th>
+                <th scope="col">Giá trị cũ</th>
+                <th scope="col">Giá trị mới</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let change of preview.changes">
+                <td class="submit-confirm-cell-ref">{{ change.cell }}</td>
+                <td>{{ submitChangeKindLabel(change.kind) }}</td>
+                <td>{{ change.assessmentCode }}</td>
+                <td>{{ change.assessmentName }}</td>
+                <td class="submit-confirm-old">{{ change.currentValue || '(trống)' }}</td>
+                <td class="submit-confirm-new">{{ change.newValue || '(trống)' }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </ng-container>
+
+      <div class="submit-confirm-actions">
+        <dx-button text="Hủy" stylingMode="outlined" [disabled]="submittingResults" (onClick)="closeSubmitConfirm()"></dx-button>
+        <dx-button
+          text="Xác nhận cập nhật"
+          icon="check"
+          type="default"
+          [disabled]="submittingResults"
+          (onClick)="confirmSubmitResults()">
+        </dx-button>
       </div>
     </div>
   </dx-popup>

@@ -442,6 +442,40 @@ public sealed partial class AssessmentSheetService(
         return await BuildDetailAsync(id, cancellationToken);
     }
 
+    public async Task<SubmitResultsPreviewResponse> PreviewSubmitResultsAsync(Guid id, CancellationToken cancellationToken)
+    {
+        var actor = currentActor.GetRequired();
+        AssessmentSheetRules.EnsureAssessmentSheetRole(actor);
+        var sheet = await FindRequiredAsync(id, cancellationToken);
+        var records = await LoadRecordEntitiesAsync(id, cancellationToken);
+
+        var studentCode = sheet.StudentSnapshot.StudentCode
+            ?? throw new ConflictException(
+                "Bảng đánh giá thiếu mã học sinh trong snapshot, không thể ghi vào [F0.ĐG].",
+                ProblemCodes.AssessmentSheetGoogleOperationFailed);
+
+        var changes = await googleSheetsService.PreviewFinalGradesToSourceSheetAsync(studentCode, records, cancellationToken);
+
+        var gradeSummary = new List<SubmitResultsGradeStat>();
+        foreach (var grade in new AssessmentGrade?[] { AssessmentGrade.A, AssessmentGrade.B, AssessmentGrade.C, AssessmentGrade.D, null })
+        {
+            var label = grade is null ? "Chưa có kết quả" : AssessmentSheetRules.GradeLabel(grade.Value);
+            gradeSummary.Add(new SubmitResultsGradeStat(grade, label, records.Count(x => x.FinalGrade == grade)));
+        }
+
+        var cellChanges = changes
+            .Select(x => new SubmitResultsCellChange(
+                Cell: x.Cell,
+                Kind: x.Kind,
+                AssessmentCode: x.AssessmentCode,
+                AssessmentName: x.AssessmentName,
+                CurrentValue: x.CurrentValue,
+                NewValue: x.NewValue))
+            .ToList();
+
+        return new SubmitResultsPreviewResponse(gradeSummary, records.Count, cellChanges.Count, cellChanges);
+    }
+
     private async Task<ExcelImportPlan> BuildExcelImportPlanAsync(
         string fileName,
         byte[] content,

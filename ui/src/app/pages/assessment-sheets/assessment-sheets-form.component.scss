@@ -140,3 +140,21 @@
   .action-summary { text-align: center; }
   .form-actions dx-button { width: 100%; }
 }
+
+.submit-confirm-popup { display: flex; flex-direction: column; gap: 14px; padding: 4px 2px; }
+.submit-confirm-stats { display: flex; flex-wrap: wrap; gap: 8px; }
+.submit-confirm-stat { display: inline-flex; align-items: baseline; gap: 6px; padding: 6px 12px; border: 1.5px solid #d0d5dd; border-radius: 999px; background: #f2f4f7; font-size: 13px; font-weight: 600; }
+.submit-confirm-stat-count { font-size: 16px; font-weight: 800; }
+.submit-confirm-total { margin: 0; color: #344054; font-size: 14px; }
+.submit-confirm-total strong { font-size: 18px; }
+.submit-confirm-total-sub { margin-left: 6px; color: #667085; font-weight: 500; }
+.submit-confirm-warning { margin: 0; padding: 10px 12px; border: 1px solid #f5c26b; border-radius: 6px; background: #fff8e7; color: #8a4b08; font-size: 13px; }
+.submit-confirm-table-wrapper { overflow-x: auto; max-height: 46vh; overflow-y: auto; border: 1px solid #d0d5dd; border-radius: 8px; }
+.submit-confirm-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.submit-confirm-table th, .submit-confirm-table td { padding: 7px 10px; border-bottom: 1px solid #eaecf0; text-align: left; vertical-align: top; }
+.submit-confirm-table thead th { position: sticky; top: 0; background: #f9fafb; color: #475467; font-weight: 700; }
+.submit-confirm-table tbody tr:last-child td { border-bottom: 0; }
+.submit-confirm-cell-ref { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-weight: 700; white-space: nowrap; }
+.submit-confirm-old { color: #8a1c16; text-decoration: line-through; }
+.submit-confirm-new { color: #11734b; font-weight: 700; }
+.submit-confirm-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 4px; }

@@ -41,4 +41,13 @@ public interface IGoogleSheetsService
         string studentCode,
         IReadOnlyList<AssessmentRecord> records,
         CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Bản dry-run của <see cref="WriteFinalGradesToSourceSheetAsync"/>: đọc và đối chiếu [F0.ĐG] để
+    /// lấy đúng tập cell sẽ thay đổi (kèm giá trị hiện tại) nhưng KHÔNG ghi. Dùng cho popup xác nhận.
+    /// </summary>
+    Task<IReadOnlyList<ResultSourceCellUpdate>> PreviewFinalGradesToSourceSheetAsync(
+        string studentCode,
+        IReadOnlyList<AssessmentRecord> records,
+        CancellationToken cancellationToken);
 }

@@ -177,3 +177,24 @@ public sealed record ImportedAssessmentSheetResponse(
     DateTimeOffset DueDate,
     string Action,
     int RecordCount);
+
+// Kết quả dry-run cho popup xác nhận trước khi submit kết quả vào [F0.ĐG].
+// GradeSummary luôn xếp: Đạt +, Hỗ trợ +, Hỗ trợ -, Chưa đạt -, rồi "Chưa có kết quả" (Grade = null).
+public sealed record SubmitResultsPreviewResponse(
+    IReadOnlyList<SubmitResultsGradeStat> GradeSummary,
+    int TotalRecords,
+    int TotalChangedCells,
+    IReadOnlyList<SubmitResultsCellChange> Changes);
+
+public sealed record SubmitResultsGradeStat(
+    AssessmentGrade? Grade,
+    string Label,
+    int Count);
+
+public sealed record SubmitResultsCellChange(
+    string Cell,
+    string Kind,
+    string AssessmentCode,
+    string AssessmentName,
+    string? CurrentValue,
+    string NewValue);

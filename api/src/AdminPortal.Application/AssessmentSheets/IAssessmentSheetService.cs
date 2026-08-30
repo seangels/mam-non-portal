@@ -46,4 +46,6 @@ public interface IAssessmentSheetService
         Guid id, string fileName, byte[] content, CancellationToken cancellationToken);
 
     Task<AssessmentSheetDetailResponse> SubmitResultsAsync(Guid id, CancellationToken cancellationToken);
+
+    Task<SubmitResultsPreviewResponse> PreviewSubmitResultsAsync(Guid id, CancellationToken cancellationToken);
 }

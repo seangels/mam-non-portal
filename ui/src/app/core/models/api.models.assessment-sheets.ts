@@ -105,6 +105,30 @@ export interface AssessmentSheetDetail extends AssessmentSheet {
   records: AssessmentSheetRecord[];
 }
 
+export type SubmitResultsCellKind = 'FinalGrade' | 'FinalNote';
+
+export interface SubmitResultsGradeStat {
+  grade: AssessmentGrade | null;
+  label: string;
+  count: number;
+}
+
+export interface SubmitResultsCellChange {
+  cell: string;
+  kind: SubmitResultsCellKind;
+  assessmentCode: string;
+  assessmentName: string;
+  currentValue?: string | null;
+  newValue: string;
+}
+
+export interface SubmitResultsPreview {
+  gradeSummary: SubmitResultsGradeStat[];
+  totalRecords: number;
+  totalChangedCells: number;
+  changes: SubmitResultsCellChange[];
+}
+
 export interface AssessmentSheetImportExcelResult {
   createdSheetCount: number;
   updatedSheetCount: number;

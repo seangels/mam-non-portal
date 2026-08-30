@@ -20,6 +20,8 @@ import {
   AssessmentSheetRecordRequest,
   ReplaceAssessmentSheetRecordsRequest,
   AssessmentSheetRecordGroupLevel,
+  SubmitResultsCellKind,
+  SubmitResultsPreview,
   UpdateAssessmentGroupRequest,
   UpdateAssessmentSheetRequest
 } from '../../core/models/api.models.assessment-sheets';
@@ -455,6 +457,10 @@ export class AssessmentSheetFormComponent implements OnInit, OnDestroy {
   addingRecord = false;
   removingRecordId: string | null = null;
   submittingResults = false;
+  preparingResultsSubmit = false;
+  submitConfirmVisible = false;
+  submitPreview: SubmitResultsPreview | null = null;
+  submitPreviewDirty = false;
   groupEditVisible = false;
   groupEditName = '';
   groupCatalogSaving = false;
@@ -600,6 +606,7 @@ export class AssessmentSheetFormComponent implements OnInit, OnDestroy {
       && !this.saving
       && !this.recordMutationInProgress
       && !this.submittingResults
+      && !this.preparingResultsSubmit
       && this.hasRecords
       && this.auth.user?.role !== 'Teacher';
   }
@@ -747,18 +754,46 @@ export class AssessmentSheetFormComponent implements OnInit, OnDestroy {
     await this.openPdfPreview('result');
   }
 
+  // Bước 1: gọi dry-run để lấy danh sách ô sẽ ghi + thống kê, rồi mở popup xác nhận.
+  // Không có ô nào thay đổi thì báo toast và dừng, không mở popup.
   async submitResults(): Promise<void> {
     if (!this.canSubmitResults) {
       return;
     }
-    if (this.dirty) {
-      const accepted = await confirm(
-        'Bạn có thay đổi chưa lưu. Hệ thống sẽ cập nhật kết quả bằng dữ liệu đã lưu hiện tại. Nếu muốn cập nhật dữ liệu mới nhất, hãy lưu thay đổi trước.',
-        'Cập nhật Kết Quả'
-      );
-      if (!accepted) {
+
+    this.preparingResultsSubmit = true;
+    this.formError = '';
+    this.conflict = false;
+    try {
+      const preview = await firstValueFrom(this.assessmentSheets.previewSubmitResults(this.assessmentSheetId));
+      if (preview.totalChangedCells === 0) {
+        notify('Không có ô nào thay đổi để ghi vào Google Sheet.', 'info', 3000);
         return;
       }
+      this.submitPreview = preview;
+      this.submitPreviewDirty = this.dirty;
+      this.submitConfirmVisible = true;
+    } catch (error) {
+      const apiError = ApiError.from(error);
+      this.formError = this.withTrace(apiError);
+      this.conflict = apiError.code === 'AssessmentSheetVersionConflict';
+    } finally {
+      this.preparingResultsSubmit = false;
+    }
+  }
+
+  closeSubmitConfirm(): void {
+    if (this.submittingResults) {
+      return;
+    }
+    this.submitConfirmVisible = false;
+    this.submitPreview = null;
+  }
+
+  // Bước 2: người dùng bấm "Xác nhận cập nhật" trong popup — ghi thật vào Google Sheet.
+  async confirmSubmitResults(): Promise<void> {
+    if (this.submittingResults || !this.canShowSubmitResults) {
+      return;
     }
 
     this.submittingResults = true;
@@ -767,14 +802,22 @@ export class AssessmentSheetFormComponent implements OnInit, OnDestroy {
     try {
       const saved = await firstValueFrom(this.assessmentSheets.submitResults(this.assessmentSheetId));
       this.applyAssessmentSheet(saved);
+      this.submitConfirmVisible = false;
+      this.submitPreview = null;
       notify('Đã cập nhật kết quả vào Google Sheet.', 'success', 2500);
     } catch (error) {
       const apiError = ApiError.from(error);
       this.formError = this.withTrace(apiError);
       this.conflict = apiError.code === 'AssessmentSheetVersionConflict';
+      this.submitConfirmVisible = false;
+      this.submitPreview = null;
     } finally {
       this.submittingResults = false;
     }
+  }
+
+  submitChangeKindLabel(kind: SubmitResultsCellKind): string {
+    return kind === 'FinalNote' ? 'Ghi chú' : 'Kết quả';
   }
 
   private async openPdfPreview(kind: 'plan' | 'result'): Promise<void> {

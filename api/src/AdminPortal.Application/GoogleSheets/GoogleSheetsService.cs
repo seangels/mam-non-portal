@@ -669,8 +669,76 @@ public class GoogleSheetsService : IGoogleSheetsService, IDisposable
         IReadOnlyList<AssessmentRecord> records,
         CancellationToken cancellationToken)
     {
-        if (records.Count == 0)
+        var changeSet = await ResolveResultSourceChangesAsync(studentCode, records, cancellationToken);
+        if (changeSet.ChangedUpdates.Count == 0)
             return [];
+
+        try
+        {
+            var batchRequest = new Google.Apis.Sheets.v4.Data.BatchUpdateValuesRequest
+            {
+                ValueInputOption = "USER_ENTERED",
+                Data = changeSet.ChangedUpdates
+                    .Select(x => new Google.Apis.Sheets.v4.Data.ValueRange
+                    {
+                        Range = x.Range,
+                        Values = [[x.NewValue]]
+                    })
+                    .ToList()
+            };
+            await _sheetsService.Value.Spreadsheets.Values.BatchUpdate(batchRequest, changeSet.SpreadsheetId).ExecuteAsync(cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            throw GoogleOperationFailed("Lỗi khi ghi kết quả vào [F0.ĐG].", ex);
+        }
+
+        return changeSet.ChangedUpdates
+            .Select(x => MapResultSourceCellUpdate(changeSet.SpreadsheetId, changeSet.SheetName, studentCode, x))
+            .ToList();
+    }
+
+    // Bản dry-run của WriteFinalGradesToSourceSheetAsync: đọc + đối chiếu [F0.ĐG] để lấy đúng tập ô sẽ thay đổi
+    // (kèm giá trị hiện tại) nhưng KHÔNG ghi. Dùng cho popup xác nhận trước khi submit kết quả.
+    public async Task<IReadOnlyList<ResultSourceCellUpdate>> PreviewFinalGradesToSourceSheetAsync(
+        string studentCode,
+        IReadOnlyList<AssessmentRecord> records,
+        CancellationToken cancellationToken)
+    {
+        var changeSet = await ResolveResultSourceChangesAsync(studentCode, records, cancellationToken);
+        return changeSet.ChangedUpdates
+            .Select(x => MapResultSourceCellUpdate(changeSet.SpreadsheetId, changeSet.SheetName, studentCode, x))
+            .ToList();
+    }
+
+    private static ResultSourceCellUpdate MapResultSourceCellUpdate(
+        string spreadsheetId,
+        string sheetName,
+        string studentCode,
+        PendingResultSourceUpdate x) =>
+        new(
+            SpreadsheetId: spreadsheetId,
+            SheetName: sheetName,
+            Cell: x.Cell,
+            Row: x.Row,
+            Column: x.Column,
+            Kind: x.Kind,
+            CurrentValue: x.CurrentValue,
+            NewValue: x.NewValue,
+            StudentCode: studentCode,
+            AssessmentCode: x.Record.AssessmentSnapshot.Code,
+            AssessmentName: x.Record.AssessmentSnapshot.Name,
+            FinalGrade: x.Record.FinalGrade,
+            FinalGradeLabel: x.Record.FinalGrade is null ? null : AssessmentSheetRules.GradeLabel(x.Record.FinalGrade.Value),
+            FinalNote: x.Record.FinalNote);
+
+    private async Task<ResultSourceChangeSet> ResolveResultSourceChangesAsync(
+        string studentCode,
+        IReadOnlyList<AssessmentRecord> records,
+        CancellationToken cancellationToken)
+    {
+        if (records.Count == 0)
+            return new ResultSourceChangeSet(string.Empty, string.Empty, []);
 
         List<string?> itemCodes;
         List<string?> studentCodes;
@@ -792,7 +860,7 @@ public class GoogleSheetsService : IGoogleSheetsService, IDisposable
         if (notFound.Count > 0)
             throw GoogleOperationFailed($"Không tìm thấy mã mục đánh giá trong sheet {_resultSource_SheetName}: {string.Join(", ", notFound)}.");
         if (pendingUpdates.Count == 0)
-            return [];
+            return new ResultSourceChangeSet(_spreadsheetId, _resultSource_SheetName, []);
 
         try
         {
@@ -809,7 +877,6 @@ public class GoogleSheetsService : IGoogleSheetsService, IDisposable
             }
 
             var changedUpdates = new List<PendingResultSourceUpdate>();
-            var valueRanges = new List<Google.Apis.Sheets.v4.Data.ValueRange>();
             foreach (var pendingUpdate in pendingUpdates)
             {
                 currentValuesByRange.TryGetValue(pendingUpdate.Range, out var currentValue);
@@ -818,44 +885,13 @@ public class GoogleSheetsService : IGoogleSheetsService, IDisposable
                     continue;
 
                 changedUpdates.Add(pendingUpdate with { CurrentValue = currentValue });
-                valueRanges.Add(new Google.Apis.Sheets.v4.Data.ValueRange
-                {
-                    Range = pendingUpdate.Range,
-                    Values = [[pendingUpdate.NewValue]]
-                });
             }
 
-            if (valueRanges.Count == 0)
-                return [];
-
-            var batchRequest = new Google.Apis.Sheets.v4.Data.BatchUpdateValuesRequest
-            {
-                ValueInputOption = "USER_ENTERED",
-                Data = valueRanges
-            };
-            await _sheetsService.Value.Spreadsheets.Values.BatchUpdate(batchRequest, _spreadsheetId).ExecuteAsync(cancellationToken);
-
-            return changedUpdates
-                .Select(x => new ResultSourceCellUpdate(
-                    SpreadsheetId: _spreadsheetId,
-                    SheetName: _resultSource_SheetName,
-                    Cell: x.Cell,
-                    Row: x.Row,
-                    Column: x.Column,
-                    Kind: x.Kind,
-                    CurrentValue: x.CurrentValue,
-                    NewValue: x.NewValue,
-                    StudentCode: studentCode,
-                    AssessmentCode: x.Record.AssessmentSnapshot.Code,
-                    AssessmentName: x.Record.AssessmentSnapshot.Name,
-                    FinalGrade: x.Record.FinalGrade,
-                    FinalGradeLabel: x.Record.FinalGrade is null ? null : AssessmentSheetRules.GradeLabel(x.Record.FinalGrade.Value),
-                    FinalNote: x.Record.FinalNote))
-                .ToList();
+            return new ResultSourceChangeSet(_spreadsheetId, _resultSource_SheetName, changedUpdates);
         }
         catch (Exception ex)
         {
-            throw GoogleOperationFailed("Lỗi khi ghi kết quả vào [F0.ĐG].", ex);
+            throw GoogleOperationFailed("Lỗi khi đọc và đối chiếu dữ liệu [F0.ĐG].", ex);
         }
     }
 
@@ -965,6 +1001,11 @@ public class GoogleSheetsService : IGoogleSheetsService, IDisposable
     {
         public string? CurrentValue { get; init; }
     }
+
+    private sealed record ResultSourceChangeSet(
+        string SpreadsheetId,
+        string SheetName,
+        List<PendingResultSourceUpdate> ChangedUpdates);
 
     private static NormalException GoogleOperationFailed(string message, Exception? exception = null) =>
         new(message, ProblemCodes.AssessmentSheetGoogleOperationFailed, exception is null ? null : new Dictionary<string, object?>

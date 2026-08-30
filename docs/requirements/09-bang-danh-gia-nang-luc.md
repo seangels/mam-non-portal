@@ -144,6 +144,7 @@
 
   Mapping này dùng thống nhất ở mọi nơi hiển thị `FinalGrade`/`PlanGrade` cho người dùng cuối (UI, PDF `[F02]`/`[F03]`), không chỉ riêng khi ghi `[F0.ĐG]`, để tránh vừa hiện "A/B/C/D" vừa hiện nhãn tiếng Việt ở hai chỗ khác nhau. Đây là bản định nghĩa lại thứ tự đã sửa lỗi lệch trước đó (bản cũ gán nhầm `B` → `Chưa đạt -`, `C` → `Hỗ trợ +`, `D` → `Hỗ trợ -`); nhãn chữ giữ nguyên `Chưa đạt -`, chỉ đổi enum gắn với nó và thang rank.
 - Đây là bước ghi kết quả về file nguồn dùng chung toàn trường/toàn khối; không còn bản ghi Google Sheet riêng `[F01.KQ]` cho một đợt của một học sinh.
+- **Trước khi ghi, phải hiện popup xác nhận (dry-run).** Bấm “Cập nhật Kết Quả” chạy bước xem trước (đọc và đối chiếu `[F0.ĐG]`, không ghi) rồi mở popup gồm: (1) phần **thống kê số lượng đưa lên đầu** — đếm `Đạt +` / `Hỗ trợ +` / `Hỗ trợ -` / `Chưa đạt -` / `Chưa có kết quả` trên toàn bộ mục đánh giá của bảng; (2) tổng số ô sẽ cập nhật; (3) bảng liệt kê từng ô sẽ ghi: **địa chỉ ô cụ thể (vd `H45`)**, loại (Kết quả / Ghi chú), mã + nội dung mục đánh giá, giá trị cũ, giá trị mới. Nếu không có ô nào thay đổi thì báo toast và không mở popup. Chỉ khi người dùng bấm “Xác nhận cập nhật” trong popup mới thực sự ghi vào `[F0.ĐG]`.
 - Ngay khi thao tác này thực hiện thành công, hệ thống set `SubmissionDate` của `AssessmentSheet` bằng thời điểm cập nhật.
 - Việc ghi vào `[F0.ĐG]` **không** tự động nạp lại `AssessmentSheetLatest`/`AssessmentRecordLatest`; đây là hai bước tách biệt — nạp lại là một thao tác thủ công riêng, xem mục 12.
 

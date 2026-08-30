@@ -414,6 +414,12 @@ Authorization: Bearer {{accessToken}}
 
 ###
 
+# Dry-run: xem trước các ô [F0.ĐG] sẽ thay đổi + thống kê kết quả, KHÔNG ghi. Dùng cho popup xác nhận.
+POST {{host}}/api/v1/assessment-sheets/{{assessmentSheetId}}/submit-results/preview
+Authorization: Bearer {{accessToken}}
+
+###
+
 # Smoke anonymous/local: kích hoạt OAuth credential Google nếu cần và đọc metadata nhẹ của spreadsheet cấu hình.
 # Không cần Authorization; response không chứa token/secret.
 GET {{host}}/api/v1/google-sheets/credential-smoke

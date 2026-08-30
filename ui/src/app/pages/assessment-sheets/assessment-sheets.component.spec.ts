@@ -817,16 +817,79 @@ describe('Assessment sheet form DevExtreme option stability', () => {
     expect(teacherComponent.canSubmitResults).toBeFalse();
   });
 
-  it('calls submit-results and applies the returned sheet detail', async () => {
+  const buildSubmitPreview = (overrides: any = {}) => ({
+    gradeSummary: [
+      { grade: 'A', label: 'Đạt +', count: 1 },
+      { grade: 'B', label: 'Hỗ trợ +', count: 0 },
+      { grade: 'C', label: 'Hỗ trợ -', count: 0 },
+      { grade: 'D', label: 'Chưa đạt -', count: 0 },
+      { grade: null, label: 'Chưa có kết quả', count: 0 }
+    ],
+    totalRecords: 1,
+    totalChangedCells: 1,
+    changes: [
+      { cell: 'H45', kind: 'FinalGrade', assessmentCode: 'A01', assessmentName: 'Ngôn ngữ', currentValue: 'Hỗ trợ +', newValue: 'Đạt +' }
+    ],
+    ...overrides
+  });
+
+  const buildSubmitComponent = (assessmentSheets: any) => {
+    const component = new AssessmentSheetFormComponent(
+      assessmentSheets as any,
+      {} as any,
+      { user: { role: 'Admin' } } as any,
+      {} as any,
+      {} as any,
+      { snapshot: { data: { mode: 'edit' }, paramMap: { get: () => 'sheet-1' } } } as any,
+      {} as any
+    );
+    component.isCreate = false;
+    component.assessmentSheetId = 'sheet-1';
+    component.originalStatus = 'Done';
+    component.records = [{ id: 'record-1', assessment: { code: 'A01', name: 'Ngôn ngữ' } } as any];
+    (component as any).baseline = (component as any).serialize(component.editor);
+    return component;
+  };
+
+  it('opens the confirm popup from the dry-run preview instead of submitting immediately', async () => {
+    const preview = buildSubmitPreview();
+    const assessmentSheets = {
+      previewSubmitResults: jasmine.createSpy('previewSubmitResults').and.returnValue(of(preview)),
+      submitResults: jasmine.createSpy('submitResults')
+    };
+    const component = buildSubmitComponent(assessmentSheets);
+
+    await component.submitResults();
+
+    expect(assessmentSheets.previewSubmitResults).toHaveBeenCalledWith('sheet-1');
+    expect(assessmentSheets.submitResults).not.toHaveBeenCalled();
+    expect(component.submitConfirmVisible).toBeTrue();
+    expect(component.submitPreview).toEqual(preview);
+    expect(component.submitPreview!.gradeSummary.map(s => s.label))
+      .toEqual(['Đạt +', 'Hỗ trợ +', 'Hỗ trợ -', 'Chưa đạt -', 'Chưa có kết quả']);
+  });
+
+  it('does not open the popup when the dry-run reports no changed cells', async () => {
+    const assessmentSheets = {
+      previewSubmitResults: jasmine.createSpy('previewSubmitResults')
+        .and.returnValue(of(buildSubmitPreview({ totalChangedCells: 0, changes: [] }))),
+      submitResults: jasmine.createSpy('submitResults')
+    };
+    const component = buildSubmitComponent(assessmentSheets);
+
+    await component.submitResults();
+
+    expect(component.submitConfirmVisible).toBeFalse();
+    expect(component.submitPreview).toBeNull();
+    expect(assessmentSheets.submitResults).not.toHaveBeenCalled();
+  });
+
+  it('calls submit-results and applies the returned sheet detail after the popup is confirmed', async () => {
     const savedSheet = {
       id: 'sheet-1',
       status: 'Done',
       studentId: 'student-1',
-      studentSnapshot: {
-        studentCode: 'S101',
-        fullName: 'Bé An',
-        nickName: 'An'
-      },
+      studentSnapshot: { studentCode: 'S101', fullName: 'Bé An', nickName: 'An' },
       responsibleTeacherFullName: 'Cô Lan',
       note: null,
       feedback: null,
@@ -846,26 +909,17 @@ describe('Assessment sheet form DevExtreme option stability', () => {
       submissionDate: '2026-08-27T06:00:00Z'
     } as any;
     const assessmentSheets = {
+      previewSubmitResults: jasmine.createSpy('previewSubmitResults').and.returnValue(of(buildSubmitPreview())),
       submitResults: jasmine.createSpy('submitResults').and.returnValue(of(savedSheet))
     };
-    const component = new AssessmentSheetFormComponent(
-      assessmentSheets as any,
-      {} as any,
-      { user: { role: 'Admin' } } as any,
-      {} as any,
-      {} as any,
-      { snapshot: { data: { mode: 'edit' }, paramMap: { get: () => 'sheet-1' } } } as any,
-      {} as any
-    );
-    component.isCreate = false;
-    component.assessmentSheetId = 'sheet-1';
-    component.originalStatus = 'Done';
-    component.records = [{ id: 'record-1', assessment: { code: 'A01', name: 'Ngôn ngữ' } } as any];
-    (component as any).baseline = (component as any).serialize(component.editor);
+    const component = buildSubmitComponent(assessmentSheets);
 
     await component.submitResults();
+    await component.confirmSubmitResults();
 
     expect(assessmentSheets.submitResults).toHaveBeenCalledWith('sheet-1');
+    expect(component.submitConfirmVisible).toBeFalse();
+    expect(component.submitPreview).toBeNull();
     expect(component.originalStatus).toBe('Done');
     expect(component.studentSummary).toBe('S101 · Bé An (An)');
     expect(component.records[0].finalGrade).toBe('A');

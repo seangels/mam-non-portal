@@ -12,6 +12,7 @@ import {
   AssessmentSheetListQuery,
   CreateAssessmentSheetRequest,
   ReplaceAssessmentSheetRecordsRequest,
+  SubmitResultsPreview,
   UpdateAssessmentSheetRequest,
   UpdateAssessmentSheetStatusRequest
 } from '../models/api.models.assessment-sheets';
@@ -46,6 +47,10 @@ export class AssessmentSheetsService {
 
   submitResults(id: string): Observable<AssessmentSheetDetail> {
     return this.api.post<AssessmentSheetDetail>(`assessment-sheets/${id}/submit-results`, {});
+  }
+
+  previewSubmitResults(id: string): Observable<SubmitResultsPreview> {
+    return this.api.post<SubmitResultsPreview>(`assessment-sheets/${id}/submit-results/preview`, {});
   }
 
   importExcel(file: File): Observable<AssessmentSheetImportExcelResult> {

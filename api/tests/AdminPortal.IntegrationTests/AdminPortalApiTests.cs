@@ -942,6 +942,109 @@ public sealed class AdminPortalApiTests(ApiFactory factory) : IClassFixture<ApiF
     }
 
     [Fact]
+    public async Task PreviewSubmitAssessmentSheetResultsReturnsGradeSummaryAndPlannedCellsWithoutWriting()
+    {
+        var googleSheets = new FakeGoogleSheetsService();
+        using var previewFactory = factory.WithWebHostBuilder(builder =>
+        {
+            builder.ConfigureServices(services =>
+            {
+                services.RemoveAll<IGoogleSheetsService>();
+                services.AddSingleton<IGoogleSheetsService>(googleSheets);
+            });
+        });
+        using var client = previewFactory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            AllowAutoRedirect = false,
+            HandleCookies = true
+        });
+        var auth = await LoginAsync(client, ApiFactory.SuperAdminEmail, ApiFactory.SuperAdminPassword);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", auth.AccessToken);
+        var marker = Guid.NewGuid().ToString("N")[..8];
+        var student = await CreateStudentAsync(client, $"RSP-{marker}", $"Result Preview {marker}");
+        var assessmentId = Guid.NewGuid();
+        var now = DateTimeOffset.UtcNow;
+
+        using (var scope = previewFactory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<AdminPortalDbContext>();
+            var actor = await dbContext.Users.AsNoTracking()
+                .SingleAsync(x => x.Email == ApiFactory.SuperAdminEmail);
+            await dbContext.Assessments.AddAsync(new Assessment
+            {
+                Id = assessmentId,
+                Code = $"RSP-A-{marker}",
+                Name = $"Result Preview Assessment {marker}",
+                RowIndex = 1,
+                UpdatedByUserId = actor.Id,
+                CreatedAt = now,
+                UpdatedAt = now
+            });
+            await dbContext.SaveChangesAsync();
+        }
+
+        var create = await client.PostAsJsonAsync("/api/v1/assessment-sheets", new
+        {
+            studentId = student.Id,
+            responsibleTeacherId = (Guid?)null,
+            note = (string?)null,
+            startDate = "2026-06-01T00:00:00+07:00",
+            dueDate = "2026-08-31T00:00:00+07:00",
+            records = new[]
+            {
+                new { assessmentId, latestGrade = (AssessmentGrade?)AssessmentGrade.A, note = "plan note" }
+            }
+        }, JsonOptions);
+        create.EnsureSuccessStatusCode();
+        var sheet = await create.Content.ReadFromJsonAsync<AssessmentSheetDetailResponse>(JsonOptions);
+        Assert.NotNull(sheet);
+
+        googleSheets.ResultSourcePreviewUpdates =
+        [
+            new ResultSourceCellUpdate(
+                "spreadsheet-test",
+                "F0.ĐG",
+                "H20",
+                20,
+                "H",
+                "FinalGrade",
+                "Hỗ trợ +",
+                "Đạt +",
+                student.StudentCode,
+                $"RSP-A-{marker}",
+                $"Result Preview Assessment {marker}",
+                AssessmentGrade.A,
+                "Đạt +",
+                null)
+        ];
+
+        var response = await client.PostAsync($"/api/v1/assessment-sheets/{sheet.Id}/submit-results/preview", null);
+        response.EnsureSuccessStatusCode();
+        var preview = await response.Content.ReadFromJsonAsync<SubmitResultsPreviewResponse>(JsonOptions);
+
+        Assert.NotNull(preview);
+        var expectedLabels = new[] { "Đạt +", "Hỗ trợ +", "Hỗ trợ -", "Chưa đạt -", "Chưa có kết quả" };
+        Assert.Equal(expectedLabels, preview!.GradeSummary.Select(x => x.Label).ToArray());
+        Assert.Null(preview.GradeSummary[^1].Grade);
+        Assert.Equal(1, preview.GradeSummary[^1].Count);
+        Assert.All(preview.GradeSummary.Take(4), x => Assert.Equal(0, x.Count));
+        Assert.Equal(1, preview.TotalRecords);
+        Assert.Equal(1, preview.TotalChangedCells);
+        var change = Assert.Single(preview.Changes);
+        Assert.Equal("H20", change.Cell);
+        Assert.Equal("FinalGrade", change.Kind);
+        Assert.Equal("Hỗ trợ +", change.CurrentValue);
+        Assert.Equal("Đạt +", change.NewValue);
+
+        // Dry-run: không ghi, không set SubmissionDate.
+        Assert.Equal(student.StudentCode, googleSheets.PreviewedStudentCode);
+        Assert.Null(googleSheets.SubmittedStudentCode);
+        var reloaded = await client.GetFromJsonAsync<AssessmentSheetDetailResponse>(
+            $"/api/v1/assessment-sheets/{sheet.Id}", JsonOptions);
+        Assert.Null(reloaded?.SubmissionDate);
+    }
+
+    [Fact]
     public async Task StudentPutClearsNullableFieldsAndCodeCanBeReusedAfterDelete()
     {
         using var client = CreateClient();
@@ -1555,6 +1658,8 @@ public sealed class AdminPortalApiTests(ApiFactory factory) : IClassFixture<ApiF
         public string? SubmittedStudentCode { get; private set; }
         public IReadOnlyList<AssessmentRecord> SubmittedRecords { get; private set; } = [];
         public IReadOnlyList<ResultSourceCellUpdate> ResultSourceUpdates { get; set; } = [];
+        public IReadOnlyList<ResultSourceCellUpdate> ResultSourcePreviewUpdates { get; set; } = [];
+        public string? PreviewedStudentCode { get; private set; }
         public bool SmokeWasCalled { get; private set; }
         public GoogleSheetsCredentialSmokeResponse SmokeResponse { get; set; } = new(
             Success: true,
@@ -1615,6 +1720,16 @@ public sealed class AdminPortalApiTests(ApiFactory factory) : IClassFixture<ApiF
             SubmittedStudentCode = studentCode;
             SubmittedRecords = records;
             return Task.FromResult(ResultSourceUpdates);
+        }
+
+        public Task<IReadOnlyList<ResultSourceCellUpdate>> PreviewFinalGradesToSourceSheetAsync(
+            string studentCode,
+            IReadOnlyList<AssessmentRecord> records,
+            CancellationToken cancellationToken)
+        {
+            PreviewedStudentCode = studentCode;
+            SubmittedRecords = records;
+            return Task.FromResult(ResultSourcePreviewUpdates);
         }
     }
 }

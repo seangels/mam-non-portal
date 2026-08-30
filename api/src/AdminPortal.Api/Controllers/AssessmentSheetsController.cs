@@ -174,6 +174,14 @@ public sealed class AssessmentSheetsController(IAssessmentSheetService assessmen
         CancellationToken cancellationToken) =>
         Ok(await assessmentSheetService.SubmitResultsAsync(id, cancellationToken));
 
+    // Dry-run: đọc/đối chiếu [F0.ĐG] và trả về đúng các ô sẽ thay đổi + thống kê kết quả, KHÔNG ghi.
+    [HttpPost("{id:guid}/submit-results/preview")]
+    [ProducesResponseType<SubmitResultsPreviewResponse>(StatusCodes.Status200OK)]
+    public async Task<ActionResult<SubmitResultsPreviewResponse>> PreviewSubmitResults(
+        Guid id,
+        CancellationToken cancellationToken) =>
+        Ok(await assessmentSheetService.PreviewSubmitResultsAsync(id, cancellationToken));
+
     private static void ValidateExcelImportFile(IFormFile? file)
     {
         if (file is null || file.Length == 0)
