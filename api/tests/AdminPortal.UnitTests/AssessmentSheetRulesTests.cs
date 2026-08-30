@@ -66,26 +66,26 @@ public sealed class AssessmentSheetRulesTests
         AssessmentSheetRules.EnsureDistinctIds([Guid.NewGuid(), Guid.NewGuid()], "assessmentIds");
 
     [Theory]
-    [InlineData(AssessmentGrade.A, 4)]
-    [InlineData(AssessmentGrade.B, 3)]
-    [InlineData(AssessmentGrade.C, 2)]
-    [InlineData(AssessmentGrade.D, 1)]
+    [InlineData(AssessmentGrade.A, 3)]
+    [InlineData(AssessmentGrade.B, 2)]
+    [InlineData(AssessmentGrade.C, 1)]
+    [InlineData(AssessmentGrade.D, 0)]
     public void GradeRankOrdersAFirst(AssessmentGrade grade, int expectedRank) =>
         Assert.Equal(expectedRank, AssessmentSheetRules.GradeRank(grade));
 
     [Theory]
     [InlineData(AssessmentGrade.A, "Đạt +")]
-    [InlineData(AssessmentGrade.B, "Chưa đạt -")]
-    [InlineData(AssessmentGrade.C, "Hỗ trợ +")]
-    [InlineData(AssessmentGrade.D, "Hỗ trợ -")]
+    [InlineData(AssessmentGrade.B, "Hỗ trợ +")]
+    [InlineData(AssessmentGrade.C, "Hỗ trợ -")]
+    [InlineData(AssessmentGrade.D, "Chưa đạt")]
     public void GradeLabelMatchesConfirmedMappingInRequirements(AssessmentGrade grade, string expectedLabel) =>
         Assert.Equal(expectedLabel, AssessmentSheetRules.GradeLabel(grade));
 
     [Theory]
     [InlineData("Đạt +", AssessmentGrade.A)]
-    [InlineData("Chưa đạt -", AssessmentGrade.B)]
-    [InlineData("Hỗ trợ +", AssessmentGrade.C)]
-    [InlineData("Hỗ trợ -", AssessmentGrade.D)]
+    [InlineData("Hỗ trợ +", AssessmentGrade.B)]
+    [InlineData("Hỗ trợ -", AssessmentGrade.C)]
+    [InlineData("Chưa đạt", AssessmentGrade.D)]
     public void TryParseGradeLabelIsExactInverseOfGradeLabel(string label, AssessmentGrade expected)
     {
         Assert.True(AssessmentSheetRules.TryParseGradeLabel(label, out var grade));

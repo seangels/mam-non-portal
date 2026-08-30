@@ -27,25 +27,29 @@ public static class AssessmentSheetRules
             { [field] = ["Danh sách phải có ít nhất một mục hợp lệ và không được trùng."] });
     }
 
+    /// <summary>
+    /// Thang xếp hạng FinalGrade/PlanGrade đã chốt với người dùng (2026-08-30):
+    /// A = 3 (cao nhất) &gt; B = 2 &gt; C = 1 &gt; D = 0 (thấp nhất). Giá trị ngoài enum trả -1.
+    /// </summary>
     public static int GradeRank(AssessmentGrade grade) => grade switch
     {
-        AssessmentGrade.A => 4,
-        AssessmentGrade.B => 3,
-        AssessmentGrade.C => 2,
-        AssessmentGrade.D => 1,
-        _ => 0
+        AssessmentGrade.A => 3,
+        AssessmentGrade.B => 2,
+        AssessmentGrade.C => 1,
+        AssessmentGrade.D => 0,
+        _ => -1
     };
 
     /// <summary>
-    /// Nhãn hiển thị của FinalGrade/PlanGrade, đã xác nhận với người dùng ở requirements 09 mục 11
-    /// (lưu ý cặp B chưa đối xứng với A/C/D, đội vận hành cần xác nhận lại trước khi dùng ghi dữ liệu thật).
+    /// Nhãn hiển thị của FinalGrade/PlanGrade, đã chốt với người dùng ở requirements 09 mục 11 (2026-08-30):
+    /// A = "Đạt +" (rank 3) → B = "Hỗ trợ +" (rank 2) → C = "Hỗ trợ -" (rank 1) → D = "Chưa đạt" (rank 0).
     /// </summary>
     public static string GradeLabel(AssessmentGrade grade) => grade switch
     {
         AssessmentGrade.A => "Đạt +",
-        AssessmentGrade.B => "Chưa đạt -",
-        AssessmentGrade.C => "Hỗ trợ +",
-        AssessmentGrade.D => "Hỗ trợ -",
+        AssessmentGrade.B => "Hỗ trợ +",
+        AssessmentGrade.C => "Hỗ trợ -",
+        AssessmentGrade.D => "Chưa đạt",
         _ => grade.ToString()
     };
 

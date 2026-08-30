@@ -55,8 +55,8 @@
 - Hệ thống snapshot thông tin học sinh tại thời điểm tạo (`StudentSnapshot`: mã học sinh, họ tên, tên gọi, ngày sinh, giới tính) để `AssessmentSheet` không đổi theo khi hồ sơ học sinh gốc thay đổi sau này.
 - Giáo viên chọn các mục đánh giá (`plan`) từ kho `Assessment` để đưa vào bảng. Màn hình chọn plan hỗ trợ các bộ lọc sau (kết hợp được với nhau):
   - **Theo học sinh:** lấy thêm `LatestGrade`/ghi chú latest gợi ý dựa trên `AssessmentRecordLatest` (đọc-only, đã fetch từ Google Sheet) của đúng học sinh đang tạo bảng. Việc thiếu dữ liệu latest không được làm ẩn mất mục đánh giá; các field latest để trống/null.
-  - **Theo mức grade:** ví dụ lọc các mục có kết quả gần nhất `LatestGrade >= B`, dùng thang xếp hạng đã chốt `A > B > C > D` (`A` cao nhất, `D` thấp nhất); dùng để khoanh vùng các mục học sinh đã đạt mức nhất định hoặc ngược lại cần cải thiện.
-  - **Theo kết quả gần nhất trên UI:** TagBox đứng đầu panel filter, cho chọn nhiều giá trị gồm `Chưa có`, `Đạt +`, `Chưa đạt -`, `Hỗ trợ +`, `Hỗ trợ -`. `Chưa có` đại diện cho mục chưa có `LatestGrade`. Filter này chạy trên dữ liệu đã tải về client và trên snapshot hiện hành của chế độ xem (`Xem tất cả` hoặc `Chỉ những mục đã chọn`), không tự gọi lại server.
+  - **Theo mức grade:** ví dụ lọc các mục có kết quả gần nhất `LatestGrade >= B`, dùng thang xếp hạng đã chốt `A > B > C > D` — `A = 3` (cao nhất) `> B = 2 > C = 1 > D = 0` (thấp nhất); dùng để khoanh vùng các mục học sinh đã đạt mức nhất định hoặc ngược lại cần cải thiện.
+  - **Theo kết quả gần nhất trên UI:** TagBox đứng đầu panel filter, cho chọn nhiều giá trị gồm `Chưa có`, `Đạt +`, `Hỗ trợ +`, `Hỗ trợ -`, `Chưa đạt`. `Chưa có` đại diện cho mục chưa có `LatestGrade`. Filter này chạy trên dữ liệu đã tải về client và trên snapshot hiện hành của chế độ xem (`Xem tất cả` hoặc `Chỉ những mục đã chọn`), không tự gọi lại server.
   - **Theo nhóm phân cấp:** lọc theo `GroupLv1Name`, `GroupLv2Name`, `GroupLv3Name` của `Assessment`.
 - Khi bấm tạo mới, UI gửi danh sách `records`, mỗi phần tử gồm `assessmentId`, `latestGrade`, `note`; không chỉ gửi mỗi `assessmentId`. Với mỗi mục được chọn, hệ thống:
   - Snapshot thông tin mục đánh giá vào `AssessmentRecord.AssessmentSnapshot` (mã, tên, các cấp nhóm, `RowIndex`).
@@ -133,16 +133,16 @@
   - Cột **`E16:E`**: chứa mã mục đánh giá (`item_id`), mỗi dòng một mã, bắt đầu từ dòng 16 — dò cột này để tìm đúng **dòng**.
   - Hàng **`H16:16`**: chứa mã học sinh, mỗi cột một mã, bắt đầu từ cột H — dò hàng này để tìm đúng **cột**.
   - Ô cần ghi là giao điểm của dòng tìm được (theo mã mục đánh giá) và cột tìm được (theo mã học sinh).
-- **Bảng mapping `FinalGrade` → nhãn ghi vào `[F0.ĐG]`** (đã xác nhận với người dùng — ghi nguyên văn, không tự suy diễn lại thứ tự):
+- **Bảng mapping `FinalGrade` → nhãn ghi vào `[F0.ĐG]`** (đã chốt với người dùng 2026-08-30 — ghi nguyên văn, không tự suy diễn lại thứ tự):
 
-  | `FinalGrade` | Nhãn ghi vào `[F0.ĐG]` |
-  |---|---|
-  | `A` | `Đạt +` |
-  | `B` | `Chưa đạt -` |
-  | `C` | `Hỗ trợ +` |
-  | `D` | `Hỗ trợ -` |
+  | `FinalGrade` | Nhãn ghi vào `[F0.ĐG]` | Rank (thang xếp hạng) |
+  |---|---|---|
+  | `A` | `Đạt +` | 3 (cao nhất) |
+  | `B` | `Hỗ trợ +` | 2 |
+  | `C` | `Hỗ trợ -` | 1 |
+  | `D` | `Chưa đạt` | 0 (thấp nhất) |
 
-  Mapping này nên dùng thống nhất ở mọi nơi hiển thị `FinalGrade`/`PlanGrade` cho người dùng cuối (UI, PDF `[F02]`/`[F03]`), không chỉ riêng khi ghi `[F0.ĐG]`, để tránh vừa hiện "A/B/C/D" vừa hiện nhãn tiếng Việt ở hai chỗ khác nhau. **Lưu ý:** cặp `B` → `Chưa đạt -` trông không đối xứng với 3 dòng còn lại (`A`/`C`/`D` đều là biến thể `+`/`-` của cùng một khái niệm "Đạt"/"Hỗ trợ", còn `B` nhảy sang khái niệm "Chưa đạt"); nên xác nhận lại một lần nữa với đội vận hành trước khi dùng mapping này để ghi dữ liệu thật, đề phòng sai sót khi nhập.
+  Nhãn `D` là `Chưa đạt` (không có hậu tố `-`). Mapping này dùng thống nhất ở mọi nơi hiển thị `FinalGrade`/`PlanGrade` cho người dùng cuối (UI, PDF `[F02]`/`[F03]`), không chỉ riêng khi ghi `[F0.ĐG]`, để tránh vừa hiện "A/B/C/D" vừa hiện nhãn tiếng Việt ở hai chỗ khác nhau. Đây là bản định nghĩa lại thứ tự đã sửa lỗi lệch trước đó (bản cũ gán nhầm `B` → `Chưa đạt -`, `C` → `Hỗ trợ +`, `D` → `Hỗ trợ -`).
 - Đây là bước ghi kết quả về file nguồn dùng chung toàn trường/toàn khối; không còn bản ghi Google Sheet riêng `[F01.KQ]` cho một đợt của một học sinh.
 - Ngay khi thao tác này thực hiện thành công, hệ thống set `SubmissionDate` của `AssessmentSheet` bằng thời điểm cập nhật.
 - Việc ghi vào `[F0.ĐG]` **không** tự động nạp lại `AssessmentSheetLatest`/`AssessmentRecordLatest`; đây là hai bước tách biệt — nạp lại là một thao tác thủ công riêng, xem mục 12.
@@ -213,6 +213,6 @@ Các quyết định nghiệp vụ đã được chốt và áp dụng xuyên su
 - **Đã xác nhận vị trí ghi `[F0.ĐG]`:** cột `E16:E` = mã mục đánh giá (dò dòng), hàng `H16:16` = mã học sinh (dò cột), ghi tại ô giao nhau; giá trị ghi là nhãn theo bảng mapping ở mục 11 (không phải chữ cái `A/B/C/D`).
 - Mỗi đợt–học sinh ứng với đúng một `AssessmentSheet`/`Name`; không giới hạn số lượng `AssessmentRecord`.
 
-Còn một phần cần xác nhận lại trước khi ghi dữ liệu thật:
+Các điểm trước đây cần xác nhận, nay đã chốt:
 
-- Xác nhận lại bảng mapping `FinalGrade` → nhãn ở mục 11 (đặc biệt cặp `B` → `Chưa đạt -`) trước khi dùng để ghi dữ liệu thật vào `[F0.ĐG]`.
+- Bảng mapping `FinalGrade` → nhãn ở mục 11 đã được người dùng định nghĩa lại và chốt (2026-08-30): `A` → `Đạt +` (rank 3) → `B` → `Hỗ trợ +` (rank 2) → `C` → `Hỗ trợ -` (rank 1) → `D` → `Chưa đạt` (rank 0). Dùng trực tiếp để ghi `[F0.ĐG]` và hiển thị UI/PDF.

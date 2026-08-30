@@ -1,6 +1,6 @@
 # Shared workspace memory
 
-Last updated: 2026-08-29
+Last updated: 2026-08-30
 
 ## Product and ownership
 
@@ -27,6 +27,7 @@ Last updated: 2026-08-29
 - Assessment list latest contract: `GET /assessments` accepts optional `studentId`. Without it, list behavior is unchanged and latest fields are `null`. With it, the API still returns all matching `Assessment` rows and left joins through `AssessmentSheetLatest` + `AssessmentRecordLatest` for that student to add nullable `latestGrade` and `latestNote`; `note` remains the original assessment note. Teacher access to `studentId` latest data is scoped to their current responsible groups.
 - AssessmentSheet create contract: `POST /assessment-sheets` accepts `records: [{ assessmentId, latestGrade, note }]` rather than `assessmentIds[]`. `latestGrade`/`note` are the latest values the UI read from `/assessments?studentId=...` for each selected item; backend snapshots assessment metadata from DB and stores request `latestGrade`/`note` into `AssessmentRecord.PlanGrade`/`PlanNote`. `FinalGrade`/`FinalNote` stay null on create. ASH DateTimeOffset inputs are normalized to UTC before PostgreSQL writes/filters.
 - AssessmentSheet result-entry rule: only `PlanGrade`/`PlanNote` may be auto-filled from latest data. `FinalGrade`/`FinalNote` must remain blank/null until the user enters them; UI must not fallback-display or save `FinalGrade = PlanGrade`.
+- AssessmentGrade order/label contract (`ASH-GRADE-01`, chốt 2026-08-30 — thay bản định nghĩa cũ bị lệch): enum vẫn `A|B|C|D` trên REST, nhưng thang xếp hạng + nhãn tiếng Việt hiển thị/ghi Google Sheet là `A` = `"Đạt +"` rank 3 (cao nhất) → `B` = `"Hỗ trợ +"` rank 2 → `C` = `"Hỗ trợ -"` rank 1 → `D` = `"Chưa đạt"` rank 0 (thấp nhất; không hậu tố `-`). BE: `AssessmentSheetRules.GradeRank`/`GradeLabel`/`TryParseGradeLabel` (đọc/ghi `[F0.ĐG]` cột `ket_qua`). FE: `ASSESSMENT_GRADE_OPTIONS` trong `core/models/api.models.assessment-sheets.ts` (nguồn duy nhất cho text + màu, dùng ở form/PDF preview/picker). Chưa có dữ liệu Google Sheet thật ghi bằng nhãn cũ nên không cần migrate/đọc tương thích ngược.
 - AssessmentSheet merged group editing (`ASH-GRP-01`, revised 2026-08-28 — supersedes the earlier immediate-PATCH design):
   - The popup `Áp dụng` only mutates the UI snapshot (`record.assessment.groupLv2Name`/`groupLv3Name` for the clicked merged cell) and marks the form dirty. Nothing persists until the sheet-level `Lưu thay đổi`.
   - Persistence is folded into `PUT /assessment-sheets/{id}/records`: `AssessmentSheetRecordRequest` gained nullable `groupLv2Name`/`groupLv3Name` (≤500). `AssessmentSheetRules.BuildReplacementRecord` picks the snapshot group name as request value → previous snapshot (map by `Assessment.Code`, keeps import-khcn names) → `Assessment` catalog. Blank/omitted = old behaviour.

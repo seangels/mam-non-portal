@@ -383,7 +383,7 @@ public sealed class AdminPortalApiTests(ApiFactory factory) : IClassFixture<ApiF
         Assert.Null(detail.ResponsibleTeacherId);
         Assert.Equal(2, detail.Records.Count);
         Assert.Contains(detail.Records, record => record.Assessment.Code == firstAssessmentCode && record.PlanGrade == AssessmentGrade.A && record.PlanNote == "Kế hoạch A");
-        Assert.Contains(detail.Records, record => record.Assessment.Code == secondAssessmentCode && record.PlanGrade == AssessmentGrade.C && record.PlanNote == "Kế hoạch B");
+        Assert.Contains(detail.Records, record => record.Assessment.Code == secondAssessmentCode && record.PlanGrade == AssessmentGrade.B && record.PlanNote == "Kế hoạch B");
         Assert.All(detail.Records, record =>
         {
             Assert.Null(record.FinalGrade);

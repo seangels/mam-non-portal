@@ -640,7 +640,7 @@ describe('Assessment sheet plan PDF preview mapping', () => {
     expect(preview.studentName).toBe('Bé An');
     expect(preview.periodText).toBe('3 tháng 6.7.8.26');
     expect(preview.fileName).toBe('khcn - s-101.an_6.7.8.26.pdf');
-    expect(planGradeText(preview.rows[0].record)).toBe('Chưa đạt -');
+    expect(planGradeText(preview.rows[0].record)).toBe('Hỗ trợ +');
     expect(planNoteText(preview.rows[0].record)).toBe('Cần luyện thêm');
     expect(preview.rows[0].groupLv2Name).toBe('Tiền tiểu học');
   });
@@ -1388,7 +1388,7 @@ describe('Assessment picker filter and selection', () => {
 
     component.applyFilters();
 
-    expect(component.latestGradeOptions.map(option => option.text)).toEqual(['Chưa có', 'Đạt +', 'Chưa đạt -', 'Hỗ trợ +', 'Hỗ trợ -']);
+    expect(component.latestGradeOptions.map(option => option.text)).toEqual(['Chưa có', 'Đạt +', 'Hỗ trợ +', 'Hỗ trợ -', 'Chưa đạt']);
     expect(component.filteredAssessments.map(item => item.id)).toEqual(['assessment-1', 'assessment-2']);
     expect(assessments.list).not.toHaveBeenCalled();
   });

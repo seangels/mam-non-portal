@@ -9,11 +9,14 @@ export const ASSESSMENT_SHEET_STATUS_OPTIONS: { value: AssessmentSheetStatus; te
   { value: 'Done', text: 'Hoàn tất' }
 ];
 
+// Thứ tự/định nghĩa đã chốt với người dùng (2026-08-30): A = "Đạt +" (rank 3, cao nhất) >
+// B = "Hỗ trợ +" (rank 2) > C = "Hỗ trợ -" (rank 1) > D = "Chưa đạt" (rank 0, thấp nhất).
+// Màu đi theo ngữ nghĩa nhãn, không cố định theo chữ cái enum.
 export const ASSESSMENT_GRADE_OPTIONS: { value: AssessmentGrade; text: string, color: string, bgcolor: string }[] = [
   { value: 'A', text: 'Đạt +', color: '#11734b', bgcolor: '#d4edbc' },
-  { value: 'B', text: 'Chưa đạt -', color: '#b10202', bgcolor: '#ffcfc9' },
-  { value: 'C', text: 'Hỗ trợ +', color: '#473821', bgcolor: '#ffe5a0' },
-  { value: 'D', text: 'Hỗ trợ -', color: '#000', bgcolor: '#e8eaed' }
+  { value: 'B', text: 'Hỗ trợ +', color: '#473821', bgcolor: '#ffe5a0' },
+  { value: 'C', text: 'Hỗ trợ -', color: '#000', bgcolor: '#e8eaed' },
+  { value: 'D', text: 'Chưa đạt', color: '#b10202', bgcolor: '#ffcfc9' }
 ];
 
 export const ASSESSMENT_GROUP_LV2_CONFIGS: { key: string; displayOrder: number; bgcolor: string }[] = [
