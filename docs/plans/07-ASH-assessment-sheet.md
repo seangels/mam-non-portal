@@ -71,7 +71,7 @@ Production build, IIS package và deploy không thuộc plan này; chỉ chạy 
   | `KQ_template` | Nguồn sinh PDF `[F03]` — kết quả | `FinalGrade`/`FinalNote` | `1903920808` |
 
 - Vị trí ghi `[F0.ĐG]`: cột `E16:E` = mã mục đánh giá (dò dòng), hàng `H16:16` = mã học sinh (dò cột), ghi tại ô giao nhau. Giá trị ghi là nhãn của **`FinalGrade`** (không phải `PlanGrade`).
-- Bảng mapping `FinalGrade` → nhãn ghi vào `[F0.ĐG]` (và dùng thống nhất cho UI/PDF), đã chốt với người dùng 2026-08-30: `A`→`Đạt +` (rank 3, cao nhất), `B`→`Hỗ trợ +` (rank 2), `C`→`Hỗ trợ -` (rank 1), `D`→`Chưa đạt` (rank 0, thấp nhất). Bản này sửa lỗi lệch thứ tự của định nghĩa cũ.
+- Bảng mapping `FinalGrade` → nhãn ghi vào `[F0.ĐG]` (và dùng thống nhất cho UI/PDF), đã chốt với người dùng 2026-08-30: `A`→`Đạt +` (rank 3, cao nhất), `B`→`Hỗ trợ +` (rank 2), `C`→`Hỗ trợ -` (rank 1), `D`→`Chưa đạt -` (rank 0, thấp nhất). Bản này sửa lỗi lệch thứ tự của định nghĩa cũ.
 
 Việc đầu tiên của backend agent là đối chiếu lại các file trên với trạng thái `git diff`/`git status` hiện tại (đừng giả định memory cũ còn đúng, kể cả memory từ các bản trước của chính plan này — entity đã đổi nhiều lần trong cùng một ngày).
 

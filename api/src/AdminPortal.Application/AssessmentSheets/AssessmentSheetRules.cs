@@ -42,14 +42,14 @@ public static class AssessmentSheetRules
 
     /// <summary>
     /// Nhãn hiển thị của FinalGrade/PlanGrade, đã chốt với người dùng ở requirements 09 mục 11 (2026-08-30):
-    /// A = "Đạt +" (rank 3) → B = "Hỗ trợ +" (rank 2) → C = "Hỗ trợ -" (rank 1) → D = "Chưa đạt" (rank 0).
+    /// A = "Đạt +" (rank 3) → B = "Hỗ trợ +" (rank 2) → C = "Hỗ trợ -" (rank 1) → D = "Chưa đạt -" (rank 0).
     /// </summary>
     public static string GradeLabel(AssessmentGrade grade) => grade switch
     {
         AssessmentGrade.A => "Đạt +",
         AssessmentGrade.B => "Hỗ trợ +",
         AssessmentGrade.C => "Hỗ trợ -",
-        AssessmentGrade.D => "Chưa đạt",
+        AssessmentGrade.D => "Chưa đạt -",
         _ => grade.ToString()
     };
 

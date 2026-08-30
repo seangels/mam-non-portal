@@ -1388,7 +1388,7 @@ describe('Assessment picker filter and selection', () => {
 
     component.applyFilters();
 
-    expect(component.latestGradeOptions.map(option => option.text)).toEqual(['Chưa có', 'Đạt +', 'Hỗ trợ +', 'Hỗ trợ -', 'Chưa đạt']);
+    expect(component.latestGradeOptions.map(option => option.text)).toEqual(['Chưa có', 'Đạt +', 'Hỗ trợ +', 'Hỗ trợ -', 'Chưa đạt -']);
     expect(component.filteredAssessments.map(item => item.id)).toEqual(['assessment-1', 'assessment-2']);
     expect(assessments.list).not.toHaveBeenCalled();
   });

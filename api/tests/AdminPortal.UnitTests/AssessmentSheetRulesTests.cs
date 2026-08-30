@@ -77,7 +77,7 @@ public sealed class AssessmentSheetRulesTests
     [InlineData(AssessmentGrade.A, "Đạt +")]
     [InlineData(AssessmentGrade.B, "Hỗ trợ +")]
     [InlineData(AssessmentGrade.C, "Hỗ trợ -")]
-    [InlineData(AssessmentGrade.D, "Chưa đạt")]
+    [InlineData(AssessmentGrade.D, "Chưa đạt -")]
     public void GradeLabelMatchesConfirmedMappingInRequirements(AssessmentGrade grade, string expectedLabel) =>
         Assert.Equal(expectedLabel, AssessmentSheetRules.GradeLabel(grade));
 
@@ -85,7 +85,7 @@ public sealed class AssessmentSheetRulesTests
     [InlineData("Đạt +", AssessmentGrade.A)]
     [InlineData("Hỗ trợ +", AssessmentGrade.B)]
     [InlineData("Hỗ trợ -", AssessmentGrade.C)]
-    [InlineData("Chưa đạt", AssessmentGrade.D)]
+    [InlineData("Chưa đạt -", AssessmentGrade.D)]
     public void TryParseGradeLabelIsExactInverseOfGradeLabel(string label, AssessmentGrade expected)
     {
         Assert.True(AssessmentSheetRules.TryParseGradeLabel(label, out var grade));

@@ -56,7 +56,7 @@
 - Giáo viên chọn các mục đánh giá (`plan`) từ kho `Assessment` để đưa vào bảng. Màn hình chọn plan hỗ trợ các bộ lọc sau (kết hợp được với nhau):
   - **Theo học sinh:** lấy thêm `LatestGrade`/ghi chú latest gợi ý dựa trên `AssessmentRecordLatest` (đọc-only, đã fetch từ Google Sheet) của đúng học sinh đang tạo bảng. Việc thiếu dữ liệu latest không được làm ẩn mất mục đánh giá; các field latest để trống/null.
   - **Theo mức grade:** ví dụ lọc các mục có kết quả gần nhất `LatestGrade >= B`, dùng thang xếp hạng đã chốt `A > B > C > D` — `A = 3` (cao nhất) `> B = 2 > C = 1 > D = 0` (thấp nhất); dùng để khoanh vùng các mục học sinh đã đạt mức nhất định hoặc ngược lại cần cải thiện.
-  - **Theo kết quả gần nhất trên UI:** TagBox đứng đầu panel filter, cho chọn nhiều giá trị gồm `Chưa có`, `Đạt +`, `Hỗ trợ +`, `Hỗ trợ -`, `Chưa đạt`. `Chưa có` đại diện cho mục chưa có `LatestGrade`. Filter này chạy trên dữ liệu đã tải về client và trên snapshot hiện hành của chế độ xem (`Xem tất cả` hoặc `Chỉ những mục đã chọn`), không tự gọi lại server.
+  - **Theo kết quả gần nhất trên UI:** TagBox đứng đầu panel filter, cho chọn nhiều giá trị gồm `Chưa có`, `Đạt +`, `Hỗ trợ +`, `Hỗ trợ -`, `Chưa đạt -`. `Chưa có` đại diện cho mục chưa có `LatestGrade`. Filter này chạy trên dữ liệu đã tải về client và trên snapshot hiện hành của chế độ xem (`Xem tất cả` hoặc `Chỉ những mục đã chọn`), không tự gọi lại server.
   - **Theo nhóm phân cấp:** lọc theo `GroupLv1Name`, `GroupLv2Name`, `GroupLv3Name` của `Assessment`.
 - Khi bấm tạo mới, UI gửi danh sách `records`, mỗi phần tử gồm `assessmentId`, `latestGrade`, `note`; không chỉ gửi mỗi `assessmentId`. Với mỗi mục được chọn, hệ thống:
   - Snapshot thông tin mục đánh giá vào `AssessmentRecord.AssessmentSnapshot` (mã, tên, các cấp nhóm, `RowIndex`).
@@ -140,9 +140,9 @@
   | `A` | `Đạt +` | 3 (cao nhất) |
   | `B` | `Hỗ trợ +` | 2 |
   | `C` | `Hỗ trợ -` | 1 |
-  | `D` | `Chưa đạt` | 0 (thấp nhất) |
+  | `D` | `Chưa đạt -` | 0 (thấp nhất) |
 
-  Nhãn `D` là `Chưa đạt` (không có hậu tố `-`). Mapping này dùng thống nhất ở mọi nơi hiển thị `FinalGrade`/`PlanGrade` cho người dùng cuối (UI, PDF `[F02]`/`[F03]`), không chỉ riêng khi ghi `[F0.ĐG]`, để tránh vừa hiện "A/B/C/D" vừa hiện nhãn tiếng Việt ở hai chỗ khác nhau. Đây là bản định nghĩa lại thứ tự đã sửa lỗi lệch trước đó (bản cũ gán nhầm `B` → `Chưa đạt -`, `C` → `Hỗ trợ +`, `D` → `Hỗ trợ -`).
+  Mapping này dùng thống nhất ở mọi nơi hiển thị `FinalGrade`/`PlanGrade` cho người dùng cuối (UI, PDF `[F02]`/`[F03]`), không chỉ riêng khi ghi `[F0.ĐG]`, để tránh vừa hiện "A/B/C/D" vừa hiện nhãn tiếng Việt ở hai chỗ khác nhau. Đây là bản định nghĩa lại thứ tự đã sửa lỗi lệch trước đó (bản cũ gán nhầm `B` → `Chưa đạt -`, `C` → `Hỗ trợ +`, `D` → `Hỗ trợ -`); nhãn chữ giữ nguyên `Chưa đạt -`, chỉ đổi enum gắn với nó và thang rank.
 - Đây là bước ghi kết quả về file nguồn dùng chung toàn trường/toàn khối; không còn bản ghi Google Sheet riêng `[F01.KQ]` cho một đợt của một học sinh.
 - Ngay khi thao tác này thực hiện thành công, hệ thống set `SubmissionDate` của `AssessmentSheet` bằng thời điểm cập nhật.
 - Việc ghi vào `[F0.ĐG]` **không** tự động nạp lại `AssessmentSheetLatest`/`AssessmentRecordLatest`; đây là hai bước tách biệt — nạp lại là một thao tác thủ công riêng, xem mục 12.
@@ -215,4 +215,4 @@ Các quyết định nghiệp vụ đã được chốt và áp dụng xuyên su
 
 Các điểm trước đây cần xác nhận, nay đã chốt:
 
-- Bảng mapping `FinalGrade` → nhãn ở mục 11 đã được người dùng định nghĩa lại và chốt (2026-08-30): `A` → `Đạt +` (rank 3) → `B` → `Hỗ trợ +` (rank 2) → `C` → `Hỗ trợ -` (rank 1) → `D` → `Chưa đạt` (rank 0). Dùng trực tiếp để ghi `[F0.ĐG]` và hiển thị UI/PDF.
+- Bảng mapping `FinalGrade` → nhãn ở mục 11 đã được người dùng định nghĩa lại và chốt (2026-08-30): `A` → `Đạt +` (rank 3) → `B` → `Hỗ trợ +` (rank 2) → `C` → `Hỗ trợ -` (rank 1) → `D` → `Chưa đạt -` (rank 0). Dùng trực tiếp để ghi `[F0.ĐG]` và hiển thị UI/PDF.
