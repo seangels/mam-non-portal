@@ -333,7 +333,7 @@
                 </dx-button>
               </td>
               <td *ngIf="showResult" class="grade-cell"
-                [style.backgroundColor]="row.record.finalGrade && row.record.finalGrade !== row.record.planGrade ? 'yellow' : ''"
+                [style.backgroundColor]="row.record.finalGrade && row.record.finalGrade !== row.record.planGrade ? 'lightgoldenrodyellow' : ''"
               >
                 <div
                   class="grade-select-shell"
@@ -347,7 +347,7 @@
                     [dataSource]="gradeSelectOptions"
                     valueExpr="value"
                     displayExpr="text"
-                    [disabled]="recordValueControlsDisabled"
+                    [readOnly]="recordValueControlsDisabled"
                     [value]="row.record.finalGrade ?? null"
                     (onValueChanged)="updateRecordFinalGrade(row.record, $event.value)"
                     [attr.aria-label]="'Kết quả hiện tại của ' + row.record.assessment.code"
@@ -370,8 +370,9 @@
               </td>
               <td *ngIf="showPlan" class="note-cell plan-note-cell">{{ row.record.planNote }}</td>
               <td *ngIf="showResult" class="note-cell">
+                {{ recordValueControlsDisabled ? row.record.finalNote : '' }}
                 <dx-text-area
-                  class="record-note-textarea"
+                  [class]="recordValueControlsDisabled ? 'record-note-textarea hidden' : 'record-note-textarea'"
                   [height]="28"
                   [maxLength]="2000"
                   [disabled]="recordValueControlsDisabled"
