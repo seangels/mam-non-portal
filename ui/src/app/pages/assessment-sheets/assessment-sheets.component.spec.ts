@@ -705,6 +705,34 @@ describe('Assessment sheet form DevExtreme option stability', () => {
       {} as any
     );
 
+  it('highlights the row only while focus is inside a Kế hoạch / Kết quả / Ghi chú cell', () => {
+    const component = createComponent('edit');
+
+    const valueCell = document.createElement('td');
+    valueCell.className = 'grade-cell';
+    const editor = document.createElement('input');
+    valueCell.appendChild(editor);
+
+    const groupCell = document.createElement('td');
+    groupCell.className = 'group-cell group-lv2-cell';
+    const groupInner = document.createElement('span');
+    groupCell.appendChild(groupInner);
+
+    component.onRecordValueFocusIn('record-1', { target: groupInner } as unknown as FocusEvent);
+    expect(component.focusedValueRecordId).toBeNull();
+
+    component.onRecordValueFocusIn('record-1', { target: editor } as unknown as FocusEvent);
+    expect(component.focusedValueRecordId).toBe('record-1');
+
+    const sameCellTarget = document.createElement('div');
+    valueCell.appendChild(sameCellTarget);
+    component.onRecordValueFocusOut('record-1', { relatedTarget: sameCellTarget } as unknown as FocusEvent);
+    expect(component.focusedValueRecordId).toBe('record-1');
+
+    component.onRecordValueFocusOut('record-1', { relatedTarget: null } as unknown as FocusEvent);
+    expect(component.focusedValueRecordId).toBeNull();
+  });
+
   it('keeps editor option object references stable across change detection reads', () => {
     const component = createComponent();
 

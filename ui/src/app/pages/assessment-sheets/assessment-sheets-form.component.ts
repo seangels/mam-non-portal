@@ -37,6 +37,8 @@ import { AssessmentPickerComponent } from './assessment-picker.component';
 const ASSESSMENT_CACHE_PAGE_SIZE = 100;
 // Thời gian giữ highlight cho các dòng vừa được bấm Di chuyển; phải >= animation dài nhất trong SCSS.
 const MOVE_HIGHLIGHT_DURATION_MS = 1600;
+// Các ô giá trị có thể nhập trong records-table; focus vào đây thì highlight cả hàng (trừ ô nhóm merge).
+const RECORD_VALUE_CELL_SELECTOR = '.plan-cell, .grade-cell, .note-cell';
 const UNGROUPED_LABEL = 'Chưa phân nhóm';
 const EMPTY_GRADE_OPTION: { value: null; text: string; color: string; bgcolor: string } = {
   value: null,
@@ -442,6 +444,8 @@ export class AssessmentSheetFormComponent implements OnInit, OnDestroy {
   recordRows: AssessmentSheetRecordTableRow[] = [];
   movedPrimaryRecordIds: string[] = [];
   movedSecondaryRecordIds: string[] = [];
+  // Id record đang được focus ở ô Kế hoạch / Kết quả / Ghi chú; null = không có.
+  focusedValueRecordId: string | null = null;
   private moveHighlightStartTimer: ReturnType<typeof setTimeout> | null = null;
   private moveHighlightClearTimer: ReturnType<typeof setTimeout> | null = null;
   existingAssessmentCodes: string[] = [];
@@ -975,6 +979,23 @@ export class AssessmentSheetFormComponent implements OnInit, OnDestroy {
 
   updateRecordFinalNote(record: AssessmentSheetRecord, value: string | null): void {
     record.finalNote = value ?? '';
+  }
+
+  onRecordValueFocusIn(recordId: string, event: FocusEvent): void {
+    if (event.target instanceof HTMLElement && event.target.closest(RECORD_VALUE_CELL_SELECTOR)) {
+      this.focusedValueRecordId = recordId;
+    }
+  }
+
+  onRecordValueFocusOut(recordId: string, event: FocusEvent): void {
+    if (this.focusedValueRecordId !== recordId) {
+      return;
+    }
+    // Giữ highlight khi focus chỉ nhảy trong cùng một ô giá trị (vd input → nút dropdown của select-box).
+    if (event.relatedTarget instanceof HTMLElement && event.relatedTarget.closest(RECORD_VALUE_CELL_SELECTOR)) {
+      return;
+    }
+    this.focusedValueRecordId = null;
   }
 
   openGroupEdit(row: AssessmentSheetRecordTableRow, level: AssessmentSheetRecordGroupLevel): void {

@@ -38,6 +38,15 @@
   .records-table tr.record-row--moved-primary > td { animation: none; background-color: #fb923c; }
   .records-table tr.record-row--moved-secondary > td { animation: none; background-color: #fef08a; }
 }
+/* Kết quả khác kế hoạch: nền vàng nhắc người dùng. Tách khỏi inline style để rule
+   highlight-focus bên dưới có thể ghi đè khi hàng đang được nhập. */
+.records-table td.grade-cell--changed { background-color: lightgoldenrodyellow; }
+/* Focus vào ô Kế hoạch / Kết quả / Ghi chú thì highlight cả hàng, nhưng chỉ các ô
+   KHÔNG merge — bỏ qua ô nhóm lớn/nhỏ (rowspan) và ô di chuyển nhóm. */
+.records-table tr.record-row--value-focused > td:not(.group-cell):not(.group-move-cell) {
+  background-color: #dbeafe;
+  transition: background-color .12s ease-out;
+}
 
 .action-column { width: 42px; }
 .group-lv2-column { width: 142px; }

@@ -198,7 +198,10 @@
           <tbody>
             <tr *ngFor="let row of recordRows; trackBy: trackRecordRow" [style.backgroundColor]="row.groupColor"
               [class.record-row--moved-primary]="isRecordMovePrimary(row.record.id)"
-              [class.record-row--moved-secondary]="isRecordMoveSecondary(row.record.id)">
+              [class.record-row--moved-secondary]="isRecordMoveSecondary(row.record.id)"
+              [class.record-row--value-focused]="focusedValueRecordId === row.record.id"
+              (focusin)="onRecordValueFocusIn(row.record.id, $event)"
+              (focusout)="onRecordValueFocusOut(row.record.id, $event)">
               <td *ngIf="showGroupLv2MoveColumn && row.showGroupLv2" class="group-move-cell"
                 [attr.rowspan]="row.groupLv2RowSpan">
                 <div class="move-buttons">
@@ -333,7 +336,7 @@
                 </dx-button>
               </td>
               <td *ngIf="showResult" class="grade-cell"
-                [style.backgroundColor]="row.record.finalGrade && row.record.finalGrade !== row.record.planGrade ? 'lightgoldenrodyellow' : ''"
+                [class.grade-cell--changed]="row.record.finalGrade && row.record.finalGrade !== row.record.planGrade"
               >
                 <div
                   class="grade-select-shell"
