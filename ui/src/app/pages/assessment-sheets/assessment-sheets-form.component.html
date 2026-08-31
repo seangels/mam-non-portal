@@ -375,7 +375,9 @@
                 {{ recordValueControlsDisabled ? row.record.finalNote : '' }}
                 <dx-text-area
                   [class]="recordValueControlsDisabled ? 'record-note-textarea hidden' : 'record-note-textarea'"
-                  [height]="28"
+                  [autoResizeEnabled]="true"
+                  [minHeight]="28"
+                  [maxHeight]="140"
                   [maxLength]="2000"
                   [disabled]="recordValueControlsDisabled"
                   [value]="row.record.finalNote || ''"
