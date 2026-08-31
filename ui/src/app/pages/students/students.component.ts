@@ -510,6 +510,11 @@ export class StudentsComponent {
     return `${STUDY_MODE_LABELS[student.studySchedule.mode]} · ${days}`;
   }
 
+  // API lưu driveFolderId ở dạng ID thư mục đã chuẩn hóa; dựng lại URL Google Drive để mở trong tab mới.
+  driveFolderUrl(driveFolderId: string | null | undefined): string | null {
+    return driveFolderId ? `https://drive.google.com/drive/folders/${encodeURIComponent(driveFolderId)}` : null;
+  }
+
   @HostListener('window:beforeunload', ['$event'])
   beforeUnload(event: BeforeUnloadEvent): void {
     if (this.editorDirty) event.preventDefault();

@@ -95,6 +95,12 @@ describe('StudentsComponent schedule and remote list', () => {
     expect(component.scheduleText(student)).toBe('Học cả ngày · T2, T4, T7');
   });
 
+  it('builds a Google Drive folder URL from the stored folder id', () => {
+    expect(component.driveFolderUrl('abc123')).toBe('https://drive.google.com/drive/folders/abc123');
+    expect(component.driveFolderUrl(null)).toBeNull();
+    expect(component.driveFolderUrl('')).toBeNull();
+  });
+
   it('loads assignment groups remotely and marks current or full groups disabled', async () => {
     const current = groupRow('group-1', 20);
     const full = groupRow('group-2', 100);

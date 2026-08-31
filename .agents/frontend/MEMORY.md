@@ -1,8 +1,10 @@
 # Frontend role memory
 
-Last updated: 2026-08-31 (ASH-ROWFOCUS-01 — highlight records row on value-cell focus)
+Last updated: 2026-08-31 (STU-DRIVECOL-01 — Drive folder link column in student list)
 
 ## Resume here
+
+- 2026-08-31 (`STU-DRIVECOL-01`, FE-only): thêm cột "Thư mục Drive" vào grid `pages/students` (`students.component.html`, sau `guardianPhone`, trước cột buttons). `cellTemplate="driveCell"` render `<a target="_blank" rel="noopener noreferrer">Link</a>` khi có `driveFolderId`, ngược lại `—`. `students.component.ts` `driveFolderUrl(id)` = `https://drive.google.com/drive/folders/${encodeURIComponent(id)}` (API lưu ID đã chuẩn hóa, không phải URL đầy đủ); trả `null` khi rỗng. Cột `[allowSorting]=false [allowFiltering]=false [hidingPriority]=5`. Không đổi backend — list response `StudentRowResponse` đã có `driveFolderId`. Files: `students.component.{ts,html}`, `students.component.spec.ts` (+1 test). Verification: `npm --prefix ui run test:ci` 146/146; `npm --prefix ui run build -- --configuration development` pass hash `b8aaf2c029a9c220b5cf`. Không production/IIS/deploy.
 
 - 2026-08-31 (`ASH-ROWFOCUS-01`, FE-only): records-table hàng được highlight (`#dbeafe`) khi focus vào ô **Kế hoạch / Kết quả / Ghi chú**. `<tr>` bắt `(focusin)`/`(focusout)` → `onRecordValueFocusIn/Out(recordId, $event)` set/clear `focusedValueRecordId` khi `event.target`/`relatedTarget` nằm trong `RECORD_VALUE_CELL_SELECTOR = '.plan-cell, .grade-cell, .note-cell'` (giữ highlight khi focus nhảy trong cùng ô, vd input↔nút dropdown select-box). SCSS `tr.record-row--value-focused > td:not(.group-cell):not(.group-move-cell)` — **chỉ tô ô không merge**, bỏ ô nhóm lv2/lv3 (rowspan) + ô di chuyển nhóm. Đồng thời chuyển nền vàng "kết quả khác kế hoạch" của `.grade-cell` từ inline `[style.backgroundColor]` sang class `.grade-cell--changed` để rule highlight-focus ghi đè được khi đang nhập. Files: `assessment-sheets-form.component.{ts,html,scss}`, `assessment-sheets.component.spec.ts` (+1 test). Verification: `npm --prefix ui run test:ci` 145/145; `npm --prefix ui run build -- --configuration development` pass hash `10879ebb6d0c6078edc1`. Không backend/REST, không production/IIS/deploy.
 

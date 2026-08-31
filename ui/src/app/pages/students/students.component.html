@@ -74,6 +74,8 @@
       [hidingPriority]="1"></dxi-column>
     <dxi-column dataField="guardianPhone" caption="SĐT giám hộ" [allowSorting]="false"
       [hidingPriority]="0"></dxi-column>
+    <dxi-column dataField="driveFolderId" caption="Thư mục Drive" cellTemplate="driveCell"
+      [allowSorting]="false" [allowFiltering]="false" [hidingPriority]="5"></dxi-column>
     <dxi-column type="buttons" caption="Thao tác" [width]="135" [buttons]="rowButtons"
       [hidingPriority]="12"></dxi-column>
 
@@ -86,6 +88,11 @@
     </div>
     <div *dxTemplate="let cell of 'scheduleCell'" class="schedule-summary">
       {{ scheduleText(cell.data) }}
+    </div>
+    <div *dxTemplate="let cell of 'driveCell'">
+      <a *ngIf="driveFolderUrl(cell.value) as url; else noDrive" [href]="url" target="_blank"
+        rel="noopener noreferrer">Link</a>
+      <ng-template #noDrive><span class="unassigned">—</span></ng-template>
     </div>
   </dx-data-grid>
 </div>
