@@ -120,6 +120,10 @@
     <dxi-column dataField="startDate" caption="Bắt đầu" cellTemplate="startDateCell" sortOrder="desc" [width]="130"></dxi-column>
     <dxi-column dataField="dueDate" caption="Hạn hoàn thành" cellTemplate="dueDateCell" [width]="150"></dxi-column>
     <dxi-column dataField="submissionDate" caption="Ngày nộp" cellTemplate="submissionDateCell" [width]="130"></dxi-column>
+    <dxi-column dataField="planFileLinkPdf" caption="Kế hoạch" cellTemplate="planLinkCell"
+      [allowSorting]="false" [allowFiltering]="false" [width]="90"></dxi-column>
+    <dxi-column dataField="resultFileLinkPdf" caption="Kết quả" cellTemplate="resultLinkCell"
+      [allowSorting]="false" [allowFiltering]="false" [width]="90"></dxi-column>
     <dxi-column dataField="updatedAt" caption="Cập nhật" cellTemplate="updatedAtCell" [width]="150"></dxi-column>
 
     <div *dxTemplate="let cell of 'studentCell'" class="student-cell">
@@ -134,6 +138,16 @@
     <div *dxTemplate="let cell of 'startDateCell'">{{ dateText(cell.data.startDate) }}</div>
     <div *dxTemplate="let cell of 'dueDateCell'">{{ dateText(cell.data.dueDate) }}</div>
     <div *dxTemplate="let cell of 'submissionDateCell'">{{ dateText(cell.data.submissionDate) }}</div>
+    <div *dxTemplate="let cell of 'planLinkCell'">
+      <a *ngIf="cell.data.planFileLinkPdf as link; else noPlanLink" [href]="link" target="_blank"
+        rel="noopener noreferrer">khcn</a>
+      <ng-template #noPlanLink><span class="link-empty">—</span></ng-template>
+    </div>
+    <div *dxTemplate="let cell of 'resultLinkCell'">
+      <a *ngIf="cell.data.resultFileLinkPdf as link; else noResultLink" [href]="link" target="_blank"
+        rel="noopener noreferrer">KQ</a>
+      <ng-template #noResultLink><span class="link-empty">—</span></ng-template>
+    </div>
     <div *dxTemplate="let cell of 'updatedAtCell'">{{ dateText(cell.data.updatedAt) }}</div>
   </dx-data-grid>
 </div>

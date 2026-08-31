@@ -1,8 +1,10 @@
 # Frontend role memory
 
-Last updated: 2026-08-31 (STU-DRIVECOL-01 — Drive folder link column in student list)
+Last updated: 2026-08-31 (ASH-LINKCOL-01 — plan/result PDF link columns in assessment-sheet list)
 
 ## Resume here
+
+- 2026-08-31 (`ASH-LINKCOL-01`, FE-only, template+scss): grid `pages/assessment-sheets` (`assessment-sheets.component.html`) thêm 2 cột giữa `submissionDate` và `updatedAt`: `planFileLinkPdf` caption "Kế hoạch" → `<a target="_blank" rel="noopener noreferrer">khcn</a>`; `resultFileLinkPdf` caption "Kết quả" → link text `KQ`. Không có link → `<span class="link-empty">—</span>`. `cell.data.*FileLinkPdf` đã là URL đầy đủ (khác `driveFolderId` của student list) nên `[href]` bind thẳng, không helper. Cột `[allowSorting]=false [allowFiltering]=false [width]=90`; column-chooser sẵn có nên user ẩn/hiện được. Không đổi backend — list response `AssessmentSheet` đã có 2 field này. Files: `assessment-sheets.component.{html,scss}`. Verification: `npm --prefix ui run test:ci` 146/146; `npm --prefix ui run build -- --configuration development` pass hash `434e67f3ecfbaedf92d6`. Không production/IIS/deploy.
 
 - 2026-08-31 (`STU-DRIVECOL-01`, FE-only): thêm cột "Thư mục Drive" vào grid `pages/students` (`students.component.html`, sau `guardianPhone`, trước cột buttons). `cellTemplate="driveCell"` render `<a target="_blank" rel="noopener noreferrer">Link</a>` khi có `driveFolderId`, ngược lại `—`. `students.component.ts` `driveFolderUrl(id)` = `https://drive.google.com/drive/folders/${encodeURIComponent(id)}` (API lưu ID đã chuẩn hóa, không phải URL đầy đủ); trả `null` khi rỗng. Cột `[allowSorting]=false [allowFiltering]=false [hidingPriority]=5`. Không đổi backend — list response `StudentRowResponse` đã có `driveFolderId`. Files: `students.component.{ts,html}`, `students.component.spec.ts` (+1 test). Verification: `npm --prefix ui run test:ci` 146/146; `npm --prefix ui run build -- --configuration development` pass hash `b8aaf2c029a9c220b5cf`. Không production/IIS/deploy.
 

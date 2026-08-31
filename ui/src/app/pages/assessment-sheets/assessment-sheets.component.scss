@@ -11,6 +11,7 @@
 .buttons-row .primary-action { margin-right: auto; }
 .student-cell { display: flex; flex-direction: column; gap: 3px; }
 .student-cell small { color: #667085; }
+.link-empty { color: #98a2b3; }
 .status-pill { display: inline-flex; min-height: 24px; align-items: center; border-radius: 12px; padding: 2px 10px; background: #e8f1fb; color: #184f86; font-weight: 600; }
 .status-pill.done { background: #eaf7ee; color: #17623a; }
 .error-panel { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; border: 1px solid #f2b8b5; border-radius: 8px; background: #fff1f0; color: #8a1c16; }
