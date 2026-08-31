@@ -77,6 +77,16 @@ export class AssessmentSheetsService {
     return this.api.post<AssessmentSheetDetail>(`assessment-sheets/${id}/upload-result-pdf`, formData);
   }
 
+  // Bulk Action: backend tải toàn bộ PDF (kế hoạch/kết quả) của các bảng đã chọn từ Google Drive rồi
+  // gộp thành một zip; format 'Images' render từng trang PDF thành PNG. Trả về blob zip để tải xuống.
+  downloadPdfArchive(
+    ids: string[],
+    kind: 'Plan' | 'Result',
+    format: 'Pdf' | 'Images'
+  ): Observable<Blob> {
+    return this.api.postBlob('assessment-sheets/pdf-archive', { ids, kind, format });
+  }
+
   delete(id: string): Observable<void> {
     return this.api.delete(`assessment-sheets/${id}`);
   }

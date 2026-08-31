@@ -31,6 +31,7 @@ export const ASSESSMENT_GROUP_LV2_CONFIGS: { key: string; displayOrder: number; 
 
 export interface AssessmentSheetListQuery extends ListQuery {
   studentId?: string;
+  responsibleTeacherId?: string;
   status?: AssessmentSheetStatus;
   dateFrom?: string;
   dateTo?: string;

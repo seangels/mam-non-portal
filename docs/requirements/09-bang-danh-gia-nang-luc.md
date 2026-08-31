@@ -222,3 +222,14 @@ Các quyết định nghiệp vụ đã được chốt và áp dụng xuyên su
 Các điểm trước đây cần xác nhận, nay đã chốt:
 
 - Bảng mapping `FinalGrade` → nhãn ở mục 11 đã được người dùng định nghĩa lại và chốt (2026-08-30): `A` → `Đạt +` (rank 3) → `B` → `Hỗ trợ +` (rank 2) → `C` → `Hỗ trợ -` (rank 1) → `D` → `Chưa đạt -` (rank 0). Dùng trực tiếp để ghi `[F0.ĐG]` và hiển thị UI/PDF.
+
+## 16. Màn danh sách bảng đánh giá (ASH-FB-W4, 2026-09-01)
+
+- Bộ lọc: tìm theo mã/tên học sinh, theo học sinh, theo **giáo viên phụ trách** (`responsibleTeacherId`), theo trạng thái, theo khoảng ngày. Paging/sort chạy server-side. Role `Teacher` không bị khóa bộ lọc giáo viên.
+- Datagrid bật chọn nhiều dòng (multi-select). "Chọn tất cả" chỉ chọn trong trang hiện tại — selection **không** giữ qua các trang; đổi bộ lọc/đặt lại thì bỏ chọn hết.
+- **Bulk Action** (nút dropdown) trên các dòng đã chọn, 4 lựa chọn: `Tải PDF khcn`, `Tải ảnh khcn`, `Tải PDF KQ`, `Tải ảnh KQ`.
+  - Backend tải toàn bộ file PDF (kế hoạch hoặc kết quả) của các bảng đã chọn từ Google Drive rồi **gộp thành một file zip** (link Drive không tải trực tiếp từ trình duyệt được).
+  - Tên file trong zip giữ **đúng tên gốc trên Google Drive**; tất cả nằm phẳng ở gốc zip, không tạo thư mục riêng cho từng bảng. Đụng tên thì thêm hậu tố ` (2)`.
+  - "Tải PDF" = zip các PDF gốc. "Tải ảnh" = render từng trang PDF thành ảnh PNG **ở phía server** (tên `<tên gốc không đuôi> - trang NNN.png`) rồi bỏ vào zip.
+  - Bảng chưa có file PDF tương ứng, hoặc tải/render lỗi, bị **bỏ qua** và liệt kê trong file `_bo-qua.txt` bên trong zip; thao tác vẫn thành công cho các bảng còn lại.
+  - Tên file zip tải về: `<tên action> <timestamp>.zip`.

@@ -40,6 +40,21 @@
         (onValueChanged)="applyFilters()">
       </dx-select-box>
 
+      <dx-select-box
+        class="teacher-input"
+        [(value)]="responsibleTeacherId"
+        [dataSource]="teacherDataSource"
+        valueExpr="id"
+        [displayExpr]="teacherDisplay"
+        [searchEnabled]="true"
+        searchMode="contains"
+        placeholder="Giáo viên phụ trách"
+        [showClearButton]="true"
+        noDataText="Không có giáo viên phù hợp"
+        [inputAttr]="{ 'aria-label': 'Lọc theo giáo viên phụ trách' }"
+        (onValueChanged)="applyFilters()">
+      </dx-select-box>
+
       <dx-date-box type="date" displayFormat="dd/MM/yyyy" [showClearButton]="true" [(value)]="dateFrom"
         [inputAttr]="{ 'aria-label': 'Từ ngày' }" placeholder="Từ ngày" (onValueChanged)="applyFilters()">
       </dx-date-box>
@@ -78,6 +93,19 @@
       <dx-button text="Đặt lại" icon="revert" stylingMode="outlined" hint="Xóa toàn bộ bộ lọc"
         (onClick)="resetFilters()"></dx-button>
 
+      <dx-drop-down-button
+        [text]="bulkActionInProgress ? 'Đang xử lý...' : 'Bulk Action (' + selectedSheets.length + ')'"
+        icon="download"
+        stylingMode="outlined"
+        [items]="bulkActionItems"
+        displayExpr="text"
+        keyExpr="id"
+        [disabled]="bulkActionDisabled"
+        [dropDownOptions]="{ width: 200 }"
+        hint="Chọn nhiều dòng rồi tải PDF/ảnh khcn hoặc kết quả (gộp thành zip)"
+        (onItemClick)="onBulkAction($event)">
+      </dx-drop-down-button>
+
       <dx-button text="Ẩn/Hiện cột" icon="column-chooser" stylingMode="outlined" hint="Ẩn/Hiện cột"
         (onClick)="showDialogColumnChooser()"></dx-button>
     </div>
@@ -106,12 +134,14 @@
 <div class="content-block dx-card grid-card">
   <dx-data-grid #grid [dataSource]="dataSource" [remoteOperations]="{ paging: true, sorting: true }"
     [showBorders]="true" [columnAutoWidth]="true" [columnHidingEnabled]="true" [wordWrapEnabled]="true"
-    [rowAlternationEnabled]="true" [hoverStateEnabled]="true" noDataText="Không có dữ liệu phù hợp">
+    [rowAlternationEnabled]="true" [hoverStateEnabled]="true" noDataText="Không có dữ liệu phù hợp"
+    (onSelectionChanged)="onSelectionChanged($event)">
     <dxo-column-chooser [enabled]="true" mode="select"></dxo-column-chooser>
     <dxo-load-panel [enabled]="true" text="Đang tải..."></dxo-load-panel>
     <dxo-paging [pageSize]="20"></dxo-paging>
     <dxo-pager [showInfo]="true" [showPageSizeSelector]="true" [allowedPageSizes]="[20, 50, 100]"></dxo-pager>
     <dxo-sorting mode="single"></dxo-sorting>
+    <dxo-selection mode="multiple" selectAllMode="page" showCheckBoxesMode="always" [deferred]="false"></dxo-selection>
 
     <dxi-column type="buttons" [width]="72" [buttons]="rowButtons"></dxi-column>
     <dxi-column dataField="studentFullName" caption="Học sinh" cellTemplate="studentCell" [width]="180" [minWidth]="140"></dxi-column>

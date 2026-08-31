@@ -820,6 +820,113 @@ public sealed class AdminPortalApiTests(ApiFactory factory) : IClassFixture<ApiF
     }
 
     [Fact]
+    public async Task AssessmentSheetListFiltersByResponsibleTeacherAndBulkPdfArchiveZipsSelectedPlans()
+    {
+        var googleSheets = new FakeGoogleSheetsService
+        {
+            DownloadPdfContent = "%PDF-1.7 archive-test"u8.ToArray(),
+            DownloadPdfName = "KHCN - Nguyen Van A - thang 6.pdf"
+        };
+        using var archiveFactory = factory.WithWebHostBuilder(builder => builder.ConfigureServices(services =>
+        {
+            services.RemoveAll<IGoogleSheetsService>();
+            services.AddSingleton<IGoogleSheetsService>(googleSheets);
+        }));
+        using var client = archiveFactory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            BaseAddress = new Uri("https://localhost"),
+            AllowAutoRedirect = false,
+            HandleCookies = true
+        });
+        var auth = await LoginAsync(client, ApiFactory.SuperAdminEmail, ApiFactory.SuperAdminPassword);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", auth.AccessToken);
+        var marker = Guid.NewGuid().ToString("N")[..8];
+        var student = await CreateStudentAsync(client, $"ARCH-{marker}", $"Archive {marker}");
+        var assessmentId = Guid.NewGuid();
+        var now = DateTimeOffset.UtcNow;
+
+        using (var scope = archiveFactory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<AdminPortalDbContext>();
+            var actor = await dbContext.Users.AsNoTracking().SingleAsync(x => x.Email == ApiFactory.SuperAdminEmail);
+            (await dbContext.Students.SingleAsync(x => x.Id == student.Id)).DriveFolderId = $"folder-{marker}";
+            await dbContext.Assessments.AddAsync(new Assessment
+            {
+                Id = assessmentId,
+                Code = $"ARCH-{marker}",
+                Name = $"Archive Assessment {marker}",
+                RowIndex = 1,
+                UpdatedByUserId = actor.Id,
+                CreatedAt = now,
+                UpdatedAt = now
+            });
+            await dbContext.SaveChangesAsync();
+        }
+
+        var create = await client.PostAsJsonAsync("/api/v1/assessment-sheets", new
+        {
+            studentId = student.Id,
+            responsibleTeacherId = (Guid?)null,
+            note = (string?)null,
+            startDate = "2026-06-01T00:00:00+07:00",
+            dueDate = "2026-08-31T00:00:00+07:00",
+            records = new[] { new { assessmentId, latestGrade = (AssessmentGrade?)AssessmentGrade.A, note = (string?)null } }
+        }, JsonOptions);
+        create.EnsureSuccessStatusCode();
+        var withPdf = (await create.Content.ReadFromJsonAsync<AssessmentSheetDetailResponse>(JsonOptions))!;
+
+        using (var multipart = new MultipartFormDataContent())
+        {
+            multipart.Add(new ByteArrayContent("%PDF-plan"u8.ToArray()), "file", "plan.pdf");
+            (await client.PostAsync($"/api/v1/assessment-sheets/{withPdf.Id}/upload-plan-pdf", multipart)).EnsureSuccessStatusCode();
+        }
+
+        // Bảng đánh giá thứ hai không có link PDF -> phải bị bỏ qua và ghi vào _bo-qua.txt.
+        var createNoPdf = await client.PostAsJsonAsync("/api/v1/assessment-sheets", new
+        {
+            studentId = student.Id,
+            responsibleTeacherId = (Guid?)null,
+            note = (string?)null,
+            startDate = "2026-06-01T00:00:00+07:00",
+            dueDate = "2026-08-31T00:00:00+07:00",
+            records = Array.Empty<object>()
+        }, JsonOptions);
+        createNoPdf.EnsureSuccessStatusCode();
+        var withoutPdf = (await createNoPdf.Content.ReadFromJsonAsync<AssessmentSheetDetailResponse>(JsonOptions))!;
+
+        // Lọc theo giáo viên phụ trách không tồn tại -> danh sách rỗng.
+        var filtered = await client.GetFromJsonAsync<PagedResponse<AssessmentSheetListItemResponse>>(
+            $"/api/v1/assessment-sheets?responsibleTeacherId={Guid.NewGuid()}", JsonOptions);
+        Assert.NotNull(filtered);
+        Assert.Empty(filtered!.Items);
+
+        var archive = await client.PostAsJsonAsync("/api/v1/assessment-sheets/pdf-archive", new
+        {
+            ids = new[] { withPdf.Id, withoutPdf.Id },
+            kind = "Plan",
+            format = "Pdf"
+        }, JsonOptions);
+        archive.EnsureSuccessStatusCode();
+        Assert.Equal("application/zip", archive.Content.Headers.ContentType?.MediaType);
+
+        using var zip = new System.IO.Compression.ZipArchive(await archive.Content.ReadAsStreamAsync());
+        var pdfEntry = Assert.Single(zip.Entries, e => e.FullName.EndsWith(".pdf", StringComparison.Ordinal));
+        // Tên file trong zip = tên gốc trên Drive, nằm phẳng ở gốc zip (không thư mục riêng).
+        Assert.Equal("KHCN - Nguyen Van A - thang 6.pdf", pdfEntry.FullName);
+        await using (var entryStream = pdfEntry.Open())
+        using (var buffer = new MemoryStream())
+        {
+            await entryStream.CopyToAsync(buffer);
+            Assert.Equal("%PDF-1.7 archive-test"u8.ToArray(), buffer.ToArray());
+        }
+        var skipEntry = Assert.Single(zip.Entries, e => e.FullName == "_bo-qua.txt");
+        using (var reader = new StreamReader(skipEntry.Open()))
+        {
+            Assert.Contains("chưa có file PDF kế hoạch", await reader.ReadToEndAsync(), StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
     public async Task SubmitAssessmentSheetResultsCallsGoogleSheetsAndAuditsChangedCells()
     {
         var googleSheets = new FakeGoogleSheetsService();
@@ -1730,6 +1837,16 @@ public sealed class AdminPortalApiTests(ApiFactory factory) : IClassFixture<ApiF
             PreviewedStudentCode = studentCode;
             SubmittedRecords = records;
             return Task.FromResult(ResultSourcePreviewUpdates);
+        }
+
+        public string? DownloadedPdfLink { get; private set; }
+        public byte[] DownloadPdfContent { get; set; } = "%PDF-1.4 fake"u8.ToArray();
+        public string DownloadPdfName { get; set; } = "ke-hoach-goc.pdf";
+
+        public Task<DriveFileContent> DownloadAssessmentSheetPdfAsync(string fileLink, CancellationToken cancellationToken)
+        {
+            DownloadedPdfLink = fileLink;
+            return Task.FromResult(new DriveFileContent(DownloadPdfContent, DownloadPdfName));
         }
     }
 }

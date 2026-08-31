@@ -14,10 +14,11 @@ import {
   ASSESSMENT_SHEET_STATUS_OPTIONS,
   AssessmentSheetImportExcelPreviewSummaryResult
 } from '../../core/models/api.models.assessment-sheets';
-import { Student } from '../../core/models/api.models';
+import { Student, Teacher } from '../../core/models/api.models';
 import { asLegacyWidgetDataSource } from '../../core/models/devextreme-legacy.types';
 import { AssessmentSheetsService } from '../../core/services/assessment-sheets.service';
 import { StudentsService } from '../../core/services/students.service';
+import { TeachersService } from '../../core/services/teachers.service';
 import { formatDateOnly, toDateOnly } from '../../core/utils/date-only';
 
 const ASSESSMENT_SHEET_SORT_FIELDS = new Set([
@@ -39,9 +40,11 @@ export class AssessmentSheetsComponent implements OnDestroy {
   search = '';
   status: AssessmentSheetStatus | null = null;
   studentId: string | null = null;
+  responsibleTeacherId: string | null = null;
   dateFrom: Date | string | number = '';
   dateTo: Date | string | number = '';
   filtersExpanded = true;
+  selectedSheets: AssessmentSheet[] = [];
   importing = false;
   importPreviewLoading = false;
   importPreviewVisible = false;
@@ -53,6 +56,13 @@ export class AssessmentSheetsComponent implements OnDestroy {
   private selectedImportFile: File | null = null;
 
   readonly statuses = ASSESSMENT_SHEET_STATUS_OPTIONS;
+  bulkActionInProgress = false;
+  readonly bulkActionItems: Array<{ id: string; text: string; kind: 'Plan' | 'Result'; format: 'Pdf' | 'Images' }> = [
+    { id: 'plan-pdf', text: 'Tải PDF khcn', kind: 'Plan', format: 'Pdf' },
+    { id: 'plan-img', text: 'Tải ảnh khcn', kind: 'Plan', format: 'Images' },
+    { id: 'result-pdf', text: 'Tải PDF KQ', kind: 'Result', format: 'Pdf' },
+    { id: 'result-img', text: 'Tải ảnh KQ', kind: 'Result', format: 'Images' }
+  ];
   readonly rowButtons = [
     {
       hint: 'Chỉnh sửa',
@@ -78,6 +88,27 @@ export class AssessmentSheetsComponent implements OnDestroy {
     }
   }));
 
+  readonly teacherDataSource = asLegacyWidgetDataSource(new CustomStore({
+    key: 'id',
+    byKey: key => firstValueFrom(this.teachers.get(String(key))),
+    load: options => {
+      const pageSize = Math.min(options.take ?? 20, 100);
+      return firstValueFrom(this.teachers.list({
+        page: Math.floor((options.skip ?? 0) / pageSize) + 1,
+        pageSize,
+        search: typeof options.searchValue === 'string' ? options.searchValue.trim() || undefined : undefined,
+        status: 'Active',
+        sortBy: 'fullName',
+        sortOrder: 'asc'
+      })).then(result => ({ data: result.items, totalCount: result.pagination.totalItems }))
+        .catch(error => this.rejectLoad(error));
+    }
+  }));
+
+  readonly teacherDisplay = (teacher: Teacher | null): string => teacher
+    ? `${teacher.fullName}${teacher.teacherCode ? ` · ${teacher.teacherCode}` : ''}`
+    : '';
+
   readonly dataSource = asLegacyWidgetDataSource(new CustomStore({
     key: 'id',
     load: options => {
@@ -88,6 +119,7 @@ export class AssessmentSheetsComponent implements OnDestroy {
         pageSize,
         search: this.search.trim() || undefined,
         studentId: this.studentId ?? undefined,
+        responsibleTeacherId: this.responsibleTeacherId ?? undefined,
         status: this.status ?? undefined,
         dateFrom: toDateOnly(this.dateFrom),
         dateTo: toDateOnly(this.dateTo),
@@ -107,6 +139,7 @@ export class AssessmentSheetsComponent implements OnDestroy {
   constructor(
     private readonly assessmentSheets: AssessmentSheetsService,
     private readonly students: StudentsService,
+    private readonly teachers: TeachersService,
     public readonly router: Router
   ) {}
 
@@ -128,6 +161,7 @@ export class AssessmentSheetsComponent implements OnDestroy {
       window.clearTimeout(this.searchTimer);
       this.searchTimer = undefined;
     }
+    this.clearSelection();
     this.grid?.instance.pageIndex(0);
     void this.grid?.instance.refresh();
   }
@@ -140,9 +174,62 @@ export class AssessmentSheetsComponent implements OnDestroy {
     this.search = '';
     this.status = null;
     this.studentId = null;
+    this.responsibleTeacherId = null;
     this.dateFrom = '';
     this.dateTo = '';
     this.applyFilters();
+  }
+
+  onSelectionChanged(event: { selectedRowsData?: AssessmentSheet[] }): void {
+    this.selectedSheets = event.selectedRowsData ?? [];
+  }
+
+  get bulkActionDisabled(): boolean {
+    return this.bulkActionInProgress || this.selectedSheets.length === 0;
+  }
+
+  async onBulkAction(event: { itemData?: { id: string } }): Promise<void> {
+    const action = this.bulkActionItems.find(item => item.id === event.itemData?.id);
+    if (!action || this.bulkActionDisabled) {
+      return;
+    }
+    const ids = this.selectedSheets.map(sheet => sheet.id);
+    this.bulkActionInProgress = true;
+    this.loadError = '';
+    try {
+      const blob = await firstValueFrom(this.assessmentSheets.downloadPdfArchive(ids, action.kind, action.format));
+      this.downloadBlob(blob, `${action.text} ${this.timestamp()}.zip`);
+      notify(`Đã tải ${action.text.toLowerCase()} cho ${ids.length} bảng đánh giá. Xem file _bo-qua.txt trong zip nếu có dòng bị bỏ qua.`, 'success', 4000);
+    } catch (error) {
+      const apiError = ApiError.from(error);
+      this.loadError = this.withTrace(apiError);
+      notify(this.loadError, 'error', 3500);
+    } finally {
+      this.bulkActionInProgress = false;
+    }
+  }
+
+  private timestamp(): string {
+    const now = new Date();
+    const pad = (value: number): string => `${value}`.padStart(2, '0');
+    return `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+  }
+
+  private downloadBlob(blob: Blob, fileName: string): void {
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = fileName;
+    anchor.style.display = 'none';
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 0);
+  }
+
+  private clearSelection(): void {
+    this.selectedSheets = [];
+    this.grid?.instance.clearSelection();
   }
 
   openCreate(): void {

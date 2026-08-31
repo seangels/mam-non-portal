@@ -10,6 +10,8 @@
     <PackageReference Include="Google.Apis.Sheets.v4" Version="1.75.0.4178" />
     <PackageReference Include="Google.Apis.Drive.v3" Version="1.75.0.4218" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.4" />
+    <!-- PDF -> PNG render phía server cho Bulk Action "Tải ảnh" (ASH-FB-W4). PDFium + SkiaSharp, native theo RID. -->
+    <PackageReference Include="PDFtoImage" Version="5.4.0" />
   </ItemGroup>
 
   <PropertyGroup>

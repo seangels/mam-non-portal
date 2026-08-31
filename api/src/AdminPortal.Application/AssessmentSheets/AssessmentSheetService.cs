@@ -31,6 +31,7 @@ public sealed partial class AssessmentSheetService(
         var dateTo = NormalizeTimestamp(query.DateTo);
         var sheets = dbContext.AssessmentSheets.AsNoTracking();
         if (query.StudentId is not null) sheets = sheets.Where(x => x.StudentId == query.StudentId);
+        if (query.ResponsibleTeacherId is not null) sheets = sheets.Where(x => x.ResponsibleTeacherId == query.ResponsibleTeacherId);
         if (query.Status is not null) sheets = sheets.Where(x => x.AssessmentSheetStatus == query.Status);
         if(dateFrom is not null) sheets = sheets.Where(x => x.StartDate <= dateFrom && dateFrom <= x.DueDate);
         if(dateTo is not null) sheets = sheets.Where(x => x.StartDate <= dateTo && dateTo >= x.DueDate);
@@ -298,7 +299,10 @@ public sealed partial class AssessmentSheetService(
     {
         var actor = currentActor.GetRequired();
         AssessmentSheetRules.EnsureAssessmentSheetRole(actor);
-        AssessmentSheetRules.EnsureDistinctIds(request.Records.Select(x => x.AssessmentId).ToArray(), "records");
+        // Cho phép `records: []` (xóa mục cuối) — chỉ kiểm tra trùng/hợp lệ khi có mục.
+        var requestedIds = request.Records.Select(x => x.AssessmentId).ToArray();
+        if (requestedIds.Length > 0)
+            AssessmentSheetRules.EnsureDistinctIds(requestedIds, "records");
         var sheet = await FindRequiredAsync(id, cancellationToken);
         AssessmentSheetRules.EnsureOpen(sheet);
         var assessments = await LoadAssessmentsByIdsAsync(request.Records.Select(x => x.AssessmentId).ToArray(), cancellationToken);
@@ -411,6 +415,114 @@ public sealed partial class AssessmentSheetService(
         await dbContext.SaveChangesAsync(cancellationToken);
 
         return await BuildDetailAsync(id, cancellationToken);
+    }
+
+    public async Task<AssessmentSheetPdfArchiveResult> BuildPdfArchiveAsync(
+        AssessmentSheetPdfArchiveRequest request, CancellationToken cancellationToken)
+    {
+        AssessmentSheetRules.EnsureAssessmentSheetRole(currentActor.GetRequired());
+        var ids = request.Ids.Where(x => x != Guid.Empty).Distinct().ToArray();
+        if (ids.Length == 0)
+            throw new AppValidationException("Danh sách bảng đánh giá không hợp lệ.", new Dictionary<string, string[]>
+            {
+                ["ids"] = ["Chọn ít nhất một bảng đánh giá."]
+            });
+
+        var sheets = (await dbContext.AssessmentSheets.AsNoTracking()
+                .Where(x => ids.Contains(x.Id))
+                .ToListAsync(cancellationToken))
+            .ToDictionary(x => x.Id);
+
+        var kindLabel = request.Kind == AssessmentSheetPdfKind.Plan ? "kế hoạch" : "kết quả";
+        var files = new List<(string Path, byte[] Content)>();
+        var skipped = new List<string>();
+        // Đặt tên file trong zip theo đúng tên gốc trên Google Drive; đụng tên thì thêm " (2)".
+        // Ảnh nằm phẳng ở gốc zip (không tạo thư mục riêng từng bảng).
+        var usedNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var id in ids)
+        {
+            if (!sheets.TryGetValue(id, out var sheet))
+            {
+                skipped.Add($"{id}: không tìm thấy bảng đánh giá");
+                continue;
+            }
+
+            var studentRef = string.IsNullOrWhiteSpace(sheet.StudentSnapshot.StudentCode)
+                ? id.ToString("N")[..8]
+                : sheet.StudentSnapshot.StudentCode!;
+
+            var link = request.Kind == AssessmentSheetPdfKind.Plan ? sheet.PlanFileLinkPdf : sheet.ResultFileLinkPdf;
+            if (string.IsNullOrWhiteSpace(link))
+            {
+                skipped.Add($"{studentRef}: chưa có file PDF {kindLabel}");
+                continue;
+            }
+
+            DriveFileContent drive;
+            try
+            {
+                drive = await googleSheetsService.DownloadAssessmentSheetPdfAsync(link, cancellationToken);
+            }
+            catch (AppException ex)
+            {
+                skipped.Add($"{studentRef}: {ex.Message}");
+                continue;
+            }
+
+            var driveName = SanitizeZipEntryName(drive.Name);
+            var stem = Path.GetFileNameWithoutExtension(driveName);
+            var ext = Path.GetExtension(driveName);
+            if (string.IsNullOrEmpty(ext)) ext = ".pdf";
+            if (string.IsNullOrWhiteSpace(stem)) stem = $"khcn-{studentRef}";
+
+            if (request.Format == AssessmentSheetPdfArchiveFormat.Pdf)
+            {
+                files.Add((UniqueName(stem, ext, usedNames), drive.Content));
+            }
+            else
+            {
+                IReadOnlyList<byte[]> pages;
+                try
+                {
+                    pages = AssessmentSheetPdfArchive.PdfToPngPages(drive.Content);
+                }
+                catch (Exception ex)
+                {
+                    skipped.Add($"{stem}: không render được PDF thành ảnh ({ex.Message})");
+                    continue;
+                }
+
+                var pageStem = UniqueName(stem, string.Empty, usedNames);
+                for (var i = 0; i < pages.Count; i++)
+                    files.Add(($"{pageStem} - trang {i + 1:D3}.png", pages[i]));
+            }
+        }
+
+        var content = AssessmentSheetPdfArchive.BuildZip(files, skipped);
+        var formatLabel = request.Format == AssessmentSheetPdfArchiveFormat.Pdf ? "pdf" : "anh";
+        var kindSlug = request.Kind == AssessmentSheetPdfKind.Plan ? "khcn" : "KQ";
+        var stamp = timeProvider.GetUtcNow().ToOffset(BusinessDateOffset)
+            .ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture);
+        return new AssessmentSheetPdfArchiveResult(content, $"{kindSlug}-{formatLabel}-{stamp}.zip");
+    }
+
+    // Tên duy nhất trong zip: giữ nguyên stem gốc, đụng thì "<stem> (2)<ext>".
+    private static string UniqueName(string stem, string ext, HashSet<string> used)
+    {
+        var candidate = $"{stem}{ext}";
+        var suffix = 2;
+        while (!used.Add(candidate))
+            candidate = $"{stem} ({suffix++}){ext}";
+        return candidate;
+    }
+
+    private static string SanitizeZipEntryName(string name)
+    {
+        var cleaned = name.Replace('\\', '_').Replace('/', '_').Trim();
+        foreach (var invalid in Path.GetInvalidFileNameChars())
+            cleaned = cleaned.Replace(invalid, '_');
+        return string.IsNullOrWhiteSpace(cleaned) ? "file.pdf" : cleaned;
     }
 
     public async Task<AssessmentSheetDetailResponse> SubmitResultsAsync(Guid id, CancellationToken cancellationToken)

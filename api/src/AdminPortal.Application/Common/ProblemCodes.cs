@@ -37,4 +37,5 @@ public static class ProblemCodes
     public const string AssessmentSheetDone = nameof(AssessmentSheetDone);
     public const string AssessmentSheetGoogleMappingBlocked = nameof(AssessmentSheetGoogleMappingBlocked);
     public const string AssessmentSheetGoogleOperationFailed = nameof(AssessmentSheetGoogleOperationFailed);
+    public const string AssessmentSheetPdfNotAvailable = nameof(AssessmentSheetPdfNotAvailable);
 }

@@ -10,6 +10,7 @@ public sealed class AssessmentSheetListQuery
     [Range(1, 100)] public int PageSize { get; init; } = 20;
     [MaxLength(200)] public string? Search { get; init; }
     public Guid? StudentId { get; init; }
+    public Guid? ResponsibleTeacherId { get; init; }
     public DateTimeOffset? DateFrom {get; init; }
     public DateTimeOffset? DateTo {get; init; }
     public AssessmentSheetStatus? Status { get; init; }
@@ -98,7 +99,8 @@ public sealed record CreateAssessmentSheetRequest(
     [param: MaxLength(2000)] string? Note,
     DateTimeOffset? StartDate,
     DateTimeOffset? DueDate,
-    [param: Required, MinLength(1), MaxLength(5000)] IReadOnlyList<CreateAssessmentSheetRecordRequest> Records);
+    // Cho phép rỗng (`[]`) — tạo bảng đánh giá không có mục nào, thêm sau ở màn edit (ASH-FB-W1 / G1).
+    [param: Required, MaxLength(5000)] IReadOnlyList<CreateAssessmentSheetRecordRequest> Records);
 
 public sealed record CreateAssessmentSheetRecordRequest(
     Guid AssessmentId,
@@ -115,7 +117,8 @@ public sealed record UpdateAssessmentSheetRequest(
     [param: MaxLength(2000)] string? ResultFileLinkPdf);
 
 public sealed record ReplaceAssessmentSheetRecordsRequest(
-    [param: Required, MinLength(1), MaxLength(5000)] IReadOnlyList<AssessmentSheetRecordRequest> Records);
+    // Cho phép rỗng (`[]`) — xóa mục cuối cùng, bảng đánh giá được phép rỗng (ASH-FB-W1 / G1+G2).
+    [param: Required, MaxLength(5000)] IReadOnlyList<AssessmentSheetRecordRequest> Records);
 
 public sealed record AssessmentSheetRecordRequest(
     Guid AssessmentId,
@@ -198,3 +201,25 @@ public sealed record SubmitResultsCellChange(
     string AssessmentName,
     string? CurrentValue,
     string NewValue);
+
+// Bulk Action "Tải PDF/ảnh" trên màn danh sách: chọn nhiều dòng rồi tải/gộp hoàn toàn ở backend.
+public enum AssessmentSheetPdfKind
+{
+    Plan,
+    Result
+}
+
+public enum AssessmentSheetPdfArchiveFormat
+{
+    // Zip các file PDF gốc, mỗi bảng đánh giá một file.
+    Pdf,
+    // Zip ảnh PNG: mỗi bảng đánh giá một thư mục, mỗi trang PDF một file PNG.
+    Images
+}
+
+public sealed record AssessmentSheetPdfArchiveRequest(
+    [param: Required, MinLength(1), MaxLength(500)] IReadOnlyList<Guid> Ids,
+    AssessmentSheetPdfKind Kind,
+    AssessmentSheetPdfArchiveFormat Format);
+
+public sealed record AssessmentSheetPdfArchiveResult(byte[] Content, string FileName);

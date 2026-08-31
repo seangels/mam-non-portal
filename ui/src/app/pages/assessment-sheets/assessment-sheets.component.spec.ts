@@ -298,21 +298,25 @@ describe('Assessment sheets Excel import', () => {
     const assessmentSheets = {
       list: jasmine.createSpy('list'),
       previewImportExcel: jasmine.createSpy('previewImportExcel').and.returnValue(of(previewResult)),
-      importExcel: jasmine.createSpy('importExcel').and.returnValue(of(importResult))
+      importExcel: jasmine.createSpy('importExcel').and.returnValue(of(importResult)),
+      downloadPdfArchive: jasmine.createSpy('downloadPdfArchive').and.returnValue(of(new Blob(['zip'])))
     };
+    const teachers = { list: jasmine.createSpy('list'), get: jasmine.createSpy('get') };
     const component = new AssessmentSheetsComponent(
       assessmentSheets as any,
       {} as any,
+      teachers as any,
       { navigate: jasmine.createSpy('navigate') } as any
     );
     const refresh = jasmine.createSpy('refresh').and.returnValue(Promise.resolve());
     component.grid = {
       instance: {
         refresh,
-        pageIndex: jasmine.createSpy('pageIndex')
+        pageIndex: jasmine.createSpy('pageIndex'),
+        clearSelection: jasmine.createSpy('clearSelection')
       }
     } as any;
-    return { component, assessmentSheets, refresh };
+    return { component, assessmentSheets, teachers, refresh };
   };
 
   it('previews an xlsx file before submitting and imports only after confirmation action', async () => {
@@ -416,6 +420,41 @@ describe('Assessment sheets Excel import', () => {
     await component.submitImportExcel();
 
     expect(assessmentSheets.importExcel).not.toHaveBeenCalled();
+  });
+
+  it('clears the multi-selection and resets the teacher filter on reset (G7a/G7b)', () => {
+    const { component } = createComponent({}, {});
+    component.responsibleTeacherId = 'teacher-9';
+    component.selectedSheets = [{ id: 's1' } as any];
+    component.onSelectionChanged({ selectedRowsData: [{ id: 's2' } as any] });
+    expect(component.selectedSheets).toEqual([{ id: 's2' } as any]);
+
+    component.resetFilters();
+
+    expect(component.responsibleTeacherId).toBeNull();
+    expect(component.selectedSheets).toEqual([]);
+    expect(component.grid?.instance.clearSelection).toHaveBeenCalled();
+  });
+
+  it('downloads a zip archive for the selected sheets via Bulk Action (G7c)', async () => {
+    const { component, assessmentSheets } = createComponent({}, {});
+    const downloadSpy = spyOn<any>(component, 'downloadBlob');
+    component.selectedSheets = [{ id: 's1' } as any, { id: 's2' } as any];
+
+    await component.onBulkAction({ itemData: { id: 'result-img' } });
+
+    expect(assessmentSheets.downloadPdfArchive).toHaveBeenCalledWith(['s1', 's2'], 'Result', 'Images');
+    expect(downloadSpy).toHaveBeenCalled();
+    expect(component.bulkActionInProgress).toBeFalse();
+  });
+
+  it('ignores Bulk Action when nothing is selected', async () => {
+    const { component, assessmentSheets } = createComponent({}, {});
+    component.selectedSheets = [];
+
+    await component.onBulkAction({ itemData: { id: 'plan-pdf' } });
+
+    expect(assessmentSheets.downloadPdfArchive).not.toHaveBeenCalled();
   });
 });
 

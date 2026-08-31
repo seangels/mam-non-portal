@@ -4,7 +4,7 @@ Bản ghi nhận feedback, **chưa thực thi**. Gom 11 ý người dùng nêu n
 
 ## Tóm tắt ngắn
 
-> **Tiến độ:** Đợt 1 (G1, G2, G8, G9) ✅ **đã code + verify** — xem [`30-ASH-FB-W1.md`](30-ASH-FB-W1.md). Thứ tự thực thi còn lại theo yêu cầu người dùng (2026-08-31): **Đợt 4 → Đợt 2 → Đợt 3**.
+> **Tiến độ:** Đợt 1 (G1, G2, G8, G9) ✅ [`30-ASH-FB-W1.md`](30-ASH-FB-W1.md) — commit `9155e54`. Đợt 4 (G7a, G7b, G7c) ✅ [`31-ASH-FB-W4.md`](31-ASH-FB-W4.md). Còn lại: **Đợt 2 (G3+G4+G5) → Đợt 3 (G6b, G6a)**.
 
 1. ✅ **G1 — Tạo mới AssessmentSheet không bắt buộc chọn mục đánh giá.** [`ASH-FB-W1`] `POST /assessment-sheets` cho `records: []` rỗng, ràng buộc khác giữ nguyên; sau khi tạo điều hướng thẳng vào màn edit của sheet vừa tạo; panel chọn mục đánh giá chỉ ở màn edit. *(item 1 — đã chốt)*
 2. ✅ **G2 — Records panel: [`ASH-FB-W1`]  cặp icon `thêm`/`xóa` mỗi dòng, bỏ mọi confirm.** Dòng chưa có record: hiện icon `thêm`. Dòng đã có record: ẩn icon `thêm`, hiện icon `xóa`. Thao tác vẫn lưu ngay qua endpoint full-replace records. *(item 2 — đã chốt, đảo confirm của `ASH-FE-07`/`ASH-FE-08`)*
@@ -13,9 +13,9 @@ Bản ghi nhận feedback, **chưa thực thi**. Gom 11 ý người dùng nêu n
 5. ⬜ **G5 — Bảng picker: 2 vòng lọc.** Vòng 1 = panel filter sẵn có (TagBox…). Vòng 2 = bật `headerFilter` (`allowSelectAll=true`) **và** filter row của datagrid. Mặc định lọc `Kết quả` = tất cả trừ `Đạt +` (gồm `Chưa có`); **không** cần đồng bộ với default TagBox `ASH-FE-05`. Item cho dropdown nhóm Lv1/Lv2/Lv3 + `Kết quả` = dùng cơ chế header filter tự sinh (distinct từ dữ liệu đang hiển thị). *(item 5 + 6 — đã chốt; xem G3 điểm 9 cho thứ tự Lv2)*
 6. ⬜ **G6a — Sticky bar edit: nút combo `Hoàn thành kế hoạch`.** Điều kiện status = `Open`. Auto chạy tuần tự như thao tác tay: Lưu (Open) → chuyển `Planed` → Lữu (Planed) → tạo PDF kế hoạch + upload Drive. Không chạy nền/ẩn. Lỗi ở bước nào thì **dừng ở bước đó** như thao tác thủ công. Không confirm trước khi chạy. *(item 7 — đã chốt)*
 7. ⬜ **G6b — Sticky bar edit: nút `Tạo mới đánh giá`.** Mở form tạo trống; có nhắc nếu sheet hiện tại còn thay đổi chưa lưu. *(item 8 — đã chốt)*
-8. ⬜ **G7a — Danh sách: lọc theo giáo viên phụ trách.** Nguồn dropdown = `GET /teachers`. Role `Teacher` không khóa (vẫn được đổi filter). *(item 10.1 — đã chốt)*
-9. ⬜ **G7b — Danh sách: datagrid select multi + paging remote server-side.** `selectAllMode` **không** giữ selection qua các trang. *(item 10.2 — đã chốt)*
-10. ⬜ **G7c — Danh sách: dropdown button `Bulk Action`** trên nhiều dòng đã chọn — `Tải PDF khcn`, `Tải ảnh khcn`, `Tải PDF KQ`, `Tải ảnh KQ`. Zip + convert PDF→ảnh làm **ở client**; bytes PDF lấy qua **endpoint backend proxy** (link Drive không fetch được trực tiếp do CORS). Dòng chưa có PDF: bỏ qua kèm cảnh báo. Ảnh: định dạng + độ phân giải mặc định, 1 ảnh/trang. Tên file trong zip: `<tên action> + <timestamp>`. *(item 10.3 — đã chốt)*
+8. ✅ **G7a [`ASH-FB-W4`] — Danh sách: lọc theo giáo viên phụ trách.** Nguồn dropdown = `GET /teachers`. Role `Teacher` không khóa (vẫn được đổi filter). *(item 10.1 — đã chốt)*
+9. ✅ **G7b [`ASH-FB-W4`] — Danh sách: datagrid select multi + paging remote server-side.** `selectAllMode` **không** giữ selection qua các trang. *(item 10.2 — đã chốt)*
+10. ✅ **G7c [`ASH-FB-W4`] — Danh sách: dropdown button `Bulk Action`** trên nhiều dòng đã chọn — `Tải PDF khcn`, `Tải ảnh khcn`, `Tải PDF KQ`, `Tải ảnh KQ`. Zip + convert PDF→ảnh làm **ở client**; bytes PDF lấy qua **endpoint backend proxy** (link Drive không fetch được trực tiếp do CORS). Dòng chưa có PDF: bỏ qua kèm cảnh báo. Ảnh: định dạng + độ phân giải mặc định, 1 ảnh/trang. Tên file trong zip: `<tên action> + <timestamp>`. *(item 10.3 — đã chốt)*
 11. ✅ **G8 — Upload Google Drive: [`ASH-FB-W1`]  tạo file mới trước, xóa file cũ theo ID đã lưu sau.** Link/ID đổi mỗi lần → cập nhật `PlanFileLinkPdf`/`ResultFileLinkPdf` mỗi lần, không cache link cũ. File cũ đã bị xóa tay trên Drive → bỏ qua lỗi `not found`. *(item 9 — đã chốt)*
 12. ✅ **G9 — Thêm status `Canceled`.** [`ASH-FB-W1`] Chuyển sang `Canceled` từ trạng thái nào cũng được; từ `Canceled` chuyển đi về trạng thái nào cũng được (không ràng buộc, không lưu previous). `Canceled` chỉ là nhãn, **vẫn cho sửa**. Không loại khỏi thống kê / danh sách mặc định. `sync-assessments` mode 2 `sheetStatuses` **có** nhận `Canceled`. *(item 11 — đã chốt)*
 

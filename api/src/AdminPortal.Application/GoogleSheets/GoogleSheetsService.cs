@@ -945,6 +945,32 @@ public class GoogleSheetsService : IGoogleSheetsService, IDisposable
         return file.WebViewLink ?? $"https://drive.google.com/file/d/{file.Id}/view";
     }
 
+    public async Task<DriveFileContent> DownloadAssessmentSheetPdfAsync(string fileLink, CancellationToken cancellationToken)
+    {
+        var fileId = ExtractDriveFileId(fileLink)
+            ?? throw GoogleOperationFailed("Link PDF trên Google Drive không hợp lệ.");
+        try
+        {
+            var metadataRequest = _driveService.Value.Files.Get(fileId);
+            metadataRequest.Fields = "name";
+            var metadata = await metadataRequest.ExecuteAsync(cancellationToken);
+
+            using var stream = new MemoryStream();
+            await _driveService.Value.Files.Get(fileId).DownloadAsync(stream, cancellationToken);
+
+            var name = string.IsNullOrWhiteSpace(metadata.Name) ? $"{fileId}.pdf" : metadata.Name;
+            return new DriveFileContent(stream.ToArray(), name);
+        }
+        catch (AppException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            throw GoogleOperationFailed("Lỗi khi tải PDF từ Google Drive.", ex);
+        }
+    }
+
     private async Task TryDeleteDriveFileAsync(string fileId, CancellationToken cancellationToken)
     {
         try

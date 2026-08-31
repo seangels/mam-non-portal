@@ -5,6 +5,7 @@ import { RouterModule } from '@angular/router';
 import { DxButtonModule } from 'devextreme-angular/ui/button';
 import { DxCheckBoxModule } from 'devextreme-angular/ui/check-box';
 import { DxDataGridModule } from 'devextreme-angular/ui/data-grid';
+import { DxDropDownButtonModule } from 'devextreme-angular/ui/drop-down-button';
 import { DxFormModule } from 'devextreme-angular/ui/form';
 import { DxLoadIndicatorModule } from 'devextreme-angular/ui/load-indicator';
 import { DxPopupModule } from 'devextreme-angular/ui/popup';
@@ -32,6 +33,7 @@ import { AssessmentSheetFormComponent } from './assessment-sheets-form.component
     DxButtonModule,
     DxCheckBoxModule,
     DxDataGridModule,
+    DxDropDownButtonModule,
     DxFormModule,
     DxLoadIndicatorModule,
     DxPopupModule,

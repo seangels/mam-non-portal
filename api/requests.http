@@ -441,6 +441,23 @@ Authorization: Bearer {{accessToken}}
 POST {{host}}/api/v1/assessment-sheets/{{assessmentSheetId}}/submit-results/preview
 Authorization: Bearer {{accessToken}}
 
+### Lọc danh sách theo giáo viên phụ trách (ASH-FB-W4)
+GET {{host}}/api/v1/assessment-sheets?page=1&pageSize=20&responsibleTeacherId={{teacherId}}&sortBy=updatedAt&sortOrder=desc
+Authorization: Bearer {{accessToken}}
+
+### Bulk Action: tải + gộp PDF/ảnh của nhiều bảng đánh giá thành 1 zip (backend tải từ Drive).
+# kind: Plan | Result ; format: Pdf (zip các PDF gốc) | Images (zip PNG từng trang, render server-side).
+# Bảng thiếu link / lỗi tải bị bỏ qua và ghi trong _bo-qua.txt của zip; response luôn application/zip.
+POST {{host}}/api/v1/assessment-sheets/pdf-archive
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "ids": ["{{assessmentSheetId}}"],
+  "kind": "Plan",
+  "format": "Pdf"
+}
+
 ###
 
 # Smoke anonymous/local: kích hoạt OAuth credential Google nếu cần và đọc metadata nhẹ của spreadsheet cấu hình.

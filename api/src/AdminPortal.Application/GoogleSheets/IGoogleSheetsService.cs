@@ -50,4 +50,14 @@ public interface IGoogleSheetsService
         string studentCode,
         IReadOnlyList<AssessmentRecord> records,
         CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Tải nội dung + tên gốc của một file PDF trên Google Drive theo webViewLink đã lưu (ví dụ
+    /// <see cref="AssessmentSheet.PlanFileLinkPdf"/>). Dùng cho endpoint proxy tải/gộp PDF hàng loạt —
+    /// link Drive không tải trực tiếp từ trình duyệt được (CORS).
+    /// </summary>
+    Task<DriveFileContent> DownloadAssessmentSheetPdfAsync(string fileLink, CancellationToken cancellationToken);
 }
+
+/// <summary>Nội dung một file tải từ Google Drive kèm tên hiển thị gốc.</summary>
+public sealed record DriveFileContent(byte[] Content, string Name);

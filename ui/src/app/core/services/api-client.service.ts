@@ -19,6 +19,13 @@ export class ApiClient {
     }).pipe(catchError(error => throwError(() => ApiError.from(error))));
   }
 
+  postBlob(path: string, body: unknown): Observable<Blob> {
+    return this.http.post(this.url(path), body ?? {}, {
+      withCredentials: true,
+      responseType: 'blob'
+    }).pipe(catchError(error => throwError(() => ApiError.from(error))));
+  }
+
   post<T>(path: string, body?: unknown): Observable<T> {
     return this.http.post<T>(this.url(path), body ?? {}, { withCredentials: true })
       .pipe(catchError(error => throwError(() => ApiError.from(error))));

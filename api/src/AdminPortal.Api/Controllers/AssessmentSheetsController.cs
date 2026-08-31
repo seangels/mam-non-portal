@@ -182,6 +182,19 @@ public sealed class AssessmentSheetsController(IAssessmentSheetService assessmen
         CancellationToken cancellationToken) =>
         Ok(await assessmentSheetService.PreviewSubmitResultsAsync(id, cancellationToken));
 
+    // Bulk Action: chọn nhiều bảng đánh giá rồi tải toàn bộ PDF kế hoạch/kết quả từ Google Drive, gộp
+    // thành một zip ở backend (link Drive không fetch trực tiếp từ browser được do CORS). Format Images
+    // render từng trang PDF thành PNG. Dòng thiếu file/tải lỗi bị bỏ qua và ghi trong _bo-qua.txt.
+    [HttpPost("pdf-archive")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<IActionResult> BuildPdfArchive(
+        AssessmentSheetPdfArchiveRequest request,
+        CancellationToken cancellationToken)
+    {
+        var result = await assessmentSheetService.BuildPdfArchiveAsync(request, cancellationToken);
+        return File(result.Content, "application/zip", result.FileName);
+    }
+
     private static void ValidateExcelImportFile(IFormFile? file)
     {
         if (file is null || file.Length == 0)
