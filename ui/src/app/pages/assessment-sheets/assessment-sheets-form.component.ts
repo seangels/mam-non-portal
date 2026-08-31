@@ -527,12 +527,45 @@ export class AssessmentSheetFormComponent implements OnInit, OnDestroy {
     autoResizeEnabled: true,
     valueChangeEvent: 'input'
   };
-  get pdfLinkEditorOptions(): Record<string, unknown> {
+  get planLinkEditorOptions(): Record<string, unknown> {
+    return this.buildLinkEditorOptions('planFileLinkPdf', 'Mở link Kế hoạch (KHCN)');
+  }
+
+  get resultLinkEditorOptions(): Record<string, unknown> {
+    return this.buildLinkEditorOptions('resultFileLinkPdf', 'Mở link Kết quả (KQ)');
+  }
+
+  // Ô nhập link dạng input-group: text box + nút mở link bên phải, chỉ bấm được khi đã có link.
+  private buildLinkEditorOptions(
+    field: 'planFileLinkPdf' | 'resultFileLinkPdf',
+    openHint: string
+  ): Record<string, unknown> {
+    const hasLink = !!(this.editor[field] || '').trim();
     return {
       maxLength: 2000,
       readOnly: this.originalStatus === 'Open',
-      valueChangeEvent: 'input'
+      valueChangeEvent: 'input',
+      buttons: [
+        {
+          name: 'openLink',
+          location: 'after',
+          options: {
+            icon: 'link',
+            stylingMode: 'text',
+            disabled: !hasLink,
+            hint: hasLink ? openHint : 'Chưa có link để mở',
+            onClick: () => this.openEditorLink(field)
+          }
+        }
+      ]
     };
+  }
+
+  openEditorLink(field: 'planFileLinkPdf' | 'resultFileLinkPdf'): void {
+    const url = (this.editor[field] || '').trim();
+    if (url) {
+      window.open(url, '_blank', 'noopener,noreferrer');
+    }
   }
   readonly standaloneNgModelOptions = { standalone: true };
   get showPlan(): boolean {

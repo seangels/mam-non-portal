@@ -64,26 +64,25 @@
         <dxo-label text="Hạn hoàn thành"></dxo-label>
       </dxi-item>
 
-      <dxi-item editorType="empty" [visible]="isCreate"></dxi-item>
+      <dxi-item dataField="planFileLinkPdf" editorType="dxTextBox" [editorOptions]="planLinkEditorOptions">
+        <dxo-label text="Link KHCN"></dxo-label>
+        <dxi-validation-rule type="stringLength" [max]="2000" message="Link KHCN tối đa 2.000 ký tự"></dxi-validation-rule>
+      </dxi-item>
+      <dxi-item dataField="resultFileLinkPdf" editorType="dxTextBox" [editorOptions]="resultLinkEditorOptions">
+        <dxo-label text="Link KQ"></dxo-label>
+        <dxi-validation-rule type="stringLength" [max]="2000" message="Link KQ tối đa 2.000 ký tự"></dxi-validation-rule>
+      </dxi-item>
 
-      <dxi-item dataField="note" editorType="dxTextArea"
+      <dxi-item dataField="note" editorType="dxTextArea" [colSpan]="3"
         [editorOptions]="noteEditorOptions">
         <dxo-label text="Ghi chú"></dxo-label>
         <dxi-validation-rule type="stringLength" [max]="2000" message="Ghi chú tối đa 2.000 ký tự"></dxi-validation-rule>
       </dxi-item>
 
-      <dxi-item dataField="feedback" editorType="dxTextArea"
+      <dxi-item dataField="feedback" editorType="dxTextArea" [colSpan]="3"
         [editorOptions]="noteEditorOptions">
         <dxo-label text="Nhận xét kết quả"></dxo-label>
         <dxi-validation-rule type="stringLength" [max]="2000" message="Nhận xét tối đa 2.000 ký tự"></dxi-validation-rule>
-      </dxi-item>
-      <dxi-item dataField="planFileLinkPdf" editorType="dxTextBox" [editorOptions]="pdfLinkEditorOptions">
-        <dxo-label text="Link KHCN"></dxo-label>
-        <dxi-validation-rule type="stringLength" [max]="2000" message="Link KHCN tối đa 2.000 ký tự"></dxi-validation-rule>
-      </dxi-item>
-      <dxi-item dataField="resultFileLinkPdf" editorType="dxTextBox" [editorOptions]="pdfLinkEditorOptions">
-        <dxo-label text="Link KQ"></dxo-label>
-        <dxi-validation-rule type="stringLength" [max]="2000" message="Link KQ tối đa 2.000 ký tự"></dxi-validation-rule>
       </dxi-item>
     </dx-form>
 

@@ -733,6 +733,25 @@ describe('Assessment sheet form DevExtreme option stability', () => {
     expect(component.focusedValueRecordId).toBeNull();
   });
 
+  it('enables the link editor open button only when a link is present and opens it in a new tab', () => {
+    const component = createComponent('edit');
+    const openButton = () => (component.planLinkEditorOptions['buttons'] as any[])[0].options;
+
+    component.editor.planFileLinkPdf = '';
+    expect(openButton().disabled).toBeTrue();
+
+    component.editor.planFileLinkPdf = 'https://drive.google.com/file/d/abc/view';
+    expect(openButton().disabled).toBeFalse();
+
+    const openSpy = spyOn(window, 'open');
+    component.openEditorLink('planFileLinkPdf');
+    expect(openSpy).toHaveBeenCalledWith('https://drive.google.com/file/d/abc/view', '_blank', 'noopener,noreferrer');
+
+    component.editor.resultFileLinkPdf = '   ';
+    component.openEditorLink('resultFileLinkPdf');
+    expect(openSpy).toHaveBeenCalledTimes(1);
+  });
+
   it('keeps editor option object references stable across change detection reads', () => {
     const component = createComponent();
 
