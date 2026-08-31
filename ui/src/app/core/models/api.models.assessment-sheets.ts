@@ -1,12 +1,14 @@
 import { Gender, ListQuery } from './api.models';
 
-export type AssessmentSheetStatus = 'Open' | 'Planed' | 'Done';
+export type AssessmentSheetStatus = 'Open' | 'Planed' | 'Done' | 'Canceled';
 export type AssessmentGrade = 'A' | 'B' | 'C' | 'D';
 
 export const ASSESSMENT_SHEET_STATUS_OPTIONS: { value: AssessmentSheetStatus; text: string }[] = [
   { value: 'Open', text: 'Đang mở' },
   { value: 'Planed', text: 'Đã lập kế hoạch' },
-  { value: 'Done', text: 'Hoàn tất' }
+  { value: 'Done', text: 'Hoàn tất' },
+  // Nhãn phân loại "không làm nữa"; không side-effect — vẫn cho sửa như Open, chuyển qua/lại tự do.
+  { value: 'Canceled', text: 'Đã hủy' }
 ];
 
 // Thứ tự/định nghĩa đã chốt với người dùng (2026-08-30): A = "Đạt +" (rank 3, cao nhất) >

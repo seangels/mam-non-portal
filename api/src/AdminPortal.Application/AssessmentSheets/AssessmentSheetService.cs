@@ -77,7 +77,10 @@ public sealed partial class AssessmentSheetService(
         var actor = currentActor.GetRequired();
         AssessmentSheetRules.EnsureAssessmentSheetRole(actor);
         var assessmentIds = request.Records.Select(x => x.AssessmentId).ToArray();
-        AssessmentSheetRules.EnsureDistinctIds(assessmentIds, "records");
+        // Cho phép tạo bảng đánh giá "rỗng" (không mục nào) — người dùng thêm mục ở màn edit sau.
+        // Khi có mục thì vẫn phải hợp lệ và không trùng.
+        if (assessmentIds.Length > 0)
+            AssessmentSheetRules.EnsureDistinctIds(assessmentIds, "records");
 
         var student = await dbContext.Students.AsNoTracking()
             .SingleOrDefaultAsync(x => x.Id == request.StudentId, cancellationToken)
@@ -263,7 +266,8 @@ public sealed partial class AssessmentSheetService(
         var old = SnapshotForAudit(sheet);
         var now = timeProvider.GetUtcNow();
 
-        if (sheet.AssessmentSheetStatus == AssessmentSheetStatus.Open)
+        // Canceled chỉ là nhãn phân loại — vẫn cho sửa metadata như Open.
+        if (sheet.AssessmentSheetStatus is AssessmentSheetStatus.Open or AssessmentSheetStatus.Canceled)
         {
             var responsibleTeacher = await LoadResponsibleTeacherAsync(request.ResponsibleTeacherId, cancellationToken);
             sheet.ResponsibleTeacherId = responsibleTeacher?.Id;

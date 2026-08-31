@@ -391,7 +391,7 @@
                   icon="trash"
                   stylingMode="text"
                   type="danger"
-                  [disabled]="!canMutateRecords || records.length <= 1"
+                  [disabled]="!canMutateRecords"
                   [hint]="removeRecordHint(row.record)"
                   (onClick)="removeAssessmentRecord(row.record)">
                 </dx-button>
@@ -535,23 +535,18 @@
   </dx-popup>
 
   <app-assessment-picker
-    *ngIf="isCreate"
-    [studentId]="editor.studentId || null"
-    [(selectedIds)]="editor.assessmentIds">
-  </app-assessment-picker>
-
-  <app-assessment-picker
     *ngIf="!isCreate && showAddAssessmentPicker"
     mode="add"
     [studentId]="editor.studentId || null"
     [existingCodes]="existingAssessmentCodes"
     [addDisabled]="!canMutateRecords"
-    (assessmentAdd)="addAssessmentToSheet($event)">
+    (assessmentAdd)="addAssessmentToSheet($event)"
+    (assessmentRemove)="removeAssessmentRecordByAssessment($event)">
   </app-assessment-picker>
 
   <div class="form-actions">
     <span class="action-summary" aria-live="polite">
-      <strong>{{ selectedAssessmentCount }}</strong> mục đánh giá đã chọn
+      <ng-container *ngIf="!isCreate"><strong>{{ selectedAssessmentCount }}</strong> mục đánh giá đã chọn</ng-container>
       <small *ngIf="dirty">Có thay đổi chưa lưu</small>
     </span>
     <div class="form-action-buttons">

@@ -25,7 +25,7 @@ describe('GoogleSheetsSyncDialogComponent', () => {
     component.replaceFields = {
       name: true, groupLv1Name: false, groupLv2Name: true, groupLv3Name: false, rowIndex: true
     };
-    component.replaceStatuses = { Open: true, Planed: false, Done: true };
+    component.replaceStatuses = { Open: true, Planed: false, Done: true, Canceled: false };
 
     expect(component.buildRequest()).toEqual({
       replaceRecordSnapshots: {
@@ -64,10 +64,10 @@ describe('GoogleSheetsSyncDialogComponent', () => {
     expect(component.confirmDisabled).toBeTrue();
 
     component.replaceFields = { ...component.replaceFields, name: true };
-    component.replaceStatuses = { Open: false, Planed: false, Done: false };
+    component.replaceStatuses = { Open: false, Planed: false, Done: false, Canceled: false };
     expect(component.confirmDisabled).toBeTrue();
 
-    component.replaceStatuses = { Open: true, Planed: false, Done: false };
+    component.replaceStatuses = { Open: false, Planed: false, Done: false, Canceled: true };
     expect(component.confirmDisabled).toBeFalse();
   });
 
@@ -85,6 +85,6 @@ describe('GoogleSheetsSyncDialogComponent', () => {
     expect(component.replaceFields).toEqual({
       name: true, groupLv1Name: false, groupLv2Name: false, groupLv3Name: false, rowIndex: false
     });
-    expect(component.replaceStatuses).toEqual({ Open: true, Planed: true, Done: true });
+    expect(component.replaceStatuses).toEqual({ Open: true, Planed: true, Done: true, Canceled: true });
   });
 });

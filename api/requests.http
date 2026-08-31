@@ -310,6 +310,20 @@ Content-Type: application/json
   ]
 }
 
+### Tạo bảng đánh giá rỗng — records: [] hợp lệ (thêm mục ở màn edit sau)
+POST {{host}}/api/v1/assessment-sheets
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "studentId": "{{studentId}}",
+  "responsibleTeacherId": null,
+  "note": null,
+  "startDate": "2026-08-20T00:00:00+07:00",
+  "dueDate": "2026-10-31T00:00:00+07:00",
+  "records": []
+}
+
 ###
 
 PUT {{host}}/api/v1/assessment-sheets/{{assessmentSheetId}}
@@ -374,6 +388,15 @@ Content-Type: application/json
 
 {
   "status": "Done"
+}
+
+### status = Canceled: nhãn "không làm nữa" — chuyển được từ/đến mọi trạng thái, vẫn cho sửa như Open
+PUT {{host}}/api/v1/assessment-sheets/{{assessmentSheetId}}/status
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "status": "Canceled"
 }
 
 ###

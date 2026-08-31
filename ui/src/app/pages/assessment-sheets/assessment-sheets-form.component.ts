@@ -99,7 +99,8 @@ export function canEditAssessmentSheetRecordGroups(
   role: UserRole | null | undefined
 ): boolean {
   const roleAllowed = role === 'Teacher' || role === 'Admin' || role === 'SuperAdmin';
-  return roleAllowed && (status === 'Open' || status === 'Planed');
+  // 'Canceled' chỉ là nhãn phân loại — vẫn cho chỉnh sửa như 'Open'.
+  return roleAllowed && (status === 'Open' || status === 'Planed' || status === 'Canceled');
 }
 
 export function canUpdateAssessmentCatalogGroups(role: UserRole | null | undefined): boolean {
@@ -184,11 +185,12 @@ export function buildUpdateAssessmentSheetRequest(editor: AssessmentSheetEditor)
 }
 
 export function canMutateAssessmentSheetRecords(status: AssessmentSheetStatus | null | undefined): boolean {
-  return status === 'Open';
+  // 'Canceled' chỉ là nhãn phân loại — vẫn cho thêm/xóa mục như 'Open'.
+  return status === 'Open' || status === 'Canceled';
 }
 
 export function canEditAssessmentSheetRecordValues(status: AssessmentSheetStatus | null | undefined): boolean {
-  return status === 'Open' || status === 'Planed';
+  return status === 'Open' || status === 'Planed' || status === 'Canceled';
 }
 
 export function buildReplaceAssessmentSheetRecordsRequest(
@@ -256,9 +258,7 @@ export function buildRemoveAssessmentSheetRecordRequest(
   if (recordsToKeep.length === currentRecords.length) {
     throw new Error('Không tìm thấy mục đánh giá cần xóa.');
   }
-  if (recordsToKeep.length === 0) {
-    throw new Error('Bảng đánh giá cần có ít nhất một mục đánh giá.');
-  }
+  // G1: bảng đánh giá được phép rỗng — không chặn xóa mục cuối cùng.
 
   const assessmentByCode = new Map(
     availableAssessments
@@ -548,7 +548,8 @@ export class AssessmentSheetFormComponent implements OnInit, OnDestroy {
     openHint: string
   ): Record<string, unknown> {
     const hasLink = !!this.linkHref(field);
-    const readOnly = this.originalStatus === 'Open';
+    // Nhập tay link chỉ mở ở 'Planed'/'Done'; 'Open' và 'Canceled' để nút upload PDF quản lý link.
+    const readOnly = this.originalStatus === 'Open' || this.originalStatus === 'Canceled';
     const cached = this.linkEditorOptionsCache.get(field);
     if (cached && cached.hasLink === hasLink && cached.readOnly === readOnly) {
       return cached.options;
@@ -601,7 +602,8 @@ export class AssessmentSheetFormComponent implements OnInit, OnDestroy {
   }
   readonly standaloneNgModelOptions = { standalone: true };
   get showPlan(): boolean {
-    return this.showPlanColumn || this.originalStatus === 'Open'
+    // 'Canceled' hành xử như 'Open' (chỉ là nhãn) — luôn hiện cột kế hoạch để còn sửa được.
+    return this.showPlanColumn || this.originalStatus === 'Open' || this.originalStatus === 'Canceled'
   }
   get title(): string {
     return this.isCreate ? 'Tạo' : 'Chỉnh sửa';
@@ -609,11 +611,12 @@ export class AssessmentSheetFormComponent implements OnInit, OnDestroy {
 
   get subtitle(): string {
     return this.isCreate
-      ? 'Chọn học sinh và các mục đánh giá để tạo kế hoạch cá nhân.'
+      ? 'Chọn học sinh và thông tin chung để tạo bảng đánh giá. Thêm mục đánh giá ở bước chỉnh sửa.'
       : 'Cập nhật thông tin chung, ghi chú và trạng thái của bảng đánh giá.';
   }
   get showResult(): boolean {
-    return this.originalStatus === 'Planed' || this.originalStatus === 'Done'
+    // Gồm 'Canceled' để không giấu kết quả đã nhập của bảng bị hủy sau khi đã Planed/Done.
+    return this.originalStatus === 'Planed' || this.originalStatus === 'Done' || this.originalStatus === 'Canceled'
   }
   get dirty(): boolean {
     return !this.loading && this.serialize(this.editor) !== this.baseline;
@@ -766,14 +769,11 @@ export class AssessmentSheetFormComponent implements OnInit, OnDestroy {
       firstRule?.validator?.focus?.();
       return;
     }
+    // G1: cho tạo bảng đánh giá rỗng — không bắt buộc chọn mục đánh giá ở màn tạo.
+    // Người dùng thêm mục ở màn edit (điều hướng vào ngay sau khi tạo).
     const createRequest = this.isCreate
       ? buildCreateAssessmentSheetRequest(this.editor, this.assessmentPicker?.getSelectedAssessments() ?? [])
       : null;
-    if (this.isCreate && createRequest?.records.length === 0) {
-      this.formError = 'Vui lòng chọn ít nhất một mục đánh giá.';
-      this.assessmentPicker?.focus();
-      return;
-    }
 
     this.saving = true;
     this.formError = '';
@@ -946,14 +946,7 @@ export class AssessmentSheetFormComponent implements OnInit, OnDestroy {
     if (!this.canMutateRecords) {
       return;
     }
-    const accepted = await confirm(
-      `Thêm mục đánh giá "${assessment.code} · ${assessment.name}" vào bảng đánh giá này?`,
-      'Xác nhận thêm'
-    );
-    if (!accepted) {
-      return;
-    }
-
+    // G2: thao tác thêm mục là hành động dạng icon nhanh — không confirm.
     let request: ReplaceAssessmentSheetRecordsRequest;
     try {
       request = buildReplaceAssessmentSheetRecordsRequest(
@@ -988,9 +981,6 @@ export class AssessmentSheetFormComponent implements OnInit, OnDestroy {
     if (lockHint) {
       return lockHint;
     }
-    if (this.records.length <= 1) {
-      return 'Bảng đánh giá cần giữ ít nhất một mục đánh giá';
-    }
     return `Xóa mục ${record.assessment.code} · ${record.assessment.name}`;
   }
 
@@ -998,19 +988,7 @@ export class AssessmentSheetFormComponent implements OnInit, OnDestroy {
     if (!this.canMutateRecords) {
       return;
     }
-    if (this.records.length <= 1) {
-      this.formError = 'Bảng đánh giá cần có ít nhất một mục đánh giá.';
-      return;
-    }
-
-    const accepted = await confirm(
-      `Xóa mục đánh giá "${record.assessment.code} · ${record.assessment.name}" khỏi bảng đánh giá này?`,
-      'Xác nhận xóa'
-    );
-    if (!accepted) {
-      return;
-    }
-
+    // G2: xóa mục là hành động dạng icon nhanh — không confirm. G1: cho xóa tới rỗng.
     let request: ReplaceAssessmentSheetRecordsRequest;
     try {
       const availableAssessments = await this.loadAssessmentCache();
@@ -1036,6 +1014,19 @@ export class AssessmentSheetFormComponent implements OnInit, OnDestroy {
     } finally {
       this.removingRecordId = null;
     }
+  }
+
+  // G2: nút xóa (icon thùng rác) trên từng dòng picker ở chế độ thêm — gỡ mục đã có khỏi bảng.
+  removeAssessmentRecordByAssessment(assessment: Assessment): void {
+    const code = normalizeCode(assessment.code);
+    const record = code
+      ? this.records.find(item => normalizeCode(item.assessment.code) === code)
+      : undefined;
+    if (!record) {
+      this.formError = 'Không tìm thấy mục đánh giá cần xóa trong bảng.';
+      return;
+    }
+    void this.removeAssessmentRecord(record);
   }
 
   updateRecordFinalGrade(record: AssessmentSheetRecord, value: AssessmentGrade | null): void {

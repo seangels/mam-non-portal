@@ -40,6 +40,7 @@ Theo mục 13 của plan. Cả 5 quyết định đã được khoá. `ASH-DEC-0
 | Cleanup delta | 1 | 0 | 0 | 1 | 0 |
 | Import delta | 2 | 0 | 1 | 1 | 0 |
 | Group editing delta | 1 | 1 | 0 | 0 | 0 |
+| Feedback batch | 2 | 1 | 0 | 1 | 0 |
 | QA | 1 | 1 | 0 | 0 | 0 |
 
 Cập nhật bảng này mỗi khi đổi trạng thái một dòng bên dưới.
@@ -124,6 +125,13 @@ Cập nhật bảng này mỗi khi đổi trạng thái một dòng bên dưới
 | `[~]` | [`ASH-SYNC-01`](details/27-ASH-SYNC-01.md) | Popup "Đồng bộ GGSheet" thêm 2 chế độ: (1) mặc định như cũ; (2) chỉ `Admin`/`SuperAdmin` — sau rebuild catalog, ghi đè các trường đã chọn (`Name`/`Lv1`/`Lv2`/`Lv3`/`RowIndex`) vào `AssessmentRecord.AssessmentSnapshot`, giới hạn theo trạng thái sheet đã chọn. `Teacher` disable UI + backend `403`; thiếu trường/status → `400`. Popup là component `app-google-sheets-sync-dialog`; **chỉ để 1 nút ở màn DS Đánh giá** (`pages/assessments`), đã gỡ nút đồng bộ khỏi màn danh sách bảng đánh giá và picker chọn mục. Backend build + unit 101/101; frontend `test:ci` 142/142 + dev build pass; integration suite không chạy (luồng cần Google live). Smoke thủ công chưa chạy | `ASH-GRP-01`, `ASH-IMP-02`, `POST /google-sheets/sync-assessments` |
 
 | `[~]` | [`ASH-SYNC-02`](details/28-ASH-SYNC-02.md) | Đảo quyết định "một dòng" (2026-08-28): `Assessment.Name`/`GroupLv1/2/3Name` giữ **nguyên xuống dòng** từ sync tới `AssessmentSnapshot`. `AssessmentSyncTextNormalizer` giờ chỉ `Trim()` hai đầu. Các đường ghi khác đã trim-only, không cần sửa. Backend build (Application) 0/0 + unit 102/102; integration không chạy (Google live). UI rendering newline ngoài phạm vi | `ASH-SYNC-01` |
+
+## Feedback batch — owner: `root` (điều phối; tách task con sau khi chốt)
+
+| Status | Mã | Việc cần làm | Phụ thuộc |
+|---|---|---|---|
+| `[ ]` | [`ASH-FB-01`](details/29-ASH-FB-01.md) | Ghi nhận batch feedback 2026-08-31: 11 item gom thành 9 nhóm — G1 tạo mới không bắt buộc mục đánh giá (`records: []` rỗng → điều hướng vào edit); G2 records panel cặp icon thêm/xóa bỏ confirm, đã có record thì ẩn `thêm` hiện `xóa` (đảo `ASH-FE-07`/`08`); G3 thứ tự nhóm Lv2 cố định — `ASSESSMENT_GROUP_LV2_CONFIGS` giữ nguyên, đã rà 9 điểm dùng, còn 5 điểm chờ confirm; G4 picker 6 cột/ẩn mã+rowIndex/resize `widget`; G5 bảng picker bật header+row filter, default `Kết quả` = trừ `Đạt +`; G6a sticky bar nút combo `Hoàn thành kế hoạch` (auto action, lỗi thì dừng), G6b nút `Tạo mới đánh giá` (form trống, guard dirty); G7a lọc theo GV (`GET /teachers`, Teacher không khóa), G7b select multi server-side không giữ qua trang, G7c `Bulk Action` zip client-side (rủi ro CORS link Drive mở); G8 upload Drive tạo mới trước xóa cũ theo ID sau; G9 status `Canceled` — chuyển từ mọi trạng thái, về `Open` được, chỉ là nhãn vẫn cho sửa, sync mode 2 nhận `Canceled`. Đã chốt xong 2 vòng hỏi–đáp 2026-08-31 (G3 áp cả grid picker + trang "DS Đánh giá", FE tự sắp; G7c thêm endpoint backend proxy stream PDF; G9 từ `Canceled` về trạng thái nào cũng được). Không còn câu hỏi mở. Thứ tự thực thi: Đợt 1 → **Đợt 4 → Đợt 2 → Đợt 3** (người dùng đổi 2026-08-31) | — |
+| `[x]` | [`ASH-FB-W1`](details/30-ASH-FB-W1.md) | **Đợt 1** feedback batch (G2+G9+G8+G1). G2: picker add-mode dòng đã-có hiện nút xóa (`assessmentRemove`), form bỏ mọi `confirm()` thêm/xóa, cho xóa tới rỗng. G9: `AssessmentSheetStatus` += `Canceled` (string, không migration) — nhãn phân loại, không transition rule, sửa được như `Open`, sync mode-2 nhận `Canceled`. G8: `SavePdfToDriveAsync` bỏ `Files.Update` → tạo file mới + xóa file cũ theo id (404 bỏ qua). G1: `POST /assessment-sheets` nhận `records: []`, UI create bỏ picker + điều hướng edit. BE build Release 0/0 + unit 102/102 + `has-pending-model-changes` none; FE `test:ci` 149/149 + dev build `f3c8bc68`. Integration not run (Docker off). README/requests.http/req09/plan07/memory synced; chưa commit | `ASH-FB-01` |
 
 ## QA — owner: chưa có agent QA riêng (root điều phối, backend/frontend tự chạy phần của mình)
 

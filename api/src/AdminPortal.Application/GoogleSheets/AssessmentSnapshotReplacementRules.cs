@@ -12,7 +12,7 @@ namespace AdminPortal.Application.GoogleSheets;
 public static class AssessmentSnapshotReplacementRules
 {
     public static readonly IReadOnlyList<AssessmentSheetStatus> AllSheetStatuses =
-        [AssessmentSheetStatus.Open, AssessmentSheetStatus.Planed, AssessmentSheetStatus.Done];
+        [AssessmentSheetStatus.Open, AssessmentSheetStatus.Planed, AssessmentSheetStatus.Done, AssessmentSheetStatus.Canceled];
 
     /// <summary>
     /// Phải chọn ít nhất một trường và một trạng thái bảng; nếu không thì không có gì để làm.

@@ -444,7 +444,7 @@ export interface AssessmentRecordSnapshotReplacement {
   groupLv2Name: boolean;
   groupLv3Name: boolean;
   rowIndex: boolean;
-  sheetStatuses: Array<'Open' | 'Planed' | 'Done'>;
+  sheetStatuses: Array<'Open' | 'Planed' | 'Done' | 'Canceled'>;
 }
 
 export interface SyncAssessmentFromGoogleSheetsRequest {

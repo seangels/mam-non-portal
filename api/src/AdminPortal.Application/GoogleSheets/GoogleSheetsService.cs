@@ -895,52 +895,38 @@ public class GoogleSheetsService : IGoogleSheetsService, IDisposable
         }
     }
 
-    // Không lưu PDF xuống đĩa cục bộ — luôn tạo/cập nhật file thật trên Google Drive, trả về webViewLink.
-    // Nếu đã có link cũ (regenerate), cập nhật đè lên đúng file Drive đó (Files.Update) thay vì tạo file mới,
-    // tránh tích luỹ file rác trên Drive mỗi lần bấm sinh lại PDF.
+    // Không lưu PDF xuống đĩa cục bộ — luôn tạo file THẬT MỚI trên Google Drive rồi trả về webViewLink.
+    // Cơ chế đã chốt (ASH-FB-W1 / G8): không dùng Files.Update để đè nội dung file cũ; thay vào đó tạo
+    // file mới xong rồi mới xóa file cũ theo ID (nếu có). Thứ tự này tránh mất cả hai khi lỗi giữa chừng;
+    // file cũ đã bị xóa tay trên Drive thì bỏ qua lỗi not-found.
     private async Task<string> SavePdfToDriveAsync(
         Guid studentId, string? existingFileLink, Guid assessmentSheetId, string fileName, byte[] content,
         CancellationToken cancellationToken, bool requireStudentFolder = false)
     {
+        var existingFileId = ExtractDriveFileId(existingFileLink);
+        Google.Apis.Drive.v3.Data.File file;
         try
         {
             using var stream = new MemoryStream(content);
-            var existingFileId = ExtractDriveFileId(existingFileLink);
-            Google.Apis.Drive.v3.Data.File file;
-
-            if (existingFileId is not null)
+            var folderId = await GetStudentDriveFolderIdAsync(studentId, cancellationToken);
+            if (requireStudentFolder && string.IsNullOrWhiteSpace(folderId))
             {
-                var updateRequest = _driveService.Value.Files.Update(new Google.Apis.Drive.v3.Data.File(), existingFileId, stream, "application/pdf");
-                updateRequest.Fields = "id, webViewLink";
-                var progress = await updateRequest.UploadAsync(cancellationToken);
-                if (progress.Status != Google.Apis.Upload.UploadStatus.Completed)
-                    throw progress.Exception ?? new InvalidOperationException("Cập nhật PDF trên Drive thất bại.");
-                file = updateRequest.ResponseBody;
+                throw new ConflictException(
+                    "Học sinh chưa có Drive folder id, không thể tạo PDF kế hoạch lên Google Drive.",
+                    ProblemCodes.StudentDriveFolderRequired);
             }
-            else
+            var metadata = new Google.Apis.Drive.v3.Data.File
             {
-                var folderId = await GetStudentDriveFolderIdAsync(studentId, cancellationToken);
-                if (requireStudentFolder && string.IsNullOrWhiteSpace(folderId))
-                {
-                    throw new ConflictException(
-                        "Học sinh chưa có Drive folder id, không thể tạo PDF kế hoạch lên Google Drive.",
-                        ProblemCodes.StudentDriveFolderRequired);
-                }
-                var metadata = new Google.Apis.Drive.v3.Data.File
-                {
-                    Name = $"{fileName}",
-                    MimeType = "application/pdf",
-                    Parents = folderId is null ? null : [folderId]
-                };
-                var createRequest = _driveService.Value.Files.Create(metadata, stream, "application/pdf");
-                createRequest.Fields = "id, webViewLink";
-                var progress = await createRequest.UploadAsync(cancellationToken);
-                if (progress.Status != Google.Apis.Upload.UploadStatus.Completed)
-                    throw progress.Exception ?? new InvalidOperationException("Tải PDF lên Drive thất bại.");
-                file = createRequest.ResponseBody;
-            }
-
-            return file.WebViewLink ?? $"https://drive.google.com/file/d/{file.Id}/view";
+                Name = $"{fileName}",
+                MimeType = "application/pdf",
+                Parents = folderId is null ? null : [folderId]
+            };
+            var createRequest = _driveService.Value.Files.Create(metadata, stream, "application/pdf");
+            createRequest.Fields = "id, webViewLink";
+            var progress = await createRequest.UploadAsync(cancellationToken);
+            if (progress.Status != Google.Apis.Upload.UploadStatus.Completed)
+                throw progress.Exception ?? new InvalidOperationException("Tải PDF lên Drive thất bại.");
+            file = createRequest.ResponseBody;
         }
         catch (AppException)
         {
@@ -949,6 +935,25 @@ public class GoogleSheetsService : IGoogleSheetsService, IDisposable
         catch (Exception ex)
         {
             throw GoogleOperationFailed("Lỗi khi lưu PDF lên Google Drive.", ex);
+        }
+
+        // File mới đã tạo xong — giờ mới xóa file cũ. Lỗi ở bước này không làm hỏng kết quả upload:
+        // đã có link mới hợp lệ, chỉ còn rủi ro để lại 1 file rác nếu xóa thất bại vì lý do khác not-found.
+        if (existingFileId is not null && !string.Equals(existingFileId, file.Id, StringComparison.Ordinal))
+            await TryDeleteDriveFileAsync(existingFileId, cancellationToken);
+
+        return file.WebViewLink ?? $"https://drive.google.com/file/d/{file.Id}/view";
+    }
+
+    private async Task TryDeleteDriveFileAsync(string fileId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _driveService.Value.Files.Delete(fileId).ExecuteAsync(cancellationToken);
+        }
+        catch (Google.GoogleApiException ex) when (ex.HttpStatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            // File cũ đã bị xóa tay trên Drive — coi như đã xong.
         }
     }
 

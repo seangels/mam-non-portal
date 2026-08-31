@@ -197,17 +197,32 @@ describe('Assessment sheet form request mapping', () => {
     });
   });
 
-  it('stops remove-record request when it would remove the last record', () => {
+  it('allows removing the last record so the sheet can become empty (G1)', () => {
     const recordToRemove = {
       id: 'record-1',
       assessment: { code: 'A01', name: 'Ngôn ngữ' }
     } as any;
 
-    expect(() => buildRemoveAssessmentSheetRecordRequest([
+    const request = buildRemoveAssessmentSheetRecordRequest([
       recordToRemove
     ], recordToRemove, [
       { id: 'assessment-1', code: 'A01' } as any
-    ])).toThrowError(/ít nhất một mục/);
+    ]);
+
+    expect(request).toEqual({ records: [] });
+  });
+
+  it('still throws when the record to remove is not in the list', () => {
+    const recordToRemove = {
+      id: 'missing',
+      assessment: { code: 'A01', name: 'Ngôn ngữ' }
+    } as any;
+
+    expect(() => buildRemoveAssessmentSheetRecordRequest([
+      { id: 'record-1', assessment: { code: 'A02', name: 'Vận động' } } as any
+    ], recordToRemove, [
+      { id: 'assessment-2', code: 'A02' } as any
+    ])).toThrowError(/Không tìm thấy mục đánh giá cần xóa/);
   });
 
   it('builds save-records request for edited current results', () => {
@@ -567,24 +582,27 @@ describe('Assessment sheet records table layout', () => {
 });
 
 describe('Assessment sheet edit permissions', () => {
-  it('allows record structure changes only while the selected status is Open', () => {
+  it('allows record structure changes while the selected status is Open or Canceled (G9)', () => {
     expect(canMutateAssessmentSheetRecords('Open')).toBeTrue();
+    expect(canMutateAssessmentSheetRecords('Canceled')).toBeTrue();
     expect(canMutateAssessmentSheetRecords('Planed')).toBeFalse();
     expect(canMutateAssessmentSheetRecords('Done')).toBeFalse();
     expect(canMutateAssessmentSheetRecords(null)).toBeFalse();
   });
 
-  it('keeps final grade and final note editable for Planed but locked for Done', () => {
+  it('keeps final grade and final note editable for Open/Planed/Canceled but locked for Done (G9)', () => {
     expect(canEditAssessmentSheetRecordValues('Open')).toBeTrue();
     expect(canEditAssessmentSheetRecordValues('Planed')).toBeTrue();
+    expect(canEditAssessmentSheetRecordValues('Canceled')).toBeTrue();
     expect(canEditAssessmentSheetRecordValues('Done')).toBeFalse();
     expect(canEditAssessmentSheetRecordValues(null)).toBeFalse();
   });
 
-  it('allows snapshot group edits for all portal roles in Open or Planed, but locks Done', () => {
+  it('allows snapshot group edits for all portal roles in Open/Planed/Canceled, but locks Done (G9)', () => {
     expect(canEditAssessmentSheetRecordGroups('Open', 'Teacher')).toBeTrue();
     expect(canEditAssessmentSheetRecordGroups('Planed', 'Admin')).toBeTrue();
     expect(canEditAssessmentSheetRecordGroups('Planed', 'SuperAdmin')).toBeTrue();
+    expect(canEditAssessmentSheetRecordGroups('Canceled', 'Teacher')).toBeTrue();
     expect(canEditAssessmentSheetRecordGroups('Done', 'SuperAdmin')).toBeFalse();
     expect(canEditAssessmentSheetRecordGroups('Open', null)).toBeFalse();
   });
@@ -1242,6 +1260,22 @@ describe('Assessment picker filter and selection', () => {
 
     expect(emitted).toEqual(['assessment-2']);
     expect(component.isExistingAssessment(assessment({ code: 'A01' }))).toBeTrue();
+  });
+
+  it('emits remove action only for rows already in the sheet (G2)', () => {
+    const { component } = createPicker();
+    const removed: string[] = [];
+    component.mode = 'add';
+    component.existingCodes = ['A01'];
+    component.ngOnChanges({ existingCodes: {} as any });
+    component.assessmentRemove.subscribe(value => removed.push(value.id));
+
+    component.onRemoveAssessmentClick(assessment({ id: 'assessment-1', code: 'A01' }));
+    component.onRemoveAssessmentClick(assessment({ id: 'assessment-2', code: 'A02' }));
+    component.addDisabled = true;
+    component.onRemoveAssessmentClick(assessment({ id: 'assessment-1', code: 'A01' }));
+
+    expect(removed).toEqual(['assessment-1']);
   });
 
   it('ignores programmatic checkbox value changes from grid rendering', () => {

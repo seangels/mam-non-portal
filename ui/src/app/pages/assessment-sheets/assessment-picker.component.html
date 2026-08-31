@@ -184,14 +184,23 @@
         </dx-check-box>
       </div>
       <div *dxTemplate="let cell of 'addCell'" class="add-cell">
-        <span *ngIf="isExistingAssessment(cell.data)" class="existing-badge">Đã có</span>
         <dx-button
           *ngIf="!isExistingAssessment(cell.data)"
           icon="add"
           type="default"
+          stylingMode="text"
           [disabled]="addDisabled"
           [hint]="addButtonHint(cell.data)"
           (onClick)="onAddAssessmentClick(cell.data)">
+        </dx-button>
+        <dx-button
+          *ngIf="isExistingAssessment(cell.data)"
+          icon="trash"
+          type="danger"
+          stylingMode="text"
+          [disabled]="addDisabled"
+          [hint]="removeButtonHint(cell.data)"
+          (onClick)="onRemoveAssessmentClick(cell.data)">
         </dx-button>
       </div>
       <div *dxTemplate="let cell of 'latestGradeCell'" class="latest-grade-cell">

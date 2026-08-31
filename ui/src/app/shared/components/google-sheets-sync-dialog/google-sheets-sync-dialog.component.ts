@@ -61,7 +61,7 @@ export class GoogleSheetsSyncDialogComponent {
   }
 
   get anyReplaceStatusChecked(): boolean {
-    return this.replaceStatuses.Open || this.replaceStatuses.Planed || this.replaceStatuses.Done;
+    return this.sheetStatusOptions.some(option => this.replaceStatuses[option.value]);
   }
 
   get confirmDisabled(): boolean {
@@ -115,7 +115,7 @@ function defaultReplaceFields(): ReplaceFields {
 }
 
 function defaultReplaceStatuses(): Record<AssessmentSheetStatus, boolean> {
-  return { Open: true, Planed: true, Done: true };
+  return { Open: true, Planed: true, Done: true, Canceled: true };
 }
 
 @NgModule({

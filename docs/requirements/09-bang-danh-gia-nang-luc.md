@@ -37,9 +37,12 @@
 | Trạng thái | Ý nghĩa |
 |---|---|
 | `Open` | Mới tạo, đang trong quá trình lập kế hoạch và/hoặc đánh giá. |
+| `Planed` | Đã lập kế hoạch (chốt danh sách mục đánh giá và `PlanGrade`/`PlanNote`), đang chờ nhập kết quả. |
 | `Done` | Giáo viên đã đánh dấu hoàn tất đợt đánh giá cho học sinh này. |
+| `Canceled` | Nhãn phân loại "đợt đánh giá này không làm nữa". **Không có side-effect nghiệp vụ**: vẫn cho chỉnh sửa như `Open`, không đặt `DoneDate`, không bị ẩn khỏi danh sách/thống kê mặc định. (`ASH-FB-W1`, 2026-08-31) |
 
-- `AssessmentSheet` không tự chuyển trạng thái; chuyển sang `Done` là thao tác thủ công của giáo viên/quản trị viên phụ trách.
+- `AssessmentSheet` không tự chuyển trạng thái; chuyển sang `Done`/`Canceled` là thao tác thủ công của giáo viên/quản trị viên phụ trách.
+- Không có ràng buộc thứ tự chuyển trạng thái: `PUT /assessment-sheets/{id}/status` chuyển được **giữa mọi trạng thái** theo cả hai chiều, không cần lý do. `Canceled` chuyển đi/đến từ bất kỳ trạng thái nào.
 - Trường thời gian:
   - `StartDate`: ngày bắt đầu đợt đánh giá.
   - `DueDate`: hạn hoàn thành đợt đánh giá.
@@ -53,7 +56,8 @@
 
 - Giáo viên chọn một học sinh (bất kỳ, không giới hạn theo nhóm phụ trách) và đặt `Name` cho đợt đánh giá.
 - Hệ thống snapshot thông tin học sinh tại thời điểm tạo (`StudentSnapshot`: mã học sinh, họ tên, tên gọi, ngày sinh, giới tính) để `AssessmentSheet` không đổi theo khi hồ sơ học sinh gốc thay đổi sau này.
-- Giáo viên chọn các mục đánh giá (`plan`) từ kho `Assessment` để đưa vào bảng. Màn hình chọn plan hỗ trợ các bộ lọc sau (kết hợp được với nhau):
+- Việc chọn mục đánh giá **không bắt buộc ở bước tạo** (`ASH-FB-W1`, 2026-08-31): giáo viên có thể tạo bảng "rỗng" chỉ với học sinh + thông tin chung, hệ thống điều hướng thẳng vào màn chỉnh sửa để thêm mục sau. Bảng chọn mục đánh giá (picker) chỉ hiển thị ở màn chỉnh sửa. `POST /assessment-sheets` chấp nhận `records: []`.
+- Giáo viên chọn các mục đánh giá (`plan`) từ kho `Assessment` để đưa vào bảng (ở màn chỉnh sửa). Bảng chọn plan hỗ trợ các bộ lọc sau (kết hợp được với nhau):
   - **Theo học sinh:** lấy thêm `LatestGrade`/ghi chú latest gợi ý dựa trên `AssessmentRecordLatest` (đọc-only, đã fetch từ Google Sheet) của đúng học sinh đang tạo bảng. Việc thiếu dữ liệu latest không được làm ẩn mất mục đánh giá; các field latest để trống/null.
   - **Theo mức grade:** ví dụ lọc các mục có kết quả gần nhất `LatestGrade >= B`, dùng thang xếp hạng đã chốt `A > B > C > D` — `A = 3` (cao nhất) `> B = 2 > C = 1 > D = 0` (thấp nhất); dùng để khoanh vùng các mục học sinh đã đạt mức nhất định hoặc ngược lại cần cải thiện.
   - **Theo kết quả gần nhất trên UI:** TagBox đứng đầu panel filter, cho chọn nhiều giá trị gồm `Chưa có`, `Đạt +`, `Hỗ trợ +`, `Hỗ trợ -`, `Chưa đạt -`. `Chưa có` đại diện cho mục chưa có `LatestGrade`. Filter này chạy trên dữ liệu đã tải về client và trên snapshot hiện hành của chế độ xem (`Xem tất cả` hoặc `Chỉ những mục đã chọn`), không tự gọi lại server.
@@ -77,6 +81,7 @@
   - `POST /api/v1/google-sheets/sync-assessments`: nạp `Assessment` và latest mirror từ file nguồn `[F0]`.
   - `POST /api/v1/assessment-sheets/{id}/upload-plan-pdf`: nhận PDF do UI render và upload vào `Student.DriveFolderId`.
   - `POST /api/v1/assessment-sheets/{id}/upload-result-pdf`: nhận PDF do UI render và upload vào `Student.DriveFolderId`.
+  - Cơ chế lưu Drive (`ASH-FB-W1`, 2026-08-31): mỗi lần upload **tạo file mới rồi xóa file cũ theo id** (không ghi đè nội dung file cũ tại chỗ); file cũ đã bị xóa tay trên Drive thì bỏ qua. Vì vậy `PlanFileLinkPdf`/`ResultFileLinkPdf` đổi sau mỗi lần upload — luôn dùng link mới nhất.
   - `POST /api/v1/assessment-sheets/{id}/submit-results`: ghi `FinalGrade`/`FinalNote` về ResultSource `[F0.ĐG]`.
 
 ## 7. Chỉnh sửa plan sau khi tạo

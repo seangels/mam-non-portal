@@ -28,6 +28,7 @@ export class AssessmentPickerComponent implements OnChanges, OnInit, OnDestroy {
   @Input() addDisabled = false;
   @Output() selectedIdsChange = new EventEmitter<string[]>();
   @Output() assessmentAdd = new EventEmitter<Assessment>();
+  @Output() assessmentRemove = new EventEmitter<Assessment>();
 
   search = '';
   groupLv1Name: string | null = null;
@@ -213,6 +214,10 @@ export class AssessmentPickerComponent implements OnChanges, OnInit, OnDestroy {
     return assessment ? `Thêm mục ${assessment.code} · ${assessment.name}` : 'Thêm mục đánh giá';
   }
 
+  removeButtonHint(assessment: Assessment | null | undefined): string {
+    return assessment ? `Xóa mục ${assessment.code} · ${assessment.name}` : 'Xóa mục đánh giá';
+  }
+
   isExistingAssessment(assessment: Assessment | null | undefined): boolean {
     const code = this.normalizeCode(assessment?.code);
     return code ? this.existingCodeSet.has(code) : false;
@@ -250,6 +255,13 @@ export class AssessmentPickerComponent implements OnChanges, OnInit, OnDestroy {
       return;
     }
     this.assessmentAdd.emit(assessment);
+  }
+
+  onRemoveAssessmentClick(assessment: Assessment | null | undefined): void {
+    if (!assessment || this.addDisabled || !this.isExistingAssessment(assessment)) {
+      return;
+    }
+    this.assessmentRemove.emit(assessment);
   }
 
   onSelectAllVisibleChanged(event: Event): void {
