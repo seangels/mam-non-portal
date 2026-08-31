@@ -113,18 +113,18 @@
     <dxo-pager [showInfo]="true" [showPageSizeSelector]="true" [allowedPageSizes]="[20, 50, 100]"></dxo-pager>
     <dxo-sorting mode="single"></dxo-sorting>
 
-    <dxi-column type="buttons" [width]="80" [buttons]="rowButtons"></dxi-column>
-    <dxi-column dataField="studentFullName" caption="Học sinh" cellTemplate="studentCell" [minWidth]="260"></dxi-column>
-    <dxi-column dataField="responsibleTeacherFullName" caption="Giáo viên phụ trách" [minWidth]="200"></dxi-column>
-    <dxi-column dataField="status" caption="Trạng thái" cellTemplate="statusCell" [width]="150"></dxi-column>
-    <dxi-column dataField="startDate" caption="Bắt đầu" cellTemplate="startDateCell" sortOrder="desc" [width]="130"></dxi-column>
-    <dxi-column dataField="dueDate" caption="Hạn hoàn thành" cellTemplate="dueDateCell" [width]="150"></dxi-column>
-    <dxi-column dataField="submissionDate" caption="Ngày nộp" cellTemplate="submissionDateCell" [width]="130"></dxi-column>
+    <dxi-column type="buttons" [width]="72" [buttons]="rowButtons"></dxi-column>
+    <dxi-column dataField="studentFullName" caption="Học sinh" cellTemplate="studentCell" [width]="180" [minWidth]="140"></dxi-column>
+    <dxi-column dataField="responsibleTeacherFullName" caption="Giáo viên phụ trách" [width]="150" [minWidth]="120"></dxi-column>
+    <dxi-column dataField="status" caption="Trạng thái" cellTemplate="statusCell" [width]="108"></dxi-column>
+    <dxi-column dataField="startDate" caption="Bắt đầu" cellTemplate="startDateCell" sortOrder="desc" [width]="96"></dxi-column>
+    <dxi-column dataField="dueDate" caption="Hạn hoàn thành" cellTemplate="dueDateCell" [width]="96"></dxi-column>
+    <dxi-column dataField="submissionDate" caption="Ngày nộp" cellTemplate="submissionDateCell" [width]="96"></dxi-column>
     <dxi-column dataField="planFileLinkPdf" caption="Kế hoạch" cellTemplate="planLinkCell"
-      [allowSorting]="false" [allowFiltering]="false" [width]="90"></dxi-column>
+      [allowSorting]="false" [allowFiltering]="false" [width]="72"></dxi-column>
     <dxi-column dataField="resultFileLinkPdf" caption="Kết quả" cellTemplate="resultLinkCell"
-      [allowSorting]="false" [allowFiltering]="false" [width]="90"></dxi-column>
-    <dxi-column dataField="updatedAt" caption="Cập nhật" cellTemplate="updatedAtCell" [width]="150"></dxi-column>
+      [allowSorting]="false" [allowFiltering]="false" [width]="72"></dxi-column>
+    <dxi-column dataField="updatedAt" caption="Cập nhật" cellTemplate="updatedAtCell" [width]="112"></dxi-column>
 
     <div *dxTemplate="let cell of 'studentCell'" class="student-cell">
       <span>{{ cell.data.studentFullName || '—' }}</span>
