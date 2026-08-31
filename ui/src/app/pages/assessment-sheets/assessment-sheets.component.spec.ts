@@ -733,23 +733,29 @@ describe('Assessment sheet form DevExtreme option stability', () => {
     expect(component.focusedValueRecordId).toBeNull();
   });
 
-  it('enables the link editor open button only when a link is present and opens it in a new tab', () => {
+  it('enables the link editor open button only when a link is present and opens it like an anchor', () => {
     const component = createComponent('edit');
     const openButton = () => (component.planLinkEditorOptions['buttons'] as any[])[0].options;
 
     component.editor.planFileLinkPdf = '';
     expect(openButton().disabled).toBeTrue();
+    expect(component.linkHref('planFileLinkPdf')).toBeNull();
 
-    component.editor.planFileLinkPdf = 'https://drive.google.com/file/d/abc/view';
+    component.editor.planFileLinkPdf = 'drive.google.com/file/d/abc/view';
     expect(openButton().disabled).toBeFalse();
+    // Thiếu scheme thì tự thêm https://
+    expect(component.linkHref('planFileLinkPdf')).toBe('https://drive.google.com/file/d/abc/view');
 
-    const openSpy = spyOn(window, 'open');
+    component.editor.resultFileLinkPdf = 'https://drive.google.com/keep';
+    expect(component.linkHref('resultFileLinkPdf')).toBe('https://drive.google.com/keep');
+
+    const clickSpy = spyOn(HTMLAnchorElement.prototype, 'click');
     component.openEditorLink('planFileLinkPdf');
-    expect(openSpy).toHaveBeenCalledWith('https://drive.google.com/file/d/abc/view', '_blank', 'noopener,noreferrer');
+    expect(clickSpy).toHaveBeenCalledTimes(1);
 
     component.editor.resultFileLinkPdf = '   ';
     component.openEditorLink('resultFileLinkPdf');
-    expect(openSpy).toHaveBeenCalledTimes(1);
+    expect(clickSpy).toHaveBeenCalledTimes(1);
   });
 
   it('keeps editor option object references stable across change detection reads', () => {

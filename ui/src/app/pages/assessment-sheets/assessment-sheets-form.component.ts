@@ -527,6 +527,13 @@ export class AssessmentSheetFormComponent implements OnInit, OnDestroy {
     autoResizeEnabled: true,
     valueChangeEvent: 'input'
   };
+  // Cache theo field để giữ nguyên tham chiếu editorOptions giữa các lần change detection
+  // (dx-form re-apply editor mỗi khi object đổi tham chiếu, làm nút bấm bên trong bị dựng lại và mất click).
+  private linkEditorOptionsCache = new Map<
+    'planFileLinkPdf' | 'resultFileLinkPdf',
+    { hasLink: boolean; readOnly: boolean; options: Record<string, unknown> }
+  >();
+
   get planLinkEditorOptions(): Record<string, unknown> {
     return this.buildLinkEditorOptions('planFileLinkPdf', 'Mở link Kế hoạch (KHCN)');
   }
@@ -540,10 +547,15 @@ export class AssessmentSheetFormComponent implements OnInit, OnDestroy {
     field: 'planFileLinkPdf' | 'resultFileLinkPdf',
     openHint: string
   ): Record<string, unknown> {
-    const hasLink = !!(this.editor[field] || '').trim();
-    return {
+    const hasLink = !!this.linkHref(field);
+    const readOnly = this.originalStatus === 'Open';
+    const cached = this.linkEditorOptionsCache.get(field);
+    if (cached && cached.hasLink === hasLink && cached.readOnly === readOnly) {
+      return cached.options;
+    }
+    const options: Record<string, unknown> = {
       maxLength: 2000,
-      readOnly: this.originalStatus === 'Open',
+      readOnly,
       valueChangeEvent: 'input',
       buttons: [
         {
@@ -559,13 +571,33 @@ export class AssessmentSheetFormComponent implements OnInit, OnDestroy {
         }
       ]
     };
+    this.linkEditorOptionsCache.set(field, { hasLink, readOnly, options });
+    return options;
+  }
+
+  // Chuẩn hóa giá trị người dùng nhập thành URL mở được (tự thêm https:// nếu thiếu scheme).
+  linkHref(field: 'planFileLinkPdf' | 'resultFileLinkPdf'): string | null {
+    const raw = (this.editor[field] || '').trim();
+    if (!raw) {
+      return null;
+    }
+    return /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
   }
 
   openEditorLink(field: 'planFileLinkPdf' | 'resultFileLinkPdf'): void {
-    const url = (this.editor[field] || '').trim();
-    if (url) {
-      window.open(url, '_blank', 'noopener,noreferrer');
+    const href = this.linkHref(field);
+    if (!href) {
+      return;
     }
+    // Mở như một thẻ <a target="_blank">: bền hơn window.open với popup blocker.
+    const anchor = document.createElement('a');
+    anchor.href = href;
+    anchor.target = '_blank';
+    anchor.rel = 'noopener noreferrer';
+    anchor.style.display = 'none';
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
   }
   readonly standaloneNgModelOptions = { standalone: true };
   get showPlan(): boolean {
