@@ -811,6 +811,12 @@ export class AssessmentSheetFormComponent implements OnInit, OnDestroy {
     await this.load(this.assessmentSheetId);
   }
 
+  // Nút "lên đầu" ở thanh sticky: cuộn về tiêu đề "Danh mục đánh giá đã chọn".
+  scrollToRecords(): void {
+    document.getElementById('assessment-records-heading')
+      ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
   cancel(): void {
     void this.router.navigate(['/assessment-sheets']);
   }

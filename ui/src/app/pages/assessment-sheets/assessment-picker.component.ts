@@ -4,12 +4,18 @@ import notify from 'devextreme/ui/notify';
 import { DxDataGridComponent } from 'devextreme-angular/ui/data-grid';
 import { ApiError } from '../../core/models/api-error';
 import { Assessment, AssessmentGroup, AssessmentListQuery } from '../../core/models/api.models';
-import { AssessmentGrade, ASSESSMENT_GRADE_OPTIONS } from '../../core/models/api.models.assessment-sheets';
+import {
+  AssessmentGrade,
+  ASSESSMENT_GRADE_OPTIONS,
+  assessmentGroupLv2Order,
+  compareAssessmentByFixedGroupOrder
+} from '../../core/models/api.models.assessment-sheets';
 import { AssessmentsService } from '../../core/services/assessments.service';
 import { includesVietnamese } from '../../core/utils/vietnamese-search';
 
 const SELECTED_ROW_CLASS = 'assessment-picker-selected-row';
 const ASSESSMENT_CACHE_PAGE_SIZE = 100;
+const LATEST_GRADE_NONE_LABEL = 'Chưa có';
 type AssessmentPickerViewMode = 'all' | 'selected';
 type AssessmentPickerMode = 'select' | 'add';
 type LatestGradeFilterValue = AssessmentGrade | 'none';
@@ -55,7 +61,8 @@ export class AssessmentPickerComponent implements OnChanges, OnInit, OnDestroy {
   private initialized = false;
   private loadedStudentId: string | null = null;
   readonly gridRemoteOperations = false;
-  readonly gridPageSizes = [20, 50, 100];
+  readonly gridDefaultPageSize = 200;
+  readonly gridPageSizes = [20, 50, 100, 200, 1000, 2000];
   readonly searchInputAttr = { 'aria-label': 'Tìm mục đánh giá theo mã, tên' };
   readonly groupLv1InputAttr = { 'aria-label': 'Lọc theo nhóm tuổi' };
   readonly groupLv2InputAttr = { 'aria-label': 'Lọc theo nhóm 2' };
@@ -70,6 +77,24 @@ export class AssessmentPickerComponent implements OnChanges, OnInit, OnDestroy {
     { value: 'all', text: 'Xem tất cả' },
     { value: 'selected', text: 'Chỉ những mục đã chọn' }
   ];
+
+  // Vòng lọc 2 (header/row filter của lưới). Cột "Kết quả gần nhất" hiển thị theo nhãn (null = "Chưa có")
+  // để header filter gom nhóm được; mặc định chọn sẵn tất cả trừ "Đạt +".
+  readonly latestGradeColumnCalculateCellValue = (row: Assessment): string =>
+    row?.latestGrade
+      ? (ASSESSMENT_GRADE_OPTIONS.find(option => option.value === row.latestGrade)?.text ?? row.latestGrade)
+      : LATEST_GRADE_NONE_LABEL;
+  readonly latestGradeColumnDefaultFilter: string[] = [
+    LATEST_GRADE_NONE_LABEL,
+    ...ASSESSMENT_GRADE_OPTIONS.filter(option => option.value !== 'A').map(option => option.text)
+  ];
+  // Header filter cột "Nhóm 2" giữ đúng thứ tự cố định của nhóm Lv2 thay vì abc.
+  readonly groupLv2HeaderFilter = {
+    dataSource: (data: { dataSource: { postProcess?: (items: Array<{ value?: string }>) => Array<{ value?: string }> } }): void => {
+      data.dataSource.postProcess = (items) =>
+        [...items].sort((left, right) => assessmentGroupLv2Order(left.value) - assessmentGroupLv2Order(right.value));
+    }
+  };
 
   readonly groupDisplay = (group: AssessmentGroup | null): string => group ? `${group.name}` : '';
 
@@ -143,7 +168,10 @@ export class AssessmentPickerComponent implements OnChanges, OnInit, OnDestroy {
     const source = this.viewMode === 'selected'
       ? this.allAssessments.filter(assessment => this.isInSelectedViewSnapshot(assessment.id))
       : this.allAssessments;
-    this.filteredAssessments = source.filter(assessment => this.matchesCurrentFilters(assessment));
+    // Thứ tự mặc định của lưới: nhóm Lv2 cố định → rowIndex (giữ như hiện tại) → mã (G3).
+    this.filteredAssessments = source
+      .filter(assessment => this.matchesCurrentFilters(assessment))
+      .sort(compareAssessmentByFixedGroupOrder);
     this.grid?.instance.pageIndex(0);
     this.grid?.instance.repaint();
   }
@@ -158,8 +186,21 @@ export class AssessmentPickerComponent implements OnChanges, OnInit, OnDestroy {
     this.groupLv2Name = null;
     this.groupLv3Name = null;
     this.latestGradeFilters = [];
+    this.resetGridFilters();
     this.refreshGroupOptions();
     this.applyFilters();
+  }
+
+  // Đưa filter row + header filter của lưới (vòng 2) về mặc định: xóa hết, riêng cột
+  // "Kết quả gần nhất" đặt lại mặc định "tất cả trừ Đạt +" (gồm "Chưa có").
+  resetGridFilters(): void {
+    const grid = this.grid?.instance;
+    if (!grid) {
+      return;
+    }
+    grid.clearFilter('row');
+    grid.clearFilter('header');
+    grid.columnOption('latestGrade', 'filterValues', [...this.latestGradeColumnDefaultFilter]);
   }
 
   showDialogColumnChooser(): void {
@@ -396,9 +437,12 @@ export class AssessmentPickerComponent implements OnChanges, OnInit, OnDestroy {
   }
 
   private buildGroupOptions(level: number, values: string[]): AssessmentGroup[] {
-    return Array.from(new Set(values.filter(value => value && value.trim())))
-      .sort((left, right) => left.localeCompare(right, 'vi'))
-      .map(name => ({ id: `${level}:${name}`, name, level }));
+    const names = Array.from(new Set(values.filter(value => value && value.trim())));
+    // Nhóm Lv2 theo thứ tự cố định (G3); Lv1/Lv3 giữ abc.
+    names.sort(level === 2
+      ? (left, right) => assessmentGroupLv2Order(left) - assessmentGroupLv2Order(right) || left.localeCompare(right, 'vi')
+      : (left, right) => left.localeCompare(right, 'vi'));
+    return names.map(name => ({ id: `${level}:${name}`, name, level }));
   }
 
   private matchesCurrentFilters(assessment: Assessment): boolean {

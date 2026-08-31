@@ -109,8 +109,16 @@
           text="Đặt lại"
           icon="revert"
           stylingMode="outlined"
-          hint="Xóa toàn bộ bộ lọc"
+          hint="Xóa toàn bộ bộ lọc (panel + lưới)"
           (onClick)="resetFilters()">
+        </dx-button>
+
+        <dx-button
+          text="Đặt lại lọc lưới"
+          icon="clearformat"
+          stylingMode="outlined"
+          hint="Đưa filter row + header filter của lưới về mặc định (Kết quả: trừ Đạt +)"
+          (onClick)="resetGridFilters()">
         </dx-button>
 
         <dx-button
@@ -137,6 +145,9 @@
       [showBorders]="true"
       [columnAutoWidth]="true"
       [columnHidingEnabled]="true"
+      [allowColumnResizing]="true"
+      columnResizingMode="widget"
+      [allowColumnReordering]="true"
       [wordWrapEnabled]="true"
       [rowAlternationEnabled]="true"
       [hoverStateEnabled]="true"
@@ -145,17 +156,25 @@
       noDataText="Không có mục đánh giá phù hợp"
       >
       <dxo-load-panel [enabled]="true" text="Đang tải ..."></dxo-load-panel>
-      <dxo-paging [pageSize]="20"></dxo-paging>
+      <dxo-paging [pageSize]="gridDefaultPageSize"></dxo-paging>
       <dxo-pager [showInfo]="true" [showPageSizeSelector]="true" [allowedPageSizes]="gridPageSizes"></dxo-pager>
       <dxo-sorting mode="single"></dxo-sorting>
+      <dxo-filter-row [visible]="true"></dxo-filter-row>
+      <dxo-header-filter [visible]="true"></dxo-header-filter>
 
       <dxi-column
         [visible]="isSelectMode"
         caption=""
         cellTemplate="selectCell"
         [width]="52"
+        [fixed]="true"
+        fixedPosition="left"
         [allowSorting]="false"
         [allowHiding]="false"
+        [allowResizing]="false"
+        [allowReordering]="false"
+        [allowFiltering]="false"
+        [allowHeaderFiltering]="false"
         [showInColumnChooser]="false">
       </dxi-column>
       <dxi-column
@@ -163,19 +182,28 @@
         caption="Thao tác"
         cellTemplate="addCell"
         [width]="110"
+        [fixed]="true"
+        fixedPosition="left"
         [allowSorting]="false"
         [allowHiding]="false"
+        [allowResizing]="false"
+        [allowReordering]="false"
+        [allowFiltering]="false"
+        [allowHeaderFiltering]="false"
         [showInColumnChooser]="false">
       </dxi-column>
 
-      <dxi-column dataField="groupLv1Name" caption="Nhóm tuổi" [minWidth]="160"></dxi-column>
-      <dxi-column [visible]="false" dataField="groupLv2Name" caption="Nhóm 2" [minWidth]="180"></dxi-column>
-      <dxi-column [visible]="false" dataField="groupLv3Name" caption="Nhóm 3" [minWidth]="220"></dxi-column>
-      <dxi-column dataField="code" caption="Mã" [width]="90"></dxi-column>
-      <dxi-column dataField="name" caption="Nội dung" [minWidth]="320"></dxi-column>
-      <dxi-column dataField="latestGrade" caption="Kết quả gần nhất" cellTemplate="latestGradeCell" [width]="150"></dxi-column>
-      <dxi-column dataField="latestNote" caption="Ghi chú" [minWidth]="220"></dxi-column>
-      <dxi-column dataField="rowIndex" caption="RowIndex" sortOrder="asc" [width]="100"></dxi-column>
+      <dxi-column dataField="name" caption="Nội dung" [minWidth]="240" [allowHeaderFiltering]="false"></dxi-column>
+      <dxi-column dataField="latestGrade" caption="Kết quả gần nhất" [width]="140"
+        [calculateCellValue]="latestGradeColumnCalculateCellValue" [filterValues]="latestGradeColumnDefaultFilter"
+        [allowSorting]="true"></dxi-column>
+      <dxi-column [visible]="false" dataField="latestNote" caption="Ghi chú gần nhất" [minWidth]="180" [allowHeaderFiltering]="false"></dxi-column>
+      <dxi-column dataField="groupLv3Name" caption="Nhóm 3" [minWidth]="150" [width]="190"></dxi-column>
+      <dxi-column dataField="groupLv2Name" caption="Nhóm 2" [minWidth]="140" [width]="170"
+        [headerFilter]="groupLv2HeaderFilter"></dxi-column>
+      <dxi-column dataField="groupLv1Name" caption="Nhóm tuổi" [minWidth]="120" [width]="150"></dxi-column>
+      <dxi-column [visible]="false" dataField="code" caption="Mã" [width]="90"></dxi-column>
+      <dxi-column [visible]="false" dataField="rowIndex" caption="RowIndex" [width]="100"></dxi-column>
       <div *dxTemplate="let cell of 'selectCell'" class="select-cell">
         <dx-check-box
           [value]="isSelected(cell.data.id)"
@@ -202,9 +230,6 @@
           [hint]="removeButtonHint(cell.data)"
           (onClick)="onRemoveAssessmentClick(cell.data)">
         </dx-button>
-      </div>
-      <div *dxTemplate="let cell of 'latestGradeCell'" class="latest-grade-cell">
-        {{ latestGradeText(cell.data.latestGrade) }}
       </div>
     </dx-data-grid>
   </div>

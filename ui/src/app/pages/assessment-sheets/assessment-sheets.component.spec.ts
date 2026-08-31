@@ -1,5 +1,9 @@
 import { of } from 'rxjs';
-import { ASSESSMENT_GROUP_LV2_CONFIGS } from '../../core/models/api.models.assessment-sheets';
+import {
+  ASSESSMENT_GROUP_LV2_CONFIGS,
+  assessmentGroupLv2Order,
+  compareAssessmentByFixedGroupOrder
+} from '../../core/models/api.models.assessment-sheets';
 import { AssessmentPickerComponent } from './assessment-picker.component';
 import { AssessmentSheetsComponent } from './assessment-sheets.component';
 import {
@@ -455,6 +459,32 @@ describe('Assessment sheets Excel import', () => {
     await component.onBulkAction({ itemData: { id: 'plan-pdf' } });
 
     expect(assessmentSheets.downloadPdfArchive).not.toHaveBeenCalled();
+  });
+});
+
+describe('Fixed groupLv2 ordering (G3)', () => {
+  it('orders the five known groups 1..5 regardless of accents/case, unknown groups last', () => {
+    expect(assessmentGroupLv2Order('PHÁT TRIỂN THỂ CHẤT')).toBe(1);
+    expect(assessmentGroupLv2Order(' phát triển nhận thức ')).toBe(2);
+    expect(assessmentGroupLv2Order('Phat trien ngon ngu')).toBe(3);
+    expect(assessmentGroupLv2Order('Cá nhân và xã hội')).toBe(4);
+    expect(assessmentGroupLv2Order('Tiền tiểu học')).toBe(5);
+    expect(assessmentGroupLv2Order('Nhóm lạ')).toBe(Number.MAX_SAFE_INTEGER);
+    expect(assessmentGroupLv2Order(null)).toBe(Number.MAX_SAFE_INTEGER);
+  });
+
+  it('sorts by fixed lv2 order, then keeps rowIndex order within a group', () => {
+    const rows = [
+      { code: 'B2', groupLv2Name: 'Phát triển ngôn ngữ', rowIndex: 9 },
+      { code: 'A1', groupLv2Name: 'Tiền tiểu học', rowIndex: 1 },
+      { code: 'C3', groupLv2Name: 'Phát triển thể chất', rowIndex: 40 },
+      { code: 'C1', groupLv2Name: 'Phát triển thể chất', rowIndex: 7 }
+    ];
+
+    const sorted = [...rows].sort(compareAssessmentByFixedGroupOrder).map(row => row.code);
+
+    // Lv2: thể chất(1) trước ngôn ngữ(3) trước tiền tiểu học(5); trong thể chất giữ theo rowIndex (7 < 40).
+    expect(sorted).toEqual(['C1', 'C3', 'B2', 'A1']);
   });
 });
 

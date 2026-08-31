@@ -61,7 +61,12 @@
   - **Theo học sinh:** lấy thêm `LatestGrade`/ghi chú latest gợi ý dựa trên `AssessmentRecordLatest` (đọc-only, đã fetch từ Google Sheet) của đúng học sinh đang tạo bảng. Việc thiếu dữ liệu latest không được làm ẩn mất mục đánh giá; các field latest để trống/null.
   - **Theo mức grade:** ví dụ lọc các mục có kết quả gần nhất `LatestGrade >= B`, dùng thang xếp hạng đã chốt `A > B > C > D` — `A = 3` (cao nhất) `> B = 2 > C = 1 > D = 0` (thấp nhất); dùng để khoanh vùng các mục học sinh đã đạt mức nhất định hoặc ngược lại cần cải thiện.
   - **Theo kết quả gần nhất trên UI:** TagBox đứng đầu panel filter, cho chọn nhiều giá trị gồm `Chưa có`, `Đạt +`, `Hỗ trợ +`, `Hỗ trợ -`, `Chưa đạt -`. `Chưa có` đại diện cho mục chưa có `LatestGrade`. Filter này chạy trên dữ liệu đã tải về client và trên snapshot hiện hành của chế độ xem (`Xem tất cả` hoặc `Chỉ những mục đã chọn`), không tự gọi lại server.
-  - **Theo nhóm phân cấp:** lọc theo `GroupLv1Name`, `GroupLv2Name`, `GroupLv3Name` của `Assessment`.
+  - **Theo nhóm phân cấp:** lọc theo `GroupLv1Name`, `GroupLv2Name`, `GroupLv3Name` của `Assessment`. Dropdown `GroupLv2Name` liệt kê theo **thứ tự cố định** (xem §16), Lv1/Lv3 theo abc.
+- Bảng picker (`ASH-FB-W2`, 2026-09-01):
+  - Thứ tự cột mặc định: `Thao tác` (ghim trái) → `Nội dung` → `Kết quả gần nhất` → `Nhóm 3` → `Nhóm 2` → `Nhóm tuổi` (Lv1). Ẩn mặc định `Ghi chú gần nhất`, `Mã`, `RowIndex` (vẫn bật lại được qua "Ẩn/Hiện cột"). Cho phép **kéo giãn độ rộng** và **đổi thứ tự** cột.
+  - Thứ tự dòng mặc định: theo **thứ tự cố định của nhóm Lv2** (§16a); cùng nhóm Lv2 thì giữ theo `RowIndex`.
+  - Ngoài panel filter ở đầu (vòng 1), lưới bật thêm **filter row** và **header filter** (vòng 2). Cột `Nhóm 1/2/3` và `Kết quả gần nhất` lọc kiểu chọn (dropdown checklist). Bộ lọc `Kết quả gần nhất` của lưới **mặc định chọn sẵn tất cả trừ `Đạt +`** (gồm cả `Chưa có`); đây là mặc định độc lập với TagBox ở panel.
+  - Nút **"Đặt lại lọc lưới"** đưa filter row + header filter về mặc định (gồm việc đặt lại `Kết quả gần nhất` = trừ `Đạt +`); nút "Đặt lại" cũ reset cả panel lẫn lưới.
 - Khi bấm tạo mới, UI gửi danh sách `records`, mỗi phần tử gồm `assessmentId`, `latestGrade`, `note`; không chỉ gửi mỗi `assessmentId`. Với mỗi mục được chọn, hệ thống:
   - Snapshot thông tin mục đánh giá vào `AssessmentRecord.AssessmentSnapshot` (mã, tên, các cấp nhóm, `RowIndex`).
   - Khởi tạo `PlanGrade` của `AssessmentRecord` bằng `latestGrade` trong request; nếu UI gửi `null` thì `PlanGrade` để trống.
@@ -222,6 +227,13 @@ Các quyết định nghiệp vụ đã được chốt và áp dụng xuyên su
 Các điểm trước đây cần xác nhận, nay đã chốt:
 
 - Bảng mapping `FinalGrade` → nhãn ở mục 11 đã được người dùng định nghĩa lại và chốt (2026-08-30): `A` → `Đạt +` (rank 3) → `B` → `Hỗ trợ +` (rank 2) → `C` → `Hỗ trợ -` (rank 1) → `D` → `Chưa đạt -` (rank 0). Dùng trực tiếp để ghi `[F0.ĐG]` và hiển thị UI/PDF.
+
+## 16a. Thứ tự cố định của nhóm Lv2 (ASH-FB-W2, 2026-09-01)
+
+- Nhóm Lv2 (`GroupLv2Name`) có thứ tự hiển thị cố định: `PHÁT TRIỂN THỂ CHẤT` → `PHÁT TRIỂN NHẬN THỨC` → `PHÁT TRIỂN NGÔN NGỮ` → `CÁ NHÂN VÀ XÃ HỘI` → `TIỀN TIỂU HỌC`. So khớp không phân biệt dấu/hoa-thường; nhóm ngoài danh sách này xếp cuối.
+- Thứ tự này áp cho: dropdown lọc `Nhóm 2` và thứ tự dòng mặc định của lưới ở **bảng picker mục đánh giá** và **trang "DS Đánh giá"** (danh mục `Assessment`). Người dùng vẫn bấm cột để sắp lại theo ý.
+- Cùng thứ tự nhóm Lv2 thì các mục giữ thứ tự theo `RowIndex` như hiện tại. Nhóm Lv1/Lv3 không có danh sách chuẩn → giữ sắp xếp abc.
+- Frontend tự sắp sau khi nhận dữ liệu; không đổi API `/assessment-groups` hay `/assessments`.
 
 ## 16. Màn danh sách bảng đánh giá (ASH-FB-W4, 2026-09-01)
 

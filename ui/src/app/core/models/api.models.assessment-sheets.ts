@@ -1,3 +1,4 @@
+import { normalizeVietnamese } from '../utils/vietnamese-search';
 import { Gender, ListQuery } from './api.models';
 
 export type AssessmentSheetStatus = 'Open' | 'Planed' | 'Done' | 'Canceled';
@@ -28,6 +29,33 @@ export const ASSESSMENT_GROUP_LV2_CONFIGS: { key: string; displayOrder: number; 
   { key: 'Cá nhân và xã hội', displayOrder: 4, bgcolor: '#D0E0E3' },
   { key: 'Tiền tiểu học', displayOrder: 5, bgcolor: '#DCC1CF' }
 ];
+
+const GROUP_LV2_ORDER_INDEX = new Map(
+  ASSESSMENT_GROUP_LV2_CONFIGS.map(config => [normalizeVietnamese(config.key), config.displayOrder] as const)
+);
+
+/**
+ * Thứ tự hiển thị cố định của nhóm Lv2 (1..5 theo `ASSESSMENT_GROUP_LV2_CONFIGS`); nhóm ngoài danh mục
+ * xếp cuối. Dùng cho dropdown lọc Nhóm 2 và default sort của lưới mục đánh giá (picker + trang "DS Đánh giá").
+ */
+export function assessmentGroupLv2Order(name: string | null | undefined): number {
+  return GROUP_LV2_ORDER_INDEX.get(normalizeVietnamese(name ?? '')) ?? Number.MAX_SAFE_INTEGER;
+}
+
+/**
+ * So sánh 2 mục đánh giá: trước hết theo thứ tự cố định của nhóm Lv2; **cùng nhóm Lv2 thì giữ nguyên
+ * thứ tự theo `rowIndex`** như hiện tại (mã chỉ là tiebreak cuối khi thiếu/ trùng rowIndex).
+ */
+export function compareAssessmentByFixedGroupOrder(
+  left: { groupLv2Name?: string | null; rowIndex?: number | null; code?: string | null },
+  right: { groupLv2Name?: string | null; rowIndex?: number | null; code?: string | null }
+): number {
+  const byLv2 = assessmentGroupLv2Order(left.groupLv2Name) - assessmentGroupLv2Order(right.groupLv2Name);
+  if (byLv2 !== 0) return byLv2;
+  const byRow = (left.rowIndex ?? Number.MAX_SAFE_INTEGER) - (right.rowIndex ?? Number.MAX_SAFE_INTEGER);
+  if (byRow !== 0) return byRow;
+  return (left.code ?? '').localeCompare(right.code ?? '', 'vi');
+}
 
 export interface AssessmentSheetListQuery extends ListQuery {
   studentId?: string;

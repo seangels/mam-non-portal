@@ -7,6 +7,7 @@ import notify from 'devextreme/ui/notify';
 import { DxDataGridComponent } from 'devextreme-angular/ui/data-grid';
 import { ApiError } from '../../core/models/api-error';
 import { AssessmentGroup, Assessment, SyncAssessmentFromGoogleSheetsRequest } from '../../core/models/api.models';
+import { assessmentGroupLv2Order, compareAssessmentByFixedGroupOrder } from '../../core/models/api.models.assessment-sheets';
 import { asLegacyWidgetDataSource, LegacyWidgetDataSource } from '../../core/models/devextreme-legacy.types';
 import { USER_STATUS_LABELS } from '../../core/i18n/ui-labels';
 import { AssessmentGroupsService } from '../../core/services/assessment-groups.service';
@@ -80,7 +81,11 @@ export class AssessmentsComponent implements OnDestroy {
           sortOrder: 'asc'
         })).then(result => {
           this.groupLv2Placeholder = `Nhóm 2 (${result.pagination.totalItems})`;
-          return { data: result.items, totalCount: result.pagination.totalItems };
+          // Dropdown Nhóm 2 giữ đúng thứ tự cố định của nhóm Lv2 (G3), không abc.
+          const ordered = [...result.items].sort((left, right) =>
+            assessmentGroupLv2Order(left.name) - assessmentGroupLv2Order(right.name)
+            || left.name.localeCompare(right.name, 'vi'));
+          return { data: ordered, totalCount: result.pagination.totalItems };
         })
           .catch(error => {
             this.groupLv2Placeholder = 'Nhóm 2: Lỗi tải dữ liệu';
@@ -135,7 +140,12 @@ export class AssessmentsComponent implements OnDestroy {
         sortOrder: sort.order
       })).then(result => {
         this.loadError = '';
-        return { data: result.items, totalCount: result.pagination.totalItems };
+        // Chưa chọn sort cột nào → sắp theo thứ tự cố định nhóm Lv2, cùng nhóm thì giữ theo rowIndex (G3).
+        // Trang này tải hết (pageSize 5000) nên sắp client-side là đủ.
+        const data = sort.isExplicit
+          ? result.items
+          : [...result.items].sort(compareAssessmentByFixedGroupOrder);
+        return { data, totalCount: result.pagination.totalItems };
       }).catch(error => this.rejectLoad(error));
     }
   }));
@@ -221,13 +231,15 @@ export class AssessmentsComponent implements OnDestroy {
   }
 
 
-  private readSort(sortValue: unknown): { field: string; order: 'asc' | 'desc' } {
+  private readSort(sortValue: unknown): { field: string; order: 'asc' | 'desc'; isExplicit: boolean } {
     const sort = Array.isArray(sortValue) ? sortValue[0] : sortValue;
     const config = sort && typeof sort === 'object' ? sort as { selector?: unknown; desc?: boolean } : undefined;
-    const requested = typeof config?.selector === 'string' ? config.selector : 'rowindex';
+    const isExplicit = typeof config?.selector === 'string';
+    const requested = isExplicit ? config!.selector as string : 'rowindex';
     return {
       field: ASSESSMENT_SORT_FIELDS.has(requested) ? requested : 'rowindex',
-      order: config?.desc ? 'desc' : 'asc'
+      order: config?.desc ? 'desc' : 'asc',
+      isExplicit
     };
   }
 
