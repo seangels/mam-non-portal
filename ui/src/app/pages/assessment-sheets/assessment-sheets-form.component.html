@@ -553,6 +553,9 @@
       <dx-button *ngIf="!isCreate" icon="arrowup" stylingMode="outlined"
         hint="Lên đầu danh mục đánh giá đã chọn" aria-label="Lên đầu danh mục đánh giá đã chọn"
         (onClick)="scrollToRecords()"></dx-button>
+      <dx-button *ngIf="!isCreate" icon="arrowdown" stylingMode="outlined"
+        hint="Xuống cuối trang" aria-label="Xuống cuối trang"
+        (onClick)="scrollToBottom()"></dx-button>
       <dx-button text="Hủy" stylingMode="outlined" [disabled]="saving || recordMutationInProgress || submittingResults" (onClick)="cancel()"></dx-button>
       <dx-button [text]="isCreate ? 'Tạo bảng đánh giá' : 'Lưu thay đổi'" icon="save" type="default"
         [disabled]="saving || recordMutationInProgress || submittingResults" (onClick)="save()"></dx-button>

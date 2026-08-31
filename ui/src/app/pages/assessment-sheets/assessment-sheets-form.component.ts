@@ -811,10 +811,19 @@ export class AssessmentSheetFormComponent implements OnInit, OnDestroy {
     await this.load(this.assessmentSheetId);
   }
 
+  // Shell cuộn ở `dx-scroll-view` (`.dx-scrollable-container`), không phải window — nên dùng
+  // `scrollIntoView` để trình duyệt tự tìm đúng container cuộn.
+
   // Nút "lên đầu" ở thanh sticky: cuộn về tiêu đề "Danh mục đánh giá đã chọn".
   scrollToRecords(): void {
     document.getElementById('assessment-records-heading')
       ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  // Nút "xuống cuối" ở thanh sticky: cuộn tới footer của shell = cuối trang.
+  scrollToBottom(): void {
+    document.querySelector('app-footer')
+      ?.scrollIntoView({ behavior: 'smooth', block: 'end' });
   }
 
   cancel(): void {

@@ -203,13 +203,20 @@ export class AssessmentPickerComponent implements OnChanges, OnInit, OnDestroy {
     grid.columnOption('latestGrade', 'filterValues', [...this.latestGradeColumnDefaultFilter]);
   }
 
-  showDialogColumnChooser(): void {
-    this.grid?.instance.option('columnChooser.mode', 'select');
-    if (this.isColumnChooserOpen()) {
-      this.grid?.instance.hideColumnChooser();
-    } else {
-      this.grid?.instance.showColumnChooser();
-    }
+  // Toolbar của lưới picker (DevExtreme 19.2 chưa có option `toolbar` khai báo được, dùng event này):
+  // giữ nút "Chọn cột" mặc định, thêm nút "Đặt lại lọc lưới" ở bên trái.
+  onToolbarPreparing(event: { toolbarOptions?: { items?: any[] } }): void {
+    event.toolbarOptions?.items?.unshift({
+      location: 'before',
+      widget: 'dxButton',
+      options: {
+        icon: 'clearformat',
+        text: 'Đặt lại lọc lưới',
+        hint: 'Đưa filter row + header filter về mặc định (Kết quả: trừ Đạt +)',
+        stylingMode: 'outlined',
+        onClick: () => this.resetGridFilters()
+      }
+    });
   }
 
   onGroupLv1Changed(): void {
@@ -526,12 +533,6 @@ export class AssessmentPickerComponent implements OnChanges, OnInit, OnDestroy {
       ? rowElement[0]
       : (rowElement as { get?: (index: number) => unknown } | undefined)?.get?.(0);
     return possibleElement instanceof HTMLElement ? possibleElement.classList : null;
-  }
-
-  private isColumnChooserOpen(): boolean {
-    const gridInstance: any = this.grid?.instance;
-    const chooser = gridInstance?.getController?.('columnChooser');
-    return !!chooser?.component?._views?.columnChooserView?._popupContainer?._options?.visible;
   }
 
   private rejectLoad(error: unknown): Promise<never> {

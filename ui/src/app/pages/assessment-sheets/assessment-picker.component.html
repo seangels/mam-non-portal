@@ -1,137 +1,4 @@
-<section class="assessment-picker" aria-labelledby="assessment-picker-heading">
-  <section class="dx-card filter-card assessment-picker-filter" aria-labelledby="assessment-picker-filter-heading">
-    <button class="filter-toggle" type="button" (click)="filtersExpanded = !filtersExpanded"
-      [attr.aria-expanded]="filtersExpanded" aria-controls="assessment-picker-filters">
-      <span id="assessment-picker-filter-heading">Bộ lọc mục đánh giá</span>
-      <span aria-hidden="true">{{ filtersExpanded ? '−' : '+' }}</span>
-    </button>
-
-    <div *ngIf="filtersExpanded" id="assessment-picker-filters" class="filters assessment-picker-filters">
-      <div class="filter-row inputs-row">
-        <dx-tag-box
-          class="latest-grade-input"
-          [(value)]="latestGradeFilters"
-          [dataSource]="latestGradeOptions"
-          valueExpr="value"
-          displayExpr="text"
-          placeholder="Kết quả gần nhất"
-          [showClearButton]="true"
-          [showSelectionControls]="true"
-          [multiline]="false"
-          noDataText="Không có kết quả phù hợp"
-          [inputAttr]="latestGradeInputAttr"
-          (onValueChanged)="onLatestGradeFiltersChanged()">
-        </dx-tag-box>
-
-        <dx-text-box
-          class="search-input"
-          [(value)]="search"
-          valueChangeEvent="input"
-          placeholder="Mã, tên"
-          [showClearButton]="true"
-          [inputAttr]="searchInputAttr"
-          (onValueChanged)="scheduleSearch()"
-          (onEnterKey)="applyFilters()">
-        </dx-text-box>
-
-
-        <dx-select-box
-          class="lv1-input"
-          [(value)]="groupLv1Name"
-          [dataSource]="groupLv1DataSource"
-          valueExpr="name"
-          [displayExpr]="groupDisplay"
-          [searchEnabled]="true"
-          searchMode="contains"
-          [placeholder]="groupLv1Placeholder"
-          [showClearButton]="true"
-          noDataText="Không có nhóm phù hợp"
-          [inputAttr]="groupLv1InputAttr"
-          (onValueChanged)="onGroupLv1Changed()">
-        </dx-select-box>
-
-        <dx-select-box
-          class="lv2-input"
-          [(value)]="groupLv2Name"
-          [dataSource]="groupLv2DataSource"
-          valueExpr="name"
-          [displayExpr]="groupDisplay"
-          [searchEnabled]="true"
-          searchMode="contains"
-          [placeholder]="groupLv2Placeholder"
-          [showClearButton]="true"
-          noDataText="Không có nhóm phù hợp"
-          [inputAttr]="groupLv2InputAttr"
-          (onValueChanged)="onGroupLv2Changed()">
-        </dx-select-box>
-
-        <dx-select-box
-          class="lv3-input"
-          [(value)]="groupLv3Name"
-          [dataSource]="groupLv3DataSource"
-          valueExpr="name"
-          [displayExpr]="groupDisplay"
-          [searchEnabled]="true"
-          searchMode="contains"
-          [placeholder]="groupLv3Placeholder"
-          [showClearButton]="true"
-          noDataText="Không có nhóm phù hợp"
-          [inputAttr]="groupLv3InputAttr"
-          (onValueChanged)="onGroupLv3Changed()">
-        </dx-select-box>
-      </div>
-
-      <div class="filter-row buttons-row">
-        <label *ngIf="isSelectMode" class="select-all-checkbox">
-          <input
-            type="checkbox"
-            [checked]="selectAllVisibleChecked"
-            [indeterminate]="selectAllVisibleIndeterminate"
-            [disabled]="visibleAssessmentIds.length === 0"
-            aria-label="Chọn tất cả mục đánh giá đang hiển thị"
-            (change)="onSelectAllVisibleChanged($event)" />
-          <span>{{ selectAllVisibleText }}</span>
-        </label>
-        <dx-select-box
-          *ngIf="isSelectMode"
-          class="view-mode-input"
-          [(value)]="viewMode"
-          [dataSource]="viewModeOptions"
-          valueExpr="value"
-          displayExpr="text"
-          [searchEnabled]="false"
-          [showClearButton]="false"
-          [inputAttr]="viewModeInputAttr"
-          (onValueChanged)="onViewModeChanged()">
-        </dx-select-box>
-
-        <dx-button
-          text="Đặt lại"
-          icon="revert"
-          stylingMode="outlined"
-          hint="Xóa toàn bộ bộ lọc (panel + lưới)"
-          (onClick)="resetFilters()">
-        </dx-button>
-
-        <dx-button
-          text="Đặt lại lọc lưới"
-          icon="clearformat"
-          stylingMode="outlined"
-          hint="Đưa filter row + header filter của lưới về mặc định (Kết quả: trừ Đạt +)"
-          (onClick)="resetGridFilters()">
-        </dx-button>
-
-        <dx-button
-          text="Ẩn/Hiện cột"
-          icon="column-chooser"
-          stylingMode="outlined"
-          hint="Ẩn/Hiện cột"
-          (onClick)="showDialogColumnChooser()">
-        </dx-button>
-      </div>
-    </div>
-  </section>
-
+<section class="assessment-picker" aria-label="Chọn mục đánh giá">
   <div *ngIf="loadError" class="picker-error" role="alert">
     <span>{{ loadError }}</span>
     <dx-button text="Thử lại" icon="refresh" stylingMode="outlined" (onClick)="retryLoad()"></dx-button>
@@ -153,6 +20,7 @@
       [hoverStateEnabled]="true"
       (onContentReady)="onContentReady()"
       (onRowPrepared)="onRowPrepared($event)"
+      (onToolbarPreparing)="onToolbarPreparing($event)"
       noDataText="Không có mục đánh giá phù hợp"
       >
       <dxo-load-panel [enabled]="true" text="Đang tải ..."></dxo-load-panel>
@@ -161,6 +29,7 @@
       <dxo-sorting mode="single"></dxo-sorting>
       <dxo-filter-row [visible]="true"></dxo-filter-row>
       <dxo-header-filter [visible]="true"></dxo-header-filter>
+      <dxo-column-chooser [enabled]="true" mode="select"></dxo-column-chooser>
 
       <dxi-column
         [visible]="isSelectMode"
