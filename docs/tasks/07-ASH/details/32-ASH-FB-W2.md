@@ -17,7 +17,7 @@ Thực thi Đợt 2 của [`29-ASH-FB-01.md`](29-ASH-FB-01.md) — **đại tu b
 
 ### Tinh chỉnh thêm (người dùng, 2026-09-01)
 
-- Lưới picker: `pageSize` mặc định **200** (`gridDefaultPageSize`), `allowedPageSizes` = `[20, 50, 100, 200, 1000, 2000]`.
+- Lưới picker: `pageSize` mặc định **50** (`gridDefaultPageSize`), `allowedPageSizes` = `[20, 50, 100, 200, 1000, 2000]`.
 - Thanh sticky màn edit (`.form-actions`): thêm nút icon `arrowup` "Lên đầu danh mục đánh giá đã chọn" → `scrollToRecords()` = `scrollIntoView({behavior:'smooth'})` tới `#assessment-records-heading`. Chỉ hiện ở màn edit (`!isCreate`).
 
 ## Phạm vi file (tất cả `ui/`)
@@ -38,8 +38,8 @@ Không đụng backend. Không migration. Không production/IIS/deploy.
 ## DoD
 
 - ✅ `npm --prefix ui run test:ci` → **154/154** (+2).
-- ✅ `npm --prefix ui run build -- --configuration development` → pass hash `9096fa55102e70e1008b` (chỉ warning CommonJS/DevExtreme quen thuộc).
+- ✅ `npm --prefix ui run build -- --configuration development` → pass hash `4753042e7fc5e41fb941` (pageSize mặc định 50) (chỉ warning CommonJS/DevExtreme quen thuộc).
 - ➖ Backend: không đổi — không chạy lại gate BE.
 - ✅ `docs/requirements/09` §5 + §16 (picker), `docs/plans/07-ASH` §13, `.agents/frontend/MEMORY.md` cập nhật.
 - ⬜ Smoke thủ công (mở picker: thứ tự nhóm Lv2, 6 cột, resize, header/row filter, default `Kết quả`; trang "DS Đánh giá" dropdown + sort): chưa chạy.
-- ⬜ Chưa commit.
+- ✅ Commit `a800bc7` (+ follow-up pageSize=50).

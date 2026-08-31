@@ -61,7 +61,7 @@ export class AssessmentPickerComponent implements OnChanges, OnInit, OnDestroy {
   private initialized = false;
   private loadedStudentId: string | null = null;
   readonly gridRemoteOperations = false;
-  readonly gridDefaultPageSize = 200;
+  readonly gridDefaultPageSize = 50;
   readonly gridPageSizes = [20, 50, 100, 200, 1000, 2000];
   readonly searchInputAttr = { 'aria-label': 'Tìm mục đánh giá theo mã, tên' };
   readonly groupLv1InputAttr = { 'aria-label': 'Lọc theo nhóm tuổi' };
