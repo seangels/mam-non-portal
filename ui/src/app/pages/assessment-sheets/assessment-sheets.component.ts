@@ -66,9 +66,9 @@ export class AssessmentSheetsComponent implements OnInit, OnDestroy {
     }
   ];
 
-  // Ô lọc "between" của startDate/dueDate quy đổi [từ, đến] thành khoảng bao trọn tháng:
-  // >= đầu tháng "từ" và < đầu tháng kế tiếp của "đến" (nên chọn giữa tháng vẫn khớp).
-  readonly monthBetweenFilterExpression = function (
+  // Ô lọc ngày (startDate/dueDate) làm việc ở mức THÁNG: cận dưới = đầu tháng đã chọn,
+  // cận trên = hết tháng đã chọn (`< đầu tháng kế tiếp`). Áp cho mọi toán tử của filter row.
+  readonly monthGranularFilterExpression = function (
     this: {
       dataField?: string;
       defaultCalculateFilterExpression: (...args: unknown[]) => unknown;
@@ -78,24 +78,41 @@ export class AssessmentSheetsComponent implements OnInit, OnDestroy {
     target: string
   ): unknown {
     const field = this.dataField;
-    if (field && target === 'filterRow' && selectedFilterOperation === 'between' && Array.isArray(filterValue)) {
-      const monthStart = (value: unknown): Date | null => {
-        const date = value instanceof Date ? value : (typeof value === 'string' ? new Date(value) : null);
-        return date && !Number.isNaN(date.getTime()) ? new Date(date.getFullYear(), date.getMonth(), 1) : null;
-      };
-      const from = monthStart(filterValue[0]);
-      const to = monthStart(filterValue[1]);
-      const clauses: unknown[] = [];
-      if (from) {
-        clauses.push([field, '>=', from]);
-      }
-      if (to) {
-        if (clauses.length > 0) {
-          clauses.push('and');
+    const monthStart = (value: unknown): Date | null => {
+      const date = value instanceof Date ? value : (typeof value === 'string' ? new Date(value) : null);
+      return date && !Number.isNaN(date.getTime()) ? new Date(date.getFullYear(), date.getMonth(), 1) : null;
+    };
+    const nextMonth = (date: Date): Date => new Date(date.getFullYear(), date.getMonth() + 1, 1);
+
+    if (field && target === 'filterRow') {
+      if (selectedFilterOperation === 'between' && Array.isArray(filterValue)) {
+        const from = monthStart(filterValue[0]);
+        const to = monthStart(filterValue[1]);
+        const clauses: unknown[] = [];
+        if (from) {
+          clauses.push([field, '>=', from]);
         }
-        clauses.push([field, '<', new Date(to.getFullYear(), to.getMonth() + 1, 1)]);
+        if (to) {
+          if (clauses.length > 0) {
+            clauses.push('and');
+          }
+          clauses.push([field, '<', nextMonth(to)]);
+        }
+        return clauses.length > 0 ? clauses : null;
       }
-      return clauses.length > 0 ? clauses : null;
+
+      const month = monthStart(filterValue);
+      if (month) {
+        switch (selectedFilterOperation) {
+          case '=': return [[field, '>=', month], 'and', [field, '<', nextMonth(month)]];
+          case '<>': return [[field, '<', month], 'or', [field, '>=', nextMonth(month)]];
+          case '>=': return [field, '>=', month];
+          case '<=': return [field, '<', nextMonth(month)];
+          case '>': return [field, '>=', nextMonth(month)];
+          case '<': return [field, '<', month];
+          default: break;
+        }
+      }
     }
     return this.defaultCalculateFilterExpression(filterValue, selectedFilterOperation, target);
   };
@@ -176,7 +193,7 @@ export class AssessmentSheetsComponent implements OnInit, OnDestroy {
     void this.loadAllSheets();
   }
 
-  // Ô lọc ngày ở filter row (kể cả 2 ô của "between") hiển thị dạng chọn tháng MM/yyyy.
+  // Ô lọc ngày ở filter row (kể cả 2 ô của "between") hiển thị dạng chọn tháng M/yyyy.
   onEditorPreparing(event: {
     parentType?: string;
     dataField?: string;
@@ -187,7 +204,7 @@ export class AssessmentSheetsComponent implements OnInit, OnDestroy {
       && event.editorName === 'dxDateBox'
       && (event.dataField === 'startDate' || event.dataField === 'dueDate')
       && event.editorOptions) {
-      event.editorOptions.displayFormat = 'MM/yyyy';
+      event.editorOptions.displayFormat = 'M/yyyy';
       event.editorOptions.calendarOptions = { maxZoomLevel: 'year' };
     }
   }
@@ -492,14 +509,14 @@ export class AssessmentSheetsComponent implements OnInit, OnDestroy {
     return value ? formatDateOnly(toDateOnly(value) ?? value.substring(0, 10)) : '—';
   }
 
-  // startDate/dueDate chỉ cần độ chính xác tới tháng: hiển thị M/yy (tháng không đệm số 0).
+  // startDate/dueDate chỉ cần độ chính xác tới tháng: hiển thị M/yyyy (tháng không đệm số 0).
   monthText(value: string | null | undefined): string {
     const iso = value ? toDateOnly(value) ?? value.substring(0, 10) : undefined;
     if (!iso) {
       return '—';
     }
     const [year, month] = iso.split('-');
-    return `${Number(month)}/${year.slice(-2)}`;
+    return `${Number(month)}/${year}`;
   }
 
   private withTrace(error: ApiError): string {

@@ -517,13 +517,31 @@ export class AssessmentSheetFormComponent implements OnInit, OnDestroy {
     readOnly: true,
     inputAttr: { 'aria-label': 'Trạng thái' }
   };
-  // startDate/dueDate nhập theo tháng: lịch dừng ở mức chọn tháng, hiển thị MM/yyyy.
+  // startDate/dueDate nhập theo tháng: lịch dừng ở mức chọn tháng, hiển thị M/yyyy.
   readonly dateEditorOptions: Record<string, unknown> = {
     type: 'date',
-    displayFormat: 'MM/yyyy',
+    displayFormat: 'M/yyyy',
     showClearButton: true,
     pickerType: 'calendar',
     calendarOptions: { maxZoomLevel: 'year' }
+  };
+  // dueDate là hạn hoàn thành: chọn tháng nào thì lấy NGÀY CUỐI tháng đó làm value.
+  readonly dueDateEditorOptions: Record<string, unknown> = {
+    ...this.dateEditorOptions,
+    onValueChanged: (event: {
+      value?: unknown;
+      event?: unknown;
+      component?: { option: (name: string, value: unknown) => void };
+    }): void => {
+      if (!event.event || !(event.value instanceof Date)) {
+        return;
+      }
+      const picked = event.value;
+      const endOfMonth = new Date(picked.getFullYear(), picked.getMonth() + 1, 0);
+      if (picked.getDate() !== endOfMonth.getDate()) {
+        event.component?.option('value', endOfMonth);
+      }
+    }
   };
   readonly noteEditorOptions: Record<string, unknown> = {
     maxLength: 2000,
