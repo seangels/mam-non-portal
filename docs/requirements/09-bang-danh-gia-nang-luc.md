@@ -113,6 +113,15 @@
   - Sheet `Done` khóa toàn bộ thao tác sửa group.
 - Snapshot tùy chỉnh phải được giữ lại khi lưu grade/note hoặc thêm/xóa record; luồng replace record không được âm thầm dựng lại và ghi đè snapshot đã chỉnh.
 
+### 7.2. Thanh sticky màn chỉnh sửa (ASH-FB-W3, 2026-09-01)
+
+- **Nút "Tạo mới đánh giá"**: mở màn tạo bảng đánh giá mới (form trống). Nếu bảng đang chỉnh sửa còn thay đổi chưa lưu thì hỏi xác nhận trước khi rời trang.
+- **Nút combo "Hoàn thành kế hoạch"** — chỉ hiện khi bảng đã lưu đang ở trạng thái `Open` và có mục đánh giá. Bấm một lần, hệ thống tự chạy tuần tự như thao tác tay (**không hỏi xác nhận**; lỗi ở bước nào thì dừng ngay ở bước đó, không hoàn tác các bước trước):
+  1. Lưu thay đổi hiện tại (đang `Open`).
+  2. Chuyển trạng thái sang `Planed` và lưu.
+  3. Tạo PDF kế hoạch từ trang preview và upload lên Google Drive của học sinh (dùng luồng ở §8), rồi quay lại màn chỉnh sửa.
+- **Nút "Lên đầu" / "Xuống cuối"**: cuộn nhanh tới đầu danh mục đánh giá đã chọn / cuối trang.
+
 ## 8. Sinh PDF [F02] — Kế hoạch cá nhân
 
 - Khi người dùng bấm nút `In Kế hoạch PDF` (không tự động), UI mở trang preview HTML/A4, render dữ liệu kế hoạch hiện tại (`PlanGrade`/`PlanNote`) bằng `html2pdf.js`.

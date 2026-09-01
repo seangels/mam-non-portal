@@ -370,6 +370,16 @@ export class AssessmentSheetsComponent implements OnDestroy {
     return value ? formatDateOnly(toDateOnly(value) ?? value.substring(0, 10)) : '—';
   }
 
+  // startDate/dueDate chỉ cần độ chính xác tới tháng: hiển thị MM/yy.
+  monthText(value: string | null | undefined): string {
+    const iso = value ? toDateOnly(value) ?? value.substring(0, 10) : undefined;
+    if (!iso) {
+      return '—';
+    }
+    const [year, month] = iso.split('-');
+    return `${month}/${year.slice(-2)}`;
+  }
+
   private readSort(sortValue: unknown): { field: string; order: 'asc' | 'desc' } {
     const sort = Array.isArray(sortValue) ? sortValue[0] : sortValue;
     const config = sort && typeof sort === 'object' ? sort as { selector?: unknown; desc?: boolean } : undefined;

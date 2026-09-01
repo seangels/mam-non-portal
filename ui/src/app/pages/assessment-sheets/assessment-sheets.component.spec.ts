@@ -1623,3 +1623,40 @@ describe('Assessment picker filter and selection', () => {
     expect(component.allAssessments.length).toBe(1);
   });
 });
+
+describe('Assessment sheet edit sticky-bar actions (G6a/G6b)', () => {
+  const makeForm = (mode = 'edit') => {
+    const router = { navigate: jasmine.createSpy('navigate').and.resolveTo(true) } as any;
+    const component = new AssessmentSheetFormComponent(
+      {} as any, {} as any, { user: { role: 'Admin' } } as any, {} as any, {} as any,
+      { snapshot: { data: { mode }, paramMap: { get: () => (mode === 'edit' ? 'sheet-1' : null) } } } as any,
+      router
+    );
+    return { component, router };
+  };
+
+  it('shows "Hoàn thành kế hoạch" only for a saved Open sheet', () => {
+    const { component } = makeForm('edit');
+    component.isCreate = false;
+    component.assessmentSheetId = 'sheet-1';
+
+    component.originalStatus = 'Open';
+    expect(component.canShowCompletePlan).toBeTrue();
+
+    component.originalStatus = 'Planed';
+    expect(component.canShowCompletePlan).toBeFalse();
+
+    const createMode = makeForm('create').component;
+    createMode.originalStatus = 'Open';
+    expect(createMode.canShowCompletePlan).toBeFalse();
+  });
+
+  it('"Tạo mới đánh giá" navigates to the create route', () => {
+    const { component, router } = makeForm('edit');
+    component.isCreate = false;
+
+    component.openCreateNew();
+
+    expect(router.navigate).toHaveBeenCalledWith(['/assessment-sheets/new']);
+  });
+});

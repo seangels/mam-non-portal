@@ -1,8 +1,14 @@
 # Frontend role memory
 
-Last updated: 2026-09-01 (ASH-FB-W2 — feedback batch Đợt 2: picker overhaul G3/G4/G5)
+Last updated: 2026-09-01 (ASH-FB-W3 — feedback batch Đợt 3: edit sticky-bar G6b/G6a; batch ASH-FB-01 done)
 
 ## Resume here
+
+- 2026-09-01 (`ASH-FB-W3`, Đợt 3 feedback batch — **cuối**, FE-only, orchestrator sửa trực tiếp). Thanh sticky màn chỉnh sửa bảng đánh giá:
+  - **G6b**: `assessment-sheets-form.component` `openCreateNew()` → `router.navigate(['/assessment-sheets/new'])`. Route `/new` khác `routeConfig` với `/:id/edit` → Angular destroy+recreate component (form trống, `ngOnInit` chạy lại); `PendingChangesGuard.canDeactivate` → `canLeave()` nhắc dirty. Nút "Tạo mới đánh giá" (`icon="plus"`) trong `.form-actions`, `*ngIf="!isCreate"`.
+  - **G6a**: flag `completingPlan`; getter `canShowCompletePlan` (`!isCreate && assessmentSheetId && originalStatus === 'Open'`) + `canCompletePlan` (thêm không-bận + `hasRecords`). Nút "Hoàn thành kế hoạch" (`icon="todo" type="success"`, `*ngIf="canShowCompletePlan"`, `[disabled]="!canCompletePlan"`). `completePlan()`: `editor.status='Open'` → `await save()` → `if (formError) return`; `editor.status='Planed'` → `await save()` (`saveExisting()` tự gọi `updateStatus` khi status != baseline) → `if (formError) return`; `if (!canOpenPlanPdfPreview()) { formError; return }`; `allowPreviewNavigationOnce=true` + `router.navigate([... 'plan-pdf-preview'], { queryParams: { auto: 1 } })`. **TS gotcha đã tránh**: đừng check `this.originalStatus !== 'X'` sau `if (... === 'X') return` + `await` — TS giữ narrowing của `this.prop` qua `await`, gây lỗi "no overlap"; chỉ check `this.formError`.
+  - **Preview** (`assessment-sheet-plan-preview.component`): `ngOnInit` đọc `route.snapshot.queryParamMap.get('auto') === '1'` → `autoUpload`. Trong `ngAfterViewChecked`, sau khi `model === lastFittedModel` (đã fit), chạy **1 lần** (`autoUploadStarted`) `setTimeout(300)` → `runAutoUpload()` = `await uploadPdfToDrive()` rồi `if (!actionError) goBack()`.
+  - Files: `pages/assessment-sheets/assessment-sheets-form.component.{ts,html}`, `pages/assessment-sheets/assessment-sheet-plan-preview.component.ts`, `pages/assessment-sheets/assessment-sheets.component.spec.ts` (+2). Verification: `npm --prefix ui run test:ci` **156/156**; dev build `601fe22f056208caab10`. Không backend/migration/production/IIS/deploy. **Toàn bộ batch ASH-FB-01 (Đợt 1→4) đã code + verify**; còn smoke thủ công + Google live.
 
 - 2026-09-01 (`ASH-FB-W2`, Đợt 2 feedback batch, **FE-only**, orchestrator sửa trực tiếp). Đại tu bảng picker mục đánh giá + thứ tự nhóm Lv2 ở trang "DS Đánh giá":
   - **G3 helper dùng chung** trong `core/models/api.models.assessment-sheets.ts`: `assessmentGroupLv2Order(name)` (map `normalizeVietnamese(key) → displayOrder` 1..5 từ `ASSESSMENT_GROUP_LV2_CONFIGS`, ngoài danh mục → `Number.MAX_SAFE_INTEGER`) + `compareAssessmentByFixedGroupOrder(a,b)` = Lv2 cố định → `rowIndex` (giữ như hiện tại) → `code`. `api.models.assessment-sheets.ts` giờ import `../utils/vietnamese-search`.

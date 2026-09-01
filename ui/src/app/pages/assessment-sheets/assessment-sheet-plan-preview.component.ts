@@ -39,6 +39,8 @@ export class AssessmentSheetPlanPreviewComponent implements OnInit, AfterViewChe
   actionError = '';
   driveFileLink = '';
   pdfKind: AssessmentSheetPdfKind = 'plan';
+  autoUpload = false;
+  private autoUploadStarted = false;
 
   // Tracks which model reference has already been fitted to the page so
   // fitContentToPage() only re-measures once per model change, not on every
@@ -69,6 +71,9 @@ export class AssessmentSheetPlanPreviewComponent implements OnInit, AfterViewChe
     this.pdfKind = this.route.snapshot.data['pdfKind'] === 'result' ? 'result' : 'plan';
     this.pdfOptions['filename'] = this.pdfKind === 'result' ? 'ket-qua-danh-gia.pdf' : 'ke-hoach-ca-nhan.pdf';
     this.sheetId = this.route.snapshot.paramMap.get('id') ?? '';
+    // Cờ ?auto=1 do nút combo "Hoàn thành kế hoạch" (ASH-FB-W3 / G6a) truyền vào: tự tạo PDF,
+    // upload Drive rồi quay lại màn chỉnh sửa.
+    this.autoUpload = this.route.snapshot.queryParamMap.get('auto') === '1';
     if (!this.sheetId) {
       this.loadError = 'Không tìm thấy mã bảng đánh giá trong đường dẫn.';
       return;
@@ -83,6 +88,20 @@ export class AssessmentSheetPlanPreviewComponent implements OnInit, AfterViewChe
     if (this.model && this.model !== this.lastFittedModel) {
       this.fitContentToPage();
       this.lastFittedModel = this.model;
+    }
+
+    // ASH-FB-W3 / G6a: khi mở bằng ?auto=1, sau khi preview đã render + fit thì tự tạo PDF,
+    // upload Drive rồi quay lại màn chỉnh sửa. Chạy đúng một lần.
+    if (this.autoUpload && !this.autoUploadStarted && this.model && this.model === this.lastFittedModel) {
+      this.autoUploadStarted = true;
+      setTimeout(() => void this.runAutoUpload(), 300);
+    }
+  }
+
+  private async runAutoUpload(): Promise<void> {
+    await this.uploadPdfToDrive();
+    if (!this.actionError) {
+      this.goBack();
     }
   }
 

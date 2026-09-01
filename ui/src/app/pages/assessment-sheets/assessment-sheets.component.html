@@ -55,12 +55,14 @@
         (onValueChanged)="applyFilters()">
       </dx-select-box>
 
-      <dx-date-box type="date" displayFormat="dd/MM/yyyy" [showClearButton]="true" [(value)]="dateFrom"
-        [inputAttr]="{ 'aria-label': 'Từ ngày' }" placeholder="Từ ngày" (onValueChanged)="applyFilters()">
+      <dx-date-box type="date" displayFormat="MM/yyyy" [calendarOptions]="{ maxZoomLevel: 'year' }"
+        [showClearButton]="true" [(value)]="dateFrom"
+        [inputAttr]="{ 'aria-label': 'Từ tháng' }" placeholder="Từ tháng" (onValueChanged)="applyFilters()">
       </dx-date-box>
 
-      <dx-date-box type="date" displayFormat="dd/MM/yyyy" [showClearButton]="true" [(value)]="dateTo"
-        [inputAttr]="{ 'aria-label': 'Đến ngày' }" placeholder="Đến ngày" (onValueChanged)="applyFilters()">
+      <dx-date-box type="date" displayFormat="MM/yyyy" [calendarOptions]="{ maxZoomLevel: 'year' }"
+        [showClearButton]="true" [(value)]="dateTo"
+        [inputAttr]="{ 'aria-label': 'Đến tháng' }" placeholder="Đến tháng" (onValueChanged)="applyFilters()">
       </dx-date-box>
 
       <dx-select-box
@@ -165,8 +167,8 @@
       <span class="status-pill" [class.done]="cell.data.status === 'Done'">{{ statusText(cell.data.status) }}</span>
     </div>
 
-    <div *dxTemplate="let cell of 'startDateCell'">{{ dateText(cell.data.startDate) }}</div>
-    <div *dxTemplate="let cell of 'dueDateCell'">{{ dateText(cell.data.dueDate) }}</div>
+    <div *dxTemplate="let cell of 'startDateCell'">{{ monthText(cell.data.startDate) }}</div>
+    <div *dxTemplate="let cell of 'dueDateCell'">{{ monthText(cell.data.dueDate) }}</div>
     <div *dxTemplate="let cell of 'submissionDateCell'">{{ dateText(cell.data.submissionDate) }}</div>
     <div *dxTemplate="let cell of 'planLinkCell'">
       <a *ngIf="cell.data.planFileLinkPdf as link; else noPlanLink" [href]="link" target="_blank"

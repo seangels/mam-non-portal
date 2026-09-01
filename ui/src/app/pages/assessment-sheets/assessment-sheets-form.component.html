@@ -556,9 +556,18 @@
       <dx-button *ngIf="!isCreate" icon="arrowdown" stylingMode="outlined"
         hint="Xuống cuối trang" aria-label="Xuống cuối trang"
         (onClick)="scrollToBottom()"></dx-button>
-      <dx-button text="Hủy" stylingMode="outlined" [disabled]="saving || recordMutationInProgress || submittingResults" (onClick)="cancel()"></dx-button>
+      <dx-button *ngIf="!isCreate" text="Tạo mới đánh giá" icon="plus" stylingMode="outlined"
+        hint="Mở màn tạo bảng đánh giá mới"
+        [disabled]="saving || recordMutationInProgress || submittingResults || completingPlan"
+        (onClick)="openCreateNew()"></dx-button>
+      <dx-button *ngIf="canShowCompletePlan"
+        [text]="completingPlan ? 'Đang hoàn thành...' : 'Hoàn thành kế hoạch'" icon="todo" type="success"
+        hint="Lưu, chuyển sang Đã lập kế hoạch, rồi tạo PDF kế hoạch lên Google Drive"
+        [disabled]="!canCompletePlan"
+        (onClick)="completePlan()"></dx-button>
+      <dx-button text="Hủy" stylingMode="outlined" [disabled]="saving || recordMutationInProgress || submittingResults || completingPlan" (onClick)="cancel()"></dx-button>
       <dx-button [text]="isCreate ? 'Tạo bảng đánh giá' : 'Lưu thay đổi'" icon="save" type="default"
-        [disabled]="saving || recordMutationInProgress || submittingResults" (onClick)="save()"></dx-button>
+        [disabled]="saving || recordMutationInProgress || submittingResults || completingPlan" (onClick)="save()"></dx-button>
     </div>
   </div>
 </div>

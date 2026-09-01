@@ -458,6 +458,7 @@ export class AssessmentSheetFormComponent implements OnInit, OnDestroy {
   groupLv2Order: string[] | null = null;
   loading = false;
   saving = false;
+  completingPlan = false;
   addingRecord = false;
   removingRecordId: string | null = null;
   submittingResults = false;
@@ -516,11 +517,13 @@ export class AssessmentSheetFormComponent implements OnInit, OnDestroy {
     readOnly: true,
     inputAttr: { 'aria-label': 'Trạng thái' }
   };
+  // startDate/dueDate nhập theo tháng: lịch dừng ở mức chọn tháng, hiển thị MM/yyyy.
   readonly dateEditorOptions: Record<string, unknown> = {
     type: 'date',
-    displayFormat: 'dd/MM/yyyy',
+    displayFormat: 'MM/yyyy',
     showClearButton: true,
-    pickerType: "calendar",
+    pickerType: 'calendar',
+    calendarOptions: { maxZoomLevel: 'year' }
   };
   readonly noteEditorOptions: Record<string, unknown> = {
     maxLength: 2000,
@@ -824,6 +827,71 @@ export class AssessmentSheetFormComponent implements OnInit, OnDestroy {
   scrollToBottom(): void {
     document.querySelector('app-footer')
       ?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+  }
+
+  // G6b: mở màn tạo bảng đánh giá mới. Route khác config nên component dựng lại (form trống);
+  // PendingChangesGuard/canLeave() lo phần nhắc "thay đổi chưa lưu".
+  openCreateNew(): void {
+    if (this.saving || this.completingPlan || this.recordMutationInProgress || this.submittingResults) {
+      return;
+    }
+    void this.router.navigate(['/assessment-sheets/new']);
+  }
+
+  // G6a: nút combo "Hoàn thành kế hoạch" — chỉ khi bảng đã lưu đang ở trạng thái Open.
+  get canShowCompletePlan(): boolean {
+    return !this.isCreate && !!this.assessmentSheetId && this.originalStatus === 'Open';
+  }
+
+  get canCompletePlan(): boolean {
+    return this.canShowCompletePlan
+      && !this.completingPlan
+      && !this.saving
+      && !this.loading
+      && !this.recordMutationInProgress
+      && !this.submittingResults
+      && this.hasRecords;
+  }
+
+  // Chạy tuần tự như thao tác tay: (1) Lưu ở Open → (2) chuyển Planed + (3) Lưu ở Planed →
+  // (4) mở preview kế hoạch với cờ auto để tự tạo PDF và upload Google Drive.
+  // Lỗi ở bước nào thì dừng ngay ở bước đó (không rollback, không confirm).
+  async completePlan(): Promise<void> {
+    if (!this.canCompletePlan) {
+      return;
+    }
+    this.completingPlan = true;
+    this.formError = '';
+    try {
+      // 1. Lưu ở trạng thái Open.
+      this.editor.status = 'Open';
+      await this.save();
+      if (this.formError) {
+        return;
+      }
+
+      // 2 + 3. Chuyển sang Planed rồi lưu (save() tự gọi update-status khi status khác baseline).
+      this.editor.status = 'Planed';
+      await this.save();
+      if (this.formError) {
+        return;
+      }
+
+      // 4. Tạo PDF kế hoạch + upload Drive qua trang preview (cờ auto).
+      // canOpenPlanPdfPreview() yêu cầu bảng đã rời trạng thái Open (giờ là Planed) và có mục đánh giá.
+      if (!this.canOpenPlanPdfPreview()) {
+        this.formError = 'Không thể tạo PDF kế hoạch: bảng chưa chuyển được sang Đã lập kế hoạch hoặc chưa có mục đánh giá.';
+        return;
+      }
+      this.allowPreviewNavigationOnce = true;
+      await this.router.navigate(
+        ['/assessment-sheets', this.assessmentSheetId, 'plan-pdf-preview'],
+        { queryParams: { auto: 1 } }
+      );
+    } finally {
+      this.allowPreviewNavigationOnce = false;
+      this.completingPlan = false;
+    }
   }
 
   cancel(): void {
