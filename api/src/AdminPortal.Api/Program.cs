@@ -113,12 +113,15 @@ app.UseRateLimiter();
 var spaBuildPath = ResolveSpaBuildPath(app.Environment.ContentRootPath, spaOptions.BuildPath);
 if (spaOptions.ServeFromClientAppBuild)
 {
-    if (Directory.Exists(spaBuildPath))
-    {
-        var spaFileProvider = new PhysicalFileProvider(spaBuildPath);
-        app.UseDefaultFiles(new DefaultFilesOptions { FileProvider = spaFileProvider });
-        app.UseStaticFiles(new StaticFileOptions { FileProvider = spaFileProvider });
-    }
+    // Create the directory up front so PhysicalFileProvider never throws, and so
+    // static-file serving is wired unconditionally: the build output may be copied
+    // in after the process starts (deploy step), and PhysicalFileProvider picks up
+    // files as they appear. Guarding this on a startup-time Directory.Exists left
+    // the SPA shell served by the fallback while every hashed asset 404'd.
+    Directory.CreateDirectory(spaBuildPath);
+    var spaFileProvider = new PhysicalFileProvider(spaBuildPath);
+    app.UseDefaultFiles(new DefaultFilesOptions { FileProvider = spaFileProvider });
+    app.UseStaticFiles(new StaticFileOptions { FileProvider = spaFileProvider });
 }
 
 app.UseAuthentication();
