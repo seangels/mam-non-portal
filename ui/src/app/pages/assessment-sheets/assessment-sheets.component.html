@@ -55,11 +55,11 @@
       [headerFilter]="statusHeaderFilter"></dxi-column>
     <dxi-column dataField="startDate" caption="Bắt đầu" dataType="date" cellTemplate="startDateCell"
       sortOrder="desc" [width]="120" [allowHeaderFiltering]="false"
-      [filterOperations]="['between', '>=', '<=', '=']" selectedFilterOperation="between"
+      [filterOperations]="['<=', '>=', 'between', '=']" selectedFilterOperation="<="
       [calculateFilterExpression]="monthGranularFilterExpression"></dxi-column>
     <dxi-column dataField="dueDate" caption="Hạn hoàn thành" dataType="date" cellTemplate="dueDateCell"
       [width]="120" [allowHeaderFiltering]="false"
-      [filterOperations]="['between', '>=', '<=', '=']" selectedFilterOperation="between"
+      [filterOperations]="['>=', '<=', 'between', '=']" selectedFilterOperation=">="
       [calculateFilterExpression]="monthGranularFilterExpression"></dxi-column>
     <dxi-column dataField="submissionDate" caption="Ngày nộp" dataType="date" cellTemplate="submissionDateCell"
       [width]="110" [allowHeaderFiltering]="false"></dxi-column>
