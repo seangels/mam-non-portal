@@ -11,6 +11,7 @@ import {
   compareAssessmentByFixedGroupOrder
 } from '../../core/models/api.models.assessment-sheets';
 import { AssessmentsService } from '../../core/services/assessments.service';
+import { patchGridBestFit } from '../../core/errors/dx-grid-bestfit-guard';
 import { includesVietnamese } from '../../core/utils/vietnamese-search';
 
 const SELECTED_ROW_CLASS = 'assessment-picker-selected-row';
@@ -332,7 +333,14 @@ export class AssessmentPickerComponent implements OnChanges, OnInit, OnDestroy {
 
   onContentReady(): void {
     this.refreshVisibleAssessmentIds();
+    // DevExtreme 19.2: `_synchronizeColumns`/`_toggleBestFitMode` (trên ResizingController) có thể chạy
+    // sau khi grid picker bị hủy (đóng picker / rời form) → null-css. Vá trên đúng controller `resizing`.
+    if (!this.gridBestFitGuarded && patchGridBestFit(this.grid?.instance, '[AssessmentPicker]')) {
+      this.gridBestFitGuarded = true;
+    }
   }
+
+  private gridBestFitGuarded = false;
 
   onRowPrepared(event: { rowType?: string; data?: Assessment; rowElement?: unknown }): void {
     if (event.rowType !== 'data') {

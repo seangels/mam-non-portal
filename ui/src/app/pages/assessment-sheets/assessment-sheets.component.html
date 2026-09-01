@@ -5,114 +5,8 @@
   </div>
 </div>
 
-<section class="content-block dx-card filter-card" aria-labelledby="assessment-sheets-filter-heading">
-  <button class="filter-toggle" type="button" (click)="filtersExpanded = !filtersExpanded"
-    [attr.aria-expanded]="filtersExpanded" aria-controls="assessment-sheets-filters">
-    <span id="assessment-sheets-filter-heading">Bộ lọc bảng đánh giá</span>
-    <span aria-hidden="true">{{ filtersExpanded ? '−' : '+' }}</span>
-  </button>
-
-  <div *ngIf="filtersExpanded" id="assessment-sheets-filters" class="filters assessment-sheets-filters-container">
-    <div class="filter-row inputs-row">
-      <dx-text-box
-        class="search-input"
-        [(value)]="search"
-        valueChangeEvent="input"
-        placeholder="Tìm mã hoặc tên học sinh"
-        [showClearButton]="true"
-        [inputAttr]="{ 'aria-label': 'Tìm theo mã hoặc tên học sinh' }"
-        (onValueChanged)="scheduleSearch()"
-        (onEnterKey)="applyFilters()">
-      </dx-text-box>
-
-      <dx-select-box
-        class="student-input"
-        [(value)]="studentId"
-        [dataSource]="studentDataSource"
-        valueExpr="id"
-        [displayExpr]="studentDisplay"
-        [searchEnabled]="true"
-        searchMode="contains"
-        placeholder="Chọn học sinh"
-        [showClearButton]="true"
-        noDataText="Không có học sinh phù hợp"
-        [inputAttr]="{ 'aria-label': 'Lọc theo học sinh' }"
-        (onValueChanged)="applyFilters()">
-      </dx-select-box>
-
-      <dx-select-box
-        class="teacher-input"
-        [(value)]="responsibleTeacherId"
-        [dataSource]="teacherDataSource"
-        valueExpr="id"
-        [displayExpr]="teacherDisplay"
-        [searchEnabled]="true"
-        searchMode="contains"
-        placeholder="Giáo viên phụ trách"
-        [showClearButton]="true"
-        noDataText="Không có giáo viên phù hợp"
-        [inputAttr]="{ 'aria-label': 'Lọc theo giáo viên phụ trách' }"
-        (onValueChanged)="applyFilters()">
-      </dx-select-box>
-
-      <dx-date-box type="date" displayFormat="MM/yyyy" [calendarOptions]="{ maxZoomLevel: 'year' }"
-        [showClearButton]="true" [(value)]="dateFrom"
-        [inputAttr]="{ 'aria-label': 'Từ tháng' }" placeholder="Từ tháng" (onValueChanged)="applyFilters()">
-      </dx-date-box>
-
-      <dx-date-box type="date" displayFormat="MM/yyyy" [calendarOptions]="{ maxZoomLevel: 'year' }"
-        [showClearButton]="true" [(value)]="dateTo"
-        [inputAttr]="{ 'aria-label': 'Đến tháng' }" placeholder="Đến tháng" (onValueChanged)="applyFilters()">
-      </dx-date-box>
-
-      <dx-select-box
-        class="status-input"
-        [(value)]="status"
-        [dataSource]="statuses"
-        valueExpr="value"
-        displayExpr="text"
-        placeholder="Trạng thái"
-        [showClearButton]="true"
-        [inputAttr]="{ 'aria-label': 'Lọc theo trạng thái' }"
-        (onValueChanged)="applyFilters()">
-      </dx-select-box>
-    </div>
-
-    <div class="filter-row buttons-row">
-      <dx-button class="primary-action" text="Thêm bảng đánh giá" icon="plus" type="default"
-        hint="Tạo bảng đánh giá" (onClick)="openCreate()"></dx-button>
-
-      <input #importFileInput type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        hidden [disabled]="importDisabled" (change)="previewImportExcel($event)" />
-
-      <dx-button [text]="importButtonText" icon="upload" stylingMode="outlined" type="normal"
-        hint="Nhập bảng đánh giá từ file Excel .xlsx" [disabled]="importDisabled"
-        (onClick)="openImportFilePicker(importFileInput)"></dx-button>
-
-      <dx-button text="Lọc" icon="filter" type="default" hint="Áp dụng bộ lọc"
-        (onClick)="applyFilters()"></dx-button>
-
-      <dx-button text="Đặt lại" icon="revert" stylingMode="outlined" hint="Xóa toàn bộ bộ lọc"
-        (onClick)="resetFilters()"></dx-button>
-
-      <dx-drop-down-button
-        [text]="bulkActionInProgress ? 'Đang xử lý...' : 'Bulk Action (' + selectedSheets.length + ')'"
-        icon="download"
-        stylingMode="outlined"
-        [items]="bulkActionItems"
-        displayExpr="text"
-        keyExpr="id"
-        [disabled]="bulkActionDisabled"
-        [dropDownOptions]="{ width: 200 }"
-        hint="Chọn nhiều dòng rồi tải PDF/ảnh khcn hoặc kết quả (gộp thành zip)"
-        (onItemClick)="onBulkAction($event)">
-      </dx-drop-down-button>
-
-      <dx-button text="Ẩn/Hiện cột" icon="column-chooser" stylingMode="outlined" hint="Ẩn/Hiện cột"
-        (onClick)="showDialogColumnChooser()"></dx-button>
-    </div>
-  </div>
-</section>
+<input #importFileInput type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+  hidden [disabled]="importDisabled" (change)="previewImportExcel($event)" />
 
 <section *ngIf="importResult" class="content-block dx-card import-result-panel" role="status" aria-live="polite">
   <div>
@@ -134,37 +28,55 @@
 </div>
 
 <div class="content-block dx-card grid-card">
-  <dx-data-grid #grid [dataSource]="dataSource" [remoteOperations]="{ paging: true, sorting: true }"
-    [showBorders]="true" [columnAutoWidth]="true" [columnHidingEnabled]="true" [wordWrapEnabled]="true"
-    [rowAlternationEnabled]="true" [hoverStateEnabled]="true" noDataText="Không có dữ liệu phù hợp"
+  <dx-data-grid #grid [dataSource]="sheets"
+    [showBorders]="true" [columnAutoWidth]="false" [wordWrapEnabled]="true"
+    [rowAlternationEnabled]="true" [hoverStateEnabled]="true"
+    noDataText="Không có dữ liệu phù hợp"
+    (onInitialized)="onGridInitialized($event)"
+    (onContentReady)="onGridContentReady($event)"
+    (onToolbarPreparing)="onToolbarPreparing($event)"
+    (onEditorPreparing)="onEditorPreparing($event)"
+    (onRowPrepared)="onRowPrepared($event)"
     (onSelectionChanged)="onSelectionChanged($event)">
     <dxo-column-chooser [enabled]="true" mode="select"></dxo-column-chooser>
+    <dxo-search-panel [visible]="true" [width]="260" placeholder="Tìm học sinh, giáo viên..."></dxo-search-panel>
+    <dxo-filter-row [visible]="true"></dxo-filter-row>
+    <dxo-header-filter [visible]="true"></dxo-header-filter>
     <dxo-load-panel [enabled]="true" text="Đang tải..."></dxo-load-panel>
     <dxo-paging [pageSize]="20"></dxo-paging>
     <dxo-pager [showInfo]="true" [showPageSizeSelector]="true" [allowedPageSizes]="[20, 50, 100]"></dxo-pager>
     <dxo-sorting mode="single"></dxo-sorting>
     <dxo-selection mode="multiple" selectAllMode="page" showCheckBoxesMode="always" [deferred]="false"></dxo-selection>
 
-    <dxi-column type="buttons" [width]="72" [buttons]="rowButtons"></dxi-column>
+    <dxi-column type="buttons" [width]="72" [buttons]="rowButtons" [allowReordering]="false" [allowResizing]="false"></dxi-column>
     <dxi-column dataField="studentFullName" caption="Học sinh" cellTemplate="studentCell" [width]="180" [minWidth]="140"></dxi-column>
     <dxi-column dataField="responsibleTeacherFullName" caption="Giáo viên phụ trách" [width]="150" [minWidth]="120"></dxi-column>
-    <dxi-column dataField="status" caption="Trạng thái" cellTemplate="statusCell" [width]="108"></dxi-column>
-    <dxi-column dataField="startDate" caption="Bắt đầu" cellTemplate="startDateCell" sortOrder="desc" [width]="96"></dxi-column>
-    <dxi-column dataField="dueDate" caption="Hạn hoàn thành" cellTemplate="dueDateCell" [width]="96"></dxi-column>
-    <dxi-column dataField="submissionDate" caption="Ngày nộp" cellTemplate="submissionDateCell" [width]="96"></dxi-column>
+    <dxi-column dataField="status" caption="Trạng thái" cellTemplate="statusCell" [width]="120"
+      [headerFilter]="statusHeaderFilter"></dxi-column>
+    <dxi-column dataField="startDate" caption="Bắt đầu" dataType="date" cellTemplate="startDateCell"
+      sortOrder="desc" [width]="120" [allowHeaderFiltering]="false"
+      [filterOperations]="['between', '>=', '<=', '=']" selectedFilterOperation="between"
+      [calculateFilterExpression]="monthBetweenFilterExpression"></dxi-column>
+    <dxi-column dataField="dueDate" caption="Hạn hoàn thành" dataType="date" cellTemplate="dueDateCell"
+      [width]="120" [allowHeaderFiltering]="false"
+      [filterOperations]="['between', '>=', '<=', '=']" selectedFilterOperation="between"
+      [calculateFilterExpression]="monthBetweenFilterExpression"></dxi-column>
+    <dxi-column dataField="submissionDate" caption="Ngày nộp" dataType="date" cellTemplate="submissionDateCell"
+      [width]="110" [allowHeaderFiltering]="false"></dxi-column>
     <dxi-column dataField="planFileLinkPdf" caption="Kế hoạch" cellTemplate="planLinkCell"
-      [allowSorting]="false" [allowFiltering]="false" [width]="72"></dxi-column>
+      [allowSorting]="false" [allowFiltering]="false" [allowHeaderFiltering]="false" [width]="72"></dxi-column>
     <dxi-column dataField="resultFileLinkPdf" caption="Kết quả" cellTemplate="resultLinkCell"
-      [allowSorting]="false" [allowFiltering]="false" [width]="72"></dxi-column>
-    <dxi-column dataField="updatedAt" caption="Cập nhật" cellTemplate="updatedAtCell" [width]="112"></dxi-column>
+      [allowSorting]="false" [allowFiltering]="false" [allowHeaderFiltering]="false" [width]="72"></dxi-column>
+    <dxi-column dataField="updatedAt" caption="Cập nhật" dataType="date" cellTemplate="updatedAtCell"
+      [allowHeaderFiltering]="false"></dxi-column>
 
     <div *dxTemplate="let cell of 'studentCell'" class="student-cell">
       <span>{{ cell.data.studentFullName || '—' }}</span>
-      <small>{{ cell.data.studentCode || '—' }}</small>
+      <small>{{ cell.data.studentCode || '—' }}{{ cell.data.studentNickName ? ' · ' + cell.data.studentNickName : '' }}</small>
     </div>
 
     <div *dxTemplate="let cell of 'statusCell'">
-      <span class="status-pill" [class.done]="cell.data.status === 'Done'">{{ statusText(cell.data.status) }}</span>
+      <span class="status-pill" [ngClass]="'status-' + cell.data.status">{{ statusText(cell.data.status) }}</span>
     </div>
 
     <div *dxTemplate="let cell of 'startDateCell'">{{ monthText(cell.data.startDate) }}</div>

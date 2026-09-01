@@ -1,19 +1,13 @@
 :host { display: block; }
-.filter-card { padding: 0; overflow: hidden; }
-.filter-toggle { display: flex; width: 100%; min-height: 48px; align-items: center; justify-content: space-between; padding: 12px 18px; border: 0; background: transparent; color: inherit; font: inherit; font-weight: 600; text-align: left; cursor: pointer; }
-.filter-toggle:focus-visible { outline: 2px solid #337ab7; outline-offset: -3px; }
-.assessment-sheets-filters-container { display: flex; flex-direction: column; gap: 12px; padding: 0 18px 18px; }
-.filter-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
-.filter-row > * { flex: 1 1 190px; min-width: 0; }
-.filter-row .search-input { flex-basis: 260px; }
-.buttons-row { justify-content: flex-end; }
-.buttons-row > * { flex: 0 0 auto; }
-.buttons-row .primary-action { margin-right: auto; }
 .student-cell { display: flex; flex-direction: column; gap: 3px; }
-.student-cell small { color: #667085; }
+.student-cell small { color: #667085; font-weight: 400; }
 .link-empty { color: #98a2b3; }
-.status-pill { display: inline-flex; min-height: 24px; align-items: center; border-radius: 12px; padding: 2px 10px; background: #e8f1fb; color: #184f86; font-weight: 600; }
-.status-pill.done { background: #eaf7ee; color: #17623a; }
+.status-pill { display: inline-flex; min-height: 24px; align-items: center; border-radius: 12px; padding: 2px 10px; font-weight: 600; background: #eef2f7; color: #344054; }
+.status-pill.status-Open { background: #e8f1fb; color: #184f86; }
+.status-pill.status-Planed { background: #fff3e0; color: #9a5b00; }
+.status-pill.status-Done { background: #eaf7ee; color: #17623a; }
+.status-pill.status-Canceled { background: #ececec; color: #667085; text-decoration: line-through; }
+:host ::ng-deep .dx-data-row.sheet-row-canceled > td { text-decoration: line-through; color: #98a2b3; }
 .error-panel { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; border: 1px solid #f2b8b5; border-radius: 8px; background: #fff1f0; color: #8a1c16; }
 .import-result-panel { display: flex; flex-direction: column; gap: 10px; padding: 16px 18px; border-left: 4px solid #2e7d32; }
 .import-result-panel h2 { margin: 0 0 6px; font-size: 18px; }
@@ -30,7 +24,6 @@
 :host ::ng-deep .import-preview-grid .import-row-warning > td { background-color: #fff8e1 !important; color: #6f4e00; }
 
 @media (max-width: 700px) {
-  .page-toolbar, .error-panel, .buttons-row, .import-preview-actions { align-items: stretch; flex-direction: column; }
-  .buttons-row .primary-action { margin-right: 0; }
-  .page-toolbar dx-button, .error-panel dx-button, .buttons-row dx-button, .import-preview-actions dx-button { width: 100%; }
+  .page-toolbar, .error-panel, .import-preview-actions { align-items: stretch; flex-direction: column; }
+  .page-toolbar dx-button, .error-panel dx-button, .import-preview-actions dx-button { width: 100%; }
 }

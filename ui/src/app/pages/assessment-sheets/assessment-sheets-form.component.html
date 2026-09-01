@@ -40,7 +40,7 @@
 
     <dx-form #form [formData]="editor" [disabled]="saving || recordMutationInProgress || submittingResults" labelLocation="top"
       [colCountByScreen]="formColCountByScreen">
-      <dxi-item dataField="studentId" editorType="dxSelectBox" [visible]="isCreate"
+      <dxi-item dataField="studentId" editorType="dxSelectBox" [visible]="isCreate" [colSpan]="2"
         [editorOptions]="studentEditorOptions">
         <dxo-label text="Học sinh *"></dxo-label>
         <dxi-validation-rule type="required" message="Vui lòng chọn học sinh"></dxi-validation-rule>

@@ -5,6 +5,7 @@ import { RouterModule } from '@angular/router';
 import { DxButtonModule } from 'devextreme-angular/ui/button';
 import { DxCheckBoxModule } from 'devextreme-angular/ui/check-box';
 import { DxDataGridModule } from 'devextreme-angular/ui/data-grid';
+import { DxDateBoxModule } from 'devextreme-angular/ui/date-box';
 import { DxDropDownButtonModule } from 'devextreme-angular/ui/drop-down-button';
 import { DxFormModule } from 'devextreme-angular/ui/form';
 import { DxLoadIndicatorModule } from 'devextreme-angular/ui/load-indicator';
@@ -13,7 +14,6 @@ import { DxSelectBoxModule } from 'devextreme-angular/ui/select-box';
 import { DxTagBoxModule } from 'devextreme-angular/ui/tag-box';
 import { DxTextAreaModule } from 'devextreme-angular/ui/text-area';
 import { DxTextBoxModule } from 'devextreme-angular/ui/text-box';
-import { DxDateBoxModule } from 'devextreme-angular/ui/date-box';
 import { AssessmentPickerComponent } from './assessment-picker.component';
 import { AssessmentSheetPlanPreviewComponent } from './assessment-sheet-plan-preview.component';
 import { AssessmentSheetsComponent } from './assessment-sheets.component';
@@ -33,6 +33,7 @@ import { AssessmentSheetFormComponent } from './assessment-sheets-form.component
     DxButtonModule,
     DxCheckBoxModule,
     DxDataGridModule,
+    DxDateBoxModule,
     DxDropDownButtonModule,
     DxFormModule,
     DxLoadIndicatorModule,
@@ -40,8 +41,7 @@ import { AssessmentSheetFormComponent } from './assessment-sheets-form.component
     DxSelectBoxModule,
     DxTagBoxModule,
     DxTextAreaModule,
-    DxTextBoxModule,
-    DxDateBoxModule
+    DxTextBoxModule
   ],
   exports: [AssessmentSheetsComponent, AssessmentSheetFormComponent, AssessmentSheetPlanPreviewComponent]
 })

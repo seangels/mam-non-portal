@@ -68,3 +68,10 @@ app-attendance {
 .hidden {
   display: none!important;
 }
+
+/* Màu hover dòng lưới (áp dụng toàn theme, mọi dxDataGrid/dxTreeList): xanh dương
+   (tone màu nhấn) thay cho xám mặc định rgba(0,0,0,0.04) để dòng đang trỏ chuột nổi rõ hơn. */
+.dx-datagrid-table .dx-data-row.dx-state-hover:not(.dx-selection):not(.dx-row-inserted):not(.dx-row-removed):not(.dx-edit-row):not(.dx-row-focused) > td:not(.dx-focused),
+.dx-treelist-table .dx-data-row.dx-state-hover:not(.dx-selection):not(.dx-row-inserted):not(.dx-row-removed):not(.dx-edit-row):not(.dx-row-focused) > td:not(.dx-focused) {
+  background-color: rgba(51, 122, 183, 0.18) !important;
+}

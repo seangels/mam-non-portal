@@ -246,7 +246,6 @@ Các điểm trước đây cần xác nhận, nay đã chốt:
 
 ## 16. Màn danh sách bảng đánh giá (ASH-FB-W4, 2026-09-01)
 
-- Bộ lọc: tìm theo mã/tên học sinh, theo học sinh, theo **giáo viên phụ trách** (`responsibleTeacherId`), theo trạng thái, theo khoảng ngày. Paging/sort chạy server-side. Role `Teacher` không bị khóa bộ lọc giáo viên.
 - Datagrid bật chọn nhiều dòng (multi-select). "Chọn tất cả" chỉ chọn trong trang hiện tại — selection **không** giữ qua các trang; đổi bộ lọc/đặt lại thì bỏ chọn hết.
 - **Bulk Action** (nút dropdown) trên các dòng đã chọn, 4 lựa chọn: `Tải PDF khcn`, `Tải ảnh khcn`, `Tải PDF KQ`, `Tải ảnh KQ`.
   - Backend tải toàn bộ file PDF (kế hoạch hoặc kết quả) của các bảng đã chọn từ Google Drive rồi **gộp thành một file zip** (link Drive không tải trực tiếp từ trình duyệt được).
@@ -254,3 +253,18 @@ Các điểm trước đây cần xác nhận, nay đã chốt:
   - "Tải PDF" = zip các PDF gốc. "Tải ảnh" = render từng trang PDF thành ảnh PNG **ở phía server** (tên `<tên gốc không đuôi> - trang NNN.png`) rồi bỏ vào zip.
   - Bảng chưa có file PDF tương ứng, hoặc tải/render lỗi, bị **bỏ qua** và liệt kê trong file `_bo-qua.txt` bên trong zip; thao tác vẫn thành công cho các bảng còn lại.
   - Tên file zip tải về: `<tên action> <timestamp>.zip`.
+
+### 16.1. Lọc bằng chính lưới, bỏ panel lọc riêng (ASH-FB-W5, 2026-09-01)
+
+- Bỏ hẳn panel "Bộ lọc bảng đánh giá" phía trên. Lưới tải **toàn bộ** bảng đánh giá về client (lặp hết các trang, `pageSize` 100) rồi để DevExtreme tự lọc/sắp/phân trang — giống bảng picker mục đánh giá.
+- Bật sẵn của lưới: **filter row**, **header filter**, **ô tìm kiếm** (search panel), **column chooser**. Cột để rộng cố định, không bật resize/đổi thứ tự cột (tránh lỗi best-fit của DevExtreme 19.2 khi rời màn).
+- Toolbar của lưới chứa các nút: `Thêm bảng đánh giá`, `Nhập Excel`, `Bulk Action (n)` (dropdown), `Đặt lại lọc lưới` (xóa filter row + header filter + ô tìm kiếm), và nút `Chọn cột` mặc định.
+- Cột `Học sinh`: dòng trên là họ tên (không in đậm), dòng dưới `<mã> · <tên gọi ở nhà>` (`studentNickName`, chữ mờ). `search`/ô tìm kiếm khớp cả tên gọi ở nhà.
+- Cột `Trạng thái`: header filter hiển thị nhãn tiếng Việt. `Kế hoạch`/`Kết quả` (link) không lọc.
+- Cột ngày `Bắt đầu`/`Hạn hoàn thành`: `dataType=date`, filter row mặc định toán tử **"giữa" (between)** — nhập **từ tháng → tới tháng** (ô chọn dạng `MM/yyyy`, lịch dừng ở mức tháng); khoảng lọc bao trọn tháng (`>=` đầu tháng "từ" và `<` đầu tháng kế tiếp của "tới"). Hiển thị trong lưới dạng `M/yy`. Không dùng header filter cho các cột ngày.
+- Dòng có trạng thái `Đã hủy` (`Canceled`): **gạch ngang cả dòng** + chữ mờ.
+- Màu status pill phân biệt theo trạng thái: `Đang mở` xanh dương, `Đã lập kế hoạch` cam, `Hoàn tất` xanh lá, `Đã hủy` xám + gạch ngang.
+
+### 16.2. Màu hover dòng lưới toàn theme (ASH-FB-W5, 2026-09-01)
+
+- Đổi màu hover dòng của **mọi** `dxDataGrid`/`dxTreeList` trong app từ xám mặc định (`rgba(0,0,0,0.04)`) sang xanh dương nhạt `rgba(51,122,183,0.18)` (tone màu nhấn của theme). Override ở `ui/src/styles.scss`, không sửa file theme sinh tự động.

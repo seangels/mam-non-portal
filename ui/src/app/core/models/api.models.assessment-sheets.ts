@@ -71,6 +71,7 @@ export interface AssessmentSheet {
   studentId: string;
   studentCode?: string | null;
   studentFullName?: string | null;
+  studentNickName?: string | null;
   responsibleTeacherId?: string | null;
   responsibleTeacherFullName?: string | null;
   startDate?: string | null;

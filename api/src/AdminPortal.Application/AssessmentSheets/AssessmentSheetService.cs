@@ -1253,6 +1253,7 @@ public sealed partial class AssessmentSheetService(
             x.StudentId,
             x.StudentSnapshot.StudentCode,
             x.StudentSnapshot.FullName,
+            x.StudentSnapshot.NickName,
             x.ResponsibleTeacherId,
             x.ResponsibleTeacherFullNameSnapshot,
             x.StartDate,
@@ -1266,7 +1267,8 @@ public sealed partial class AssessmentSheetService(
 
     private static bool Matches(AssessmentSheetListItemResponse item, string foldedSearch) =>
         VietnameseSearchNormalizer.Fold(item.StudentCode).Contains(foldedSearch, StringComparison.Ordinal) ||
-        VietnameseSearchNormalizer.Fold(item.StudentFullName).Contains(foldedSearch, StringComparison.Ordinal);
+        VietnameseSearchNormalizer.Fold(item.StudentFullName).Contains(foldedSearch, StringComparison.Ordinal) ||
+        VietnameseSearchNormalizer.Fold(item.StudentNickName).Contains(foldedSearch, StringComparison.Ordinal);
 
     private static IOrderedQueryable<AssessmentSheet> ApplySheetSort(
         IQueryable<AssessmentSheet> query,

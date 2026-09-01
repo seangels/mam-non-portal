@@ -1,7 +1,6 @@
-import { Component, OnDestroy, ViewChild } from '@angular/core';
+import { Component, ElementRef, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
-import CustomStore from 'devextreme/data/custom_store';
 import notify from 'devextreme/ui/notify';
 import { DxDataGridComponent } from 'devextreme-angular/ui/data-grid';
 import { ApiError } from '../../core/models/api-error';
@@ -14,36 +13,27 @@ import {
   ASSESSMENT_SHEET_STATUS_OPTIONS,
   AssessmentSheetImportExcelPreviewSummaryResult
 } from '../../core/models/api.models.assessment-sheets';
-import { Student, Teacher } from '../../core/models/api.models';
-import { asLegacyWidgetDataSource } from '../../core/models/devextreme-legacy.types';
 import { AssessmentSheetsService } from '../../core/services/assessment-sheets.service';
-import { StudentsService } from '../../core/services/students.service';
-import { TeachersService } from '../../core/services/teachers.service';
+import { patchGridBestFit } from '../../core/errors/dx-grid-bestfit-guard';
 import { formatDateOnly, toDateOnly } from '../../core/utils/date-only';
 
-const ASSESSMENT_SHEET_SORT_FIELDS = new Set([
-  'status',
-  'startDate',
-  'dueDate',
-  'updatedAt',
-  'createdAt'
-]);
+// Danh sách tải hết về client (giống bảng picker) rồi để lưới tự lọc/sắp/phân trang bằng
+// filter row + header filter + column chooser + toolbar của DevExtreme. Không còn panel lọc riêng.
+const SHEET_CACHE_PAGE_SIZE = 100;
 
 @Component({
   selector: 'app-assessment-sheets',
   templateUrl: './assessment-sheets.component.html',
   styleUrls: ['./assessment-sheets.component.scss']
 })
-export class AssessmentSheetsComponent implements OnDestroy {
+export class AssessmentSheetsComponent implements OnInit, OnDestroy {
   @ViewChild(DxDataGridComponent) grid?: DxDataGridComponent;
+  @ViewChild('importFileInput') importFileInput?: ElementRef<HTMLInputElement>;
 
-  search = '';
-  status: AssessmentSheetStatus | null = null;
-  studentId: string | null = null;
-  responsibleTeacherId: string | null = null;
-  dateFrom: Date | string | number = '';
-  dateTo: Date | string | number = '';
-  filtersExpanded = true;
+  sheets: AssessmentSheet[] = [];
+  loading = false;
+  private destroyed = false;
+  private gridBestFitGuarded = false;
   selectedSheets: AssessmentSheet[] = [];
   importing = false;
   importPreviewLoading = false;
@@ -52,10 +42,15 @@ export class AssessmentSheetsComponent implements OnDestroy {
   importPreviewRows: AssessmentSheetImportExcelPreviewRow[] = [];
   importResult: AssessmentSheetImportExcelResult | null = null;
   loadError = '';
-  private searchTimer?: number;
   private selectedImportFile: File | null = null;
+  private importToolbarButton?: { option: (options: Record<string, unknown>) => void };
+  private bulkActionToolbarButton?: { option: (options: Record<string, unknown>) => void };
 
   readonly statuses = ASSESSMENT_SHEET_STATUS_OPTIONS;
+  // Header filter cột "Trạng thái" hiển thị nhãn tiếng Việt thay cho giá trị enum.
+  readonly statusHeaderFilter = {
+    dataSource: ASSESSMENT_SHEET_STATUS_OPTIONS.map(option => ({ text: option.text, value: option.value }))
+  };
   bulkActionInProgress = false;
   readonly bulkActionItems: Array<{ id: string; text: string; kind: 'Plan' | 'Result'; format: 'Pdf' | 'Images' }> = [
     { id: 'plan-pdf', text: 'Tải PDF khcn', kind: 'Plan', format: 'Pdf' },
@@ -71,117 +66,229 @@ export class AssessmentSheetsComponent implements OnDestroy {
     }
   ];
 
-  readonly studentDataSource = asLegacyWidgetDataSource(new CustomStore({
-    key: 'id',
-    byKey: key => firstValueFrom(this.students.get(String(key))),
-    load: options => {
-      const pageSize = Math.min(options.take ?? 20, 100);
-      return firstValueFrom(this.students.list({
-        page: Math.floor((options.skip ?? 0) / pageSize) + 1,
-        pageSize,
-        search: typeof options.searchValue === 'string' ? options.searchValue.trim() || undefined : undefined,
-        status: 'Active',
-        sortBy: 'fullName',
-        sortOrder: 'asc'
-      })).then(result => ({ data: result.items, totalCount: result.pagination.totalItems }))
-        .catch(error => this.rejectLoad(error));
+  // Ô lọc "between" của startDate/dueDate quy đổi [từ, đến] thành khoảng bao trọn tháng:
+  // >= đầu tháng "từ" và < đầu tháng kế tiếp của "đến" (nên chọn giữa tháng vẫn khớp).
+  readonly monthBetweenFilterExpression = function (
+    this: {
+      dataField?: string;
+      defaultCalculateFilterExpression: (...args: unknown[]) => unknown;
+    },
+    filterValue: unknown,
+    selectedFilterOperation: string | null,
+    target: string
+  ): unknown {
+    const field = this.dataField;
+    if (field && target === 'filterRow' && selectedFilterOperation === 'between' && Array.isArray(filterValue)) {
+      const monthStart = (value: unknown): Date | null => {
+        const date = value instanceof Date ? value : (typeof value === 'string' ? new Date(value) : null);
+        return date && !Number.isNaN(date.getTime()) ? new Date(date.getFullYear(), date.getMonth(), 1) : null;
+      };
+      const from = monthStart(filterValue[0]);
+      const to = monthStart(filterValue[1]);
+      const clauses: unknown[] = [];
+      if (from) {
+        clauses.push([field, '>=', from]);
+      }
+      if (to) {
+        if (clauses.length > 0) {
+          clauses.push('and');
+        }
+        clauses.push([field, '<', new Date(to.getFullYear(), to.getMonth() + 1, 1)]);
+      }
+      return clauses.length > 0 ? clauses : null;
     }
-  }));
-
-  readonly teacherDataSource = asLegacyWidgetDataSource(new CustomStore({
-    key: 'id',
-    byKey: key => firstValueFrom(this.teachers.get(String(key))),
-    load: options => {
-      const pageSize = Math.min(options.take ?? 20, 100);
-      return firstValueFrom(this.teachers.list({
-        page: Math.floor((options.skip ?? 0) / pageSize) + 1,
-        pageSize,
-        search: typeof options.searchValue === 'string' ? options.searchValue.trim() || undefined : undefined,
-        status: 'Active',
-        sortBy: 'fullName',
-        sortOrder: 'asc'
-      })).then(result => ({ data: result.items, totalCount: result.pagination.totalItems }))
-        .catch(error => this.rejectLoad(error));
-    }
-  }));
-
-  readonly teacherDisplay = (teacher: Teacher | null): string => teacher
-    ? `${teacher.fullName}${teacher.teacherCode ? ` · ${teacher.teacherCode}` : ''}`
-    : '';
-
-  readonly dataSource = asLegacyWidgetDataSource(new CustomStore({
-    key: 'id',
-    load: options => {
-      const pageSize = Math.min(options.take ?? 20, 100);
-      const sort = this.readSort(options.sort);
-      return firstValueFrom(this.assessmentSheets.list({
-        page: Math.floor((options.skip ?? 0) / pageSize) + 1,
-        pageSize,
-        search: this.search.trim() || undefined,
-        studentId: this.studentId ?? undefined,
-        responsibleTeacherId: this.responsibleTeacherId ?? undefined,
-        status: this.status ?? undefined,
-        dateFrom: toDateOnly(this.dateFrom),
-        dateTo: toDateOnly(this.dateTo),
-        sortBy: sort.field,
-        sortOrder: sort.order
-      })).then(result => {
-        this.loadError = '';
-        return { data: result.items, totalCount: result.pagination.totalItems };
-      }).catch(error => this.rejectLoad(error));
-    }
-  }));
-
-  readonly studentDisplay = (student: Student | null): string => student
-    ? `${student.studentCode} · ${student.fullName}${student.nickName ? ` (${student.nickName})` : ''}`
-    : '';
+    return this.defaultCalculateFilterExpression(filterValue, selectedFilterOperation, target);
+  };
 
   constructor(
     private readonly assessmentSheets: AssessmentSheetsService,
-    private readonly students: StudentsService,
-    private readonly teachers: TeachersService,
     public readonly router: Router
   ) {}
 
+  ngOnInit(): void {
+    void this.loadAllSheets();
+  }
+
   ngOnDestroy(): void {
-    if (this.searchTimer !== undefined) {
-      window.clearTimeout(this.searchTimer);
+    this.destroyed = true;
+  }
+
+  // DevExtreme 19.2: khi rời màn, event resize lúc route-outlet tháo phần tử làm lưới lên lịch
+  // `_synchronizeColumns` (deferRender → `_toggleBestFitMode`); callback chạy sau khi widget đã
+  // bị hủy → `_rowsView._getTableElement()` null → `Cannot read properties of null (reading 'css')`.
+  // Chốt chặn thật ở `AppErrorHandler`; ở đây vá thêm trên ResizingController cho chắc.
+  // LƯU Ý: `_synchronizeColumns`/`_toggleBestFitMode` nằm trên controller `resizing`, KHÔNG phải view.
+  onGridInitialized(event: { component?: unknown }): void {
+    this.installGridBestFitGuard(event.component);
+  }
+
+  onGridContentReady(event: { component?: unknown }): void {
+    this.installGridBestFitGuard(event.component);
+  }
+
+  private installGridBestFitGuard(component: unknown): void {
+    if (this.gridBestFitGuarded) {
+      return;
+    }
+    const guarded = patchGridBestFit(component, '[AssessmentSheets]');
+    if (guarded) {
+      this.gridBestFitGuarded = true;
     }
   }
 
-  scheduleSearch(): void {
-    if (this.searchTimer !== undefined) {
-      window.clearTimeout(this.searchTimer);
+  async loadAllSheets(): Promise<void> {
+    if (this.loading) {
+      return;
     }
-    this.searchTimer = window.setTimeout(() => this.applyFilters(), 300);
-  }
+    this.loading = true;
+    try {
+      const loaded: AssessmentSheet[] = [];
+      let page = 1;
+      let totalPages = 1;
+      do {
+        const result = await firstValueFrom(this.assessmentSheets.list({
+          page,
+          pageSize: SHEET_CACHE_PAGE_SIZE,
+          sortBy: 'updatedAt',
+          sortOrder: 'desc'
+        }));
+        loaded.push(...result.items);
+        totalPages = Math.max(1, result.pagination.totalPages
+          || Math.ceil(result.pagination.totalItems / SHEET_CACHE_PAGE_SIZE));
+        page += 1;
+      } while (page <= totalPages && !this.destroyed);
 
-  applyFilters(): void {
-    if (this.searchTimer !== undefined) {
-      window.clearTimeout(this.searchTimer);
-      this.searchTimer = undefined;
+      if (this.destroyed) {
+        return;
+      }
+      this.sheets = loaded;
+      this.loadError = '';
+    } catch (error) {
+      const apiError = ApiError.from(error);
+      this.loadError = this.withTrace(apiError);
+      notify(this.loadError, 'error', 3500);
+    } finally {
+      this.loading = false;
     }
-    this.clearSelection();
-    this.grid?.instance.pageIndex(0);
-    void this.grid?.instance.refresh();
   }
 
   retryLoad(): void {
-    void this.grid?.instance.refresh();
+    void this.loadAllSheets();
+  }
+
+  // Ô lọc ngày ở filter row (kể cả 2 ô của "between") hiển thị dạng chọn tháng MM/yyyy.
+  onEditorPreparing(event: {
+    parentType?: string;
+    dataField?: string;
+    editorName?: string;
+    editorOptions?: { displayFormat?: string; calendarOptions?: unknown };
+  }): void {
+    if (event.parentType === 'filterRow'
+      && event.editorName === 'dxDateBox'
+      && (event.dataField === 'startDate' || event.dataField === 'dueDate')
+      && event.editorOptions) {
+      event.editorOptions.displayFormat = 'MM/yyyy';
+      event.editorOptions.calendarOptions = { maxZoomLevel: 'year' };
+    }
+  }
+
+  // Toolbar của lưới (DevExtreme 19.2 chưa khai báo được option `toolbar` → dùng event này):
+  // đẩy các nút hành động vào toolbar, giữ nút "Chọn cột" + ô tìm kiếm mặc định của datagrid.
+  onToolbarPreparing(event: { toolbarOptions?: { items?: any[] } }): void {
+    const items = event.toolbarOptions?.items;
+    if (!items) {
+      return;
+    }
+    items.unshift(
+      {
+        location: 'before',
+        widget: 'dxButton',
+        options: {
+          icon: 'plus',
+          text: 'Thêm bảng đánh giá',
+          type: 'default',
+          hint: 'Tạo bảng đánh giá',
+          onClick: () => this.openCreate()
+        }
+      },
+      {
+        location: 'before',
+        widget: 'dxButton',
+        options: {
+          icon: 'upload',
+          text: this.importButtonText,
+          stylingMode: 'outlined',
+          hint: 'Nhập bảng đánh giá từ file Excel .xlsx',
+          disabled: this.importDisabled,
+          onInitialized: (e: { component?: unknown }) => {
+            this.importToolbarButton = e.component as { option: (options: Record<string, unknown>) => void };
+          },
+          onClick: () => this.openImportFilePicker(this.importFileInput?.nativeElement)
+        }
+      },
+      {
+        location: 'before',
+        widget: 'dxDropDownButton',
+        options: {
+          icon: 'download',
+          text: this.bulkActionText,
+          stylingMode: 'outlined',
+          items: this.bulkActionItems,
+          displayExpr: 'text',
+          keyExpr: 'id',
+          disabled: this.bulkActionDisabled,
+          dropDownOptions: { width: 200 },
+          hint: 'Chọn nhiều dòng rồi tải PDF/ảnh khcn hoặc kết quả (gộp thành zip)',
+          onInitialized: (e: { component?: unknown }) => {
+            this.bulkActionToolbarButton = e.component as { option: (options: Record<string, unknown>) => void };
+          },
+          onItemClick: (e: { itemData?: { id: string } }) => this.onBulkAction(e)
+        }
+      },
+      {
+        location: 'before',
+        widget: 'dxButton',
+        options: {
+          icon: 'clearformat',
+          text: 'Đặt lại lọc lưới',
+          stylingMode: 'outlined',
+          hint: 'Xóa filter row + header filter + ô tìm kiếm',
+          onClick: () => this.resetGridFilters()
+        }
+      }
+    );
+  }
+
+  // Đưa filter row + header filter + ô tìm kiếm của lưới về mặc định (không chạm sort/chọn cột).
+  resetGridFilters(): void {
+    const grid = this.grid?.instance;
+    if (!grid) {
+      return;
+    }
+    grid.clearFilter('row');
+    grid.clearFilter('header');
+    grid.clearFilter('search');
   }
 
   resetFilters(): void {
-    this.search = '';
-    this.status = null;
-    this.studentId = null;
-    this.responsibleTeacherId = null;
-    this.dateFrom = '';
-    this.dateTo = '';
-    this.applyFilters();
+    this.resetGridFilters();
+    this.clearSelection();
   }
 
   onSelectionChanged(event: { selectedRowsData?: AssessmentSheet[] }): void {
     this.selectedSheets = event.selectedRowsData ?? [];
+    this.syncToolbar();
+  }
+
+  // Bảng đánh giá đã hủy: gạch ngang cả dòng cho dễ phân biệt.
+  onRowPrepared(event: { rowType?: string; data?: AssessmentSheet; rowElement?: HTMLElement }): void {
+    if (event.rowType === 'data' && event.rowElement?.classList) {
+      event.rowElement.classList.toggle('sheet-row-canceled', event.data?.status === 'Canceled');
+    }
+  }
+
+  get bulkActionText(): string {
+    return this.bulkActionInProgress ? 'Đang xử lý...' : `Bulk Action (${this.selectedSheets.length})`;
   }
 
   get bulkActionDisabled(): boolean {
@@ -196,6 +303,7 @@ export class AssessmentSheetsComponent implements OnDestroy {
     const ids = this.selectedSheets.map(sheet => sheet.id);
     this.bulkActionInProgress = true;
     this.loadError = '';
+    this.syncToolbar();
     try {
       const blob = await firstValueFrom(this.assessmentSheets.downloadPdfArchive(ids, action.kind, action.format));
       this.downloadBlob(blob, `${action.text} ${this.timestamp()}.zip`);
@@ -206,7 +314,13 @@ export class AssessmentSheetsComponent implements OnDestroy {
       notify(this.loadError, 'error', 3500);
     } finally {
       this.bulkActionInProgress = false;
+      this.syncToolbar();
     }
+  }
+
+  private syncToolbar(): void {
+    this.importToolbarButton?.option({ text: this.importButtonText, disabled: this.importDisabled });
+    this.bulkActionToolbarButton?.option({ text: this.bulkActionText, disabled: this.bulkActionDisabled });
   }
 
   private timestamp(): string {
@@ -230,30 +344,34 @@ export class AssessmentSheetsComponent implements OnDestroy {
   private clearSelection(): void {
     this.selectedSheets = [];
     this.grid?.instance.clearSelection();
+    this.syncToolbar();
   }
 
   openCreate(): void {
-    void this.router.navigate(['/assessment-sheets/new']);
+    this.leaveTo(['/assessment-sheets/new']);
   }
 
   openEdit(sheet: AssessmentSheet): void {
-    void this.router.navigate(['/assessment-sheets', sheet.id, 'edit']);
+    this.leaveTo(['/assessment-sheets', sheet.id, 'edit']);
   }
 
-  showDialogColumnChooser(): void {
-    this.grid?.instance.option('columnChooser.mode', 'select');
-    const gridInstance: any = this.grid?.instance;
-    const chooser = gridInstance?.getController?.('columnChooser');
-    const visible = chooser?.component?._views?.columnChooserView?._popupContainer?._options?.visible;
-    if (visible) {
-      this.grid?.instance.hideColumnChooser();
-    } else {
-      this.grid?.instance.showColumnChooser();
+  // Cho lưới flush nốt các deferRender (resize/best-fit) đang chờ TRƯỚC khi component bị hủy,
+  // để không còn callback nào chạy trên lưới đã destroy (kèm với vá ở `onGridInitialized`).
+  private leaveTo(commands: string[]): void {
+    if (this.destroyed) {
+      return;
     }
+    // Hoãn 1 nhịp cho lưới flush deferRender trước khi component bị hủy (kèm với guard ở
+    // `patchGridBestFit`, giảm khả năng chạm lỗi best-fit của DevExtreme 19.2).
+    requestAnimationFrame(() => window.setTimeout(() => {
+      if (!this.destroyed) {
+        void this.router.navigate(commands);
+      }
+    }, 0));
   }
 
-  openImportFilePicker(input: HTMLInputElement): void {
-    if (this.importDisabled) {
+  openImportFilePicker(input?: HTMLInputElement | null): void {
+    if (this.importDisabled || !input) {
       return;
     }
     input.value = '';
@@ -286,6 +404,7 @@ export class AssessmentSheetsComponent implements OnDestroy {
     this.importPreviewRows = [];
     this.importResult = null;
     this.loadError = '';
+    this.syncToolbar();
     try {
       const result = this.normalizePreviewResult(await firstValueFrom(this.assessmentSheets.previewImportExcel(file)));
       this.importPreview = result.summary;
@@ -298,6 +417,7 @@ export class AssessmentSheetsComponent implements OnDestroy {
       this.selectedImportFile = null;
     } finally {
       this.importPreviewLoading = false;
+      this.syncToolbar();
       if (input) {
         input.value = '';
       }
@@ -312,10 +432,11 @@ export class AssessmentSheetsComponent implements OnDestroy {
     this.importing = true;
     this.importResult = null;
     this.loadError = '';
+    this.syncToolbar();
     try {
       const result = await firstValueFrom(this.assessmentSheets.importExcel(this.selectedImportFile));
       this.importResult = this.normalizeImportResult(result);
-      await this.grid?.instance.refresh();
+      await this.loadAllSheets();
       this.importing = false;
       this.importPreviewVisible = false;
       this.importPreview = null;
@@ -328,6 +449,7 @@ export class AssessmentSheetsComponent implements OnDestroy {
       notify(this.loadError, 'error', 3500);
     } finally {
       this.importing = false;
+      this.syncToolbar();
     }
   }
 
@@ -370,31 +492,14 @@ export class AssessmentSheetsComponent implements OnDestroy {
     return value ? formatDateOnly(toDateOnly(value) ?? value.substring(0, 10)) : '—';
   }
 
-  // startDate/dueDate chỉ cần độ chính xác tới tháng: hiển thị MM/yy.
+  // startDate/dueDate chỉ cần độ chính xác tới tháng: hiển thị M/yy (tháng không đệm số 0).
   monthText(value: string | null | undefined): string {
     const iso = value ? toDateOnly(value) ?? value.substring(0, 10) : undefined;
     if (!iso) {
       return '—';
     }
     const [year, month] = iso.split('-');
-    return `${month}/${year.slice(-2)}`;
-  }
-
-  private readSort(sortValue: unknown): { field: string; order: 'asc' | 'desc' } {
-    const sort = Array.isArray(sortValue) ? sortValue[0] : sortValue;
-    const config = sort && typeof sort === 'object' ? sort as { selector?: unknown; desc?: boolean } : undefined;
-    const requested = typeof config?.selector === 'string' ? config.selector : 'updatedAt';
-    return {
-      field: ASSESSMENT_SHEET_SORT_FIELDS.has(requested) ? requested : 'updatedAt',
-      order: config?.desc ? 'desc' : 'asc'
-    };
-  }
-
-  private rejectLoad(error: unknown): Promise<never> {
-    const apiError = ApiError.from(error);
-    this.loadError = this.withTrace(apiError);
-    notify(this.loadError, 'error', 3500);
-    return Promise.reject(apiError);
+    return `${Number(month)}/${year.slice(-2)}`;
   }
 
   private withTrace(error: ApiError): string {

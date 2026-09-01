@@ -300,27 +300,27 @@ describe('Assessment sheets Excel import', () => {
 
   const createComponent = (previewResult: any, importResult: any) => {
     const assessmentSheets = {
-      list: jasmine.createSpy('list'),
+      list: jasmine.createSpy('list').and.returnValue(of({
+        items: [],
+        pagination: { page: 1, pageSize: 100, totalItems: 0, totalPages: 1 }
+      })),
       previewImportExcel: jasmine.createSpy('previewImportExcel').and.returnValue(of(previewResult)),
       importExcel: jasmine.createSpy('importExcel').and.returnValue(of(importResult)),
       downloadPdfArchive: jasmine.createSpy('downloadPdfArchive').and.returnValue(of(new Blob(['zip'])))
     };
-    const teachers = { list: jasmine.createSpy('list'), get: jasmine.createSpy('get') };
     const component = new AssessmentSheetsComponent(
       assessmentSheets as any,
-      {} as any,
-      teachers as any,
       { navigate: jasmine.createSpy('navigate') } as any
     );
-    const refresh = jasmine.createSpy('refresh').and.returnValue(Promise.resolve());
+    spyOn(component, 'loadAllSheets').and.returnValue(Promise.resolve());
     component.grid = {
       instance: {
-        refresh,
         pageIndex: jasmine.createSpy('pageIndex'),
-        clearSelection: jasmine.createSpy('clearSelection')
+        clearSelection: jasmine.createSpy('clearSelection'),
+        clearFilter: jasmine.createSpy('clearFilter')
       }
     } as any;
-    return { component, assessmentSheets, teachers, refresh };
+    return { component, assessmentSheets };
   };
 
   it('previews an xlsx file before submitting and imports only after confirmation action', async () => {
@@ -358,7 +358,7 @@ describe('Assessment sheets Excel import', () => {
       warnings: ['Một dòng có ghi chú dài'],
       sheets: [{ id: 'sheet-1' }]
     };
-    const { component, assessmentSheets, refresh } = createComponent(previewResult, importResult);
+    const { component, assessmentSheets } = createComponent(previewResult, importResult);
     const file = xlsxFile();
 
     await component.previewImportExcel({ target: { files: [file], value: 'C:\\fakepath\\bang-danh-gia.xlsx' } } as any);
@@ -379,7 +379,7 @@ describe('Assessment sheets Excel import', () => {
     expect(component.importPreviewVisible).toBeFalse();
     expect(component.importResult?.createdSheetCount).toBe(1);
     expect(component.importSuccessText(component.importResult as any)).toContain('tạo mới 1');
-    expect(refresh).toHaveBeenCalled();
+    expect(component.loadAllSheets).toHaveBeenCalled();
   });
 
   it('keeps submit disabled when preview reports validation errors', async () => {
@@ -426,18 +426,19 @@ describe('Assessment sheets Excel import', () => {
     expect(assessmentSheets.importExcel).not.toHaveBeenCalled();
   });
 
-  it('clears the multi-selection and resets the teacher filter on reset (G7a/G7b)', () => {
+  it('clears the multi-selection and the grid filter row/header on reset', () => {
     const { component } = createComponent({}, {});
-    component.responsibleTeacherId = 'teacher-9';
     component.selectedSheets = [{ id: 's1' } as any];
     component.onSelectionChanged({ selectedRowsData: [{ id: 's2' } as any] });
     expect(component.selectedSheets).toEqual([{ id: 's2' } as any]);
 
     component.resetFilters();
 
-    expect(component.responsibleTeacherId).toBeNull();
     expect(component.selectedSheets).toEqual([]);
     expect(component.grid?.instance.clearSelection).toHaveBeenCalled();
+    expect(component.grid?.instance.clearFilter).toHaveBeenCalledWith('row');
+    expect(component.grid?.instance.clearFilter).toHaveBeenCalledWith('header');
+    expect(component.grid?.instance.clearFilter).toHaveBeenCalledWith('search');
   });
 
   it('downloads a zip archive for the selected sheets via Bulk Action (G7c)', async () => {
@@ -459,6 +460,39 @@ describe('Assessment sheets Excel import', () => {
     await component.onBulkAction({ itemData: { id: 'plan-pdf' } });
 
     expect(assessmentSheets.downloadPdfArchive).not.toHaveBeenCalled();
+  });
+
+  it('strikes through a whole row when its sheet status is Canceled', () => {
+    const { component } = createComponent({}, {});
+    const row = document.createElement('div');
+
+    component.onRowPrepared({ rowType: 'data', data: { status: 'Canceled' } as any, rowElement: row });
+    expect(row.classList.contains('sheet-row-canceled')).toBeTrue();
+
+    component.onRowPrepared({ rowType: 'data', data: { status: 'Open' } as any, rowElement: row });
+    expect(row.classList.contains('sheet-row-canceled')).toBeFalse();
+  });
+
+  it('adds the action buttons into the grid toolbar and keeps the Bulk Action label in sync', () => {
+    const { component } = createComponent({}, {});
+    const items: any[] = [{ name: 'columnChooserButton' }];
+
+    component.onToolbarPreparing({ toolbarOptions: { items } });
+
+    expect(items.slice(0, 4).map(item => item.widget)).toEqual([
+      'dxButton', 'dxButton', 'dxDropDownButton', 'dxButton'
+    ]);
+    expect(items[0].options.text).toBe('Thêm bảng đánh giá');
+    expect(items[2].options.text).toBe('Bulk Action (0)');
+
+    const bulkButton = { option: jasmine.createSpy('option') };
+    items[2].options.onInitialized({ component: bulkButton });
+    component.onSelectionChanged({ selectedRowsData: [{ id: 's1' } as any, { id: 's2' } as any] });
+
+    expect(bulkButton.option).toHaveBeenCalledWith(jasmine.objectContaining({
+      text: 'Bulk Action (2)',
+      disabled: false
+    }));
   });
 });
 

@@ -1,4 +1,4 @@
-import { APP_INITIALIZER, LOCALE_ID, NgModule } from '@angular/core';
+import { APP_INITIALIZER, ErrorHandler, LOCALE_ID, NgModule } from '@angular/core';
 import { BrowserModule } from '@angular/platform-browser';
 import { registerLocaleData } from '@angular/common';
 import localeVi from '@angular/common/locales/vi';
@@ -11,6 +11,7 @@ import { AuthService, ScreenService, AppInfoService } from './shared/services';
 import { UnauthenticatedContentModule } from './unauthenticated-content';
 import { AppRoutingModule } from './app-routing.module';
 import { AuthInterceptor } from './core/interceptors/auth.interceptor';
+import { AppErrorHandler } from './core/errors/app-error-handler';
 import { SetupService } from './core/services/setup.service';
 
 registerLocaleData(localeVi);
@@ -43,6 +44,7 @@ function initializeApplication(setupService: SetupService, authService: AuthServ
     AuthService,
     ScreenService,
     AppInfoService,
+    { provide: ErrorHandler, useClass: AppErrorHandler },
     { provide: LOCALE_ID, useValue: 'vi-VN' },
     { provide: HTTP_INTERCEPTORS, useClass: AuthInterceptor, multi: true },
     {
