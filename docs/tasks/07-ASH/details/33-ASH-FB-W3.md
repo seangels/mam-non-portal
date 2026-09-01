@@ -38,4 +38,4 @@ Không đụng backend (dùng lại `upload-plan-pdf`, `update`, `update-status`
 - ➖ Backend: không đổi.
 - ✅ `docs/requirements/09` §7 (hoàn thiện plan) + `docs/plans/07-ASH` §13 + `.agents/frontend/MEMORY.md` cập nhật.
 - ⬜ Smoke thủ công (Open sheet → "Hoàn thành kế hoạch": lưu → Planed → mở preview → PDF lên Drive → về edit; "Tạo mới đánh giá" khi form dirty → nhắc): chưa chạy (cần Google Drive live).
-- ✅ Commit `e6a3a00`.
+- ✅ Commit `d4ffe44`.
