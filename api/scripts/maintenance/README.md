@@ -1,326 +1,253 @@
-# Scripts vận hành PostgreSQL
+# Backup / Restore PostgreSQL — Supabase
 
-Script PowerShell cho backup, restore và cleanup retention của database AdminPortal.
-Chạy từ thư mục `api/` (hoặc bất kỳ đâu — đường dẫn được tính từ `$PSScriptRoot`).
+## Quick Start
 
-| Script | Môi trường DB | Mục đích |
-| --- | --- | --- |
-| `backup-postgres-container.ps1` | DB trong container (Podman **hoặc** Docker) | Dump database (`.dump` custom hoặc `.sql` plain) + globals/cluster |
-| `backup-postgres-host.ps1` | PostgreSQL cài trực tiếp trên máy | Dump database (`.dump` custom hoặc `.sql` plain) + globals/cluster |
-| `backup-postgres.ps1` | DB trong container (Podman) | Bản cũ, chỉ hỗ trợ podman — dùng biến thể `-container` cho việc mới |
-| `restore-postgres.ps1` | DB trong container (Podman) | Restore file `.dump`/`.sql` vào container |
-| `restore-postgres-host.ps1` | Host online, **Supabase**, hoặc DB cục bộ | Restore `.dump`/`.sql`; hỗ trợ `-ConnectionString` + `-Supabase` |
-| `cleanup-retention.ps1` | DB trong container (Podman) | Chạy `cleanup-retention.sql` + xoá backup cũ |
-| `cleanup-retention.sql` | — | Câu lệnh xoá audit 90 ngày / session history 30 ngày |
+Chạy từ thư mục `api/`.
 
-## Quy ước chung
+**Backup** Supabase → `api/backups/supabase-db-postgres-<timestamp>.sql.gz`
 
-- File backup ghi vào `api/backups/` (đổi bằng `-OutputDirectory`). Thư mục này nằm trong `.gitignore`.
-- Định dạng database dump: `-Format custom` (mặc định) → `.dump` (`pg_dump -Fc`, restore bằng `pg_restore`); `-Format plain` → `.sql` text (restore bằng `psql`, portable, dùng cho Supabase). Globals/cluster luôn là plain `.sql`.
-- Tên file: `postgres-db-<database>-<yyyyMMdd-HHmmss>.{dump|sql}`, `postgres-globals-<timestamp>.sql`, `postgres-all-<timestamp>.sql`.
-- Retention: `-KeepDays` (mặc định 7) xoá các file backup cũ hơn N ngày sau khi dump xong. Đặt `0` để tắt.
-- Script `throw` và dừng ngay khi một lệnh con trả về exit code khác 0 (`$ErrorActionPreference = "Stop"`).
-- Output cuối cùng là danh sách `FileInfo` của các file vừa tạo.
+```powershell
+./scripts/maintenance/backup-postgres-supabase.ps1
+```
 
-## Cấu hình mật khẩu (cho script `-host`)
+**Restore** bản backup mới nhất ngược lên Supabase
 
-Script container tự đọc credential từ biến môi trường của container nên **không cần** phần này.
-Script `backup-postgres-host.ps1` / `restore-postgres-host.ps1` lấy thông tin kết nối theo thứ tự ưu tiên:
+```powershell
+$latest = Get-ChildItem .\backups\supabase-db-*.sql* | Sort-Object LastWriteTime -Desc | Select-Object -First 1
+./scripts/maintenance/restore-postgres-host.ps1 -Supabase -Force -BackupFile $latest.FullName
+```
 
-1. Tham số truyền vào (`-Password`, `-Username`, `-Database`, `-PgHost`, `-Port`) — hoặc mật khẩu trong `-ConnectionString`.
-2. **File `.env`** (mặc định: file tên `.env` **cùng thư mục với script** — `api/scripts/maintenance/.env`; đổi vị trí bằng `-EnvFile <path>`).
-3. `$env:PGPASSWORD` của phiên PowerShell (chỉ cho mật khẩu).
-4. Nhập ẩn khi script hỏi (nếu vẫn thiếu và không `-NoPrompt`).
-5. File `pgpass` của libpq: `%APPDATA%\postgresql\pgpass.conf` — **chỉ** ở chế độ tool cài trực tiếp; `-ToolContainer` không đọc pgpass của máy host.
+**Bật backup tự động mỗi 15 phút** (PowerShell as Administrator, làm 1 lần)
 
-> Không đặt mật khẩu thật trực tiếp trên dòng lệnh (`-Password 'abc'`): nó lọt vào
-> `Get-History`, PSReadLine history file và danh sách tiến trình. Dùng `.env` hoặc để trống rồi nhập khi được hỏi.
+```powershell
+./scripts/maintenance/register-backup-task.ps1
+```
 
-### Cách 1 — file `.env` cạnh script (khuyến nghị, dùng lại nhiều lần)
+Hết. Các lệnh trên tự đọc `.env` và `backup-config.json` cạnh script, không hỏi gì thêm.
 
-Tạo `api/scripts/maintenance/.env` (đã nằm trong `.gitignore`, **không commit**). Định dạng dotenv `KEY=VALUE`:
+> `restore` **ghi đè dữ liệu** nên bắt buộc `-Force`. Thêm `-WhatIf` để xem trước mà không ghi.
+> File `.sql.gz` restore trực tiếp được, script tự giải nén.
+
+---
+
+## Chuẩn bị (1 lần duy nhất)
+
+**1. `api/scripts/maintenance/.env`** — lấy ở Supabase Dashboard → **Connect** → **Session pooler**:
 
 ```dotenv
-POSTGRES_HOST=localhost
-POSTGRES_PORT=5432
-POSTGRES_USER=admin_portal
-POSTGRES_DB=admin_portal_dev
-POSTGRES_PASSWORD=REAL_PASSWORD_HERE
+SUPABASE_HOST=aws-0-<region>.pooler.supabase.com
+SUPABASE_DB=postgres
+SUPABASE_DB_USER=postgres.<project-ref>
+SUPABASE_DB_PASSWORD=<password>
 ```
 
-Nhận cả tên `PGHOST` / `PGPORT` / `PGUSER` / `PGDATABASE` / `PGPASSWORD`. Sau đó chạy gọn:
+**2. Tool + DLL** trong cùng thư mục `api/scripts/maintenance/`:
+
+```
+pg_dump.exe  pg_restore.exe  psql.exe  pg_dumpall.exe
+libpq.dll  libssl-3-x64.dll  libcrypto-3-x64.dll  libintl-9.dll
+libiconv-2.dll  liblz4.dll  libzstd.dll  libwinpthread-1.dll
+```
+
+Copy nguyên thư mục, đừng copy mỗi `.exe`. Giữ **cả 4 tool cùng một phiên bản** (lệch version gây lỗi kiểu `invalid command \restrict`). Có sẵn ở `%APPDATA%\DBeaverData\drivers\clients\postgresql\win\17\` nếu máy đã cài DBeaver.
+
+Cả `.env` lẫn `*.exe` / `*.dll` đều đã nằm trong `.gitignore`.
+
+---
+
+# Tham khảo
+
+## Việc thường làm
 
 ```powershell
-# Không cần truyền gì thêm — host/port/user/db/password lấy từ .env
-./scripts/maintenance/backup-postgres-host.ps1 -Format plain -Schema public -NoOwner -NoPrivileges
+# Backup toàn bộ schema, định dạng custom (.dump)
+./scripts/maintenance/backup-postgres-supabase.ps1 -Format custom -Schema @()
 
-# Tham số truyền vào vẫn thắng .env (chỉ override cái cần)
-./scripts/maintenance/backup-postgres-host.ps1 -Database another_db
+# Backup để restore ĐÈ lên DB đã có dữ liệu (kèm DROP ... IF EXISTS) - đọc cảnh báo -Clean trước khi dùng
+./scripts/maintenance/backup-postgres-supabase.ps1 -Clean
+
+# Backup chỉ cấu trúc, không dữ liệu
+./scripts/maintenance/backup-postgres-supabase.ps1 -SchemaOnly
+
+# Nạp bản backup Supabase vào DB local (tên DB / user có thể khác lúc backup)
+./scripts/maintenance/restore-postgres-host.ps1 -Force `
+  -BackupFile .\backups\supabase-db-postgres-20260902-233021.sql `
+  -PgHost localhost -Port 5432 -Username admin_portal -Database admin_portal_dev
+
+# Máy không có pg_dump.exe -> chạy tool trong container
+./scripts/maintenance/backup-postgres-supabase.ps1 -ToolContainer api_postgres_1
 ```
 
-Tái dùng `api/.env` sẵn có (`POSTGRES_*`): `-EnvFile ..\.env` (khi chạy từ `api/`) hoặc `-EnvFile (Join-Path $PSScriptRoot ..\..\.env)`.
+## Cách script tìm tool
 
-### Cách 2 — `$env:PGPASSWORD` cho phiên hiện tại
+`-PgBinDir` → **cùng thư mục script** → `PATH` → `C:\Program Files\PostgreSQL\*\bin` → bộ client DBeaver.
+Không có tool trên máy thì dùng `-ToolContainer <ten-container>` (Docker/Podman).
 
-```powershell
-$sec = Read-Host "PostgreSQL password" -AsSecureString
-$env:PGPASSWORD = [System.Net.NetworkCredential]::new('', $sec).Password
-./scripts/maintenance/backup-postgres-host.ps1 -Username admin_portal -Database admin_portal_dev
-Remove-Item Env:\PGPASSWORD   # xoá khi xong
-```
+## Cách script lấy thông tin kết nối
 
-### Cách 3 — file `pgpass.conf` (bền vững cho máy server)
+`-ConnectionString` → `.env` `SUPABASE_CONNECTION_URL` → `.env` khoá rời `SUPABASE_HOST` / `SUPABASE_DB_USER` / `SUPABASE_DB_PASSWORD` / `SUPABASE_DB` → hỏi trực tiếp.
 
-Mỗi dòng: `hostname:port:database:username:password` (dùng `*` làm wildcard).
+Khoá rời an toàn hơn `SUPABASE_CONNECTION_URL` khi password chứa `[ ] @ : /` — các ký tự này làm hỏng phân giải URI.
 
-```powershell
-$pgpass = Join-Path $env:APPDATA "postgresql\pgpass.conf"
-New-Item -ItemType Directory -Force -Path (Split-Path $pgpass) | Out-Null
-Add-Content -Path $pgpass -Value "localhost:5432:*:gv_portal_app:REAL_PASSWORD" -Encoding ascii
-```
+Riêng `restore-postgres-host.ps1` **chỉ** đọc connection string từ `.env` khi có cờ `-Supabase`, để lệnh restore local không vô tình trỏ lên Supabase.
 
-Sau đó chạy script không cần `-Password` và không cần `$env:PGPASSWORD`. Đặt quyền file
-chỉ cho user hiện tại (`icacls "$pgpass" /inheritance:r /grant:r "$env:USERNAME:R"`).
+## `backup-postgres-supabase.ps1`
 
-## backup-postgres-container.ps1 — DB trong container
-
-Tự phát hiện container engine, đọc `POSTGRES_USER` / `POSTGRES_DB` từ biến môi trường
-của container, `pg_dump` bên trong container rồi `cp` file ra host (xoá file tạm trong container sau đó).
+Mặc định: `--schema=public --no-owner --no-privileges`, `sslmode=require`, plain `.sql`.
 
 | Tham số | Mặc định | Ghi chú |
 | --- | --- | --- |
-| `-Engine` | `auto` | `auto` \| `podman` \| `docker`. `auto` ưu tiên podman, không có thì docker |
-| `-ContainerName` | `api_postgres_1` | Tên container PostgreSQL đang chạy |
-| `-DatabaseName` | (đọc từ container) | Override `POSTGRES_DB` |
-| `-OutputDirectory` | `api/backups` | Thư mục chứa file backup |
-| `-Format` | `custom` | `custom` → `.dump` (`-Fc`); `plain` → `.sql` text |
-| `-Schema` | (tất cả) | Chỉ dump schema này; lặp được (`--schema`) |
-| `-NoOwner` | (off) | `pg_dump --no-owner` |
-| `-NoPrivileges` | (off) | `pg_dump --no-privileges` |
-| `-KeepDays` | `7` | Xoá backup cũ hơn N ngày; `0` = tắt |
-| `-IncludeGlobals` | (off) | Kèm `pg_dumpall --globals-only` (roles/tablespaces) |
-| `-ClusterDump` | (off) | Kèm `pg_dumpall --clean --if-exists` (toàn cluster) |
+| `-ConnectionString` | `.env` | |
+| `-EnvFile` | `.env` cạnh script | |
+| `-Format` | `plain` → `.sql` | `custom` → `.dump` |
+| `-Schema` | `public` | `-Schema @()` = mọi schema |
+| `-ExcludeSchema` | — | loại schema khỏi dump |
+| `-SchemaOnly` / `-DataOnly` | off | chỉ cấu trúc / chỉ dữ liệu |
+| `-IncludeOwner` | off | giữ `OWNER TO` + `GRANT` |
+| `-Clean` | off | ⚠️ thêm `DROP ... IF EXISTS` trước mọi `CREATE`. **Chỉ dùng khi thực sự cần ghi đè** — xem cảnh báo bên dưới |
+| `-OutputDirectory` | `api/backups` | |
+| `-KeepDays` | `7` | xoá backup cũ hơn N ngày; `0` = tắt |
+| `-NoSqlFixups` | off | tắt phần chỉnh file `.sql` |
+| `-Compress` | theo `backup-config.json` | Nén gzip → `.sql.gz` (~15% kích thước). Restore tự giải nén |
+| `-ConfigFile` | `backup-config.json` cạnh script | Đọc `outputDirectory` + `compress` |
+| `-ToolContainer` / `-Engine` | — | chạy `pg_dump` trong container |
+| `-PgBinDir` | tự dò | |
 
-```powershell
-# Podman/Docker tự phát hiện, dùng mặc định
-./scripts/maintenance/backup-postgres-container.ps1
+**SQL fixups** — với `-Format plain`, sau khi dump script tự sửa để file restore được vào DB đã có schema `public`:
 
-# Docker, container khác, kèm globals
-./scripts/maintenance/backup-postgres-container.ps1 -Engine docker -ContainerName gv_postgres -IncludeGlobals
+- `CREATE SCHEMA public;` → `CREATE SCHEMA IF NOT EXISTS public;`
+- comment lại `COMMENT ON SCHEMA public ...` (hay lỗi quyền trên managed DB)
+- comment lại meta-command `\restrict` / `\unrestrict` do `pg_dump` ≥ 17.6 sinh ra (psql cũ hơn báo `invalid command \restrict`)
+- comment lại `DROP SCHEMA IF EXISTS public;` do `-Clean` sinh ra (xoá cả schema là quá tay, trên Supabase còn không đủ quyền)
 
-# SQL text, chỉ schema public, sẵn sàng cho Supabase
-./scripts/maintenance/backup-postgres-container.ps1 -Format plain -Schema public -NoOwner -NoPrivileges
-```
+> ⚠️ **Cẩn thận với `-Clean`.** Nó sinh `DROP TABLE` cho mọi bảng trước khi tạo lại. Nếu restore đứt đoạn giữa chừng
+> (ví dụ `DROP FUNCTION` vướng object phụ thuộc) thì database đã bị xóa bảng mà chưa kịp tạo lại — **mất dữ liệu**.
+> Restore `.sql` nay mặc định chạy `--single-transaction` nên lỗi sẽ rollback, nhưng vẫn nên:
+> restore vào **database rỗng** thay vì dùng `-Clean`, và luôn có bản backup tốt trước khi ghi đè.
 
-## backup-postgres-host.ps1 — PostgreSQL cài trực tiếp
+## `restore-postgres-host.ps1`
 
-Gọi `pg_dump` / `pg_dumpall` trên host. Tự tìm binary theo thứ tự: `-PgBinDir` →
-`PATH` → `C:\Program Files\PostgreSQL\*\bin` (chọn version cao nhất).
-
-**Nhập tương tác:** chạy không đủ tham số thì script hỏi trực tiếp `Host` → `Cổng`
-→ `Username` → `Database` → `Mật khẩu` (nhập ẩn). Bật `-NoPrompt` để tắt hỏi
-(thiếu giá trị sẽ `throw` — dùng cho chạy tự động / scheduled task).
-
-| Tham số | Mặc định | Ghi chú |
-| --- | --- | --- |
-| `-Username` | `.env` → hỏi | User PostgreSQL (key `POSTGRES_USER`/`PGUSER`) |
-| `-Database` | `.env` → hỏi | Database cần backup (key `POSTGRES_DB`/`PGDATABASE`) |
-| `-PgHost` | `.env` → hỏi (mặc định `localhost`) | Host (key `POSTGRES_HOST`/`PGHOST`) |
-| `-Port` | `.env` → hỏi (mặc định `5432`) | Cổng (key `POSTGRES_PORT`/`PGPORT`) |
-| `-Password` | `.env` → `$env:PGPASSWORD` → hỏi ẩn | Set `$env:PGPASSWORD` tạm cho tiến trình (key `POSTGRES_PASSWORD`/`PGPASSWORD`) |
-| `-EnvFile` | `.env` cùng thư mục script | Đường dẫn file dotenv cấp thông tin kết nối |
-| `-PgBinDir` | (tự dò) | Thư mục chứa `pg_dump.exe` / `pg_dumpall.exe` |
-| `-OutputDirectory` | `api/backups` | Thư mục chứa file backup |
-| `-Format` | `custom` | `custom` → `.dump` (`-Fc`, restore bằng `pg_restore`); `plain` → `.sql` text (restore bằng `psql`) |
-| `-Schema` | (tất cả) | Chỉ dump schema này; lặp được (`--schema`) |
-| `-NoOwner` | (off) | `pg_dump --no-owner` |
-| `-NoPrivileges` | (off) | `pg_dump --no-privileges` |
-| `-KeepDays` | `7` | Xoá backup cũ hơn N ngày; `0` = tắt |
-| `-IncludeGlobals` | (off) | Kèm `pg_dumpall --globals-only` |
-| `-ClusterDump` | (off) | Kèm `pg_dumpall --clean --if-exists` |
-| `-NoPrompt` | (off) | Không hỏi; thiếu giá trị kết nối thì `throw` |
-
-Mật khẩu: xem [Cấu hình mật khẩu](#cấu-hình-mật-khẩu-cho-script--host).
-
-```powershell
-# Nhập tương tác toàn bộ thông tin kết nối
-./scripts/maintenance/backup-postgres-host.ps1
-
-# Dev cục bộ (chỉ hỏi mật khẩu)
-./scripts/maintenance/backup-postgres-host.ps1 -Username admin_portal -Database admin_portal_dev
-
-# SQL text sẵn sàng restore lên Supabase (chỉ schema public, bỏ owner/grant)
-./scripts/maintenance/backup-postgres-host.ps1 -Username gv_portal_app -Database gv_portal `
-  -Format plain -Schema public -NoOwner -NoPrivileges
-
-# Scheduled task: không hỏi, mật khẩu qua $env:PGPASSWORD hoặc pgpass.conf
-./scripts/maintenance/backup-postgres-host.ps1 `
-  -PgHost localhost -Port 5432 -Username gv_portal_app -Database gv_portal `
-  -IncludeGlobals -PgBinDir "C:\Program Files\PostgreSQL\17\bin" -NoPrompt
-```
-
-## restore-postgres.ps1 — restore vào container (Podman)
-
-Restore một file `.dump` (qua `pg_restore --clean --if-exists --no-owner --no-acl`) hoặc `.sql`
-(qua `psql`) vào container. **Có tính phá huỷ dữ liệu** — bắt buộc `-Force`.
+Nạp `.sql` (qua `psql`) hoặc `.dump` (qua `pg_restore --no-owner --no-acl`) vào Supabase, server online, hoặc DB cục bộ.
 
 | Tham số | Mặc định | Ghi chú |
 | --- | --- | --- |
-| `-BackupFile` | **bắt buộc** | Đường dẫn file `.dump` hoặc `.sql` |
-| `-ContainerName` | `api_postgres_1` | Container PostgreSQL đang chạy |
-| `-DatabaseName` | (đọc từ container) | Override `POSTGRES_DB` |
-| `-RecreateDatabase` | (off) | `dropdb` + `createdb` trước khi restore (chỉ với `.dump`) |
-| `-Force` | (off) | **Bắt buộc** để xác nhận thao tác phá huỷ |
+| `-BackupFile` | **bắt buộc** | `.sql`, `.sql.gz` (tự giải nén), hoặc `.dump` |
+| `-Force` | off | **bắt buộc** — xác nhận ghi đè |
+| `-Supabase` | off | preset: `sslmode=require`, bỏ `--clean`, cấm tạo/drop DB, đọc `.env` |
+| `-ConnectionString` | — | thay cho `-PgHost/-Port/-Username/-Database` |
+| `-PgHost` / `-Port` / `-Username` / `-Database` | `.env` → hỏi | dùng khi restore vào DB khác |
+| `-Password` | `.env` → `$env:PGPASSWORD` → hỏi ẩn | |
+| `-EnvFile` | `.env` cạnh script | |
+| `-Sslmode` | `require` khi `-Supabase` | |
+| `-NoSingleTransaction` | off | Tắt `--single-transaction`. **Mặc định restore `.sql` chạy trong 1 transaction** — lỗi giữa chừng sẽ rollback thay vì để DB nửa vời |
+| `-NoClean` | off (tự bật khi `-Supabase`) | bỏ `--clean --if-exists` cho `.dump` |
+| `-CreateDatabase` / `-RecreateDatabase` | off | chỉ `.dump`, **không** dùng với `-Supabase` |
+| `-ToolContainer` / `-Engine` | — | chạy tool trong container |
+| `-NoPrompt` | off | không hỏi, thiếu giá trị thì lỗi |
 
-```powershell
-./scripts/maintenance/restore-postgres.ps1 -BackupFile ./backups/postgres-db-admin_portal-20260901-120000.dump -Force
+## Backup tự động theo lịch
+
+3 file làm việc cùng nhau:
+
+| File | Vai trò |
+| --- | --- |
+| `backup-config.json` | Cấu hình chung: nơi lưu, nén, retention, chu kỳ |
+| `run-backup-cycle.ps1` | 1 chu kỳ: backup → kiểm tra file → retention → ghi log. Task gọi file này |
+| `register-backup-task.ps1` | Tạo / gỡ Windows Scheduled Task |
+
+### `backup-config.json`
+
+```json
+{
+  "outputDirectory": "..\..\backups",
+  "compress": true,
+  "keepHours": 6,
+  "keepDays": 45,
+  "intervalMinutes": 15,
+  "minValidBytes": 20480
+}
 ```
 
-## restore-postgres-host.ps1 — restore vào host online / Supabase
+`outputDirectory` nhận **đường dẫn tương đối** (tính từ thư mục chứa script) hoặc **tuyệt đối Windows**:
 
-Nạp file `.dump` (qua `pg_restore --no-owner --no-acl`, kèm `--clean --if-exists` trừ
-khi `-NoClean`) hoặc `.sql` (qua `psql`) vào một PostgreSQL đang chạy — cục bộ,
-server online, hoặc **Supabase** (xem [Migrate lên Supabase](#migrate-lên-supabase-backup-sql--restore)).
-**Có tính phá huỷ dữ liệu** — bắt buộc `-Force`.
+```json
+"outputDirectory": "..\..\backups"
+"outputDirectory": "D:\Backups\gv-portal"
+"outputDirectory": "%USERPROFILE%\Documents\backups"
+"outputDirectory": "\\nas\backups\gv-portal"
+```
 
-Chọn đích: tham số rời `-PgHost/-Port/-Username/-Database`, hoặc `-ConnectionString`
-`"postgresql://user:pass@host:port/db"` (dùng nguyên chuỗi, hợp với chuỗi copy từ dashboard).
+### Quy tắc retention — 3 tầng, xét theo thứ tự
 
-**Nhập tương tác:** thiếu tham số thì hỏi `Host` → `Cổng` → `Username` → `Database`
-→ `Mật khẩu` (nhập ẩn). `-NoPrompt` để tắt hỏi.
-
-**Nguồn client tool** (`pg_restore` / `psql` / `createdb` / `dropdb`):
-
-- Mặc định — cài trực tiếp trên máy (`-PgBinDir` → `PATH` → `C:\Program Files\PostgreSQL\*\bin`).
-- `-ToolContainer <tên>` — chạy tool **bên trong** container Docker/Podman rồi kết
-  nối ra `-PgHost` online. File dump được `cp` vào container `/tmp` rồi xoá sau khi xong.
-  Dùng khi máy chỉ có container, không cài PostgreSQL client.
-  ⚠️ Khi đó `-PgHost` **không được** là `localhost` (đó là loopback của container);
-  dùng `host.docker.internal` cho PostgreSQL trên máy host, hoặc IP/DNS thật của server.
-
-Database đích và user có thể **khác** với lúc backup:
-
-- `.dump` custom format không gắn cứng tên database → nạp vào DB nào tuỳ `-Database`.
-- `--no-owner --no-acl` bỏ qua owner/grant gốc; object thuộc về `-Username` đang kết nối.
-- `-CreateDatabase` tạo DB đích (owner = `-Username`) nếu chưa có; `-RecreateDatabase` drop rồi tạo lại.
-- Với `.sql` plain, remap owner **không** áp dụng — dùng cho globals/cluster dump.
-
-| Tham số | Mặc định | Ghi chú |
+| Tầng | Luật | Kết quả |
 | --- | --- | --- |
-| `-BackupFile` | **bắt buộc** | Đường dẫn file `.dump` hoặc `.sql` |
-| `-Username` | `.env` → hỏi | User để kết nối; cũng là owner sau restore (`.dump`). Key `POSTGRES_USER`/`PGUSER` |
-| `-Database` | `.env` → hỏi | Database đích (có thể khác tên lúc backup). Key `POSTGRES_DB`/`PGDATABASE` |
-| `-PgHost` | `.env` → hỏi (mặc định `localhost`, hoặc `host.docker.internal` khi `-ToolContainer`) | Host. Key `POSTGRES_HOST`/`PGHOST` |
-| `-Port` | `.env` → hỏi (mặc định `5432`) | Cổng. Key `POSTGRES_PORT`/`PGPORT` |
-| `-Password` | `-ConnectionString` → `.env` → `$env:PGPASSWORD` → hỏi ẩn | Native: `$env:PGPASSWORD` tạm. Container: `exec -e PGPASSWORD`. Key `POSTGRES_PASSWORD`/`PGPASSWORD` |
-| `-EnvFile` | `.env` cùng thư mục script | File dotenv cấp thông tin kết nối (bỏ qua host/user/db khi dùng `-ConnectionString`) |
-| `-ConnectionString` | (không) | `postgresql://user:pass@host:port/db` — dùng nguyên chuỗi thay cho `-PgHost/-Port/-Username/-Database` (tiện cho chuỗi copy từ dashboard Supabase) |
-| `-Sslmode` | (không; `require` khi `-Supabase`) | Đặt `PGSSLMODE` (`require` / `verify-full` / …) |
-| `-Supabase` | (off) | Preset Supabase: `sslmode=require`, bỏ `--clean`, cấm create/recreate DB, in ghi chú |
-| `-SingleTransaction` | (off) | `pg_restore --single-transaction` / `psql --single-transaction` (all-or-nothing) |
-| `-NoClean` | (off) | Bỏ `--clean --if-exists` khi restore `.dump` (nạp vào schema rỗng) |
-| `-PgBinDir` | (tự dò) | Thư mục chứa tool (chế độ native) |
-| `-ToolContainer` | (không) | Chạy client tool trong container này thay vì trên máy |
-| `-Engine` | `auto` | `auto` \| `podman` \| `docker` — engine cho `-ToolContainer` |
-| `-MaintenanceDatabase` | `postgres` | DB để chạy create/drop và nạp file `.sql` (khi không dùng `-ConnectionString`) |
-| `-CreateDatabase` | (off) | Tạo DB đích nếu chưa tồn tại (chỉ `.dump`; **không** với `-Supabase`/`-ConnectionString`) |
-| `-RecreateDatabase` | (off) | `dropdb --if-exists` + `createdb` trước khi restore (chỉ `.dump`; **không** với `-Supabase`/`-ConnectionString`) |
-| `-NoPrompt` | (off) | Không hỏi; thiếu giá trị kết nối thì `throw` |
-| `-Force` | (off) | **Bắt buộc** để xác nhận thao tác phá huỷ |
+| 1 | File cũ hơn `keepDays` ngày lịch | **Xoá** — thắng mọi luật khác |
+| 2 | File trong `keepHours` giờ gần nhất | **Giữ hết** |
+| 3 | Còn lại → gom theo ngày lịch, mỗi ngày giữ **1 bản mới nhất** | Xoá phần còn lại |
 
-```powershell
-# Tool cài trực tiếp: nạp dump cũ vào DB mới tên khác + user khác
-./scripts/maintenance/restore-postgres-host.ps1 `
-  -Username gv_portal_app -Database gv_portal_restore `
-  -BackupFile ./backups/postgres-db-admin_portal-20260901-120000.dump `
-  -CreateDatabase -Force
+Ví dụ chạy lúc **12:51 ngày 3/9** (mốc 6h = 06:51):
 
-# Máy chỉ có Docker: dùng client tool trong container, restore lên server online
-./scripts/maintenance/restore-postgres-host.ps1 `
-  -BackupFile .\backups\postgres-db-gv_portal-20260901-120000.dump `
-  -ToolContainer api_postgres_1 -PgHost db.internal.example.com -Port 5432 `
-  -Username gv_portal_app -Database gv_portal -CreateDatabase -Force
-
-# Container tool -> PostgreSQL cài trực tiếp trên chính máy host
-./scripts/maintenance/restore-postgres-host.ps1 `
-  -BackupFile .\backups\postgres-db-gv_portal-20260901-120000.dump `
-  -ToolContainer api_postgres_1 -PgHost host.docker.internal `
-  -Username gv_portal_app -Database gv_portal -RecreateDatabase -Force
+```
+3/9   12:45, 12:30 ... 07:00      giu (24 ban, trong cua so 6h)
+3/9   06:45 ve 00:00              XOA  (ban dai dien cua 3/9 la 12:45, da giu o tang 2)
+2/9   chi con 23:45               giu 1 ban
+1/9   chi con 23:45               giu 1 ban
+...
+21/7  (ngay thu 45)               giu 1 ban
+20/7  tro ve truoc                XOA (qua 45 ngay)
 ```
 
-## Migrate lên Supabase (backup SQL → restore)
+Ở trạng thái ổn định: **24 + 45 = 69 file ≈ 45 MB** (đã nén).
 
-Supabase là PostgreSQL host — dùng `backup-postgres-*.ps1` để tạo dump rồi
-`restore-postgres-host.ps1 -Supabase` để nạp lên.
+> ⚠️ Backup ban ngày của **chính hôm nay** bị gọn xuống 1 bản ngay trong ngày, không đợi sang ngày mới.
 
-**Lấy chuỗi kết nối:** Supabase Dashboard → Project Settings → Database →
-*Connection string*. Dùng **Session pooler** (`...pooler.supabase.com:5432`,
-user `postgres.<project-ref>`) hoặc **Direct connection**
-(`db.<ref>.supabase.co:5432`, chỉ IPv6 nếu không mua add-on IPv4).
+### An toàn
 
-**Lưu ý Supabase:**
+- Chỉ động file khớp `supabase-db-*-yyyyMMdd-HHmmss.{sql,sql.gz,dump}`. File khác (`RECOVERY-*.sql`…) **không bị đụng**.
+- Không đệ quy vào thư mục con.
+- **Không bao giờ xoá file mới nhất tuyệt đối.**
+- File nhỏ hơn `minValidBytes` coi là hỏng → không được làm đại diện của ngày, và bị xoá ngay sau khi backup.
+- Backup lỗi thì **retention vẫn chạy**, task trả exit code 1 để Task Scheduler báo.
 
-- Chỉ restore schema ứng dụng (thường `public`). Không đụng `auth`, `storage`,
-  `realtime`, `extensions`, … do Supabase quản lý.
-- Không restore roles/globals (`pg_dumpall`) — Supabase cấp sẵn.
-- Dump nên có `--no-owner --no-privileges` để không vướng role không tồn tại.
-- `-Supabase` tự đặt `sslmode=require` và bỏ `--clean`; thêm `-SingleTransaction`
-  cho dump nhỏ nếu muốn all-or-nothing.
-- Direct connection chỉ IPv6 → nếu máy không có IPv6, dùng Session pooler, hoặc
-  `-ToolContainer` (container thường có IPv4).
+Xem trước sẽ xoá gì mà không xoá thật:
 
 ```powershell
-# 1) Backup dạng SQL text, chỉ schema public, bỏ owner/grant
-./scripts/maintenance/backup-postgres-host.ps1 `
-  -Username gv_portal_app -Database gv_portal `
-  -Format plain -Schema public -NoOwner -NoPrivileges
-
-# 2a) Restore lên Supabase bằng connection string (mật khẩu nằm trong chuỗi)
-./scripts/maintenance/restore-postgres-host.ps1 -Supabase -Force `
-  -BackupFile .\backups\postgres-db-gv_portal-20260901-120000.sql `
-  -ConnectionString "postgresql://postgres.abcdxyz:PWD@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres"
-
-# 2b) Hoặc tham số rời + hỏi mật khẩu ẩn
-./scripts/maintenance/restore-postgres-host.ps1 -Supabase -Force `
-  -BackupFile .\backups\postgres-db-gv_portal-20260901-120000.sql `
-  -PgHost aws-0-ap-southeast-1.pooler.supabase.com -Port 5432 `
-  -Username postgres.abcdxyz -Database postgres
-
-# 2c) Máy chỉ có Docker (không cài psql) -> client tool trong container
-./scripts/maintenance/restore-postgres-host.ps1 -Supabase -Force -ToolContainer api_postgres_1 `
-  -BackupFile .\backups\postgres-db-gv_portal-20260901-120000.dump `
-  -PgHost aws-0-ap-southeast-1.pooler.supabase.com -Port 5432 `
-  -Username postgres.abcdxyz -Database postgres
+./scripts/maintenance/retention-backups.ps1 -DryRun
 ```
 
-File `.dump` custom cũng dùng được với `-Supabase` (nạp qua `pg_restore --no-owner
---no-acl`, không `--clean`); file `.sql` plain nạp qua `psql`.
-
-## cleanup-retention.ps1 — retention (Podman)
-
-Copy `cleanup-retention.sql` vào container và chạy bằng `psql`, sau đó xoá các file
-backup cũ hơn `-BackupKeepDays`. Ngữ nghĩa retention phải khớp với
-`api/tools/AdminPortal.Maintenance`.
-
-| Tham số | Mặc định | Ghi chú |
-| --- | --- | --- |
-| `-ContainerName` | `api_postgres_1` | Container PostgreSQL đang chạy |
-| `-DatabaseName` | (đọc từ container) | Override `POSTGRES_DB` |
-| `-SqlFile` | `cleanup-retention.sql` cạnh script | File SQL retention |
-| `-BackupDirectory` | `api/backups` | Thư mục backup cần dọn |
-| `-BackupKeepDays` | `7` | Xoá backup cũ hơn N ngày; `0` = tắt |
-| `-SkipDatabaseCleanup` | (off) | Chỉ dọn file backup, không đụng DB |
-| `-SkipBackupCleanup` | (off) | Chỉ chạy SQL retention, không xoá file |
+### Quản lý task
 
 ```powershell
-./scripts/maintenance/cleanup-retention.ps1
+./scripts/maintenance/register-backup-task.ps1 -WhatIf        # xem se tao gi
+./scripts/maintenance/register-backup-task.ps1                # tao (can Administrator)
+./scripts/maintenance/register-backup-task.ps1 -Remove        # go
+
+Get-ScheduledTask -TaskName 'GvPortal-Supabase-Backup' | Get-ScheduledTaskInfo
+Start-ScheduledTask -TaskName 'GvPortal-Supabase-Backup'      # chay thu ngay
+Get-Content .\backups\backup.log -Tail 20                    # xem log
 ```
+
+Cấu hình task: `IgnoreNew` (bỏ qua nếu lần trước chưa xong) · `StartWhenAvailable` (chạy bù khi máy vừa thức) · không tự đánh thức máy · chạy cả khi dùng pin · `LogonType S4U` (chạy cả khi chưa đăng nhập, **không cần lưu mật khẩu**). Dùng `-Interactive` nếu chỉ muốn chạy khi đã đăng nhập.
+
+## Xử lý sự cố
+
+| Triệu chứng | Cách xử lý |
+| --- | --- |
+| `.exe` thoát ngay, exit code 53, không in gì | Thiếu DLL cạnh `.exe` — copy đủ 8 DLL ở trên |
+| `Network unreachable` tới `db.<ref>.supabase.co` | Direct connection chỉ có IPv6 → đổi sang **Session pooler** |
+| `password authentication failed for user "postgres"` | Password sai, hoặc chứa `[ ] @ : /` làm hỏng URI → dùng khoá rời `SUPABASE_DB_*` |
+| `schema "public" already exists` | Dump tạo kèm `-NoSqlFixups` → dump lại, bỏ cờ đó |
+| `relation "..." already exists` | Đang restore vào DB **đã có dữ liệu**. Ưu tiên restore vào database rỗng; chỉ dùng `-Clean` khi chấp nhận ghi đè (đọc cảnh báo ở trên) |
+| `function "..." already exists` | Fixup `CREATE OR REPLACE FUNCTION` đã xử lý — dump lại bằng script là hết |
+| `cannot drop function ... because other objects depend on it` | Event trigger phụ thuộc vào function. **Đừng thêm `CASCADE`** (sẽ xoá luôn event trigger mà dump không tạo lại). Dump lại bằng script — fixup bỏ `DROP FUNCTION` và dùng `CREATE OR REPLACE` |
+| `invalid command \restrict` khi restore | `psql.exe` cũ hơn `pg_dump.exe`. Dump lại (fixup tự xử lý), hoặc dùng `psql.exe` cùng phiên bản với `pg_dump.exe` |
+| `pg_dump: error: server version mismatch` | Client cũ hơn server → dùng client ≥ 17 |
+| Task chạy nhưng không ra file | Xem `backups\backup.log`. Task trả exit 1 khi backup lỗi — xem cột Last Run Result trong Task Scheduler |
+| Retention xoá nhầm | Chạy `retention-backups.ps1 -DryRun` để xem trước; file không khớp pattern không bao giờ bị đụng |
+| `Cannot connect to Podman` | Chỉ ảnh hưởng `-ToolContainer` → bỏ cờ đó để chạy bằng `.exe` trên máy |
 
 ## Ghi chú
 
-- Docker Compose của project expose PostgreSQL ra cổng `5432`, có thể xung đột với
-  PostgreSQL cài trực tiếp trên Windows. Kiểm tra chủ sở hữu cổng trước khi backup để
-  chắc chắn đang nối đúng database (xem `deploy/iis/HUONG-DAN-DEPLOY-IIS.md`).
-- `podman` và `docker` dùng chung cú pháp `exec` / `cp` / `inspect` nên
-  `backup-postgres-container.ps1` chạy được với cả hai không cần đổi code.
-- Không commit file trong `api/backups/` — có thể chứa dữ liệu cá nhân.
+- Không commit file trong `api/backups/` — chứa dữ liệu thật.
+- Không restore roles/globals (`pg_dumpall`) lên Supabase; Supabase tự quản lý.
+- Chỉ restore schema ứng dụng (`public`), không đụng `auth`, `storage`, `realtime`, `extensions`.

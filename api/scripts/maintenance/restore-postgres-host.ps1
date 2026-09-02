@@ -81,6 +81,7 @@ param(
     [switch]$RecreateDatabase,
     [switch]$NoClean,
     [switch]$SingleTransaction,
+    [switch]$NoSingleTransaction,
     [switch]$NoPrompt,
     [switch]$Force
 )
@@ -93,6 +94,9 @@ function Invoke-Native {
     }
 
     $filePath = [string]$args[0]
+    if ($filePath.Length -le 1) {
+        throw "Invalid command '$filePath' - mot mang lenh 1 phan tu co the da bi PowerShell unroll thanh chuoi roi splat thanh tung ky tu. Gan bang @(Get-PgToolCommand ...)."
+    }
     $nativeArgs = @()
     if ($args.Count -gt 1) {
         $nativeArgs = @($args[1..($args.Count - 1)])
@@ -131,6 +135,9 @@ function Invoke-NativeCapture {
     }
 
     $filePath = [string]$args[0]
+    if ($filePath.Length -le 1) {
+        throw "Invalid command '$filePath' - mot mang lenh 1 phan tu co the da bi PowerShell unroll thanh chuoi roi splat thanh tung ky tu. Gan bang @(Get-PgToolCommand ...)."
+    }
     $nativeArgs = @()
     if ($args.Count -gt 1) {
         $nativeArgs = @($args[1..($args.Count - 1)])
@@ -177,27 +184,34 @@ function Resolve-PgTool {
         [string]$BinDir
     )
 
+    # 1. -PgBinDir chi dinh ro rang
     if (-not [string]::IsNullOrWhiteSpace($BinDir)) {
         $explicit = Join-Path $BinDir "$Name.exe"
-        if (Test-Path -LiteralPath $explicit) {
-            return $explicit
-        }
-        throw "$Name not found in -PgBinDir '$BinDir'."
+        if (Test-Path -LiteralPath $explicit) { return $explicit }
+        throw "$Name.exe not found in -PgBinDir '$BinDir'."
     }
 
+    # 2. Cung thu muc voi script (pg_dump.exe / pg_restore.exe / psql.exe + DLL di kem)
+    $local = Join-Path $PSScriptRoot "$Name.exe"
+    if (Test-Path -LiteralPath $local) { return $local }
+
+    # 3. PATH
     $onPath = Get-Command $Name -ErrorAction SilentlyContinue
-    if ($onPath) {
-        return $onPath.Source
-    }
+    if ($onPath) { return $onPath.Source }
 
+    # 4. Ban PostgreSQL cai tren may
     $guess = Get-ChildItem "C:\Program Files\PostgreSQL\*\bin\$Name.exe" -ErrorAction SilentlyContinue |
         Sort-Object FullName -Descending |
         Select-Object -First 1
-    if ($guess) {
-        return $guess.FullName
-    }
+    if ($guess) { return $guess.FullName }
 
-    throw "$Name not found. Add the PostgreSQL bin folder to PATH or pass -PgBinDir."
+    # 5. Bo client di kem DBeaver
+    $dbeaver = Get-ChildItem (Join-Path $env:APPDATA "DBeaverData\drivers\clients\postgresql\win\*\$Name.exe") -ErrorAction SilentlyContinue |
+        Sort-Object FullName -Descending |
+        Select-Object -First 1
+    if ($dbeaver) { return $dbeaver.FullName }
+
+    throw "$Name.exe not found. Dat $Name.exe (kem DLL libpq/libssl/libcrypto/...) canh script, them vao PATH, hoac dung -PgBinDir / -ToolContainer."
 }
 
 function Resolve-ContainerEngine {
@@ -232,8 +246,11 @@ $backupPath = Resolve-Path -LiteralPath $BackupFile
 $backupItem = Get-Item -LiteralPath $backupPath
 $extension = $backupItem.Extension.ToLowerInvariant()
 
+$isGzip = $backupItem.Name -like "*.sql.gz"
+if ($isGzip) { $extension = ".sql" }
+
 if ($extension -ne ".dump" -and $extension -ne ".sql") {
-    throw "Unsupported backup extension '$($backupItem.Extension)'. Use a .dump (pg_dump -Fc) or a .sql dump."
+    throw "Unsupported backup extension '$($backupItem.Extension)'. Use .sql, .sql.gz, or .dump."
 }
 
 # --- Nạp .env (mặc định: file '.env' cùng thư mục script) ---
@@ -267,7 +284,9 @@ $sbPass = Get-DotEnvValue @("SUPABASE_DB_PASSWORD", "SUPABASE_PASSWORD")
 $sbDb = Get-DotEnvValue @("SUPABASE_DB", "SUPABASE_DATABASE")
 $sbDiscrete = [bool]($Supabase -and $sbHost -and $sbUser -and $sbPass)
 
-if ([string]::IsNullOrWhiteSpace($ConnectionString) -and -not $sbDiscrete) {
+# CHI tu lay connection string tu .env khi co -Supabase. Neu khong, mot lenh restore
+# local co the am tham tro toi Supabase vi .env co san SUPABASE_CONNECTION_URL.
+if ([string]::IsNullOrWhiteSpace($ConnectionString) -and $Supabase -and -not $sbDiscrete) {
     $v = Get-DotEnvValue @("SUPABASE_CONNECTION_URL", "SUPABASE_DB_URL", "DATABASE_URL", "CONNECTION_STRING", "PG_CONNECTION_STRING")
     if ($v) { $ConnectionString = $v }
 }
@@ -306,6 +325,10 @@ else {
         if ([string]::IsNullOrWhiteSpace($PgHost)) { $PgHost = $sbHost }
         if ([string]::IsNullOrWhiteSpace($Username)) { $Username = $sbUser }
         if ([string]::IsNullOrWhiteSpace($Database)) { $Database = if ($sbDb) { $sbDb } else { "postgres" } }
+        if (-not $PSBoundParameters.ContainsKey("Port") -and $Port -le 0) {
+            $sbPort = Get-DotEnvValue @("SUPABASE_PORT", "SUPABASE_DB_PORT")
+            $Port = if ($sbPort) { [int]$sbPort } else { 5432 }
+        }
     }
     if ([string]::IsNullOrWhiteSpace($PgHost)) {
         $v = Get-DotEnvValue @("POSTGRES_HOST", "PGHOST"); if ($v) { $PgHost = $v }
@@ -405,39 +428,57 @@ if ($useConnString) {
 }
 else {
     $connArgs = @("-h", $PgHost, "-p", $Port, "-U", $Username, "-d", $Database)
-    $psqlConnArgs = @("-h", $PgHost, "-p", $Port, "-U", $Username, "-d", $MaintenanceDatabase)
+    # File .sql plain cua 1 database => nap thang vao $Database.
+    # Voi cluster/globals dump, truyen -Database postgres.
+    $psqlConnArgs = @("-h", $PgHost, "-p", $Port, "-U", $Username, "-d", $Database)
 }
 
 # Resolve/verify tools sớm để fail nhanh trước ShouldProcess
-$psqlCmd = Get-PgToolCommand -Tool "psql"
+$psqlCmd = @(Get-PgToolCommand -Tool "psql")
 $pgRestoreCmd = $null
 $createdbCmd = $null
 $dropdbCmd = $null
 if ($extension -eq ".dump") {
-    $pgRestoreCmd = Get-PgToolCommand -Tool "pg_restore"
+    $pgRestoreCmd = @(Get-PgToolCommand -Tool "pg_restore")
     if ($CreateDatabase -or $RecreateDatabase) {
-        $createdbCmd = Get-PgToolCommand -Tool "createdb"
+        $createdbCmd = @(Get-PgToolCommand -Tool "createdb")
     }
     if ($RecreateDatabase) {
-        $dropdbCmd = Get-PgToolCommand -Tool "dropdb"
+        $dropdbCmd = @(Get-PgToolCommand -Tool "dropdb")
     }
 }
 
-$displayTarget = if ($useConnString) { Hide-Secret $ConnectionString }
-elseif ($extension -eq ".dump") { "$PgHost`:$Port/$Database" }
-else { "$PgHost`:$Port/$MaintenanceDatabase" }
+$displayTarget = if ($useConnString) { Hide-Secret $ConnectionString } else { "$PgHost`:$Port/$Database" }
 
 if (-not $PSCmdlet.ShouldProcess($displayTarget, "Restore $($backupItem.Name)")) {
     return
 }
 
+# Giai nen .sql.gz ra file tam (psql khong doc truc tiep gzip)
+$tempSqlPath = $null
+if ($isGzip) {
+    $tempSqlPath = Join-Path ([System.IO.Path]::GetTempPath()) ("restore-" + [guid]::NewGuid().ToString("N") + ".sql")
+    $gzIn = [System.IO.File]::OpenRead($backupItem.FullName)
+    try {
+        $gzStream = New-Object System.IO.Compression.GZipStream($gzIn, [System.IO.Compression.CompressionMode]::Decompress)
+        try {
+            $sqlOut = [System.IO.File]::Create($tempSqlPath)
+            try { $gzStream.CopyTo($sqlOut) } finally { $sqlOut.Dispose() }
+        }
+        finally { $gzStream.Dispose() }
+    }
+    finally { $gzIn.Dispose() }
+    Write-Verbose "Giai nen $($backupItem.Name) -> $tempSqlPath"
+}
+
 # Đường dẫn file mà tool sẽ đọc: trong container thì copy vào /tmp trước
 $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
-$toolFilePath = $backupItem.FullName
+$toolFilePath = if ($tempSqlPath) { $tempSqlPath } else { $backupItem.FullName }
 $containerFilePath = $null
 if ($useContainer) {
     $containerFilePath = "/tmp/restore-$timestamp$extension"
-    Invoke-Native $engineCmd cp $backupItem.FullName "${ToolContainer}:$containerFilePath"
+    $srcForCp = if ($tempSqlPath) { $tempSqlPath } else { $backupItem.FullName }
+    Invoke-Native $engineCmd cp $srcForCp "${ToolContainer}:$containerFilePath"
     $toolFilePath = $containerFilePath
 }
 
@@ -473,14 +514,19 @@ try {
         Invoke-Native @pgRestoreCmd @connArgs @restoreArgs --no-owner --no-acl $toolFilePath
     }
     else {
+        # Mac dinh boc trong 1 transaction: loi giua chung se rollback thay vi
+        # de lai database da bi DROP mot nua. Tat bang -NoSingleTransaction.
         $psqlArgs = @("-v", "ON_ERROR_STOP=1")
-        if ($SingleTransaction) { $psqlArgs += "--single-transaction" }
+        if (-not $NoSingleTransaction) { $psqlArgs += "--single-transaction" }
         Invoke-Native @psqlCmd @psqlConnArgs @psqlArgs -f $toolFilePath
     }
 }
 finally {
     if ($useContainer -and $containerFilePath) {
         & $engineCmd exec $ToolContainer rm -f $containerFilePath | Out-Null
+    }
+    if ($tempSqlPath -and (Test-Path -LiteralPath $tempSqlPath)) {
+        Remove-Item -LiteralPath $tempSqlPath -Force -ErrorAction SilentlyContinue
     }
     foreach ($name in @("PGPASSWORD", "PGSSLMODE")) {
         if ($envWasSet[$name]) {

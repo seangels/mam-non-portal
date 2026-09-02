@@ -17,3 +17,5 @@ data-podman-restore-test/*
 scripts/maintenance/pg.env.ps1
 scripts/maintenance/*.secret.ps1
 supabase
+scripts/maintenance/*.exe
+scripts/maintenance/*.dll

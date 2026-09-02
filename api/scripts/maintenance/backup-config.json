@@ -1,0 +1,10 @@
+{
+  "//": "Cau hinh cho backup + retention. Xoa file nay thi script dung gia tri mac dinh.",
+  "//outputDirectory": "Ho tro duong dan tuong doi (tinh tu thu muc chua script) HOAC tuyet doi Windows. Vi du: '..\\..\\backups', 'D:\\Backups\\gv-portal', '\\\\nas\\backups\\gv-portal'",
+  "outputDirectory": "..\\..\\backups",
+  "compress": true,
+  "keepHours": 6,
+  "keepDays": 45,
+  "intervalMinutes": 15,
+  "minValidBytes": 20480
+}
