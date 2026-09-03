@@ -1,11 +1,12 @@
-import { AfterViewChecked, Component, ElementRef, HostListener, OnInit, ViewChild } from '@angular/core';
+import { AfterViewChecked, Component, ElementRef, HostListener, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { firstValueFrom } from 'rxjs';
+import { Subscription, firstValueFrom } from 'rxjs';
 import html2pdf from 'html2pdf.js';
 import notify from 'devextreme/ui/notify';
 import { ApiError } from '../../core/models/api-error';
 import { AssessmentSheetDetail, AssessmentSheetRecord } from '../../core/models/api.models.assessment-sheets';
 import { AssessmentSheetsService } from '../../core/services/assessment-sheets.service';
+import { AssessmentSheetBulkUploadQueueService } from './assessment-sheet-bulk-upload-queue.service';
 import {
   AssessmentSheetPdfKind,
   AssessmentSheetPlanPreviewModel,
@@ -24,7 +25,7 @@ import {
   templateUrl: './assessment-sheet-plan-preview.component.html',
   styleUrls: ['./assessment-sheet-plan-preview.component.scss']
 })
-export class AssessmentSheetPlanPreviewComponent implements OnInit, AfterViewChecked {
+export class AssessmentSheetPlanPreviewComponent implements OnInit, AfterViewChecked, OnDestroy {
   @ViewChild('pdfPage') pdfPage?: ElementRef<HTMLElement>;
   @ViewChild('pdfContent') pdfContent?: ElementRef<HTMLElement>;
 
@@ -40,6 +41,7 @@ export class AssessmentSheetPlanPreviewComponent implements OnInit, AfterViewChe
   pdfKind: AssessmentSheetPdfKind = 'plan';
   autoUpload = false;
   private autoUploadStarted = false;
+  private routeSubscription?: Subscription;
 
   // Tracks which model reference has already been fitted to the page so
   // fitContentToPage() only re-measures once per model change, not on every
@@ -63,15 +65,40 @@ export class AssessmentSheetPlanPreviewComponent implements OnInit, AfterViewChe
   constructor(
     private readonly assessmentSheets: AssessmentSheetsService,
     private readonly route: ActivatedRoute,
-    private readonly router: Router
+    private readonly router: Router,
+    private readonly bulkQueue: AssessmentSheetBulkUploadQueueService
   ) {}
 
   ngOnInit(): void {
     this.pdfKind = this.route.snapshot.data['pdfKind'] === 'result' ? 'result' : 'plan';
     this.pdfOptions['filename'] = this.pdfKind === 'result' ? 'ket-qua-danh-gia.pdf' : 'ke-hoach-ca-nhan.pdf';
-    this.sheetId = this.route.snapshot.paramMap.get('id') ?? '';
-    // Cờ ?auto=1 do nút combo "Hoàn thành kế hoạch" (ASH-FB-W3 / G6a) truyền vào: tự tạo PDF,
-    // upload Drive rồi quay lại màn chỉnh sửa.
+    // Bulk "Tạo KQ lên Drive" (ASH-FB-W8) điều hướng lần lượt qua nhiều :id trên CÙNG route
+    // này — Angular mặc định tái dùng component thay vì destroy/recreate khi chỉ :id đổi, nên
+    // phải theo dõi paramMap thay vì chỉ đọc snapshot 1 lần trong ngOnInit (giống pattern ở
+    // teacher-detail.component.ts) để mỗi bảng trong hàng đợi thực sự được load + auto-upload lại.
+    this.routeSubscription = this.route.paramMap.subscribe(params => this.initForSheet(params.get('id') ?? ''));
+  }
+
+  ngOnDestroy(): void {
+    this.routeSubscription?.unsubscribe();
+    // Rời màn preview giữa chừng khi đang chạy hàng đợi bulk (bấm "Quay lại"/điều hướng đi nơi
+    // khác) → hủy hàng đợi, tránh lần chạy đơn lẻ (?auto=1) sau đó hiểu nhầm là vẫn đang bulk.
+    if (this.bulkQueue.running) {
+      this.bulkQueue.abort();
+    }
+  }
+
+  private initForSheet(id: string): void {
+    this.sheetId = id;
+    this.sheet = null;
+    this.model = null;
+    this.loadError = '';
+    this.actionError = '';
+    this.driveFileLink = '';
+    this.lastFittedModel = null;
+    this.autoUploadStarted = false;
+    // Cờ ?auto=1 do nút combo "Hoàn thành kế hoạch" (ASH-FB-W3 / G6a) hoặc hàng đợi bulk "Tạo
+    // KQ lên Drive" (ASH-FB-W8) truyền vào: tự tạo PDF, upload Drive rồi đi tiếp.
     this.autoUpload = this.route.snapshot.queryParamMap.get('auto') === '1';
     if (!this.sheetId) {
       this.loadError = 'Không tìm thấy mã bảng đánh giá trong đường dẫn.';
@@ -99,9 +126,41 @@ export class AssessmentSheetPlanPreviewComponent implements OnInit, AfterViewChe
 
   private async runAutoUpload(): Promise<void> {
     await this.uploadPdfToDrive();
+    if (this.bulkQueue.running) {
+      this.advanceBulkQueue();
+      return;
+    }
     if (!this.actionError) {
       this.goBack();
     }
+  }
+
+  // Bulk "Tạo KQ lên Drive": ghi nhận kết quả bảng vừa xử lý rồi điều hướng sang bảng kế tiếp
+  // trong hàng đợi (route param :id đổi, initForSheet() tự load + auto-upload lại — xem
+  // ngOnInit). Hết hàng đợi thì báo tổng kết và quay lại danh sách.
+  private advanceBulkQueue(): void {
+    const succeeded = !this.actionError;
+    this.bulkQueue.recordResult(succeeded);
+    if (!succeeded) {
+      notify(`Bỏ qua 1 bảng: ${this.actionError}`, 'warning', 3000);
+    }
+    const nextId = this.bulkQueue.next();
+    if (nextId) {
+      void this.router.navigate(
+        ['/assessment-sheets', nextId, this.pdfKind === 'result' ? 'result-pdf-preview' : 'plan-pdf-preview'],
+        { queryParams: { auto: 1 } }
+      );
+      return;
+    }
+    const summary = this.bulkQueue.finish();
+    notify(
+      summary.failCount > 0
+        ? `Đã tạo ${this.kindLabelLower} lên Drive cho ${summary.successCount}/${summary.total} bảng, ${summary.failCount} bảng lỗi.`
+        : `Đã tạo ${this.kindLabelLower} lên Drive cho ${summary.successCount}/${summary.total} bảng đã chọn.`,
+      summary.failCount > 0 ? 'warning' : 'success',
+      4000
+    );
+    void this.router.navigate(['/assessment-sheets']);
   }
 
   @HostListener('window:resize')

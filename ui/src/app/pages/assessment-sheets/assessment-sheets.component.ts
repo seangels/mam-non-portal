@@ -1,5 +1,5 @@
 import { Component, ElementRef, OnDestroy, OnInit, ViewChild } from '@angular/core';
-import { Router } from '@angular/router';
+import { NavigationExtras, Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import notify from 'devextreme/ui/notify';
 import { DxDataGridComponent } from 'devextreme-angular/ui/data-grid';
@@ -16,6 +16,7 @@ import {
 import { AssessmentSheetsService } from '../../core/services/assessment-sheets.service';
 import { patchGridBestFit } from '../../core/errors/dx-grid-bestfit-guard';
 import { formatDateOnly, toDateOnly } from '../../core/utils/date-only';
+import { AssessmentSheetBulkUploadQueueService } from './assessment-sheet-bulk-upload-queue.service';
 import { formatAssessmentPeriod } from './assessment-sheet-plan-preview.models';
 
 // Danh sách tải hết về client (giống bảng picker) rồi để lưới tự lọc/sắp/phân trang bằng
@@ -53,11 +54,14 @@ export class AssessmentSheetsComponent implements OnInit, OnDestroy {
     dataSource: ASSESSMENT_SHEET_STATUS_OPTIONS.map(option => ({ text: option.text, value: option.value }))
   };
   bulkActionInProgress = false;
-  readonly bulkActionItems: Array<{ id: string; text: string; kind: 'Plan' | 'Result'; format: 'Pdf' | 'Images' }> = [
+  readonly bulkActionItems: Array<{ id: string; text: string; kind: 'Plan' | 'Result'; format: 'Pdf' | 'Images' | 'Drive' }> = [
     { id: 'plan-pdf', text: 'Tải PDF khcn', kind: 'Plan', format: 'Pdf' },
     { id: 'plan-img', text: 'Tải ảnh khcn', kind: 'Plan', format: 'Images' },
     { id: 'result-pdf', text: 'Tải PDF KQ', kind: 'Result', format: 'Pdf' },
-    { id: 'result-img', text: 'Tải ảnh KQ', kind: 'Result', format: 'Images' }
+    { id: 'result-img', text: 'Tải ảnh KQ', kind: 'Result', format: 'Images' },
+    // ASH-FB-W8: không gọi API riêng — điều hướng tự động lần lượt qua từng bảng ở màn preview
+    // KQ và bấm hộ nút "Tạo PDF kết quả lên Google Drive" đã có (xem AssessmentSheetBulkUploadQueueService).
+    { id: 'result-drive', text: 'Tạo KQ lên Drive', kind: 'Result', format: 'Drive' }
   ];
   readonly rowButtons = [
     {
@@ -120,6 +124,7 @@ export class AssessmentSheetsComponent implements OnInit, OnDestroy {
 
   constructor(
     private readonly assessmentSheets: AssessmentSheetsService,
+    private readonly bulkUploadQueue: AssessmentSheetBulkUploadQueueService,
     public readonly router: Router
   ) {}
 
@@ -318,6 +323,10 @@ export class AssessmentSheetsComponent implements OnInit, OnDestroy {
     if (!action || this.bulkActionDisabled) {
       return;
     }
+    if (action.format === 'Drive') {
+      this.startBulkDriveUpload();
+      return;
+    }
     const ids = this.selectedSheets.map(sheet => sheet.id);
     this.bulkActionInProgress = true;
     this.loadError = '';
@@ -334,6 +343,28 @@ export class AssessmentSheetsComponent implements OnInit, OnDestroy {
       this.bulkActionInProgress = false;
       this.syncToolbar();
     }
+  }
+
+  // ASH-FB-W8: chỉ lọc + khởi tạo hàng đợi rồi điều hướng tới màn preview KQ của bảng đầu
+  // tiên với ?auto=1 — phần "bấm hộ nút Tạo PDF ... lên Google Drive" + tự chuyển sang bảng kế
+  // tiếp nằm ở AssessmentSheetPlanPreviewComponent (advanceBulkQueue), dùng lại đúng cơ chế của
+  // nút đơn lẻ, không viết lại logic tạo PDF/upload.
+  private startBulkDriveUpload(): void {
+    const eligible = this.selectedSheets.filter(sheet => sheet.status !== 'Open');
+    const skippedCount = this.selectedSheets.length - eligible.length;
+    if (eligible.length === 0) {
+      notify('Không có bảng đánh giá nào đủ điều kiện (đang ở trạng thái "Mở") để tạo KQ lên Drive.', 'warning', 4000);
+      return;
+    }
+    if (skippedCount > 0) {
+      notify(`Bỏ qua ${skippedCount} bảng đang ở trạng thái "Mở" — chỉ tạo KQ lên Drive cho ${eligible.length} bảng còn lại.`, 'warning', 4000);
+    }
+    const firstId = this.bulkUploadQueue.start('result', eligible.map(sheet => sheet.id));
+    if (!firstId) {
+      return;
+    }
+    this.clearSelection();
+    this.leaveTo(['/assessment-sheets', firstId, 'result-pdf-preview'], { queryParams: { auto: 1 } });
   }
 
   private syncToolbar(): void {
@@ -375,7 +406,7 @@ export class AssessmentSheetsComponent implements OnInit, OnDestroy {
 
   // Cho lưới flush nốt các deferRender (resize/best-fit) đang chờ TRƯỚC khi component bị hủy,
   // để không còn callback nào chạy trên lưới đã destroy (kèm với vá ở `onGridInitialized`).
-  private leaveTo(commands: string[]): void {
+  private leaveTo(commands: string[], extras?: NavigationExtras): void {
     if (this.destroyed) {
       return;
     }
@@ -383,7 +414,7 @@ export class AssessmentSheetsComponent implements OnInit, OnDestroy {
     // `patchGridBestFit`, giảm khả năng chạm lỗi best-fit của DevExtreme 19.2).
     requestAnimationFrame(() => window.setTimeout(() => {
       if (!this.destroyed) {
-        void this.router.navigate(commands);
+        void this.router.navigate(commands, extras);
       }
     }, 0));
   }

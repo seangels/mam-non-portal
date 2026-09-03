@@ -5,6 +5,7 @@ import {
   compareAssessmentByFixedGroupOrder
 } from '../../core/models/api.models.assessment-sheets';
 import { AssessmentPickerComponent } from './assessment-picker.component';
+import { AssessmentSheetBulkUploadQueueService } from './assessment-sheet-bulk-upload-queue.service';
 import { AssessmentSheetsComponent } from './assessment-sheets.component';
 import {
   buildAssessmentSheetPlanPreview,
@@ -310,6 +311,7 @@ describe('Assessment sheets Excel import', () => {
     };
     const component = new AssessmentSheetsComponent(
       assessmentSheets as any,
+      new AssessmentSheetBulkUploadQueueService(),
       { navigate: jasmine.createSpy('navigate') } as any
     );
     spyOn(component, 'loadAllSheets').and.returnValue(Promise.resolve());
@@ -460,6 +462,37 @@ describe('Assessment sheets Excel import', () => {
     await component.onBulkAction({ itemData: { id: 'plan-pdf' } });
 
     expect(assessmentSheets.downloadPdfArchive).not.toHaveBeenCalled();
+  });
+
+  it('"Tạo KQ lên Drive" skips Open sheets and navigates to the first eligible sheet\'s KQ preview with ?auto=1 (ASH-FB-W8)', async () => {
+    const { component, assessmentSheets } = createComponent({}, {});
+    const leaveToSpy = spyOn<any>(component, 'leaveTo');
+    component.selectedSheets = [
+      { id: 's1', status: 'Planed' } as any,
+      { id: 's2', status: 'Open' } as any,
+      { id: 's3', status: 'Done' } as any
+    ];
+
+    await component.onBulkAction({ itemData: { id: 'result-drive' } });
+
+    // Không gọi API tải zip — đây là điều hướng automation, không phải download.
+    expect(assessmentSheets.downloadPdfArchive).not.toHaveBeenCalled();
+    expect(leaveToSpy).toHaveBeenCalledWith(
+      ['/assessment-sheets', 's1', 'result-pdf-preview'],
+      { queryParams: { auto: 1 } }
+    );
+    // Selection được xóa ngay khi bắt đầu chạy hàng đợi, giống các thao tác điều hướng khác.
+    expect(component.selectedSheets).toEqual([]);
+  });
+
+  it('"Tạo KQ lên Drive" does nothing when every selected sheet is still Open', async () => {
+    const { component } = createComponent({}, {});
+    const leaveToSpy = spyOn<any>(component, 'leaveTo');
+    component.selectedSheets = [{ id: 's1', status: 'Open' } as any];
+
+    await component.onBulkAction({ itemData: { id: 'result-drive' } });
+
+    expect(leaveToSpy).not.toHaveBeenCalled();
   });
 
   it('strikes through a whole row when its sheet status is Canceled', () => {
