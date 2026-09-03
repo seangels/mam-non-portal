@@ -24,7 +24,7 @@
   </div>
 
   <form class="dx-card assessment-sheets-form" (submit)="save($event)" aria-labelledby="assessment-sheets-form-heading">
-    <h2 id="assessment-sheets-form-heading">{{title}} thông tin kế hoạch cá nhân</h2>
+    <h2 id="assessment-sheets-form-heading">{{title}} thông tin kế hoạch cá nhân{{titlePeriodSuffix}}</h2>
     <p class="helper-text">Các trường có dấu <span aria-hidden="true">*</span> là bắt buộc.</p>
 
     <div *ngIf="!isCreate" class="snapshot-panel" aria-label="Thông tin snapshot">

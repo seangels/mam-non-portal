@@ -17,7 +17,6 @@ import {
   resultGradeText,
   resultGradeBgColor,
   resultGradeColor,
-  resultNoteText,
 } from './assessment-sheet-plan-preview.models';
 
 @Component({
@@ -194,8 +193,9 @@ export class AssessmentSheetPlanPreviewComponent implements OnInit, AfterViewChe
   gradeBgColor = (record: AssessmentSheetRecord): string =>
     this.pdfKind === 'result' ? resultGradeBgColor(record) : planGradeBgColor(record);
 
+  // Preview/in/PDF kết quả (KQ) không hiện Ghi chú — cột này chỉ dùng cho preview kế hoạch (KHCN).
   noteText = (record: AssessmentSheetRecord): string =>
-    this.pdfKind === 'result' ? resultNoteText(record) : planNoteText(record);
+    this.pdfKind === 'result' ? '' : planNoteText(record);
 
   private applySheet(sheet: AssessmentSheetDetail): void {
     this.sheet = sheet;

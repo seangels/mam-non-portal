@@ -1,8 +1,20 @@
 # Frontend role memory
 
-Last updated: 2026-09-01 (ASH-FB-W3 — feedback batch Đợt 3: edit sticky-bar G6b/G6a; batch ASH-FB-01 done)
+Last updated: 2026-09-03 (ASH-FB-W7 — form edit: readOnly 5 field theo trạng thái khớp backend; preview KQ ẩn Ghi chú)
 
 ## Resume here
+
+- 2026-09-03 (`ASH-FB-W7`, FE-only, orchestrator sửa trực tiếp).
+  - **readOnly khớp backend**: `AssessmentSheetService.UpdateAsync` (`api/src/AdminPortal.Application/AssessmentSheets/AssessmentSheetService.cs:270-284`) chỉ ghi `ResponsibleTeacherId/Note/StartDate/DueDate/Feedback` khi `Status` là `Open`/`Canceled`; khi `Planed`/`Done` request 200 OK nhưng 5 field này bị bỏ qua âm thầm. Form edit trước đây không readOnly các field này theo status (chỉ `planFileLinkPdf`/`resultFileLinkPdf` đã đúng qua `buildLinkEditorOptions`). Đã sửa `assessment-sheets-form.component.ts`: `teacherEditorOptions`/`dateEditorOptions`/`dueDateEditorOptions`/`noteEditorOptions` (dùng chung cho `note` + `feedback`) đổi từ field tĩnh sang getter, cache theo `readOnly` (pattern giống `linkEditorOptionsCache`/`buildLinkEditorOptions`) qua `metadataEditorOptionsCache` + `withMetadataReadOnly()`; `readOnly = metadataFieldsReadOnly` = `originalStatus !== 'Open' && !== 'Canceled'`. Giữ nguyên reference khi `readOnly` không đổi (tránh dx-form re-mount editor mất focus/click).
+  - **Preview KQ ẩn Ghi chú**: `assessment-sheet-plan-preview.component.ts` `noteText(record)` — khi `pdfKind === 'result'` trả `''` thay vì `resultNoteText(record)` (bỏ import/gọi `resultNoteText`); cột "Ghi chú" trong bảng preview/in/PDF kết quả để trống, chỉ preview kế hoạch (KHCN, `planNoteText`) mới hiện. Hàm thuần `resultNoteText` (`assessment-sheet-plan-preview.models.ts:92`) vẫn giữ nguyên, chỉ không còn được component gọi.
+  - Verification: `npm --prefix ui run test:ci` **158/158**; `npm --prefix ui run build -- --configuration development` (NG_BUILD_MAX_WORKERS=1) sạch lỗi. Không backend/migration/production/IIS/deploy. Chưa thêm test riêng cho 2 thay đổi này (readOnly theo status, blank note ở KQ) — nếu cần coverage, thêm assert `teacherEditorOptions/dateEditorOptions/dueDateEditorOptions/noteEditorOptions['readOnly']` theo `originalStatus`, và `noteText()` trả `''` khi `pdfKind==='result'`.
+
+- 2026-09-03 (`ASH-FB-W6`, FE-only, orchestrator sửa trực tiếp). Hiển thị khoảng kế hoạch (`"3 tháng 10.11.12.26"`) thay vì chỉ tháng bắt đầu:
+  - `assessment-sheets.component.ts` import `formatAssessmentPeriod` từ `assessment-sheet-plan-preview.models.ts`, thêm `periodText(sheet)`; cột `startDate` (`assessment-sheets.component.html`, template `startDateCell`) đổi từ `monthText(cell.data.startDate)` sang `periodText(cell.data)`; width `120→170`, `minWidth 140` (chuỗi dài hơn `M/yyyy`).
+  - `assessment-sheets-form.component.ts` thêm getter `titlePeriodSuffix` (cùng hàm, trên `editor.startDate/dueDate`); chỉ nối hậu tố khi kết quả bắt đầu bằng chữ số (`/^\d/`) — hàm trả câu lỗi tiếng Việt khi thiếu ngày hoặc `dueDate < startDate`, lọc bỏ để không hiện câu lỗi trong tiêu đề. Gắn vào `<h2 id="assessment-sheets-form-heading">` (`assessment-sheets-form.component.html`) → `"Tạo/Chỉnh sửa thông tin kế hoạch cá nhân - 3 tháng 9.10.11.26"`.
+  - Dọn `console.log({year, month, dueYear, dueMonth})` còn sót trong `formatAssessmentPeriod` (`assessment-sheet-plan-preview.models.ts`) — trước đây spam console mỗi lần gọi; giờ hàm được dùng trực tiếp trong lưới nên bắt buộc phải gỡ.
+  - Cột `dueDate` (`monthText`) giữ nguyên `M/yyyy` — chưa đổi, chỉ cột `startDate` mang nghĩa khoảng.
+  - Verification: `npm --prefix ui run test:ci` **158/158**; `npm --prefix ui run build -- --configuration development` (NG_BUILD_MAX_WORKERS=1) sạch lỗi, `Initial Total 13.67 MB`. Không backend/migration/production/IIS/deploy.
 
 - 2026-09-01 (`ASH-FB-W3`, Đợt 3 feedback batch — **cuối**, FE-only, orchestrator sửa trực tiếp). Thanh sticky màn chỉnh sửa bảng đánh giá:
   - **G6b**: `assessment-sheets-form.component` `openCreateNew()` → `router.navigate(['/assessment-sheets/new'])`. Route `/new` khác `routeConfig` với `/:id/edit` → Angular destroy+recreate component (form trống, `ngOnInit` chạy lại); `PendingChangesGuard.canDeactivate` → `canLeave()` nhắc dirty. Nút "Tạo mới đánh giá" (`icon="plus"`) trong `.form-actions`, `*ngIf="!isCreate"`.

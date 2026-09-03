@@ -54,7 +54,7 @@
     <dxi-column dataField="status" caption="Trạng thái" cellTemplate="statusCell" [width]="120"
       [headerFilter]="statusHeaderFilter"></dxi-column>
     <dxi-column dataField="startDate" caption="Bắt đầu" dataType="date" cellTemplate="startDateCell"
-      sortOrder="desc" [width]="120" [allowHeaderFiltering]="false"
+      sortOrder="desc" [width]="170" [minWidth]="140" [allowHeaderFiltering]="false"
       [filterOperations]="['<=', '>=', 'between', '=']" selectedFilterOperation="<="
       [calculateFilterExpression]="monthGranularFilterExpression"></dxi-column>
     <dxi-column dataField="dueDate" caption="Hạn hoàn thành" dataType="date" cellTemplate="dueDateCell"
@@ -79,7 +79,7 @@
       <span class="status-pill" [ngClass]="'status-' + cell.data.status">{{ statusText(cell.data.status) }}</span>
     </div>
 
-    <div *dxTemplate="let cell of 'startDateCell'">{{ monthText(cell.data.startDate) }}</div>
+    <div *dxTemplate="let cell of 'startDateCell'">{{ periodText(cell.data) }}</div>
     <div *dxTemplate="let cell of 'dueDateCell'">{{ monthText(cell.data.dueDate) }}</div>
     <div *dxTemplate="let cell of 'submissionDateCell'">{{ dateText(cell.data.submissionDate) }}</div>
     <div *dxTemplate="let cell of 'planLinkCell'">

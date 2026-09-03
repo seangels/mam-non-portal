@@ -111,10 +111,6 @@ export function formatAssessmentPeriod(
   let month = start.getMonth();
   const dueYear = due.getFullYear();
   const dueMonth = due.getMonth();
-  console.log({
-    year, month,
-    dueYear, dueMonth
-  })
   while (year < dueYear || (year === dueYear && month <= dueMonth)) {
     months.push(String(month + 1));
     month += 1;
@@ -216,10 +212,6 @@ function buildAssessmentNameForFileName(
   let month = start.getMonth();
   const dueYear = due.getFullYear();
   const dueMonth = due.getMonth();
-  console.log({
-    year, month,
-    dueYear, dueMonth
-  })
   while (year < dueYear || (year === dueYear && month < dueMonth)) {
     months.push(month + 1);
     month += 1;

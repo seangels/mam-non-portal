@@ -33,6 +33,7 @@ import { TeachersService } from '../../core/services/teachers.service';
 import { toDateOnly } from '../../core/utils/date-only';
 import { normalizeVietnamese } from '../../core/utils/vietnamese-search';
 import { AssessmentPickerComponent } from './assessment-picker.component';
+import { formatAssessmentPeriod } from './assessment-sheet-plan-preview.models';
 
 const ASSESSMENT_CACHE_PAGE_SIZE = 100;
 // Thời gian giữ highlight cho các dòng vừa được bấm Di chuyển; phải >= animation dài nhất trong SCSS.
@@ -498,7 +499,15 @@ export class AssessmentSheetFormComponent implements OnInit, OnDestroy {
     noDataText: 'Không có học sinh phù hợp',
     inputAttr: { 'aria-label': 'Học sinh' }
   };
-  readonly teacherEditorOptions: Record<string, unknown> = {
+  readonly statusEditorOptions: Record<string, unknown> = {
+    items: this.statuses,
+    valueExpr: 'value',
+    displayExpr: 'text',
+    searchEnabled: false,
+    readOnly: true,
+    inputAttr: { 'aria-label': 'Trạng thái' }
+  };
+  private readonly teacherEditorOptionsBase: Record<string, unknown> = {
     dataSource: this.teacherDataSource,
     valueExpr: 'id',
     displayExpr: this.teacherDisplay,
@@ -509,16 +518,8 @@ export class AssessmentSheetFormComponent implements OnInit, OnDestroy {
     noDataText: 'Không có giáo viên phù hợp',
     inputAttr: { 'aria-label': 'Giáo viên phụ trách' }
   };
-  readonly statusEditorOptions: Record<string, unknown> = {
-    items: this.statuses,
-    valueExpr: 'value',
-    displayExpr: 'text',
-    searchEnabled: false,
-    readOnly: true,
-    inputAttr: { 'aria-label': 'Trạng thái' }
-  };
   // startDate/dueDate nhập theo tháng: lịch dừng ở mức chọn tháng, hiển thị M/yyyy.
-  readonly dateEditorOptions: Record<string, unknown> = {
+  private readonly dateEditorOptionsBase: Record<string, unknown> = {
     type: 'date',
     displayFormat: 'M/yyyy',
     showClearButton: true,
@@ -526,24 +527,21 @@ export class AssessmentSheetFormComponent implements OnInit, OnDestroy {
     calendarOptions: { maxZoomLevel: 'year' }
   };
   // dueDate là hạn hoàn thành: chọn tháng nào thì lấy NGÀY CUỐI tháng đó làm value.
-  readonly dueDateEditorOptions: Record<string, unknown> = {
-    ...this.dateEditorOptions,
-    onValueChanged: (event: {
-      value?: unknown;
-      event?: unknown;
-      component?: { option: (name: string, value: unknown) => void };
-    }): void => {
-      if (!event.event || !(event.value instanceof Date)) {
-        return;
-      }
-      const picked = event.value;
-      const endOfMonth = new Date(picked.getFullYear(), picked.getMonth() + 1, 0);
-      if (picked.getDate() !== endOfMonth.getDate()) {
-        event.component?.option('value', endOfMonth);
-      }
+  private readonly dueDateOnValueChanged = (event: {
+    value?: unknown;
+    event?: unknown;
+    component?: { option: (name: string, value: unknown) => void };
+  }): void => {
+    if (!event.event || !(event.value instanceof Date)) {
+      return;
+    }
+    const picked = event.value;
+    const endOfMonth = new Date(picked.getFullYear(), picked.getMonth() + 1, 0);
+    if (picked.getDate() !== endOfMonth.getDate()) {
+      event.component?.option('value', endOfMonth);
     }
   };
-  readonly noteEditorOptions: Record<string, unknown> = {
+  private readonly noteEditorOptionsBase: Record<string, unknown> = {
     maxLength: 2000,
     autoResizeEnabled: true,
     valueChangeEvent: 'input'
@@ -554,6 +552,44 @@ export class AssessmentSheetFormComponent implements OnInit, OnDestroy {
     'planFileLinkPdf' | 'resultFileLinkPdf',
     { hasLink: boolean; readOnly: boolean; options: Record<string, unknown> }
   >();
+  // Cache tương tự cho responsibleTeacherId/startDate/dueDate/note/feedback: AssessmentSheetService.UpdateAsync
+  // chỉ ghi 5 field này khi bảng đang 'Open'/'Canceled' — 'Planed'/'Done' âm thầm bỏ qua thay đổi.
+  private metadataEditorOptionsCache = new Map<string, { readOnly: boolean; options: Record<string, unknown> }>();
+
+  // readOnly khi backend không còn ghi nhận thay đổi (status khác 'Open'/'Canceled').
+  get metadataFieldsReadOnly(): boolean {
+    return this.originalStatus !== 'Open' && this.originalStatus !== 'Canceled';
+  }
+
+  private withMetadataReadOnly(key: string, base: Record<string, unknown>): Record<string, unknown> {
+    const readOnly = this.metadataFieldsReadOnly;
+    const cached = this.metadataEditorOptionsCache.get(key);
+    if (cached && cached.readOnly === readOnly) {
+      return cached.options;
+    }
+    const options: Record<string, unknown> = { ...base, readOnly };
+    this.metadataEditorOptionsCache.set(key, { readOnly, options });
+    return options;
+  }
+
+  get teacherEditorOptions(): Record<string, unknown> {
+    return this.withMetadataReadOnly('responsibleTeacherId', this.teacherEditorOptionsBase);
+  }
+
+  get dateEditorOptions(): Record<string, unknown> {
+    return this.withMetadataReadOnly('startDate', this.dateEditorOptionsBase);
+  }
+
+  get dueDateEditorOptions(): Record<string, unknown> {
+    return this.withMetadataReadOnly('dueDate', {
+      ...this.dateEditorOptionsBase,
+      onValueChanged: this.dueDateOnValueChanged
+    });
+  }
+
+  get noteEditorOptions(): Record<string, unknown> {
+    return this.withMetadataReadOnly('note', this.noteEditorOptionsBase);
+  }
 
   get planLinkEditorOptions(): Record<string, unknown> {
     return this.buildLinkEditorOptions('planFileLinkPdf', 'Mở link Kế hoạch (KHCN)');
@@ -628,6 +664,13 @@ export class AssessmentSheetFormComponent implements OnInit, OnDestroy {
   }
   get title(): string {
     return this.isCreate ? 'Tạo' : 'Chỉnh sửa';
+  }
+
+  // Hậu tố khoảng kế hoạch trên tiêu đề, kiểu " - 3 tháng 9.10.11.26". Chỉ hiện khi cả hai
+  // ngày đã nhập hợp lệ (formatAssessmentPeriod trả về câu lỗi khi thiếu ngày/ngày sai thứ tự).
+  get titlePeriodSuffix(): string {
+    const period = formatAssessmentPeriod(this.editor.startDate, this.editor.dueDate);
+    return /^\d/.test(period) ? ` - ${period}` : '';
   }
 
   get subtitle(): string {
