@@ -6,6 +6,7 @@ import {
 } from '../../core/models/api.models.assessment-sheets';
 import { AssessmentPickerComponent } from './assessment-picker.component';
 import { AssessmentSheetBulkUploadQueueService } from './assessment-sheet-bulk-upload-queue.service';
+import { AssessmentSheetPlanPreviewComponent } from './assessment-sheet-plan-preview.component';
 import { AssessmentSheetsComponent } from './assessment-sheets.component';
 import {
   buildAssessmentSheetPlanPreview,
@@ -835,6 +836,22 @@ describe('Assessment sheet plan PDF preview mapping', () => {
     expect(preview.fileName).toBe('kq - s-101.an_3.4.5.26.pdf');
     expect(resultGradeText(preview.rows[0].record)).toBe('Đạt +');
     expect(resultNoteText(preview.rows[0].record)).toBe('Đã đạt mục tiêu');
+  });
+
+  it('uses the final-grade background in result preview even when plan grade is empty', () => {
+    const component = new AssessmentSheetPlanPreviewComponent(
+      {} as any,
+      {} as any,
+      {} as any,
+      {} as any
+    );
+    const record = { planGrade: null, finalGrade: 'A' } as any;
+
+    component.pdfKind = 'result';
+    expect(component.gradeBgColor(record, '#C9DAF8')).toBe('#d4edbc');
+
+    component.pdfKind = 'plan';
+    expect(component.gradeBgColor(record, '#C9DAF8')).toBe('#C9DAF8');
   });
 
   it('builds safe PDF file names', () => {

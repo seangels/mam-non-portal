@@ -1,8 +1,10 @@
 # Frontend role memory
 
-Last updated: 2026-09-03 (ASH-FB-W8 — bulk "Tạo KQ lên Drive": automation điều hướng qua từng màn preview)
+Last updated: 2026-09-04 (ASH-FE-12 — sửa màu nền cột Kết quả trong result PDF preview)
 
 ## Resume here
+
+- 2026-09-04 (`ASH-FE-12`, FE-only): sửa màu nền cột `Kết quả` trong `result-pdf-preview`. Template trước đây dùng `record.planGrade` để quyết định tô màu grade hay fallback màu nhóm cho cả hai loại preview, nên record có `FinalGrade` nhưng `PlanGrade` rỗng vẫn bị tô màu nhóm. `AssessmentSheetPlanPreviewComponent.gradeBgColor(record, fallbackColor)` giờ chọn màu theo đúng `pdfKind` (`FinalGrade` cho result, `PlanGrade` cho plan) và chỉ fallback màu nhóm khi grade tương ứng thật sự rỗng/không hợp lệ; template không còn kiểm tra trực tiếp `planGrade`. Thêm Jasmine regression case cho `FinalGrade='A'` + `PlanGrade=null`. Files: `assessment-sheet-plan-preview.component.{ts,html}`, `assessment-sheets.component.spec.ts`. Verification: focused spec **78/78**, full `npm --prefix ui run test:ci` **166/166**, development build (`NG_BUILD_MAX_WORKERS=1`) pass hash `800ffe77d1b2135036f9`, chỉ các CommonJS/DevExtreme/html2pdf warnings đã biết. Không đổi API/contract, backend, production/IIS/deploy; chưa smoke trực quan trên browser/PDF thật.
 
 - 2026-09-03 (`ASH-FB-W8`, FE-only, orchestrator sửa trực tiếp). Bulk Action item mới "Tạo KQ lên Drive" ở danh sách — theo yêu cầu, KHÔNG viết API/logic tạo PDF+upload mới, mà tự động hóa việc bấm nút "Tạo PDF kết quả lên Google Drive" đã có, lần lượt cho từng bảng đã chọn.
   - **Gotcha then chốt**: `plan-pdf-preview`/`result-pdf-preview` cùng 1 `routeConfig` cho mọi `:id` → Angular mặc định TÁI DÙNG component khi chain sang `:id` khác (không destroy/recreate, khác với `/new` vs `/:id/edit`). `AssessmentSheetPlanPreviewComponent.ngOnInit` đổi từ đọc snapshot 1 lần sang `route.paramMap.subscribe(...)` (pattern giống `teacher-detail.component.ts`) gọi `initForSheet(id)` — reset `sheet/model/errors/driveFileLink/lastFittedModel/autoUploadStarted` và đọc lại `autoUpload` từ `?auto=1` mỗi khi `:id` đổi. Thêm `OnDestroy` + `routeSubscription?.unsubscribe()`.
