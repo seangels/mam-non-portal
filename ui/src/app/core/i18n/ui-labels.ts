@@ -25,7 +25,7 @@ export const USER_STATUS_LABELS: Record<UserStatus, string> = {
 
 export const STUDENT_STATUS_LABELS: Record<StudentStatus, string> = {
   Active: 'Đang học',
-  Inactive: 'Ngừng học'
+  Inactive: 'Đã nghỉ'
 };
 
 export const GENDER_LABELS: Record<Gender, string> = {
@@ -104,7 +104,7 @@ export const API_ERROR_CODE_LABELS: Record<string, string> = {
   FutureAttendanceDate: 'Không thể điểm danh cho ngày trong tương lai.',
   StudentAlreadyRecordedToday: 'Không thể chuyển nhóm vì học sinh đã có trong phiếu điểm danh hôm nay.',
   TeacherHasResponsibleGroups: 'Cần gỡ giáo viên khỏi các nhóm đang phụ trách trước khi xóa.',
-  StudentHasCurrentGroup: 'Cần gỡ học sinh khỏi nhóm trước khi ngừng hoạt động hoặc xóa.',
+  StudentHasCurrentGroup: 'Cần gỡ học sinh khỏi nhóm trước khi xóa.',
   StudentInactive: 'Chỉ có thể phân nhóm học sinh đang hoạt động.',
   StudentDriveFolderRequired: 'Học sinh chưa có thư mục Google Drive. Vui lòng cập nhật Drive folder id trong hồ sơ học sinh.',
   StudentNotFound: 'Không tìm thấy học sinh hoặc hồ sơ đã bị xóa.',

@@ -90,7 +90,7 @@ V1 đề xuất schedule **điều khiển roster hiện tại**:
 - Standard POST sau khi lock group và đọc scheduled roster trả `409 NoScheduledStudents` nếu roster thực sự rỗng. Nếu roster không rỗng nhưng request empty/sai tập Student thì trả `409 AttendanceRosterMismatch`. Historical recovery vẫn bắt buộc ít nhất một Student.
 - Standard POST kiểm tra `expectedSnapshotVersion` ngay sau khi lock group, trước empty-roster rule; request stale luôn ưu tiên `409 SnapshotChanged`, kể cả roster mới đã rỗng.
 - Chủ nhật luôn không có scheduled roster trong v1.
-- Schedule đổi khi Student đang thuộc group phải tăng `group.snapshotVersion` đúng một lần trong cùng transaction.
+- Schedule hoặc status đổi khi Student đang thuộc group phải tăng `group.snapshotVersion` đúng một lần trong cùng transaction.
 - Request POST điểm danh dựa trên snapshot cũ sẽ nhận `409 SnapshotChanged`.
 - Phiếu Saved không thêm/bớt record và không đổi status khi schedule hiện tại thay đổi.
 - Ngày quá khứ chưa có phiếu sau khi schedule đổi tiếp tục dùng quy tắc `HistoricalSnapshotUnavailable`/historical recovery của plan ATT.
@@ -220,7 +220,7 @@ Request là full replacement tất cả field editable, gồm `studySchedule` v�
 
 - Success tăng Student version đúng một, kể cả payload no-op để contract deterministic.
 - Stale trả `409 StudentVersionConflict` kèm `currentVersion`; không ghi partial data/audit success.
-- Nếu identity hoặc schedule thay đổi khi Student đang thuộc group, tăng group snapshot đúng một lần.
+- Nếu identity, status hoặc schedule thay đổi khi Student đang thuộc group, tăng group snapshot đúng một lần.
 
 ### 7.4. Assign/move/unassign group
 
@@ -365,7 +365,7 @@ Student -> group cũ/mới theo UUID tăng dần
 - Desktop giữ form 2 cột, section lịch full-width; mobile 1 cột.
 - Dùng `fieldset/legend` hoặc ARIA group `Ngày học trong tuần`, keyboard toggle và touch target tối thiểu khoảng 44 px.
 - Edit giữ dirty guard nếu chuyển Student form sang page; nếu vẫn là popup, chặn đóng/outside click khi đang lưu và cảnh báo khi có draft chưa lưu.
-- Student đang thuộc group vẫn bị chặn chuyển Inactive/delete; UI giữ draft và hướng dẫn `Gỡ khỏi nhóm` trước. Student inactive, unassigned thì ẩn/disable `Phân nhóm`; dữ liệu legacy inactive còn group vẫn phải cho gỡ.
+- Student đang thuộc group được phép chuyển Inactive và giữ nguyên group hiện tại; UI không yêu cầu `Gỡ khỏi nhóm` trước khi lưu trạng thái. Delete vẫn bị chặn cho đến khi gỡ khỏi group. Student inactive, unassigned thì ẩn/disable `Phân nhóm`; Student inactive còn group vẫn phải cho gỡ.
 
 ### 10.4. Attendance UI
 

@@ -33,6 +33,7 @@ import {
   ATTENDANCE_STATUS_LABELS,
   SHEET_STATE_LABELS,
   SNAPSHOT_SOURCE_LABELS,
+  STUDENT_STATUS_LABELS,
   readOnlyReasonLabel
 } from '../../core/i18n/ui-labels';
 import { PendingChangesAware } from '../../core/guards/pending-changes.guard';
@@ -81,7 +82,7 @@ export class AttendanceComponent implements OnInit, PendingChangesAware {
     ? `${item.fullName}${item.isDeleted ? ' · Đã xóa' : !item.isCurrentTeacherRole ? ' · Không còn vai trò giáo viên' : item.status !== 'Active' ? ' · Không hoạt động' : ''}`
     : '';
   readonly recoveryStudentText = (item: RecoveryStudentCandidate | null): string => item
-    ? `${item.studentCode} · ${item.fullName}${item.nickName ? ` - [${item.nickName}]` : ''}${item.isDeleted ? ' · Đã xóa' : item.status === 'Inactive' ? ' · Ngừng học' : ''} ${item.currentGroupId ? ` - Nhóm hiện tại: ${item.groupCode} · ${item.responsibleTeacherName}` : ''}`
+    ? `${item.studentCode} · ${item.fullName}${item.nickName ? ` - [${item.nickName}]` : ''}${item.isDeleted ? ' · Đã xóa' : item.status === 'Inactive' ? ` · ${STUDENT_STATUS_LABELS.Inactive}` : ''} ${item.currentGroupId ? ` - Nhóm hiện tại: ${item.groupCode} · ${item.responsibleTeacherName}` : ''}`
     : '';
 
   date = businessToday();

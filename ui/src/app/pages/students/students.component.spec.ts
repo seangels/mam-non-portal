@@ -2,6 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { DxTextAreaModule } from 'devextreme-angular/ui/text-area';
 import { of, throwError } from 'rxjs';
 import { ApiError } from '../../core/models/api-error';
+import { API_ERROR_CODE_LABELS, STUDENT_STATUS_LABELS } from '../../core/i18n/ui-labels';
 import { Student } from '../../core/models/api.models';
 import { StudentGroupsService } from '../../core/services/student-groups.service';
 import { StudentsService } from '../../core/services/students.service';
@@ -77,6 +78,30 @@ describe('StudentsComponent schedule and remote list', () => {
     });
     expect(request).not.toEqual(jasmine.objectContaining({ groupId: jasmine.anything() }));
     expect(request).not.toEqual(jasmine.objectContaining({ version: jasmine.anything() }));
+  });
+
+  it('allows a grouped student to be saved as Inactive without removing the group', async () => {
+    const current = studentRow();
+    students.update.and.returnValue(of({ ...current, status: 'Inactive', version: 5 }));
+    component.openEdit(current);
+    component.editor.status = 'Inactive';
+
+    await component.save(new Event('submit'));
+
+    expect(students.update).toHaveBeenCalledWith(current.id, jasmine.objectContaining({
+      status: 'Inactive',
+      expectedVersion: current.version
+    }));
+    expect(students.update.calls.mostRecent().args[1]).not.toEqual(
+      jasmine.objectContaining({ groupId: jasmine.anything() })
+    );
+    expect(component.editorError).toBe('');
+  });
+
+  it('uses the Đã nghỉ student label and keeps the current-group error specific to deletion', () => {
+    expect(STUDENT_STATUS_LABELS.Inactive).toBe('Đã nghỉ');
+    expect(component.statusText('Inactive')).toBe('Đã nghỉ');
+    expect(API_ERROR_CODE_LABELS['StudentHasCurrentGroup']).toBe('Cần gỡ học sinh khỏi nhóm trước khi xóa.');
   });
 
   it('requires at least one weekday before calling the API', async () => {

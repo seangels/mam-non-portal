@@ -22,4 +22,19 @@ public sealed class ValidationRulesTests
     public void StudentDateOfBirthRejectsFutureValue() =>
         Assert.Throws<AppValidationException>(() =>
             StudentRules.ValidateDateOfBirth(new DateOnly(2026, 8, 12), new DateOnly(2026, 8, 11)));
+
+    [Theory]
+    [InlineData("studentCode", true)]
+    [InlineData("fullName", true)]
+    [InlineData("nickName", true)]
+    [InlineData("status", true)]
+    [InlineData("studySchedule.mode", true)]
+    [InlineData("studySchedule.weekdays", true)]
+    [InlineData("dateOfBirth", false)]
+    [InlineData("guardianName", false)]
+    [InlineData("note", false)]
+    public void StudentSnapshotChangeDetectionTracksRosterIdentityAndScheduleFields(
+        string changedField,
+        bool expected) =>
+        Assert.Equal(expected, StudentRules.AffectsAttendanceSnapshot([changedField]));
 }

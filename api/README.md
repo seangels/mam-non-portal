@@ -218,9 +218,10 @@ Enum được gửi/nhận dưới dạng chuỗi. `StudentStatus` chỉ có `Ac
 - Các mutation `POST /students`, `PUT /students/{id}`, `PUT /students/{id}/group` và `DELETE /students/{id}` vẫn chỉ dành cho `Admin`/`SuperAdmin` qua policy `PortalManagers`; `Teacher` nhận 403.
 - `StudentResponse` trả `studySchedule: { mode, weekdays }` và `version`; weekday luôn canonical từ `Monday` đến `Saturday`, không expose bit mask PostgreSQL.
 - Create/full PUT bắt buộc `studySchedule`. `mode` là `OneToOne|FullDay`; `weekdays` có 1–6 ngày unique, không có Chủ nhật. Full PUT thêm `expectedVersion` và luôn tăng version một, kể cả payload no-op.
+- Full PUT cho phép chuyển Student đang thuộc nhóm sang `Inactive` mà vẫn giữ `groupId`. Thay đổi status làm tăng snapshot version của nhóm; bật lại `Active` vẫn phải tuân thủ giới hạn tối đa 100 Student active.
 - List nhận thêm `studyMode`, `studyWeekday`; filter được áp dụng trước `totalItems`/paging tại PostgreSQL.
 - Phân/chuyển/gỡ nhóm chỉ qua `PUT /students/{id}/group` với `{ "groupId": "uuid-or-null", "expectedVersion": n }`. Cùng group và version hiện tại là no-op; assignment thật tăng Student version và snapshot group.
-- DELETE nhận `expectedVersion` trong query. Stale PUT/group/delete trả `409 StudentVersionConflict` kèm `currentVersion`; Student không tồn tại trả `StudentNotFound`.
+- Student `Inactive` không được phân/chuyển sang nhóm mới. DELETE vẫn yêu cầu gỡ Student khỏi nhóm trước và nhận `expectedVersion` trong query. Stale PUT/group/delete trả `409 StudentVersionConflict` kèm `currentVersion`; Student không tồn tại trả `StudentNotFound`.
 - Student legacy được migration backfill `FullDay`, Thứ Hai–Thứ Bảy, version 1. Audit chỉ lưu ID/mã, metadata field thay đổi, mode/mask và version; không lưu raw tên, guardian hoặc note.
 
 ### Quản lý giáo viên

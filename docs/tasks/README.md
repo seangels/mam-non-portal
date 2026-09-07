@@ -30,6 +30,7 @@
 | 00 | `DOC-GOV` | [`00-DOC-GOV/status.md`](00-DOC-GOV/status.md) | [`00-DOC-GOV/log.md`](00-DOC-GOV/log.md) |
 | 07 | `ASH` | [`07-ASH/status.md`](07-ASH/status.md) | [`07-ASH/log.md`](07-ASH/log.md) |
 | 08 | `CQRS` | [`08-CQRS/status.md`](08-CQRS/status.md) | [`08-CQRS/log.md`](08-CQRS/log.md) |
+| 09 | `STU` | [`09-STU/status.md`](09-STU/status.md) | [`09-STU/log.md`](09-STU/log.md) |
 
 ## Legacy archive
 

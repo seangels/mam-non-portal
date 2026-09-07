@@ -148,17 +148,21 @@ public sealed class StudentService(
             throw new ConflictException("Mã học sinh đã được sử dụng.");
         }
 
-        if (student.GroupId is not null && request.Status != StudentStatus.Active)
+        if (student.GroupId is not null &&
+            student.Status != StudentStatus.Active &&
+            request.Status == StudentStatus.Active)
         {
-            throw new ConflictException("Không thể ngừng hoạt động học sinh đang thuộc nhóm.", ProblemCodes.StudentHasCurrentGroup);
+            var activeCount = await dbContext.Students.CountAsync(
+                candidate => candidate.GroupId == student.GroupId &&
+                    candidate.Status == StudentStatus.Active && candidate.Id != id,
+                cancellationToken);
+            if (activeCount >= 100)
+                throw new ConflictException("Nhóm đã đủ tối đa 100 học sinh.", ProblemCodes.GroupCapacityExceeded);
         }
 
         var changedFields = ChangedFields(student, request, code, driveFolderId, weekdayMask);
-        var scheduleChanged = student.StudyMode != request.StudySchedule.Mode ||
-            student.StudyWeekdayMask != weekdayMask;
         var snapshotChanged = student.GroupId is not null &&
-            (code != student.StudentCode || request.FullName.Trim() != student.FullName ||
-             request.NickName.Trim() != student.NickName || scheduleChanged);
+            StudentRules.AffectsAttendanceSnapshot(changedFields);
         var oldAudit = AuditState(student, changedFields, changedFields.Contains("note", StringComparer.Ordinal));
 
         student.StudentCode = code;

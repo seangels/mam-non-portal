@@ -137,7 +137,7 @@ group_assigned_by  uuid null FK -> users.id RESTRICT
 - Index partial `(group_id, status, id) WHERE deleted_at IS NULL` phục vụ roster.
 - Gán/chuyển group khóa Student và group cũ/mới trong transaction, kiểm tra cap 100, rồi tăng version của group bị ảnh hưởng.
 - Student đã có attendance record trong ngày hiện tại không được chuyển group trong ngày đó; thao tác trả `409` để tránh xuất hiện ở hai phiếu.
-- Inactive/delete Student còn `group_id` trả `409`; phải gỡ group trước.
+- Student còn `group_id` được phép chuyển sang inactive và giữ nguyên group; thay đổi status tăng `snapshot_version` vì active roster thay đổi. Delete Student còn group vẫn trả `409` và phải gỡ group trước.
 
 ### 5.4. `attendance_sheets`
 
@@ -702,7 +702,7 @@ Release phải cập nhật OpenAPI, `api/README.md`, `api/requests.http`, agent
 
 - Migration/backfill từ database hiện có.
 - Concurrent Student assignment không vượt cap 100; snapshot version group cũ/mới tăng đúng.
-- Đổi code/name group, responsible Teacher, tên Teacher hoặc code/name/nickname Student làm tăng snapshot version của đúng group.
+- Đổi code/name group, responsible Teacher, tên Teacher hoặc code/name/nickname/status Student làm tăng snapshot version của đúng group.
 - GET Missing không ghi DB và trả preview Present với `sheetState = Missing`.
 - POST full roster tạo đúng N persisted records, kể cả khi tất cả Present.
 - Snapshot student/group/teacher không đổi sau rename, move hoặc soft-delete dữ liệu hiện tại.

@@ -37,7 +37,8 @@ DELETE /api/v1/students/{studentId}?expectedVersion={version}
 - Mã học sinh không được trùng giữa các bản ghi chưa bị xóa.
 - Cho phép tái sử dụng mã của học sinh đã soft-delete.
 - Student inactive không được phân vào nhóm mới.
-- Student đang thuộc nhóm không được chuyển sang inactive hoặc xóa; phải gỡ khỏi nhóm trước.
+- Student đang thuộc nhóm được phép chuyển sang inactive và giữ nguyên nhóm hiện tại; không cần gỡ khỏi nhóm trước.
+- Student đang thuộc nhóm vẫn không được xóa; phải gỡ khỏi nhóm trước khi xóa.
 - Create/update phải kèm lịch học hợp lệ theo tài liệu [04](04-lich-hoc-hoc-sinh.md).
 - Full update, đổi nhóm và xóa phải dùng `expectedVersion` để tránh ghi đè dữ liệu cũ.
 
@@ -115,5 +116,5 @@ PUT    /api/v1/student-groups/{groupId}/responsible-teacher
 - Trang Học sinh có action `Phân nhóm`, `Chuyển nhóm`, `Gỡ khỏi nhóm` theo trạng thái hiện tại.
 - Trang Nhóm hỗ trợ workflow roster-centric, gán/gỡ Teacher và policy.
 - Nhóm đủ 100 được disable trong picker nhưng lỗi server vẫn phải được hiển thị rõ nếu có race.
-- Student inactive chưa có nhóm không được phân nhóm; dữ liệu legacy inactive còn nhóm vẫn phải cho gỡ.
+- Student inactive chưa có nhóm không được phân nhóm; Student chuyển sang inactive khi đang có nhóm tiếp tục giữ nhóm hiện tại và vẫn phải cho gỡ.
 - Tất cả confirm, validation, empty/error state và accessibility text bằng tiếng Việt.

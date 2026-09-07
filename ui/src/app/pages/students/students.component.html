@@ -108,7 +108,7 @@
     </div>
     <div *ngIf="editorError && !editorConflict" class="form-message error" role="alert">{{ editorError }}</div>
     <div *ngIf="editor.groupId" class="form-message info">
-      Nhóm hiện tại: <strong>{{ editor.groupCode }} · {{ editor.responsibleTeacherName }}</strong>. Cần gỡ khỏi nhóm trước khi ngừng học hoặc xóa.
+      Nhóm hiện tại: <strong>{{ editor.groupCode }} · {{ editor.responsibleTeacherName }}</strong>. Khi chuyển sang Đã nghỉ, học sinh vẫn giữ nguyên nhóm này.
     </div>
 
     <dx-form [formData]="editor" [disabled]="saving" labelLocation="top" [colCount]="4"
@@ -225,7 +225,7 @@
       <p class="helper-text">Nhóm đủ 100 học sinh và nhóm hiện tại không thể chọn lại. Để trống để gỡ khỏi nhóm.</p>
     </ng-container>
     <ng-template #inactiveAssignment>
-      <p class="form-message info">Học sinh đã ngừng học; chỉ có thể gỡ khỏi nhóm hiện tại.</p>
+      <p class="form-message info">Học sinh đã nghỉ; chỉ có thể gỡ khỏi nhóm hiện tại.</p>
       <dx-button *ngIf="assignmentStudent?.groupId" text="Chọn gỡ khỏi nhóm" icon="remove"
         stylingMode="outlined" [disabled]="assignmentSaving" (onClick)="assignmentGroupId = null"></dx-button>
     </ng-template>

@@ -1,6 +1,6 @@
 # Shared workspace memory
 
-Last updated: 2026-08-31
+Last updated: 2026-09-07
 
 ## Product and ownership
 
@@ -18,6 +18,7 @@ Last updated: 2026-08-31
 - First-run setup endpoints: `GET /setup/status` and `POST /setup/super-admin`. UI routes to `/#/setup` only when no user record exists. Setup is one-time, rate-limited, and concurrency-protected by a PostgreSQL advisory transaction lock.
 - User, student, and Teacher update endpoints use full `PUT` replacement. Lists return `{ items, pagination }` and use server pagination/filter/sort.
 - Roles: `SuperAdmin`, `Admin`, `Teacher`. User statuses: `Active`, `Inactive`, `Locked`. Student statuses: `Active`, `Inactive`.
+- Student lifecycle (`STU-STATUS-01`, 2026-09-07): `PUT /students/{id}` allows a grouped Student to change to `Inactive` (UI label `Đã nghỉ`) while retaining the current `groupId`; the status change increments the Student version and group snapshot version because the active attendance roster changes. A grouped Student still cannot be deleted, and an inactive Student still cannot be assigned or moved to another group; removing the current group remains allowed. Verification: backend build 0 warnings/errors + unit 113/113; frontend tests 168/168 + development build pass; integration not run because Docker daemon was unavailable. No migration/deploy.
 - Attendance uses current `StudentGroup` assignments (no `effective_from`/`effective_to`) and persisted full daily snapshots, including `Present`. Group snapshot version protects roster/identity; sheet version protects full PUT replacement. Only the current responsible Teacher may read/write their groups; Admin/SuperAdmin also have audited historical recovery.
 - Teacher management is canonical at `/teachers`. `GET /teachers` and `GET /teachers/{id}` allow `Teacher`/`Admin`/`SuperAdmin` read-only access; create/full PUT/policy PUT/DELETE remain Admin/SuperAdmin only. `Teacher` stores editable user-entered `teacherCode`, nullable `note`, aggregate `version`, attendance policy and timestamps; account fields remain in `User`. Full PUT, policy PUT and DELETE use `expectedVersion`. Group assignment/policy UI remain under `student-groups`; User CRUD only manages Admin accounts, while Teacher password changes still use `/users/{userId}/password`.
 - Teacher list search is accent/case-insensitive literal substring search in the .NET API after structured DB filters and before exact total/paging. Do not install PostgreSQL `unaccent` or add search schema for v1; the confirmed scale is below 50 Teachers.

@@ -354,6 +354,11 @@ public sealed class AttendanceApiTests(ApiFactory factory) : IClassFixture<ApiFa
         var group = await CreateGroupAsync(client, $"L{marker}", teacher.Id);
         var student = await CreateStudentAsync(client, $"L{marker}", $"Lifecycle Student {marker}");
         student = await AssignStudentAsync(client, student, group.Id);
+        var attendanceDate = LocalToday();
+        if (attendanceDate.DayOfWeek == DayOfWeek.Sunday) attendanceDate = attendanceDate.AddDays(-1);
+        if (attendanceDate < LocalToday()) await BackdateGroupSnapshotAsync(group.Id);
+        var beforeInactiveDaily = await GetDailyAsync(client, group.Id, attendanceDate);
+        Assert.Equal(student.Id, Assert.Single(beforeInactiveDaily.Items).StudentId);
 
         var deleteTeacher = await client.DeleteAsync(
             $"/api/v1/teachers/{teacher.Id}?expectedVersion={teacher.Version}");
@@ -369,6 +374,50 @@ public sealed class AttendanceApiTests(ApiFactory factory) : IClassFixture<ApiFa
         var deleteStudent = await client.DeleteAsync($"/api/v1/students/{student.Id}?expectedVersion={student.Version}");
         Assert.Equal(HttpStatusCode.Conflict, deleteStudent.StatusCode);
         Assert.Equal("StudentHasCurrentGroup", await ProblemCodeAsync(deleteStudent));
+
+        var groupBeforeInactiveResponse = await client.GetAsync($"/api/v1/student-groups/{group.Id}");
+        groupBeforeInactiveResponse.EnsureSuccessStatusCode();
+        var groupBeforeInactive = await ReadAsync<StudentGroupResponse>(groupBeforeInactiveResponse);
+        var makeGroupedStudentInactive = await client.PutAsJsonAsync($"/api/v1/students/{student.Id}", new
+        {
+            studentCode = student.StudentCode,
+            fullName = student.FullName,
+            nickName = student.NickName,
+            dateOfBirth = student.DateOfBirth,
+            gender = student.Gender,
+            status = "Inactive",
+            guardianName = student.GuardianName,
+            guardianPhone = student.GuardianPhone,
+            note = student.Note,
+            studySchedule = Schedule(student.StudySchedule.Mode, student.StudySchedule.Weekdays),
+            expectedVersion = student.Version
+        }, JsonOptions);
+        makeGroupedStudentInactive.EnsureSuccessStatusCode();
+        var groupedInactive = await ReadAsync<StudentResponse>(makeGroupedStudentInactive);
+        Assert.Equal(StudentStatus.Inactive, groupedInactive.Status);
+        Assert.Equal(group.Id, groupedInactive.GroupId);
+        Assert.Equal(student.Version + 1, groupedInactive.Version);
+
+        var groupAfterInactiveResponse = await client.GetAsync($"/api/v1/student-groups/{group.Id}");
+        groupAfterInactiveResponse.EnsureSuccessStatusCode();
+        var groupAfterInactive = await ReadAsync<StudentGroupResponse>(groupAfterInactiveResponse);
+        Assert.Equal(groupBeforeInactive.SnapshotVersion + 1, groupAfterInactive.SnapshotVersion);
+        Assert.Equal(0, groupAfterInactive.StudentCount);
+
+        var staleAfterInactive = await client.PostAsJsonAsync("/api/v1/attendance/sheets", new
+        {
+            groupId = group.Id,
+            date = Iso(attendanceDate),
+            expectedSnapshotVersion = beforeInactiveDaily.CurrentSnapshotVersion,
+            records = beforeInactiveDaily.Items.Select(PresentRecord)
+        });
+        Assert.Equal(HttpStatusCode.Conflict, staleAfterInactive.StatusCode);
+        Assert.Equal("SnapshotChanged", await ProblemCodeAsync(staleAfterInactive));
+
+        var deleteGroupedInactive = await client.DeleteAsync(
+            $"/api/v1/students/{groupedInactive.Id}?expectedVersion={groupedInactive.Version}");
+        Assert.Equal(HttpStatusCode.Conflict, deleteGroupedInactive.StatusCode);
+        Assert.Equal("StudentHasCurrentGroup", await ProblemCodeAsync(deleteGroupedInactive));
 
         var inactive = await CreateStudentAsync(client, $"LI{marker}", $"Inactive Student {marker}");
         var makeInactive = await client.PutAsJsonAsync($"/api/v1/students/{inactive.Id}", new
@@ -671,6 +720,7 @@ public sealed class AttendanceApiTests(ApiFactory factory) : IClassFixture<ApiFa
         var teacher = await CreateTeacherProfileAsync(client, $"Capacity Teacher {marker}");
         var group = await CreateGroupAsync(client, $"P{marker}", teacher.Id);
         var now = DateTimeOffset.UtcNow;
+        var inactiveAssignedId = Guid.NewGuid();
         await using (var scope = factory.Services.CreateAsyncScope())
         {
             var dbContext = scope.ServiceProvider.GetRequiredService<AdminPortalDbContext>();
@@ -685,6 +735,14 @@ public sealed class AttendanceApiTests(ApiFactory factory) : IClassFixture<ApiFa
                     CreatedAt = now, UpdatedAt = now
                 });
             }
+            dbContext.Students.Add(new Student
+            {
+                Id = inactiveAssignedId, StudentCode = $"PI{marker}", FullName = $"Inactive Capacity {marker}",
+                NickName = $"IC{marker}", DateOfBirth = new DateOnly(2021, 1, 2),
+                Status = StudentStatus.Inactive, GroupId = group.Id, GroupAssignedAt = now,
+                StudyMode = StudyMode.FullDay, StudyWeekdayMask = 63, Version = 1,
+                CreatedAt = now, UpdatedAt = now
+            });
             await dbContext.SaveChangesAsync();
         }
         var first = await CreateStudentAsync(client, $"PX{marker}", $"Candidate X {marker}");
@@ -699,6 +757,23 @@ public sealed class AttendanceApiTests(ApiFactory factory) : IClassFixture<ApiFa
         await using var verifyScope = factory.Services.CreateAsyncScope();
         var verifyDb = verifyScope.ServiceProvider.GetRequiredService<AdminPortalDbContext>();
         Assert.Equal(100, await verifyDb.Students.CountAsync(x => x.GroupId == group.Id && x.Status == StudentStatus.Active));
+
+        var reactivate = await client.PutAsJsonAsync($"/api/v1/students/{inactiveAssignedId}", new
+        {
+            studentCode = $"PI{marker}",
+            fullName = $"Inactive Capacity {marker}",
+            nickName = $"IC{marker}",
+            dateOfBirth = "2021-01-02",
+            gender = (string?)null,
+            status = "Active",
+            guardianName = (string?)null,
+            guardianPhone = (string?)null,
+            note = (string?)null,
+            studySchedule = Schedule(StudyMode.FullDay, Enum.GetValues<StudyWeekday>()),
+            expectedVersion = 1
+        });
+        Assert.Equal(HttpStatusCode.Conflict, reactivate.StatusCode);
+        Assert.Equal("GroupCapacityExceeded", await ProblemCodeAsync(reactivate));
     }
 
     [Fact]

@@ -348,11 +348,6 @@ export class StudentsComponent {
       setTimeout(() => this.weekdayFieldset?.nativeElement.focus());
       return;
     }
-    if (this.isEditing && this.editor.status === 'Inactive' && this.editor.groupId) {
-      this.editorError = 'Cần gỡ học sinh khỏi nhóm trước khi chuyển sang trạng thái Ngừng học.';
-      return;
-    }
-
     const request: CreateStudentRequest = {
       studentCode: this.editor.studentCode.trim(),
       fullName: this.editor.fullName.trim(),
@@ -424,7 +419,7 @@ export class StudentsComponent {
     const student = this.assignmentStudent;
     if (!student || !this.assignmentChanged || this.assignmentSaving) return;
     if (student.status === 'Inactive' && this.assignmentGroupId) {
-      this.assignmentError = 'Học sinh ngừng học chỉ có thể được gỡ khỏi nhóm hiện tại.';
+      this.assignmentError = 'Học sinh đã nghỉ chỉ có thể được gỡ khỏi nhóm hiện tại.';
       return;
     }
 
