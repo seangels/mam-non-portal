@@ -1,5 +1,7 @@
 # ASH-FB-01 — Batch feedback người dùng (2026-08-31), màn bảng đánh giá năng lực
 
+> **Cập nhật 2026-09-09:** riêng quyết định G8 về Drive đã bị [`ASH-DRIVE-REPLACE-01`](35-ASH-DRIVE-REPLACE-01.md) ghi đè. Hiện tại upload lại dùng `Files.Update` để replace nội dung đúng file cũ; không tạo file thay thế và không xóa file cũ.
+
 Bản ghi nhận feedback, **chưa thực thi**. Gom 11 ý người dùng nêu ngày 2026-08-31 thành các nhóm rõ ràng, không trùng lặp; phương án đã chốt xong 2 vòng hỏi–đáp (2026-08-31), không còn câu hỏi mở. Contract nền: [`../../../requirements/09-bang-danh-gia-nang-luc.md`](../../../requirements/09-bang-danh-gia-nang-luc.md), [`../../../plans/07-ASH-assessment-sheet.md`](../../../plans/07-ASH-assessment-sheet.md).
 
 ## Tóm tắt ngắn

@@ -1,5 +1,7 @@
 # ASH-FB-W1 — Feedback batch, Đợt 1 (G2 + G9 + G8 + G1)
 
+> **Cập nhật 2026-09-09:** phần G8 bên dưới là lịch sử triển khai ngày 2026-08-31 và đã bị [`ASH-DRIVE-REPLACE-01`](35-ASH-DRIVE-REPLACE-01.md) ghi đè. Cơ chế hiện hành dùng `Files.Update` khi có file ID cũ, không tạo mới/xóa cũ.
+
 Thực thi Đợt 1 của [`29-ASH-FB-01.md`](29-ASH-FB-01.md). Bốn nhóm độc lập, rủi ro thấp, gộp 1 milestone.
 
 ## Tóm tắt ngắn

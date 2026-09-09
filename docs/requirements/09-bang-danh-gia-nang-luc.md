@@ -86,7 +86,7 @@
   - `POST /api/v1/google-sheets/sync-assessments`: nạp `Assessment` và latest mirror từ file nguồn `[F0]`.
   - `POST /api/v1/assessment-sheets/{id}/upload-plan-pdf`: nhận PDF do UI render và upload vào `Student.DriveFolderId`.
   - `POST /api/v1/assessment-sheets/{id}/upload-result-pdf`: nhận PDF do UI render và upload vào `Student.DriveFolderId`.
-  - Cơ chế lưu Drive (`ASH-FB-W1`, 2026-08-31): mỗi lần upload **tạo file mới rồi xóa file cũ theo id** (không ghi đè nội dung file cũ tại chỗ); file cũ đã bị xóa tay trên Drive thì bỏ qua. Vì vậy `PlanFileLinkPdf`/`ResultFileLinkPdf` đổi sau mỗi lần upload — luôn dùng link mới nhất.
+  - Cơ chế lưu Drive (`ASH-DRIVE-REPLACE-01`, 2026-09-09): nếu đã có file ID từ `PlanFileLinkPdf`/`ResultFileLinkPdf`, upload phải **replace nội dung tại chỗ** bằng Drive `Files.Update`, không tạo file mới và không xóa file cũ. File ID/link được giữ ổn định. Chỉ dùng `Files.Create` khi chưa có file ID cũ.
   - `POST /api/v1/assessment-sheets/{id}/submit-results`: ghi `FinalGrade`/`FinalNote` về ResultSource `[F0.ĐG]`.
 
 ## 7. Chỉnh sửa plan sau khi tạo
