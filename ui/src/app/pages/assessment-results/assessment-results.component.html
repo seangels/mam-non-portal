@@ -51,7 +51,8 @@
     <dxo-search-panel [visible]="true" [width]="260" placeholder="Tìm trong danh mục…"></dxo-search-panel>
     <dxo-column-chooser [enabled]="true" mode="select" title="Ẩn/hiện cột"></dxo-column-chooser>
     <dxo-paging [pageSize]="100"></dxo-paging>
-    <dxo-pager [showInfo]="true" [showNavigationButtons]="true" [showPageSizeSelector]="false"
+    <dxo-pager [showInfo]="true" [showNavigationButtons]="true" [showPageSizeSelector]="true"
+      [allowedPageSizes]="[50, 100, 200, 500, 1000]"
       infoText="Trang {0}/{1} · {2} mục"></dxo-pager>
 
     <dxi-column dataField="ordinal" caption="STT" [width]="68" [allowEditing]="false" [allowFiltering]="false"></dxi-column>
