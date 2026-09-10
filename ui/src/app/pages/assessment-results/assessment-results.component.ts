@@ -307,11 +307,13 @@ export class AssessmentResultsComponent implements OnDestroy {
   }
 
   scrollToTop(): void {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    document.getElementById('assessment-results-title')
+      ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
   scrollToBottom(): void {
-    window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'smooth' });
+    document.querySelector('app-footer')
+      ?.scrollIntoView({ behavior: 'smooth', block: 'end' });
   }
 
   ngOnDestroy(): void {
