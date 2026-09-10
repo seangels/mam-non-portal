@@ -33,7 +33,7 @@ import { TeachersService } from '../../core/services/teachers.service';
 import { toDateOnly } from '../../core/utils/date-only';
 import { normalizeVietnamese } from '../../core/utils/vietnamese-search';
 import { AssessmentPickerComponent } from './assessment-picker.component';
-import { formatAssessmentPeriod } from './assessment-sheet-plan-preview.models';
+import { calculateAgeText, formatAssessmentPeriod } from './assessment-sheet-plan-preview.models';
 
 const ASSESSMENT_CACHE_PAGE_SIZE = 100;
 // Thời gian giữ highlight cho các dòng vừa được bấm Di chuyển; phải >= animation dài nhất trong SCSS.
@@ -1907,7 +1907,8 @@ export class AssessmentSheetFormComponent implements OnInit, OnDestroy {
     const code = snapshot?.studentCode || sheet.studentCode || 'Chưa có mã';
     const name = snapshot?.fullName || sheet.studentFullName || 'Chưa có tên';
     const nickName = snapshot?.nickName ? ` (${snapshot.nickName})` : '';
-    return `${code} · ${name}${nickName}`;
+    const age = calculateAgeText(snapshot?.dateOfBirth, new Date());
+    return `${code} · ${name}${nickName} · ${age}`;
   }
 
   private rejectPickerLoad(error: unknown): Promise<never> {

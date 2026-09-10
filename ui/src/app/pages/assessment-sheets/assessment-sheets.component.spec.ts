@@ -980,6 +980,31 @@ describe('Assessment sheet form DevExtreme option stability', () => {
       {} as any
     );
 
+  it('shows the student current age in years and months in the edit-form snapshot', () => {
+    const now = new Date();
+    const birthDate = new Date(now.getFullYear() - 6, now.getMonth() - 9, 1);
+    const component = createComponent('edit');
+
+    (component as any).applyAssessmentSheet({
+      id: 'sheet-1',
+      studentId: 'student-1',
+      studentSnapshot: {
+        studentCode: 'S101',
+        fullName: 'Bé An',
+        nickName: 'An',
+        dateOfBirth: [
+          birthDate.getFullYear(),
+          String(birthDate.getMonth() + 1).padStart(2, '0'),
+          '01'
+        ].join('-')
+      },
+      status: 'Open',
+      records: []
+    } as any);
+
+    expect(component.studentSummary).toBe('S101 · Bé An (An) · 6 tuổi, 9 tháng');
+  });
+
   it('adds selected picker rows with one replace request and clears selection only after success', async () => {
     const saved = {
       id: 'sheet-1',
@@ -1459,7 +1484,7 @@ describe('Assessment sheet form DevExtreme option stability', () => {
     expect(component.submitConfirmVisible).toBeFalse();
     expect(component.submitPreview).toBeNull();
     expect(component.originalStatus).toBe('Done');
-    expect(component.studentSummary).toBe('S101 · Bé An (An)');
+    expect(component.studentSummary).toBe('S101 · Bé An (An) · Chưa có thông tin');
     expect(component.records[0].finalGrade).toBe('A');
   });
 
