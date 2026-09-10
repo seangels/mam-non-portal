@@ -24,7 +24,7 @@
 
 - **Đợt đánh giá:** một chu kỳ đánh giá năng lực có tên riêng (`AssessmentSheet.Name`, ví dụ `8.9.10.26` cho đợt tháng 8–9–10/2026).
 - **Kho mục đánh giá (`Assessment`):** danh mục mục đánh giá dùng chung, có `Code`, `Name`, `GroupLv1Name`/`GroupLv2Name`/`GroupLv3Name` (phân cấp độ tuổi/nhóm kỹ năng), `RowIndex`; được đồng bộ từ `[F0.data_DG]`.
-- **Kết quả gần nhất, chỉ đọc (`AssessmentSheetLatest`/`AssessmentRecordLatest`):** một cặp bảng mirror — `AssessmentSheetLatest` (theo học sinh) chứa `AssessmentRecordLatest` (theo từng mục đánh giá, có `LatestGrade`/ghi chú latest — không tách plan/final vì đây chỉ là dữ liệu nguồn tham chiếu) — được nạp/ghi đè **duy nhất** bởi luồng đồng bộ từ `[F0.data_DG]` (mục 12). Không có thao tác nào khác trong hệ thống được phép ghi vào 2 bảng này; chúng chỉ tồn tại để **hiển thị gợi ý gần nhất trên UI**, rồi UI gửi kèm dữ liệu đó khi tạo `AssessmentSheet`/`AssessmentRecord` mới.
+- **Kết quả gần nhất, chỉ đọc (`AssessmentSheetLatest`/`AssessmentRecordLatest`):** một cặp bảng mirror — `AssessmentSheetLatest` (theo học sinh) chứa `AssessmentRecordLatest` (theo từng mục đánh giá, có `LatestGrade`/ghi chú latest — không tách plan/final vì đây chỉ là dữ liệu nguồn tham chiếu). Mirror được nạp/ghi đè toàn bộ bởi luồng đồng bộ từ `[F0.data_DG]` (mục 12); ngoại lệ duy nhất là PATCH manager-only ở mục 17 được phép rebuild mirror của đúng học sinh vừa ghi trực tiếp thành công vào `[F0.ĐG]`. Người dùng không chỉnh sửa trực tiếp hai bảng này; chúng chỉ tồn tại để **hiển thị gợi ý gần nhất trên UI**, rồi UI gửi kèm dữ liệu đó khi tạo `AssessmentSheet`/`AssessmentRecord` mới.
 - **Mục đánh giá trong bảng (`AssessmentRecord`):** một dòng trong `AssessmentSheet`, snapshot lại thông tin mục đánh giá (`AssessmentSnapshot`: mã, tên, nhóm, `RowIndex`) và có **hai cặp field độc lập**:
   - `PlanGrade`/`PlanNote` — giai đoạn lập kế hoạch. Hai field này khởi tạo từ `latestGrade`/`note` mà UI gửi trong request tạo mới cho từng mục đã chọn (dữ liệu UI lấy từ cột kết quả/ghi chú gần nhất), sau đó giáo viên có thể sửa lại trong lúc hoàn thiện plan (mục 7). Phục vụ PDF `[F02]`.
   - `FinalGrade`/`FinalNote` — kết quả đánh giá thật, nhập ở bước riêng sau khi đánh giá xong (mục 9), độc lập hoàn toàn với `PlanGrade`/`PlanNote` (sửa cái này không đổi cái kia). Không tự động fill từ latest hoặc từ kế hoạch; nếu chưa nhập thì phải giữ trống/null. Phục vụ PDF `[F03]` và là giá trị ghi vào `[F0.ĐG]` (mục 11).
@@ -97,6 +97,7 @@
 - Sau khi tạo (áp dụng cả khi `AssessmentSheet` đang ở trạng thái `Open`; khi `Done` thì bị khoá theo mục 4), giáo viên có thể:
   - Chọn lại danh sách mục đánh giá (thêm/bớt `AssessmentRecord`).
   - Thay đổi `PlanGrade`/`PlanNote` của một `AssessmentRecord` (ví dụ sửa lại cho đúng thực tế trước khi đánh giá) — **không đụng tới `FinalGrade`/`FinalNote`**, hai cặp field hoàn toàn độc lập.
+- Khối snapshot `Học sinh` trên form chỉnh sửa hiển thị mã, họ tên, tên gọi và tuổi hiện tại theo năm/tháng (ví dụ `6 tuổi, 9 tháng`), tính từ `StudentSnapshot.DateOfBirth` bằng helper tuổi dùng chung của màn AssessmentSheet.
 - Bảng `Danh mục đánh giá đã chọn` có cột `Kết quả hiện tại`, lấy `LatestGrade` theo mã assessment đã chuẩn hóa trong cache của đúng học sinh và hiển thị `Chưa có` khi rỗng. Cột hiện mặc định; checkbox `Hiện tại` trên tiêu đề cột `Kế hoạch` cho phép ẩn/hiện cột này. Checkbox `Hiện danh mục` cạnh tiêu đề bảng cho phép thu gọn/mở lại toàn bộ table/empty-state mà không xóa records hoặc làm mất dữ liệu đang nhập.
 - Các thay đổi này **không được ghi ngược** vào `AssessmentSheetLatest`/`AssessmentRecordLatest`; hai bảng đó là chỉ-đọc, chỉ được cập nhật qua luồng đồng bộ từ `[F0.data_DG]` (mục 12) — không qua thao tác chỉnh sửa plan của một `AssessmentSheet` cụ thể, và cũng không qua việc ghi kết quả chính thức ở mục 11.
 - Chỉnh sửa plan chỉ lưu trong portal; không còn bước đồng bộ plan sang Google Sheet riêng.
@@ -175,7 +176,7 @@
 
 - `Teacher`, `Admin`, `SuperAdmin` đều được chạy đồng bộ (thao tác thủ công, không tự động) để nạp lại `Assessment` (kho mục đánh giá) và `AssessmentSheetLatest`/`AssessmentRecordLatest` (kết quả gần nhất theo học sinh, chỉ-đọc) từ vùng dữ liệu `[F0.data_DG]`, qua chính endpoint `sync-assessments` hiện có sau khi mở rộng chính sách quyền (mục 2).
 - Hành vi kế thừa cơ chế `sync-assessments` hiện có cho `Assessment` (đọc toàn bộ, thay thế dữ liệu hiện tại); với `AssessmentSheetLatest`/`AssessmentRecordLatest`, đồng bộ đọc và **ghi đè hoàn toàn** dữ liệu đọc-only theo học sinh + mục đánh giá — không được suy diễn chi tiết thuật toán trong tài liệu này.
-- Đây là **bảng chỉ đọc dành riêng cho mục đích hiển thị dữ liệu gần nhất/prefill trên UI**: không service/luồng nào khác trong hệ thống được phép ghi vào `AssessmentSheetLatest`/`AssessmentRecordLatest` ngoài luồng đồng bộ này.
+- Đây là **bảng mirror chỉ đọc dành riêng cho mục đích hiển thị dữ liệu gần nhất/prefill trên UI**. Chỉ full sync này và PATCH manager-only ở mục 17 (rebuild đúng một học sinh sau khi Google ghi thành công) được phép ghi; không API nghiệp vụ nào khác được sửa mirror.
 - Đồng bộ nguồn không được tự ý sửa `AssessmentRecord` đã snapshot trong các `AssessmentSheet` đang tồn tại (đảm bảo nguyên tắc "không đổi giá trị gốc" ở mục 7 vẫn đúng theo chiều ngược lại).
 
 ## 13. Trường dữ liệu chính của AssessmentSheet
@@ -202,7 +203,7 @@ Mỗi `AssessmentRecord` trong `AssessmentSheet` có: snapshot mục đánh giá
 
 Cấu trúc mirror theo hình dạng `AssessmentSheet`/`AssessmentRecord` (theo học sinh → theo từng mục đánh giá), nhưng:
 
-- Chỉ được ghi bởi luồng đồng bộ ở mục 12; không có API/UI nào cho phép sửa trực tiếp.
+- Chỉ được ghi bởi luồng đồng bộ ở mục 12 hoặc được rebuild cho đúng một học sinh bởi PATCH manager-only ở mục 17 sau khi Google ghi thành công; không có API/UI nào sửa mirror như một nguồn dữ liệu độc lập.
 - `AssessmentRecordLatest.LatestGrade` là **field đơn** (không tách plan/final vì đây chỉ là dữ liệu nguồn tham chiếu) — dùng để UI hiển thị/lọc kết quả gần nhất và gửi lại trong `records[].latestGrade` khi tạo `AssessmentRecord` mới (mục 5).
 - `AssessmentRecordLatest` liên kết trực tiếp tới `Assessment` bằng `AssessmentId`/`Assessment`; khoá duy nhất theo `AssessmentSheetLatestId` + `AssessmentId` để xác định đúng dòng khi đồng bộ ghi đè theo từng học sinh + mục đánh giá. Bản trung gian từng có field kỹ thuật `AssessmentCode` đã lỗi thời và không còn là contract hiện hành.
 - Không có `SubmissionDate`, `PlanFileLinkPdf`, `ResultFileLinkPdf` — các field gắn với vòng đời làm việc/PDF của một `AssessmentSheet` thật không áp dụng cho bảng chỉ-đọc này.
@@ -263,7 +264,7 @@ Các điểm trước đây cần xác nhận, nay đã chốt:
 - Bỏ hẳn panel "Bộ lọc bảng đánh giá" phía trên. Lưới tải **toàn bộ** bảng đánh giá về client (lặp hết các trang, `pageSize` 100) rồi để DevExtreme tự lọc/sắp/phân trang — giống bảng picker mục đánh giá.
 - Bật sẵn của lưới: **filter row**, **header filter**, **ô tìm kiếm** (search panel), **column chooser**. Cột để rộng cố định, không bật resize/đổi thứ tự cột (tránh lỗi best-fit của DevExtreme 19.2 khi rời màn).
 - Toolbar của lưới chứa các nút: `Thêm bảng đánh giá`, `Nhập Excel`, `Bulk Action (n)` (dropdown), `Đặt lại lọc lưới` (xóa filter row + header filter + ô tìm kiếm), và nút `Chọn cột` mặc định.
-- Cột `Học sinh`: dòng trên là họ tên (không in đậm), dòng dưới `<mã> · <tên gọi ở nhà>` (`studentNickName`, chữ mờ). `search`/ô tìm kiếm khớp cả tên gọi ở nhà.
+- Cột `Học sinh`: dòng trên là họ tên (không in đậm), dòng dưới `<mã> · <tên gọi ở nhà> · <tuổi>` (`studentNickName` + tuổi dạng `6 tuổi, 8 tháng` tính từ `StudentSnapshot.DateOfBirth`, chữ mờ). `search`/ô tìm kiếm khớp cả tên gọi ở nhà.
 - Cột `Trạng thái`: header filter hiển thị nhãn tiếng Việt. `Kế hoạch`/`Kết quả` (link) không lọc.
 - Cột ngày `Bắt đầu`/`Hạn hoàn thành`: `dataType=date`, ô lọc chọn theo tháng (`M/yyyy`, lịch dừng ở mức tháng), hiển thị trong lưới `M/yyyy`. Không dùng header filter cho các cột ngày. Toán tử filter row làm việc ở mức tháng cho **mọi** toán tử: `>=` = từ đầu tháng đã chọn, `<=` = tới hết tháng đã chọn (`<` đầu tháng kế tiếp), `=` = bất kỳ ngày nào trong tháng, `giữa (between)` = bao trọn từ tháng đầu tới hết tháng cuối. Mặc định: `Bắt đầu` = `<=`, `Hạn hoàn thành` = `>=` (lọc các bảng còn hiệu lực trong một tháng).
 - Ở form nhập bảng đánh giá: cả `Ngày bắt đầu` và `Hạn hoàn thành` chọn theo tháng (`MM/yyyy`). `Ngày bắt đầu` lấy ngày đầu tháng; **`Hạn hoàn thành` lấy NGÀY CUỐI tháng** đã chọn (deadline cuối kỳ).
@@ -273,3 +274,14 @@ Các điểm trước đây cần xác nhận, nay đã chốt:
 ### 16.2. Màu hover dòng lưới toàn theme (ASH-FB-W5, 2026-09-01)
 
 - Đổi màu hover dòng của **mọi** `dxDataGrid`/`dxTreeList` trong app từ xám mặc định (`rgba(0,0,0,0.04)`) sang xanh dương nhạt `rgba(51,122,183,0.18)` (tone màu nhấn của theme). Override ở `ui/src/styles.scss`, không sửa file theme sinh tự động.
+
+## 17. Cập nhật trực tiếp kết quả Google Sheet (ASH-KQ-DIRECT-01, 2026-09-10)
+
+- Thêm trang `/#/assessment-results` chỉ dành cho `SuperAdmin` và `Admin`. `Teacher` không thấy menu và bị chặn ở cả route lẫn API. Trang chọn được học sinh `Active` hoặc `Inactive`; danh sách học sinh tìm kiếm/phân trang ở server. Subtitle học sinh hiển thị ngày sinh dạng `dd/MM/yyyy` và tuổi dạng năm/tháng bằng các helper dùng chung.
+- Khi chọn học sinh, `GET /api/v1/students/{studentId}/assessment-results` đọc live `[F0.ĐG]`, ghép với toàn bộ danh mục `Assessment` và trả grade/note hiện tại cùng opaque `version` của từng dòng. Google Sheet là nguồn sự thật; client không gửi hoặc quyết định địa chỉ ô.
+- Grid sửa `grade` (`A|B|C|D|null`) và `note` (trim, rỗng thành `null`, tối đa 2.000 ký tự) trên dữ liệu local. Rời ô không gọi API; sticky bar hiển thị số dòng đổi, điều hướng đầu/cuối và chỉ gửi các dòng dirty khi bấm **Lưu kết quả**.
+- `PATCH /api/v1/students/{studentId}/assessment-results` chỉ nhận `{ assessmentId, expectedVersion, grade, note }`. Backend tra lại mã học sinh, dòng Assessment và cột note kế bên bằng `ResultSource_*`, rồi đọc lại các ô cần sửa. Nếu bất kỳ version nào lệch, trả `409 AssessmentResultsVersionConflict` kèm các dòng xung đột và không ghi partial.
+- Các ô thực sự đổi được gửi trong một Google `Values.BatchUpdate`, đọc lại để xác nhận, rồi rebuild `AssessmentSheetLatest`/`AssessmentRecordLatest` của đúng học sinh. Đây là ngoại lệ mới duy nhất ngoài full sync được phép cập nhật mirror; `submit-results` và việc sửa `AssessmentSheet` vẫn không cập nhật mirror. Full sync và rebuild phải giữ record chỉ có note khi grade trống.
+- Các lượt ghi cùng học sinh được tuần tự hóa bằng PostgreSQL advisory lock; full sync dùng khóa loại trừ tương thích. Mỗi request lưu có audit tổng hợp và audit từng ô Grade/Note với actor, học sinh, Assessment, giá trị cũ/mới.
+- Lỗi mapping/cấu trúc/nhãn grade của nguồn trả mã lỗi nguồn cụ thể. Nếu Google đã ghi nhưng readback hoặc cập nhật mirror thất bại, response có `googleWriteSucceeded: true`; UI giữ draft, cảnh báo rõ và không tự retry ghi.
+- Khi còn draft, đổi học sinh/rời route/refresh phải xác nhận bỏ thay đổi. Response cũ không được ghi đè học sinh mới. Save thành công thay snapshot bằng response canonical; lỗi thường giữ draft; conflict hiển thị dòng xung đột và chỉ reload sau khi người dùng xác nhận bỏ draft.
