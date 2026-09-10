@@ -1,3 +1,4 @@
+using AdminPortal.Application.AssessmentResults;
 using AdminPortal.Domain.Entities;
 
 namespace AdminPortal.Application.GoogleSheets;
@@ -13,6 +14,17 @@ public interface IGoogleSheetsSettings
 public interface IGoogleSheetsService
 {
     Task<GoogleSheetsCredentialSmokeResponse> SmokeTestCredentialAsync(CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<AssessmentResultSourceValue>> ReadAssessmentResultsFromSourceAsync(
+        string studentCode,
+        IReadOnlyList<AssessmentResultSourceTarget> assessments,
+        CancellationToken cancellationToken);
+
+    Task<AssessmentResultSourceWriteResult> UpdateAssessmentResultsInSourceAsync(
+        string studentCode,
+        IReadOnlyList<AssessmentResultSourceTarget> assessments,
+        IReadOnlyList<AssessmentResultSourceUpdate> updates,
+        CancellationToken cancellationToken);
 
     Task<SyncAssessmentsFromGoogleSheetsResponse> SyncAssessmentsAsync(SyncAssessmentsFromGoogleSheetsRequest request, CancellationToken cancellationToken);
 

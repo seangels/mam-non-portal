@@ -17,7 +17,7 @@ import { AssessmentSheetsService } from '../../core/services/assessment-sheets.s
 import { patchGridBestFit } from '../../core/errors/dx-grid-bestfit-guard';
 import { formatDateOnly, toDateOnly } from '../../core/utils/date-only';
 import { AssessmentSheetBulkUploadQueueService } from './assessment-sheet-bulk-upload-queue.service';
-import { formatAssessmentPeriod } from './assessment-sheet-plan-preview.models';
+import { calculateAgeText, formatAssessmentPeriod } from './assessment-sheet-plan-preview.models';
 
 // Danh sách tải hết về client (giống bảng picker) rồi để lưới tự lọc/sắp/phân trang bằng
 // filter row + header filter + column chooser + toolbar của DevExtreme. Không còn panel lọc riêng.
@@ -544,6 +544,10 @@ export class AssessmentSheetsComponent implements OnInit, OnDestroy {
   // Cột "Bắt đầu" hiển thị cả khoảng kế hoạch (giống tên kế hoạch): "3 tháng 10.11.12.26".
   periodText(sheet: AssessmentSheet): string {
     return formatAssessmentPeriod(sheet.startDate, sheet.dueDate);
+  }
+
+  studentAgeText(sheet: AssessmentSheet): string {
+    return calculateAgeText(sheet.studentDateOfBirth, new Date());
   }
 
   // startDate/dueDate chỉ cần độ chính xác tới tháng: hiển thị M/yyyy (tháng không đệm số 0).

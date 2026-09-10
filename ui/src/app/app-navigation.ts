@@ -16,6 +16,7 @@ export function buildNavigation(role?: UserRole): NavigationItem[] {
   ];
 
   if (role === 'SuperAdmin' || role === 'Admin') {
+    items.splice(3, 0, { text: 'Cập nhật kết quả', path: '/assessment-results', icon: 'edit' });
     items.push(
       { text: 'Giáo viên', path: '/teachers', icon: 'user' },
       { text: 'Học sinh', path: '/students', icon: 'card' },

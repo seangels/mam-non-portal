@@ -328,6 +328,20 @@ describe('Assessment sheets Excel import', () => {
     return { component, assessmentSheets };
   };
 
+  it('shows student age in years and months for the list secondary text', () => {
+    const { component } = createComponent({}, {});
+    const now = new Date();
+    const birthDate = new Date(now.getFullYear() - 6, now.getMonth() - 8, 1);
+
+    expect(component.studentAgeText({
+      studentDateOfBirth: [
+        birthDate.getFullYear(),
+        String(birthDate.getMonth() + 1).padStart(2, '0'),
+        '01'
+      ].join('-')
+    } as any)).toBe('6 tuổi, 8 tháng');
+  });
+
   it('previews an xlsx file before submitting and imports only after confirmation action', async () => {
     const previewResult = {
       summary: {

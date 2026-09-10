@@ -26,6 +26,7 @@ public sealed record AssessmentSheetListItemResponse(
     string? StudentCode,
     string? StudentFullName,
     string? StudentNickName,
+    DateOnly? StudentDateOfBirth,
     Guid? ResponsibleTeacherId,
     string? ResponsibleTeacherFullName,
     DateTimeOffset? StartDate,

@@ -1,0 +1,134 @@
+<section class="content-block assessment-results-heading" aria-labelledby="assessment-results-title">
+  <div>
+    <h1 id="assessment-results-title" class="page-title">Cập nhật kết quả</h1>
+    <p class="page-subtitle">{{ studentSummary }}</p>
+  </div>
+  <span *ngIf="student" class="student-status" [class.student-status--inactive]="student.status === 'Inactive'">
+    {{ student.status === 'Active' ? 'Đang học' : 'Đã nghỉ' }}
+  </span>
+</section>
+
+<div *ngIf="loadError" class="content-block error-panel" role="alert">
+  <span>{{ loadError }}<small *ngIf="traceId"> Mã tra cứu: {{ traceId }}</small></span>
+  <dx-button text="Thử lại" icon="refresh" stylingMode="outlined" [disabled]="loading" (onClick)="reloadLatest()"></dx-button>
+</div>
+
+<div *ngIf="saveError || conflictMessage" class="content-block error-panel" role="alert">
+  <span>{{ conflictMessage || saveError }}<small *ngIf="traceId"> Mã tra cứu: {{ traceId }}</small></span>
+  <dx-button *ngIf="reloadRequired" text="Tải dữ liệu mới nhất" icon="refresh" type="default"
+    [disabled]="loading || saving" (onClick)="reloadLatest()"></dx-button>
+</div>
+
+<div class="content-block dx-card results-grid-card">
+  <div *ngIf="loading" class="loading-overlay" aria-live="polite">
+    <dx-load-indicator></dx-load-indicator>
+    <span>Đang đọc kết quả trực tiếp từ Google Sheet…</span>
+  </div>
+
+  <dx-data-grid #grid
+    [dataSource]="drafts"
+    keyExpr="assessmentId"
+    [remoteOperations]="false"
+    [showBorders]="true"
+    [rowAlternationEnabled]="true"
+    [hoverStateEnabled]="true"
+    [wordWrapEnabled]="true"
+    [allowColumnReordering]="true"
+    [allowColumnResizing]="true"
+    columnResizingMode="widget"
+    noDataText="Chọn học sinh để tải danh mục đánh giá"
+    (onToolbarPreparing)="onToolbarPreparing($event)"
+    (onContentReady)="onContentReady()"
+    (onRowUpdated)="onRowUpdated($event)"
+    (onCellPrepared)="onCellPrepared($event)"
+    (onRowPrepared)="onRowPrepared($event)">
+    <dxo-load-panel [enabled]="false"></dxo-load-panel>
+    <dxo-editing mode="cell" [allowUpdating]="canEdit" [selectTextOnEditStart]="true" startEditAction="click"></dxo-editing>
+    <dxo-filter-row [visible]="true"></dxo-filter-row>
+    <dxo-header-filter [visible]="true"></dxo-header-filter>
+    <dxo-search-panel [visible]="true" [width]="260" placeholder="Tìm trong danh mục…"></dxo-search-panel>
+    <dxo-column-chooser [enabled]="true" mode="select" title="Ẩn/hiện cột"></dxo-column-chooser>
+    <dxo-paging [pageSize]="100"></dxo-paging>
+    <dxo-pager [showInfo]="true" [showNavigationButtons]="true" [showPageSizeSelector]="false"
+      infoText="Trang {0}/{1} · {2} mục"></dxo-pager>
+
+    <dxi-column dataField="ordinal" caption="STT" [width]="68" [allowEditing]="false" [allowFiltering]="false"></dxi-column>
+    <dxi-column dataField="code" caption="Mã" [width]="90" [allowEditing]="false"></dxi-column>
+    <dxi-column dataField="name" caption="Nội dung" [minWidth]="320" [allowEditing]="false" cellTemplate="contentCell"></dxi-column>
+    <dxi-column dataField="groupLv1Name" caption="Nhóm tuổi" [width]="150" [allowEditing]="false"></dxi-column>
+    <dxi-column dataField="groupLv2Name" caption="Nhóm 2" [width]="190" [allowEditing]="false"></dxi-column>
+    <dxi-column dataField="groupLv3Name" caption="Nhóm 3" [minWidth]="230" [allowEditing]="false"></dxi-column>
+    <dxi-column dataField="grade" caption="Kết quả" [width]="150" editCellTemplate="gradeEditCell" cellTemplate="gradeCell">
+      <dxo-lookup [dataSource]="gradeOptions" valueExpr="value" displayExpr="text"></dxo-lookup>
+    </dxi-column>
+    <dxi-column dataField="note" caption="Ghi chú" [minWidth]="280" editCellTemplate="noteEditCell" cellTemplate="noteCell"></dxi-column>
+    <dxi-column dataField="rowIndex" caption="RowIndex" [visible]="false" [allowEditing]="false"></dxi-column>
+
+    <div *dxTemplate="let cell of 'contentCell'" class="content-cell">{{ cell.value }}</div>
+
+    <div *dxTemplate="let cell of 'gradeCell'">
+      <span class="grade-pill" [style.color]="gradeColor(cell.value)" [style.backgroundColor]="gradeBackground(cell.value)">
+        {{ gradeText(cell.value) }}
+      </span>
+    </div>
+
+    <div *dxTemplate="let cell of 'gradeEditCell'" class="grade-select-shell">
+      <dx-select-box
+        class="grade-select-box"
+        [style.borderColor]="gradeColor(cell.value)"
+        [style.backgroundColor]="cell.value ? gradeBackground(cell.value) : ''"
+        [style.color]="gradeColor(cell.value)"
+        [dataSource]="gradeOptions"
+        valueExpr="value"
+        displayExpr="text"
+        [value]="cell.value"
+        [showClearButton]="true"
+        placeholder="Chưa có kết quả"
+        itemTemplate="gradeItem"
+        (onValueChanged)="onGradeChanged(cell, $event)">
+        <div *dxTemplate="let option of 'gradeItem'" class="grade-select-box-item">
+          <span
+            class="grade-select-value"
+            [style.borderColor]="gradeColor(option.value)"
+            [style.backgroundColor]="option.value ? gradeBackground(option.value) : ''"
+            [style.color]="gradeColor(option.value)">
+            {{ option.text }}
+          </span>
+        </div>
+      </dx-select-box>
+    </div>
+
+    <div *dxTemplate="let cell of 'noteCell'" class="note-cell">
+      <span>{{ cell.value || '—' }}</span>
+      <small *ngIf="cell.data.invalidMessage" class="validation-message">{{ cell.data.invalidMessage }}</small>
+    </div>
+
+    <div *dxTemplate="let cell of 'noteEditCell'" class="note-editor">
+      <dx-text-area
+        [value]="cell.value || ''"
+        valueChangeEvent="input"
+        [maxLength]="noteMaxLength"
+        [autoResizeEnabled]="true"
+        [minHeight]="70"
+        placeholder="Nhập ghi chú"
+        (onValueChanged)="onNoteChanged(cell, $event)">
+      </dx-text-area>
+      <small>{{ noteCounter(cell.data) }}</small>
+    </div>
+  </dx-data-grid>
+</div>
+
+<div class="results-sticky-bar" role="region" aria-label="Thao tác lưu kết quả">
+  <div class="change-summary">
+    <strong>{{ dirtyCount }}</strong> dòng đã thay đổi
+    <span *ngIf="invalidCount"> · {{ invalidCount }} dòng chưa hợp lệ</span>
+  </div>
+  <div class="sticky-actions">
+    <dx-button icon="arrowup" hint="Lên đầu trang" aria-label="Lên đầu trang" stylingMode="outlined"
+      (onClick)="scrollToTop()"></dx-button>
+    <dx-button icon="arrowdown" hint="Xuống cuối trang" aria-label="Xuống cuối trang" stylingMode="outlined"
+      (onClick)="scrollToBottom()"></dx-button>
+    <dx-button [text]="saveButtonText" icon="save" type="success" [disabled]="saveDisabled"
+      (onClick)="save()"></dx-button>
+  </div>
+</div>

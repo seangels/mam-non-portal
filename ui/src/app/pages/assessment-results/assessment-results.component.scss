@@ -1,0 +1,194 @@
+:host {
+  display: block;
+  padding-bottom: 76px;
+}
+
+.assessment-results-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.page-title {
+  margin-bottom: 4px;
+}
+
+.student-status {
+  flex: 0 0 auto;
+  padding: 5px 10px;
+  border-radius: 999px;
+  color: #11734b;
+  background: #d4edbc;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.student-status--inactive {
+  color: #475467;
+  background: #eaecf0;
+}
+
+.results-grid-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.loading-overlay {
+  position: absolute;
+  z-index: 5;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 180px;
+  color: #475467;
+  background: rgba(255, 255, 255, 0.88);
+}
+
+.error-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px 16px;
+  border: 1px solid #f2b8b5;
+  border-radius: 8px;
+  color: #8a1c16;
+  background: #fff1f0;
+}
+
+.error-panel span {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.content-cell,
+.note-cell {
+  white-space: pre-line;
+}
+
+.grade-pill {
+  display: inline-block;
+  padding: 4px 9px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.grade-select-shell,
+.grade-select-box {
+  display: block;
+  width: 100%;
+  color: inherit;
+}
+
+.grade-select-box-item {
+  display: flex;
+  justify-content: center;
+}
+
+.grade-select-value {
+  min-height: 22px;
+  padding: 4px;
+  border: 1px solid;
+  border-radius: 4px;
+}
+
+:host ::ng-deep .grade-select-box.dx-texteditor,
+:host ::ng-deep .grade-select-box .dx-texteditor {
+  color: inherit;
+}
+
+:host ::ng-deep .grade-select-box .dx-texteditor-input {
+  color: inherit;
+  text-align: center;
+}
+
+:host ::ng-deep .grade-select-box .dx-dropdowneditor-icon {
+  color: inherit;
+}
+
+.note-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.note-editor small {
+  display: block;
+  margin-top: 3px;
+  color: #667085;
+  text-align: right;
+}
+
+.validation-message {
+  color: #b42318;
+}
+
+:host ::ng-deep .dx-data-row.result-row--dirty > td:first-child {
+  box-shadow: inset 4px 0 0 #f79009;
+}
+
+:host ::ng-deep .dx-data-row > td.result-cell--dirty {
+  background: #fffaeb;
+}
+
+:host ::ng-deep .dx-data-row.result-row--conflict > td,
+:host ::ng-deep .dx-data-row > td.result-cell--conflict {
+  background: #fee4e2;
+}
+:host ::ng-deep .dx-datagrid-header-panel {
+  padding: 6px;
+}
+
+.results-sticky-bar {
+  position: fixed;
+  z-index: 100;
+  right: 24px;
+  bottom: 18px;
+  left: 264px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 14px;
+  border: 1px solid #d0d5dd;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.97);
+  box-shadow: 0 8px 24px rgba(16, 24, 40, 0.16);
+  backdrop-filter: blur(6px);
+}
+
+.change-summary {
+  color: #344054;
+}
+
+.sticky-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+@media (max-width: 899px) {
+  .results-sticky-bar {
+    right: 12px;
+    bottom: 10px;
+    left: 12px;
+  }
+}
+
+@media (max-width: 599px) {
+  .assessment-results-heading,
+  .error-panel,
+  .results-sticky-bar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .sticky-actions {
+    justify-content: flex-end;
+  }
+}

@@ -24,6 +24,7 @@ using AdminPortal.Application.AssessmentGroups;
 using AdminPortal.Application.Assessments;
 using AdminPortal.Application.AssessmentSheets;
 using AdminPortal.Application.GoogleSheets;
+using AdminPortal.Application.AssessmentResults;
 
 namespace AdminPortal.Infrastructure;
 
@@ -66,6 +67,8 @@ public static class DependencyInjection
         services.AddScoped<IAssessmentGroupService, AssessmentGroupService>();
         services.AddScoped<IAssessmentService, AssessmentService>();
         services.AddScoped<IAssessmentSheetService, AssessmentSheetService>();
+        services.AddScoped<IAssessmentResultsService, AssessmentResultsService>();
+        services.AddScoped<IResultSourcePersistence, ResultSourcePersistence>();
 
         // 1. Map và đăng ký cấu hình vào DI Container
         services.Configure<GoogleSheetsSettings>(configuration.GetSection("GoogleSheets"));

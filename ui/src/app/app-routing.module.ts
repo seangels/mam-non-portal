@@ -21,6 +21,8 @@ import { AssessmentSheetsComponent } from './pages/assessment-sheets/assessment-
 import { AssessmentSheetsModule } from './pages/assessment-sheets/assessment-sheets.module';
 import { AssessmentSheetFormComponent } from './pages/assessment-sheets/assessment-sheets-form.component';
 import { AssessmentSheetPlanPreviewComponent } from './pages/assessment-sheets/assessment-sheet-plan-preview.component';
+import { AssessmentResultsComponent } from './pages/assessment-results/assessment-results.component';
+import { AssessmentResultsModule } from './pages/assessment-results/assessment-results.module';
 
 export const APP_ROUTES: Routes = [
   {
@@ -86,6 +88,13 @@ export const APP_ROUTES: Routes = [
     data: { roles: ['SuperAdmin', 'Admin', 'Teacher'] }
   },
   {
+    path: 'assessment-results',
+    component: AssessmentResultsComponent,
+    canActivate: [SetupCompletedGuard, AuthGuardService, RoleGuard],
+    canDeactivate: [PendingChangesGuard],
+    data: { roles: ['SuperAdmin', 'Admin'] }
+  },
+  {
     path: 'assessment-sheets',
     component: AssessmentSheetsComponent,
     canActivate: [SetupCompletedGuard, AuthGuardService, RoleGuard],
@@ -148,6 +157,7 @@ export const APP_ROUTES: Routes = [
     AttendanceModule,
     TeachersModule,
     AssessmentsModule,
+    AssessmentResultsModule,
     AssessmentSheetsModule,
     SetupFormModule
   ],

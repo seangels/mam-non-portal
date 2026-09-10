@@ -7,6 +7,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using AdminPortal.Application.Assessments;
+using AdminPortal.Application.AssessmentResults;
 using AdminPortal.Application.AssessmentSheets;
 using AdminPortal.Application.Auth;
 using AdminPortal.Application.Common.Models;
@@ -439,6 +440,249 @@ public sealed class AdminPortalApiTests(ApiFactory factory) : IClassFixture<ApiF
         Assert.Null(googleSheets.PreviewedStudentCode);
         Assert.Null(googleSheets.DownloadedPdfLink);
         Assert.False(googleSheets.SmokeWasCalled);
+    }
+
+    [Fact]
+    public async Task AssessmentResultsAreManagerOnlyUseOptimisticVersionsAndPersistNoteOnlyMirror()
+    {
+        var googleSheets = new FakeGoogleSheetsService();
+        using var directFactory = factory.WithWebHostBuilder(builder => builder.ConfigureServices(services =>
+        {
+            services.RemoveAll<IGoogleSheetsService>();
+            services.AddSingleton<IGoogleSheetsService>(googleSheets);
+        }));
+        using var client = directFactory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            BaseAddress = new Uri("https://localhost"),
+            AllowAutoRedirect = false,
+            HandleCookies = true
+        });
+
+        var missingAuth = await client.GetAsync($"/api/v1/students/{Guid.NewGuid()}/assessment-results");
+        Assert.Equal(HttpStatusCode.Unauthorized, missingAuth.StatusCode);
+
+        var auth = await LoginAsync(client, ApiFactory.SuperAdminEmail, ApiFactory.SuperAdminPassword);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", auth.AccessToken);
+        var marker = Guid.NewGuid().ToString("N")[..8];
+        var student = await CreateStudentAsync(client, $"DR-{marker}", $"Direct Result {marker}");
+        var assessmentId = Guid.NewGuid();
+        using (var scope = directFactory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<AdminPortalDbContext>();
+            var actorId = await dbContext.Users
+                .Where(x => x.Email == ApiFactory.SuperAdminEmail)
+                .Select(x => x.Id)
+                .SingleAsync();
+            var now = DateTimeOffset.UtcNow;
+            dbContext.Assessments.Add(new Assessment
+            {
+                Id = assessmentId,
+                Code = $"DR-{marker}-001",
+                Name = "Direct assessment",
+                GroupLv1Name = "3-4 tuổi",
+                GroupLv2Name = "Nhận thức",
+                GroupLv3Name = "Quan sát",
+                RowIndex = 21,
+                UpdatedByUserId = actorId,
+                CreatedAt = now,
+                UpdatedAt = now
+            });
+            await dbContext.SaveChangesAsync();
+        }
+        googleSheets.DirectValues[assessmentId] = new AssessmentResultSourceValue(
+            assessmentId,
+            null,
+            null,
+            "source-v1");
+
+        var get = await client.GetFromJsonAsync<AssessmentResultsResponse>(
+            $"/api/v1/students/{student.Id}/assessment-results",
+            JsonOptions);
+        Assert.NotNull(get);
+        Assert.Equal(student.DateOfBirth, get.Student.DateOfBirth);
+        var initial = Assert.Single(get.Items);
+        Assert.Equal("source-v1", initial.Version);
+        Assert.Null(initial.Grade);
+        Assert.Null(initial.Note);
+
+        var patch = await client.PatchAsJsonAsync(
+            $"/api/v1/students/{student.Id}/assessment-results",
+            new
+            {
+                items = new[]
+                {
+                    new { assessmentId, expectedVersion = initial.Version, grade = (string?)null, note = "  ghi chú trực tiếp  " }
+                }
+            }, JsonOptions);
+        patch.EnsureSuccessStatusCode();
+        var saved = await patch.Content.ReadFromJsonAsync<AssessmentResultsResponse>(JsonOptions);
+        Assert.NotNull(saved);
+        var savedItem = Assert.Single(saved.Items);
+        Assert.Null(savedItem.Grade);
+        Assert.Equal("ghi chú trực tiếp", savedItem.Note);
+        Assert.NotEqual(initial.Version, savedItem.Version);
+        Assert.Single(googleSheets.DirectUpdates);
+        Assert.Equal("ghi chú trực tiếp", googleSheets.DirectUpdates[0].Note);
+
+        using (var scope = directFactory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<AdminPortalDbContext>();
+            var latest = await dbContext.AssessmentSheetLatests.AsNoTracking()
+                .SingleAsync(x => x.StudentId == student.Id);
+            var record = await dbContext.AssessmentRecordLatests.AsNoTracking()
+                .SingleAsync(x => x.AssessmentSheetLatestId == latest.Id && x.AssessmentId == assessmentId);
+            Assert.Null(record.LatestGrade);
+            Assert.Equal("ghi chú trực tiếp", record.Note);
+            Assert.Contains(await dbContext.AuditLogs.AsNoTracking().ToListAsync(),
+                x => x.Action == "AssessmentResults.Updated" && x.EntityId == student.Id);
+            Assert.Contains(await dbContext.AuditLogs.AsNoTracking().ToListAsync(),
+                x => x.Action == "AssessmentResults.SourceCellUpdated" && x.EntityId == student.Id);
+        }
+
+        var stale = await client.PatchAsJsonAsync(
+            $"/api/v1/students/{student.Id}/assessment-results",
+            new
+            {
+                items = new[]
+                {
+                    new { assessmentId, expectedVersion = initial.Version, grade = "A", note = "stale" }
+                }
+            }, JsonOptions);
+        Assert.Equal(HttpStatusCode.Conflict, stale.StatusCode);
+        using (var problem = JsonDocument.Parse(await stale.Content.ReadAsStringAsync()))
+        {
+            Assert.Equal("AssessmentResultsVersionConflict", problem.RootElement.GetProperty("code").GetString());
+            Assert.Equal(assessmentId, problem.RootElement.GetProperty("conflicts")[0].GetProperty("assessmentId").GetGuid());
+        }
+        Assert.Null(googleSheets.DirectValues[assessmentId].Grade);
+        Assert.Equal("ghi chú trực tiếp", googleSheets.DirectValues[assessmentId].Note);
+        Assert.Equal(1, googleSheets.DirectWriteCount);
+
+        googleSheets.FailDirectReadAfterWrite = true;
+        var postWriteFailure = await client.PatchAsJsonAsync(
+            $"/api/v1/students/{student.Id}/assessment-results",
+            new
+            {
+                items = new[]
+                {
+                    new
+                    {
+                        assessmentId,
+                        expectedVersion = googleSheets.DirectValues[assessmentId].Version,
+                        grade = "A",
+                        note = "đã ghi nhưng mirror lỗi"
+                    }
+                }
+            }, JsonOptions);
+        Assert.Equal(HttpStatusCode.InternalServerError, postWriteFailure.StatusCode);
+        using (var problem = JsonDocument.Parse(await postWriteFailure.Content.ReadAsStringAsync()))
+        {
+            Assert.Equal("AssessmentResultsPostWriteFailed", problem.RootElement.GetProperty("code").GetString());
+            Assert.True(problem.RootElement.GetProperty("googleWriteSucceeded").GetBoolean());
+        }
+        Assert.Equal(2, googleSheets.DirectWriteCount);
+        Assert.Equal(AssessmentGrade.A, googleSheets.DirectValues[assessmentId].Grade);
+
+        var teacherEmail = $"direct.teacher.{marker}@example.test";
+        var createTeacher = await client.PostAsJsonAsync("/api/v1/teachers", new
+        {
+            teacherCode = $"T-{marker}",
+            fullName = "Direct Teacher",
+            email = teacherEmail,
+            phoneNumber = (string?)null,
+            status = "Active",
+            password = "StrongTeacherPassword1!",
+            note = (string?)null
+        });
+        createTeacher.EnsureSuccessStatusCode();
+
+        using var teacherClient = directFactory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            BaseAddress = new Uri("https://localhost"),
+            AllowAutoRedirect = false,
+            HandleCookies = true
+        });
+        var teacherAuth = await LoginAsync(teacherClient, teacherEmail, "StrongTeacherPassword1!");
+        teacherClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", teacherAuth.AccessToken);
+        var forbidden = await teacherClient.GetAsync($"/api/v1/students/{student.Id}/assessment-results");
+        Assert.Equal(HttpStatusCode.Forbidden, forbidden.StatusCode);
+    }
+
+    [Fact]
+    public async Task ConcurrentAssessmentResultUpdatesWithSameVersionAllowExactlyOneWrite()
+    {
+        var googleSheets = new FakeGoogleSheetsService
+        {
+            DirectUpdateDelay = TimeSpan.FromMilliseconds(400)
+        };
+        using var directFactory = factory.WithWebHostBuilder(builder => builder.ConfigureServices(services =>
+        {
+            services.RemoveAll<IGoogleSheetsService>();
+            services.AddSingleton<IGoogleSheetsService>(googleSheets);
+        }));
+        using var client = directFactory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            BaseAddress = new Uri("https://localhost"),
+            AllowAutoRedirect = false,
+            HandleCookies = true
+        });
+        var auth = await LoginAsync(client, ApiFactory.SuperAdminEmail, ApiFactory.SuperAdminPassword);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", auth.AccessToken);
+        var marker = Guid.NewGuid().ToString("N")[..8];
+        var student = await CreateStudentAsync(client, $"CR-{marker}", $"Concurrent Result {marker}");
+        var assessmentId = Guid.NewGuid();
+        using (var scope = directFactory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<AdminPortalDbContext>();
+            var actorId = await dbContext.Users
+                .Where(x => x.Email == ApiFactory.SuperAdminEmail)
+                .Select(x => x.Id)
+                .SingleAsync();
+            var now = DateTimeOffset.UtcNow;
+            dbContext.Assessments.Add(new Assessment
+            {
+                Id = assessmentId,
+                Code = $"CR-{marker}-001",
+                Name = "Concurrent assessment",
+                RowIndex = 31,
+                UpdatedByUserId = actorId,
+                CreatedAt = now,
+                UpdatedAt = now
+            });
+            await dbContext.SaveChangesAsync();
+        }
+        googleSheets.DirectValues[assessmentId] = new AssessmentResultSourceValue(
+            assessmentId,
+            null,
+            null,
+            "concurrent-v1");
+
+        object Payload(string note) => new
+        {
+            items = new[]
+            {
+                new { assessmentId, expectedVersion = "concurrent-v1", grade = "B", note }
+            }
+        };
+
+        var firstRequest = client.PatchAsJsonAsync(
+            $"/api/v1/students/{student.Id}/assessment-results",
+            Payload("first"),
+            JsonOptions);
+        await googleSheets.FirstDirectUpdateEntered.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        var secondRequest = client.PatchAsJsonAsync(
+            $"/api/v1/students/{student.Id}/assessment-results",
+            Payload("second"),
+            JsonOptions);
+
+        var responses = await Task.WhenAll(firstRequest, secondRequest);
+        Assert.Equal(1, responses.Count(x => x.StatusCode == HttpStatusCode.OK));
+        Assert.Equal(1, responses.Count(x => x.StatusCode == HttpStatusCode.Conflict));
+        Assert.Equal(1, googleSheets.DirectWriteCount);
+        Assert.Equal(1, googleSheets.MaxConcurrentDirectUpdates);
+        var conflict = Assert.Single(responses, x => x.StatusCode == HttpStatusCode.Conflict);
+        using var problem = JsonDocument.Parse(await conflict.Content.ReadAsStringAsync());
+        Assert.Equal("AssessmentResultsVersionConflict", problem.RootElement.GetProperty("code").GetString());
     }
 
     [Fact]
@@ -1918,11 +2162,90 @@ public sealed class AdminPortalApiTests(ApiFactory factory) : IClassFixture<ApiF
             ReadRange: null,
             ReadRowCount: null,
             ErrorCode: null);
+        public Dictionary<Guid, AssessmentResultSourceValue> DirectValues { get; } = [];
+        public IReadOnlyList<AssessmentResultSourceUpdate> DirectUpdates { get; private set; } = [];
+        public int DirectWriteCount { get; private set; }
+        public bool FailDirectReadAfterWrite { get; set; }
+        public TimeSpan DirectUpdateDelay { get; set; }
+        public TaskCompletionSource<bool> FirstDirectUpdateEntered { get; } =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public int MaxConcurrentDirectUpdates { get; private set; }
+        private int activeDirectUpdates;
 
         public Task<GoogleSheetsCredentialSmokeResponse> SmokeTestCredentialAsync(CancellationToken cancellationToken)
         {
             SmokeWasCalled = true;
             return Task.FromResult(SmokeResponse);
+        }
+
+        public Task<IReadOnlyList<AssessmentResultSourceValue>> ReadAssessmentResultsFromSourceAsync(
+            string studentCode,
+            IReadOnlyList<AssessmentResultSourceTarget> assessments,
+            CancellationToken cancellationToken)
+        {
+            if (FailDirectReadAfterWrite && DirectWriteCount > 0)
+                throw new InvalidOperationException("Configured direct readback failure.");
+            return Task.FromResult<IReadOnlyList<AssessmentResultSourceValue>>(assessments.Select(x =>
+                DirectValues.TryGetValue(x.AssessmentId, out var value)
+                    ? value
+                    : new AssessmentResultSourceValue(x.AssessmentId, null, null, "v0")).ToList());
+        }
+
+        public async Task<AssessmentResultSourceWriteResult> UpdateAssessmentResultsInSourceAsync(
+            string studentCode,
+            IReadOnlyList<AssessmentResultSourceTarget> assessments,
+            IReadOnlyList<AssessmentResultSourceUpdate> updates,
+            CancellationToken cancellationToken)
+        {
+            var active = Interlocked.Increment(ref activeDirectUpdates);
+            MaxConcurrentDirectUpdates = Math.Max(MaxConcurrentDirectUpdates, active);
+            FirstDirectUpdateEntered.TrySetResult(true);
+            try
+            {
+                DirectUpdates = updates;
+                var targetById = assessments.ToDictionary(x => x.AssessmentId);
+                var conflicts = updates.Where(x =>
+                {
+                    var currentVersion = DirectValues.TryGetValue(x.AssessmentId, out var current)
+                        ? current.Version
+                        : "v0";
+                    return !string.Equals(currentVersion, x.ExpectedVersion, StringComparison.Ordinal);
+                }).ToList();
+                if (conflicts.Count > 0)
+                {
+                    throw new AdminPortal.Application.Common.Exceptions.ConflictException(
+                        "conflict",
+                        AdminPortal.Application.Common.ProblemCodes.AssessmentResultsVersionConflict,
+                        new Dictionary<string, object?> { ["conflicts"] = conflicts });
+                }
+
+                if (DirectUpdateDelay > TimeSpan.Zero)
+                    await Task.Delay(DirectUpdateDelay, cancellationToken);
+
+                DirectWriteCount++;
+                var changes = new List<AssessmentResultSourceCellChange>();
+                foreach (var update in updates)
+                {
+                    var old = DirectValues.TryGetValue(update.AssessmentId, out var current)
+                        ? current
+                        : new AssessmentResultSourceValue(update.AssessmentId, null, null, "v0");
+                    var target = targetById[update.AssessmentId];
+                    if (old.Grade != update.Grade)
+                        changes.Add(new(update.AssessmentId, target.Code, target.Name, "H1", "Grade", old.Grade?.ToString(), update.Grade?.ToString()));
+                    if (!string.Equals(old.Note, update.Note, StringComparison.Ordinal))
+                        changes.Add(new(update.AssessmentId, target.Code, target.Name, "I1", "Note", old.Note, update.Note));
+                    DirectValues[update.AssessmentId] = new AssessmentResultSourceValue(
+                        update.AssessmentId,
+                        update.Grade,
+                        update.Note,
+                        $"v{Guid.NewGuid():N}");
+                }
+                return new AssessmentResultSourceWriteResult(changes);
+            }
+            finally
+            {
+                Interlocked.Decrement(ref activeDirectUpdates);
+            }
         }
 
         public Task<SyncAssessmentsFromGoogleSheetsResponse> SyncAssessmentsAsync(

@@ -62,4 +62,23 @@ describe('ApiError', () => {
     expect(conflict.message).not.toContain('Raw backend detail');
     expect(emptyRoster.message).toBe('Không có học sinh có lịch học trong ngày này.');
   });
+
+  it('preserves safe assessment-result conflict and post-write extensions', () => {
+    const conflict = ApiError.from(new HttpErrorResponse({
+      status: 409,
+      error: {
+        code: 'AssessmentResultsVersionConflict',
+        conflicts: [{ assessmentId: 'assessment-1', currentVersion: 'v2', currentGrade: 'B', currentNote: null }]
+      }
+    }));
+    const postWrite = ApiError.from(new HttpErrorResponse({
+      status: 500,
+      error: { code: 'AssessmentResultsPostWriteFailed', googleWriteSucceeded: true }
+    }));
+
+    expect(conflict.conflicts[0].assessmentId).toBe('assessment-1');
+    expect(conflict.message).toContain('Google Sheet');
+    expect(postWrite.googleWriteSucceeded).toBeTrue();
+    expect(postWrite.message).toContain('Không bấm Lưu lại');
+  });
 });

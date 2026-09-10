@@ -32,6 +32,13 @@ export interface ProblemDetails {
   errors?: Record<string, string[]>;
   code?: string;
   currentVersion?: number;
+  conflicts?: Array<{
+    assessmentId: string;
+    currentVersion: string;
+    currentGrade?: string | null;
+    currentNote?: string | null;
+  }>;
+  googleWriteSucceeded?: boolean;
 }
 
 export interface ListQuery {

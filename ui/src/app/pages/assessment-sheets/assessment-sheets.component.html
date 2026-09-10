@@ -72,7 +72,7 @@
 
     <div *dxTemplate="let cell of 'studentCell'" class="student-cell">
       <span>{{ cell.data.studentFullName || '—' }}</span>
-      <small>{{ cell.data.studentCode || '—' }}{{ cell.data.studentNickName ? ' · ' + cell.data.studentNickName : '' }}</small>
+      <small>{{ cell.data.studentCode || '—' }}{{ cell.data.studentNickName ? ' · ' + cell.data.studentNickName : '' }} · {{ studentAgeText(cell.data) }}</small>
     </div>
 
     <div *dxTemplate="let cell of 'statusCell'">

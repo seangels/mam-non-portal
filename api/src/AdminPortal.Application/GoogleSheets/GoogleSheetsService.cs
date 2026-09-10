@@ -1,3 +1,4 @@
+using AdminPortal.Application.AssessmentResults;
 using AdminPortal.Application.AssessmentSheets;
 using AdminPortal.Application.Common;
 using AdminPortal.Application.Common.Exceptions;
@@ -56,6 +57,7 @@ public class GoogleSheetsService : IGoogleSheetsService, IDisposable
     private readonly ICurrentActor currentActor;
     private readonly ILogger<GoogleSheetsService> logger;
     private readonly TimeProvider timeProvider;
+    private readonly IResultSourcePersistence resultSourcePersistence;
     private readonly GoogleSheetsSettings googleSheetsSettings;
     private const string Assessment_fullDataRange = "Assessment_fullDataRange";
     private const string Assessment_fullHeaderRange = "Assessment_fullHeaderRange";
@@ -83,12 +85,14 @@ public class GoogleSheetsService : IGoogleSheetsService, IDisposable
         IApplicationDbContext dbContext,
         ICurrentActor currentActor,
         TimeProvider timeProvider,
+        IResultSourcePersistence resultSourcePersistence,
         ILogger<GoogleSheetsService> logger)
     {
         this.dbContext = dbContext;
         this.currentActor = currentActor;
         this.logger = logger;
         this.timeProvider = timeProvider;
+        this.resultSourcePersistence = resultSourcePersistence;
         this.googleSheetsSettings = configuration.Value;
 
         _credential = new Lazy<UserCredential>(CreateCredential);
@@ -417,6 +421,303 @@ public class GoogleSheetsService : IGoogleSheetsService, IDisposable
         }
     }
 
+    public async Task<IReadOnlyList<AssessmentResultSourceValue>> ReadAssessmentResultsFromSourceAsync(
+        string studentCode,
+        IReadOnlyList<AssessmentResultSourceTarget> assessments,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var rows = await ReadDirectResultRowsAsync(studentCode, assessments, cancellationToken);
+            return rows.Select(ToSourceValue).ToList();
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (AppException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            throw new NormalException(
+                "Không thể đọc kết quả trực tiếp từ Google Sheet.",
+                ProblemCodes.AssessmentResultsGoogleOperationFailed,
+                new Dictionary<string, object?> { ["failureType"] = ex.GetType().Name });
+        }
+    }
+
+    public async Task<AssessmentResultSourceWriteResult> UpdateAssessmentResultsInSourceAsync(
+        string studentCode,
+        IReadOnlyList<AssessmentResultSourceTarget> assessments,
+        IReadOnlyList<AssessmentResultSourceUpdate> updates,
+        CancellationToken cancellationToken)
+    {
+        List<DirectResultRow> rows;
+        try
+        {
+            rows = await ReadDirectResultRowsAsync(studentCode, assessments, cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (AppException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            throw new NormalException(
+                "Không thể đọc kết quả hiện tại trước khi ghi Google Sheet.",
+                ProblemCodes.AssessmentResultsGoogleOperationFailed,
+                new Dictionary<string, object?> { ["failureType"] = ex.GetType().Name });
+        }
+        var rowByAssessmentId = rows.ToDictionary(x => x.Target.AssessmentId);
+        var conflicts = updates
+            .Where(x => !string.Equals(rowByAssessmentId[x.AssessmentId].Version, x.ExpectedVersion, StringComparison.Ordinal))
+            .Select(x =>
+            {
+                var current = rowByAssessmentId[x.AssessmentId];
+                return new
+                {
+                    x.AssessmentId,
+                    CurrentVersion = current.Version,
+                    CurrentGrade = current.Grade,
+                    CurrentNote = current.Note
+                };
+            })
+            .ToList();
+        if (conflicts.Count > 0)
+        {
+            throw new ConflictException(
+                "Kết quả trên Google Sheet đã thay đổi. Vui lòng tải lại dữ liệu.",
+                ProblemCodes.AssessmentResultsVersionConflict,
+                new Dictionary<string, object?> { ["conflicts"] = conflicts });
+        }
+
+        var pending = new List<DirectPendingCellUpdate>();
+        foreach (var update in updates)
+        {
+            var row = rowByAssessmentId[update.AssessmentId];
+            var gradeLabel = update.Grade is null
+                ? string.Empty
+                : AssessmentSheetRules.GradeLabel(update.Grade.Value);
+            var note = update.Note ?? string.Empty;
+            if (!string.Equals(row.RawGrade, gradeLabel, StringComparison.Ordinal))
+                pending.Add(new DirectPendingCellUpdate(row.Target, row.GradeCell, row.GradeRange, "Grade", row.RawGrade, gradeLabel));
+            if (!string.Equals(row.RawNote, note, StringComparison.Ordinal))
+                pending.Add(new DirectPendingCellUpdate(row.Target, row.NoteCell, row.NoteRange, "Note", row.RawNote, note));
+        }
+
+        if (pending.Count == 0)
+            return new AssessmentResultSourceWriteResult([]);
+
+        try
+        {
+            var batchRequest = new Google.Apis.Sheets.v4.Data.BatchUpdateValuesRequest
+            {
+                ValueInputOption = "USER_ENTERED",
+                Data = pending.Select(x => new Google.Apis.Sheets.v4.Data.ValueRange
+                {
+                    Range = x.Range,
+                    Values = [[x.NewValue]]
+                }).ToList()
+            };
+            await _sheetsService.Value.Spreadsheets.Values
+                .BatchUpdate(batchRequest, googleSheetsSettings.SpreadsheetId)
+                .ExecuteAsync(cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            throw new NormalException(
+                "Không thể ghi kết quả trực tiếp vào Google Sheet.",
+                ProblemCodes.AssessmentResultsGoogleOperationFailed,
+                new Dictionary<string, object?> { ["failureType"] = ex.GetType().Name });
+        }
+
+        try
+        {
+            var readback = await ReadDirectResultRowsAsync(studentCode, assessments, cancellationToken);
+            var readbackByAssessmentId = readback.ToDictionary(x => x.Target.AssessmentId);
+            foreach (var update in updates)
+            {
+                var actual = readbackByAssessmentId[update.AssessmentId];
+                if (actual.Grade != update.Grade || !string.Equals(actual.Note, update.Note, StringComparison.Ordinal))
+                    throw new InvalidOperationException($"Readback mismatch for assessment {update.AssessmentId}.");
+            }
+        }
+        catch (Exception ex)
+        {
+            throw new NormalException(
+                "Google Sheet đã được ghi nhưng không thể xác nhận lại dữ liệu.",
+                ProblemCodes.AssessmentResultsPostWriteFailed,
+                new Dictionary<string, object?>
+                {
+                    ["googleWriteSucceeded"] = true,
+                    ["failureType"] = ex.GetType().Name
+                });
+        }
+
+        return new AssessmentResultSourceWriteResult(pending.Select(x => new AssessmentResultSourceCellChange(
+            x.Target.AssessmentId,
+            x.Target.Code,
+            x.Target.Name,
+            x.Cell,
+            x.Kind,
+            string.IsNullOrEmpty(x.CurrentValue) ? null : x.CurrentValue,
+            string.IsNullOrEmpty(x.NewValue) ? null : x.NewValue)).ToList());
+    }
+
+    private async Task<List<DirectResultRow>> ReadDirectResultRowsAsync(
+        string studentCode,
+        IReadOnlyList<AssessmentResultSourceTarget> assessments,
+        CancellationToken cancellationToken)
+    {
+        if (assessments.Count == 0)
+            return [];
+
+        var config = await GetResultLatestSheetConfig(cancellationToken);
+        var sheetName = RequireResultSourceConfig(config, ResultSource_SheetName);
+        var assessmentCodeRange = RequireResultSourceConfig(config, ResultSource_AssessmentCodeRange);
+        var studentCodeRange = RequireResultSourceConfig(config, ResultSource_StudentCodeRange);
+        if (!int.TryParse(RequireResultSourceConfig(config, ResultSource_FirstStudentColumnIndex), out var firstStudentColumnIndex) ||
+            !int.TryParse(RequireResultSourceConfig(config, ResultSource_FirstDataRow), out var firstDataRow))
+            throw AssessmentResultsSourceInvalid("Cấu hình vị trí dữ liệu kết quả trên Google Sheet không hợp lệ.");
+
+        List<string?> assessmentCodes;
+        List<string?> studentCodes;
+        try
+        {
+            var itemCodesResponse = await _sheetsService.Value.Spreadsheets.Values
+                .Get(googleSheetsSettings.SpreadsheetId, assessmentCodeRange)
+                .ExecuteAsync(cancellationToken);
+            assessmentCodes = (itemCodesResponse.Values ?? [])
+                .Select(row => row.Count > 0 ? row[0]?.ToString() : null)
+                .ToList();
+            var studentCodesResponse = await _sheetsService.Value.Spreadsheets.Values
+                .Get(googleSheetsSettings.SpreadsheetId, studentCodeRange)
+                .ExecuteAsync(cancellationToken);
+            studentCodes = (studentCodesResponse.Values?.FirstOrDefault() ?? [])
+                .Select(value => value?.ToString())
+                .ToList();
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            throw new NormalException(
+                "Không thể đọc vị trí mã học sinh và mục đánh giá từ Google Sheet.",
+                ProblemCodes.AssessmentResultsGoogleOperationFailed,
+                new Dictionary<string, object?> { ["failureType"] = ex.GetType().Name });
+        }
+
+        var gradeColumnIndex = GoogleSheetsGridLocator.FindAbsoluteColumnIndex(studentCodes, studentCode, firstStudentColumnIndex)
+            ?? throw AssessmentResultsSourceInvalid($"Không tìm thấy mã học sinh '{studentCode}' trong Google Sheet.");
+        var noteColumnIndex = gradeColumnIndex + 1;
+        var noteColumnOffset = noteColumnIndex - firstStudentColumnIndex;
+        var noteHeader = noteColumnOffset >= 0 && noteColumnOffset < studentCodes.Count
+            ? studentCodes[noteColumnOffset]
+            : null;
+        if (!string.IsNullOrWhiteSpace(noteHeader))
+            throw AssessmentResultsSourceInvalid($"Cột ghi chú kế bên cột kết quả của học sinh '{studentCode}' phải để trống ở hàng mã học sinh.");
+
+        var gradeColumn = GoogleSheetsGridLocator.ColumnIndexToLetter(gradeColumnIndex);
+        var noteColumn = GoogleSheetsGridLocator.ColumnIndexToLetter(noteColumnIndex);
+        var sheetPrefix = QuoteSheetName(sheetName);
+        var rows = new List<DirectResultRow>();
+        var missingCodes = new List<string>();
+        foreach (var assessment in assessments)
+        {
+            var rowNumber = GoogleSheetsGridLocator.FindAbsoluteRow(assessmentCodes, assessment.Code, firstDataRow);
+            if (rowNumber is null)
+            {
+                missingCodes.Add(assessment.Code);
+                continue;
+            }
+            rows.Add(new DirectResultRow(
+                assessment,
+                rowNumber.Value,
+                $"{gradeColumn}{rowNumber}",
+                $"{noteColumn}{rowNumber}",
+                $"{sheetPrefix}{gradeColumn}{rowNumber}",
+                $"{sheetPrefix}{noteColumn}{rowNumber}"));
+        }
+        if (missingCodes.Count > 0)
+            throw AssessmentResultsSourceInvalid($"Không tìm thấy mã mục đánh giá trong Google Sheet: {string.Join(", ", missingCodes)}.");
+
+        var firstResultRow = rows.Min(x => x.RowNumber);
+        var lastResultRow = rows.Max(x => x.RowNumber);
+        IList<IList<object>> currentValues;
+        try
+        {
+            var resultRange = $"{sheetPrefix}{gradeColumn}{firstResultRow}:{noteColumn}{lastResultRow}";
+            var response = await _sheetsService.Value.Spreadsheets.Values
+                .Get(googleSheetsSettings.SpreadsheetId, resultRange)
+                .ExecuteAsync(cancellationToken);
+            currentValues = response.Values ?? [];
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            throw new NormalException(
+                "Không thể đọc giá trị kết quả từ Google Sheet.",
+                ProblemCodes.AssessmentResultsGoogleOperationFailed,
+                new Dictionary<string, object?> { ["failureType"] = ex.GetType().Name });
+        }
+
+        for (var index = 0; index < rows.Count; index++)
+        {
+            var sourceRowIndex = rows[index].RowNumber - firstResultRow;
+            var sourceRow = sourceRowIndex >= 0 && sourceRowIndex < currentValues.Count
+                ? currentValues[sourceRowIndex]
+                : [];
+            var grade = sourceRow.Count > 0 ? sourceRow[0]?.ToString() ?? string.Empty : string.Empty;
+            var note = sourceRow.Count > 1 ? sourceRow[1]?.ToString() ?? string.Empty : string.Empty;
+            AssessmentGrade? parsedGrade = null;
+            if (!string.IsNullOrWhiteSpace(grade))
+            {
+                if (!AssessmentSheetRules.TryParseGradeLabel(grade.Trim(), out var candidate))
+                    throw AssessmentResultsSourceInvalid($"Nhãn kết quả tại ô {rows[index].GradeCell} không hợp lệ.");
+                parsedGrade = candidate;
+            }
+            rows[index] = rows[index] with
+            {
+                RawGrade = grade,
+                RawNote = note,
+                Grade = parsedGrade,
+                Note = AssessmentResultRules.NormalizeNote(note),
+                Version = AssessmentResultRules.CreateVersion(
+                    rows[index].Target.AssessmentId,
+                    rows[index].GradeCell,
+                    rows[index].NoteCell,
+                    grade,
+                    note)
+            };
+        }
+        return rows;
+    }
+
+    private static string RequireResultSourceConfig(IReadOnlyDictionary<string, string> config, string key)
+    {
+        var value = config.GetValueOrDefault(key);
+        if (string.IsNullOrWhiteSpace(value))
+            throw AssessmentResultsSourceInvalid($"Thiếu cấu hình Google Sheet '{key}'.");
+        return value;
+    }
+
+    private static AssessmentResultSourceValue ToSourceValue(DirectResultRow row) =>
+        new(row.Target.AssessmentId, row.Grade, row.Note, row.Version);
+
+    private static NormalException AssessmentResultsSourceInvalid(string message) =>
+        new(message, ProblemCodes.AssessmentResultsSourceInvalid);
+
     public async Task<SyncAssessmentsFromGoogleSheetsResponse> SyncAssessmentsAsync(SyncAssessmentsFromGoogleSheetsRequest request, CancellationToken cancellationToken)
     {
         var actor = currentActor.GetRequired();
@@ -430,6 +731,9 @@ public class GoogleSheetsService : IGoogleSheetsService, IDisposable
                 throw new ForbiddenException("Không đủ quyền thay thế snapshot bảng đánh giá.");
             AssessmentSnapshotReplacementRules.Validate(replacement);
         }
+
+        await using var transaction = await resultSourcePersistence.BeginTransactionAsync(cancellationToken);
+        await resultSourcePersistence.LockCatalogExclusiveAsync(cancellationToken);
 
         var data = new List<AssessmentLastResultGoogleSheetResponse>();
         var assessments = new List<AssessmentGoogleSheetResponse>();
@@ -510,12 +814,17 @@ public class GoogleSheetsService : IGoogleSheetsService, IDisposable
                 sheetLatestByStudentId[student.Id] = sheetLatest;
             }
 
-            if (row.KetQua is null)
+            if (string.IsNullOrWhiteSpace(row.KetQua) && string.IsNullOrWhiteSpace(row.GhiChu))
                 continue; // chưa có kết quả cho mục này, chỉ cần tạo AssessmentSheetLatest cho học sinh
             if (!assessmentByCode.TryGetValue(row.ItemId!, out var assessment))
                 continue; // mã mục đánh giá không khớp Assessment nào vừa đồng bộ, bỏ qua dòng này
-            if (!AssessmentSheetRules.TryParseGradeLabel(row.KetQua, out var grade))
-                continue; // nhãn kết quả không khớp bảng mapping đã xác nhận, bỏ qua dòng này
+            AssessmentGrade? grade = null;
+            if (!string.IsNullOrWhiteSpace(row.KetQua))
+            {
+                if (!AssessmentSheetRules.TryParseGradeLabel(row.KetQua, out var parsedGrade))
+                    continue; // nhãn kết quả không khớp bảng mapping đã xác nhận, bỏ qua dòng này
+                grade = parsedGrade;
+            }
 
             recordLatestsToInsert.Add(new AssessmentRecordLatest
             {
@@ -525,7 +834,7 @@ public class GoogleSheetsService : IGoogleSheetsService, IDisposable
                 AssessmentId = assessment.Id,
                 Assessment = assessment,
                 LatestGrade = grade,
-                Note = row.GhiChu,
+                Note = AssessmentResultRules.NormalizeNote(row.GhiChu),
                 CreatedAt = now,
                 UpdatedAt = now,
             });
@@ -626,6 +935,8 @@ public class GoogleSheetsService : IGoogleSheetsService, IDisposable
             SyncedAt = now
         });
         await dbContext.SaveChangesAsync(cancellationToken);
+
+        await transaction.CommitAsync(cancellationToken);
 
         return response;
     }
@@ -1025,6 +1336,29 @@ public class GoogleSheetsService : IGoogleSheetsService, IDisposable
         string SpreadsheetId,
         string SheetName,
         List<PendingResultSourceUpdate> ChangedUpdates);
+
+    private sealed record DirectResultRow(
+        AssessmentResultSourceTarget Target,
+        int RowNumber,
+        string GradeCell,
+        string NoteCell,
+        string GradeRange,
+        string NoteRange)
+    {
+        public string RawGrade { get; init; } = string.Empty;
+        public string RawNote { get; init; } = string.Empty;
+        public AssessmentGrade? Grade { get; init; }
+        public string? Note { get; init; }
+        public string Version { get; init; } = string.Empty;
+    }
+
+    private sealed record DirectPendingCellUpdate(
+        AssessmentResultSourceTarget Target,
+        string Cell,
+        string Range,
+        string Kind,
+        string CurrentValue,
+        string NewValue);
 
     private static NormalException GoogleOperationFailed(string message, Exception? exception = null) =>
         new(message, ProblemCodes.AssessmentSheetGoogleOperationFailed, exception is null ? null : new Dictionary<string, object?>

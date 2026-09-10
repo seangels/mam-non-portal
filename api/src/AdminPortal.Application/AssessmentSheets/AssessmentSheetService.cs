@@ -6,6 +6,7 @@ using AdminPortal.Application.Common.Exceptions;
 using AdminPortal.Application.Common.Interfaces;
 using AdminPortal.Application.Common.Models;
 using AdminPortal.Application.GoogleSheets;
+using AdminPortal.Application.AssessmentResults;
 using AdminPortal.Domain.Entities;
 using AdminPortal.Domain.Enums;
 using ExcelDataReader;
@@ -17,7 +18,8 @@ public sealed partial class AssessmentSheetService(
     IApplicationDbContext dbContext,
     ICurrentActor currentActor,
     TimeProvider timeProvider,
-    IGoogleSheetsService googleSheetsService) : IAssessmentSheetService
+    IGoogleSheetsService googleSheetsService,
+    IResultSourcePersistence resultSourcePersistence) : IAssessmentSheetService
 {
     private static readonly TimeSpan BusinessDateOffset = TimeSpan.FromHours(7);
 
@@ -549,7 +551,10 @@ public sealed partial class AssessmentSheetService(
     {
         var actor = currentActor.GetRequired();
         AssessmentSheetRules.EnsureAssessmentSheetRole(actor);
+        await using var transaction = await resultSourcePersistence.BeginTransactionAsync(cancellationToken);
+        await resultSourcePersistence.LockCatalogSharedAsync(cancellationToken);
         var sheet = await FindRequiredAsync(id, cancellationToken);
+        await resultSourcePersistence.LockStudentAsync(sheet.StudentId, cancellationToken);
         var records = await LoadRecordEntitiesAsync(id, cancellationToken);
 
         var studentCode = sheet.StudentSnapshot.StudentCode
@@ -574,6 +579,7 @@ public sealed partial class AssessmentSheetService(
                 ResultSourceCellAuditSnapshot(sheet, resultSourceUpdate, resultSourceUpdate.NewValue, now));
         }
         await dbContext.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
 
         return await BuildDetailAsync(id, cancellationToken);
     }
@@ -1274,6 +1280,7 @@ public sealed partial class AssessmentSheetService(
             x.StudentSnapshot.StudentCode,
             x.StudentSnapshot.FullName,
             x.StudentSnapshot.NickName,
+            x.StudentSnapshot.DateOfBirth,
             x.ResponsibleTeacherId,
             x.ResponsibleTeacherFullNameSnapshot,
             x.StartDate,

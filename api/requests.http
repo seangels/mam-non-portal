@@ -326,6 +326,30 @@ Content-Type: application/json
 
 ###
 
+# Đọc live toàn bộ kết quả [F0.ĐG] của một học sinh (chỉ Admin/SuperAdmin).
+GET {{host}}/api/v1/students/{{studentId}}/assessment-results
+Authorization: Bearer {{accessToken}}
+
+###
+
+# Lưu các dòng đã sửa. expectedVersion lấy từ response GET/PATCH gần nhất.
+PATCH {{host}}/api/v1/students/{{studentId}}/assessment-results
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "items": [
+    {
+      "assessmentId": "{{assessmentId}}",
+      "expectedVersion": "replace-with-opaque-version",
+      "grade": "A",
+      "note": "Ghi chú kết quả"
+    }
+  ]
+}
+
+###
+
 PUT {{host}}/api/v1/assessment-sheets/{{assessmentSheetId}}
 Authorization: Bearer {{accessToken}}
 Content-Type: application/json

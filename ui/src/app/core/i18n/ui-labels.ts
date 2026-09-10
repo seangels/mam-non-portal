@@ -120,6 +120,10 @@ export const API_ERROR_CODE_LABELS: Record<string, string> = {
   EmailAlreadyExists: 'Email đã được sử dụng.',
   HistoricalRecoveryNotAllowed: 'Không thể dùng khôi phục lịch sử khi vẫn có thể tạo phiếu theo quy trình thông thường.',
   DuplicateGroupCode: 'Mã nhóm đã tồn tại.',
+  AssessmentResultsVersionConflict: 'Kết quả trên Google Sheet đã thay đổi. Vui lòng tải lại dữ liệu.',
+  AssessmentResultsPostWriteFailed: 'Google Sheet đã được ghi nhưng portal chưa xác nhận được dữ liệu mới. Không bấm Lưu lại; hãy tải lại.',
+  AssessmentResultsSourceInvalid: 'Cấu trúc dữ liệu kết quả trên Google Sheet không hợp lệ.',
+  AssessmentResultsGoogleOperationFailed: 'Không thể đọc hoặc ghi kết quả trên Google Sheet.',
   ValidationFailed: 'Một hoặc nhiều thông tin chưa hợp lệ.'
 };
 
