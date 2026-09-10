@@ -1,4 +1,6 @@
 using AdminPortal.Application.AssessmentResults;
+using AdminPortal.Domain.Entities;
+using AdminPortal.Domain.Enums;
 
 namespace AdminPortal.UnitTests;
 
@@ -32,5 +34,42 @@ public sealed class AssessmentResultRulesTests
         Assert.NotEqual(
             baseline,
             AssessmentResultRules.CreateVersion(assessmentId, "H13", "I13", "Đạt +", "ghi chú"));
+    }
+
+    [Fact]
+    public void CreateDatabaseVersionIsStableAndTracksCatalogAndLatestRecordState()
+    {
+        var now = new DateTimeOffset(2026, 9, 10, 12, 0, 0, TimeSpan.Zero);
+        var assessment = new Assessment
+        {
+            Id = Guid.NewGuid(),
+            Code = "A-001",
+            Name = "Assessment",
+            RowIndex = 10,
+            UpdatedByUserId = Guid.NewGuid(),
+            CreatedAt = now,
+            UpdatedAt = now
+        };
+        var recordId = Guid.NewGuid();
+        var baseline = AssessmentResultRules.CreateDatabaseVersion(
+            assessment, recordId, AssessmentGrade.A, "note", now);
+
+        Assert.Equal(
+            baseline,
+            AssessmentResultRules.CreateDatabaseVersion(assessment, recordId, AssessmentGrade.A, "note", now));
+        Assert.NotEqual(
+            baseline,
+            AssessmentResultRules.CreateDatabaseVersion(assessment, recordId, AssessmentGrade.B, "note", now));
+        Assert.NotEqual(
+            baseline,
+            AssessmentResultRules.CreateDatabaseVersion(assessment, recordId, AssessmentGrade.A, "new note", now));
+        Assert.NotEqual(
+            baseline,
+            AssessmentResultRules.CreateDatabaseVersion(assessment, null, null, null, null));
+
+        assessment.Name = "Updated assessment";
+        Assert.NotEqual(
+            baseline,
+            AssessmentResultRules.CreateDatabaseVersion(assessment, recordId, AssessmentGrade.A, "note", now));
     }
 }

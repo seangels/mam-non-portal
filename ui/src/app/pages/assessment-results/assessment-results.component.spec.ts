@@ -1,23 +1,27 @@
 import { of, ReplaySubject, throwError } from 'rxjs';
 import { ApiError } from '../../core/models/api-error';
+import { SyncAssessmentFromGoogleSheetsResponse } from '../../core/models/api.models';
 import { AssessmentResultsSnapshot } from '../../core/models/api.models.assessment-results';
 import { AssessmentResultsService } from '../../core/services/assessment-results.service';
+import { GoogleSheetsService } from '../../core/services/google-sheets.service';
 import { StudentsService } from '../../core/services/students.service';
 import { AssessmentResultsComponent } from './assessment-results.component';
 
 describe('AssessmentResultsComponent', () => {
   let results: jasmine.SpyObj<AssessmentResultsService>;
   let students: jasmine.SpyObj<StudentsService>;
+  let googleSheets: jasmine.SpyObj<GoogleSheetsService>;
   let component: AssessmentResultsComponent;
 
   beforeEach(() => {
     results = jasmine.createSpyObj<AssessmentResultsService>('AssessmentResultsService', ['get', 'update']);
     students = jasmine.createSpyObj<StudentsService>('StudentsService', ['list', 'get']);
+    googleSheets = jasmine.createSpyObj<GoogleSheetsService>('GoogleSheetsService', ['syncFromGoogleSheets']);
     students.list.and.returnValue(of({
       items: [],
       pagination: { page: 1, pageSize: 20, totalItems: 0, totalPages: 0 }
     }));
-    component = new AssessmentResultsComponent(results, students);
+    component = new AssessmentResultsComponent(results, students, googleSheets);
   });
 
   it('adds a remote student selector to the grid toolbar and does not filter out inactive students', async () => {
@@ -35,11 +39,26 @@ describe('AssessmentResultsComponent', () => {
     const loaded = await (component.studentDataSource as any).load({ skip: 0, take: 20, searchValue: 'cũ' });
 
     expect(event.toolbarOptions.items[0]['name']).toBe('assessmentStudentSelector');
+    expect(event.toolbarOptions.items[1]['name']).toBe('assessmentResultsSync');
+    expect(event.toolbarOptions.items[1]['options']).toEqual(jasmine.objectContaining({
+      text: 'Đồng bộ GGSheet', icon: 'refresh', disabled: false
+    }));
     expect(loaded.data[0].status).toBe('Inactive');
     expect(students.list.calls.mostRecent().args[0]).toEqual(jasmine.objectContaining({
       page: 1, pageSize: 20, search: 'cũ'
     }));
     expect(students.list.calls.mostRecent().args[0].status).toBeUndefined();
+  });
+
+  it('opens the shared sync dialog from the toolbar without requiring a selected student', () => {
+    const event = { toolbarOptions: { items: [] as Array<Record<string, unknown>> } };
+    component.onToolbarPreparing(event);
+    const syncOptions = event.toolbarOptions.items[1]['options'] as { onClick(): void };
+
+    syncOptions.onClick();
+
+    expect(component.selectedStudentId).toBeNull();
+    expect(component.syncDialogVisible).toBeTrue();
   });
 
   it('ignores a stale response when the student changes quickly', async () => {
@@ -134,6 +153,23 @@ describe('AssessmentResultsComponent', () => {
     expect(component.saveDisabled).toBeTrue();
   });
 
+  it('offers sync instead of DB reload when Google Sheet and portal are out of sync', async () => {
+    applySnapshot(component, snapshot('student-1'));
+    component.drafts[0].grade = 'D';
+    results.update.and.returnValue(throwError(() => new ApiError(
+      'Dữ liệu nguồn đang lệch.', 409, {}, undefined, 'AssessmentResultsSourceOutOfSync', undefined, [], false,
+      [{ assessmentId: 'assessment-1', databaseGrade: null, sourceGrade: 'B' }]
+    )));
+
+    await component.save();
+
+    expect(component.drafts[0].grade).toBe('D');
+    expect(component.reloadRequired).toBeFalse();
+    expect(component.syncRequired).toBeTrue();
+    expect(component.conflictMessage).toContain('1 dòng đang lệch nguồn');
+    expect(component.saveDisabled).toBeTrue();
+  });
+
   it('does not offer another save when Google wrote successfully but readback failed', async () => {
     applySnapshot(component, snapshot('student-1'));
     component.drafts[0].grade = 'C';
@@ -143,9 +179,81 @@ describe('AssessmentResultsComponent', () => {
 
     await component.save();
 
-    expect(component.reloadRequired).toBeTrue();
+    expect(component.reloadRequired).toBeFalse();
+    expect(component.syncRequired).toBeTrue();
     expect(component.saveDisabled).toBeTrue();
     expect(component.dirtyCount).toBe(1);
+  });
+
+  it('asks immediately before syncing a dirty draft and keeps it when declined or sync fails', async () => {
+    applySnapshot(component, snapshot('student-1'));
+    component.drafts[0].grade = 'A';
+    const confirmSync = spyOn<any>(component, 'confirmSyncWithDraft').and.returnValue(Promise.resolve(false));
+    googleSheets.syncFromGoogleSheets.and.returnValue(throwError(() => new ApiError('Đồng bộ thất bại.', 500)));
+
+    component.openSyncDialog();
+    expect(component.syncDialogVisible).toBeTrue();
+    await component.onSyncConfirmed({});
+    expect(googleSheets.syncFromGoogleSheets).not.toHaveBeenCalled();
+    expect(component.dirtyCount).toBe(1);
+
+    confirmSync.and.returnValue(Promise.resolve(true));
+    await component.onSyncConfirmed({});
+
+    expect(component.drafts[0].grade).toBe('A');
+    expect(component.dirtyCount).toBe(1);
+  });
+
+  it('locks editing and reloads the selected portal snapshot after sync succeeds', async () => {
+    applySnapshot(component, snapshot('student-1'));
+    component.drafts[0].grade = 'D';
+    spyOn<any>(component, 'confirmSyncWithDraft').and.returnValue(Promise.resolve(true));
+    const toolbar = { toolbarOptions: { items: [] as Array<Record<string, unknown>> } };
+    component.onToolbarPreparing(toolbar);
+    const studentWidget = { option: jasmine.createSpy('studentOption') };
+    const syncWidget = { option: jasmine.createSpy('syncOption') };
+    (toolbar.toolbarOptions.items[0]['options'] as any).onInitialized({ component: studentWidget });
+    (toolbar.toolbarOptions.items[1]['options'] as any).onInitialized({ component: syncWidget });
+    const syncResponse = new ReplaySubject<SyncAssessmentFromGoogleSheetsResponse>(1);
+    googleSheets.syncFromGoogleSheets.and.returnValue(syncResponse.asObservable());
+    results.get.and.returnValue(of(snapshot('student-1', 'B', 'Từ portal')));
+
+    const syncing = component.onSyncConfirmed({});
+    await Promise.resolve();
+    expect(component.syncing).toBeTrue();
+    expect(component.canEdit).toBeFalse();
+    expect(component.saveDisabled).toBeTrue();
+    expect(studentWidget.option).toHaveBeenCalledWith({ disabled: true });
+    expect(syncWidget.option).toHaveBeenCalledWith({ text: 'Đang đồng bộ…', disabled: true });
+
+    syncResponse.next(syncResult());
+    syncResponse.complete();
+    await syncing;
+
+    expect(results.get).toHaveBeenCalledOnceWith('student-1');
+    expect(component.drafts[0].grade).toBe('B');
+    expect(component.dirtyCount).toBe(0);
+    expect(component.syncing).toBeFalse();
+    expect(studentWidget.option).toHaveBeenCalledWith({ disabled: false });
+    expect(syncWidget.option).toHaveBeenCalledWith({ text: 'Đồng bộ GGSheet', disabled: false });
+  });
+
+  it('discards the stale draft and requires a DB reload when sync succeeds but snapshot reload fails', async () => {
+    applySnapshot(component, snapshot('student-1'));
+    component.drafts[0].grade = 'D';
+    spyOn<any>(component, 'confirmSyncWithDraft').and.returnValue(Promise.resolve(true));
+    googleSheets.syncFromGoogleSheets.and.returnValue(of(syncResult()));
+    results.get.and.returnValue(throwError(() => new ApiError('Không tải được dữ liệu portal.', 500)));
+
+    await component.onSyncConfirmed({});
+
+    expect(component.drafts).toEqual([]);
+    expect(component.dirtyCount).toBe(0);
+    expect(component.reloadRequired).toBeTrue();
+    expect(component.syncRequired).toBeFalse();
+    expect(component.canEdit).toBeFalse();
+    expect(component.saveDisabled).toBeTrue();
+    expect(component.conflictMessage).toContain('Cần tải lại dữ liệu học sinh');
   });
 
   it('preserves dirty rows across client-side filter and page operations', () => {
@@ -214,5 +322,16 @@ function snapshot(
         grade: null, note: null, version: 'version-2'
       }
     ]
+  };
+}
+
+function syncResult(): SyncAssessmentFromGoogleSheetsResponse {
+  return {
+    sheetsTotalRows: 2,
+    databaseTotalRows: 2,
+    insertedRows: 0,
+    updatedRows: 1,
+    deletedRows: 0,
+    replacedRecordSnapshots: 0
   };
 }

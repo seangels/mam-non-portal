@@ -19,7 +19,8 @@ public sealed partial class AssessmentSheetService(
     ICurrentActor currentActor,
     TimeProvider timeProvider,
     IGoogleSheetsService googleSheetsService,
-    IResultSourcePersistence resultSourcePersistence) : IAssessmentSheetService
+    IResultSourcePersistence resultSourcePersistence,
+    IAssessmentLatestMirrorUpdater latestMirrorUpdater) : IAssessmentSheetService
 {
     private static readonly TimeSpan BusinessDateOffset = TimeSpan.FromHours(7);
 
@@ -556,6 +557,10 @@ public sealed partial class AssessmentSheetService(
         var sheet = await FindRequiredAsync(id, cancellationToken);
         await resultSourcePersistence.LockStudentAsync(sheet.StudentId, cancellationToken);
         var records = await LoadRecordEntitiesAsync(id, cancellationToken);
+        var recordCodes = records.Select(x => x.AssessmentSnapshot.Code).Distinct(StringComparer.Ordinal).ToArray();
+        var assessmentsByCode = await dbContext.Assessments.AsNoTracking()
+            .Where(x => recordCodes.Contains(x.Code))
+            .ToDictionaryAsync(x => x.Code, StringComparer.Ordinal, cancellationToken);
 
         var studentCode = sheet.StudentSnapshot.StudentCode
             ?? throw new ConflictException(
@@ -578,8 +583,37 @@ public sealed partial class AssessmentSheetService(
                 ResultSourceCellAuditSnapshot(sheet, resultSourceUpdate, resultSourceUpdate.CurrentValue, now),
                 ResultSourceCellAuditSnapshot(sheet, resultSourceUpdate, resultSourceUpdate.NewValue, now));
         }
-        await dbContext.SaveChangesAsync(cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
+        try
+        {
+            var mirrorValues = records
+                .Where(x => assessmentsByCode.ContainsKey(x.AssessmentSnapshot.Code))
+                .Select(x => new AssessmentLatestMirrorValue(
+                    assessmentsByCode[x.AssessmentSnapshot.Code].Id,
+                    x.FinalGrade,
+                    x.FinalNote))
+                .ToList();
+            if (mirrorValues.Count > 0)
+            {
+                await latestMirrorUpdater.ApplyAsync(
+                    sheet.StudentId,
+                    mirrorValues,
+                    actor,
+                    cancellationToken);
+            }
+            await dbContext.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+        }
+        catch (Exception ex) when (resultSourceUpdates.Count > 0)
+        {
+            throw new NormalException(
+                "Google Sheet đã được cập nhật nhưng không thể cập nhật dữ liệu gần nhất trong portal.",
+                ProblemCodes.AssessmentResultsPostWriteFailed,
+                new Dictionary<string, object?>
+                {
+                    ["googleWriteSucceeded"] = true,
+                    ["failureType"] = ex.GetType().Name
+                });
+        }
 
         return await BuildDetailAsync(id, cancellationToken);
     }

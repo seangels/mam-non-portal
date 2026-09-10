@@ -16,13 +16,15 @@
 <div *ngIf="saveError || conflictMessage" class="content-block error-panel" role="alert">
   <span>{{ conflictMessage || saveError }}<small *ngIf="traceId"> Mã tra cứu: {{ traceId }}</small></span>
   <dx-button *ngIf="reloadRequired" text="Tải dữ liệu mới nhất" icon="refresh" type="default"
-    [disabled]="loading || saving" (onClick)="reloadLatest()"></dx-button>
+    [disabled]="loading || saving || syncing" (onClick)="reloadLatest()"></dx-button>
+  <dx-button *ngIf="syncRequired" text="Đồng bộ GGSheet" icon="refresh" type="default"
+    [disabled]="syncDisabled" (onClick)="openSyncDialog()"></dx-button>
 </div>
 
 <div class="content-block dx-card results-grid-card">
   <div *ngIf="loading" class="loading-overlay" aria-live="polite">
     <dx-load-indicator></dx-load-indicator>
-    <span>Đang đọc kết quả trực tiếp từ Google Sheet…</span>
+    <span>Đang tải kết quả từ dữ liệu portal…</span>
   </div>
 
   <dx-data-grid #grid
@@ -117,6 +119,11 @@
     </div>
   </dx-data-grid>
 </div>
+
+<app-google-sheets-sync-dialog
+  [(visible)]="syncDialogVisible"
+  (confirmSync)="onSyncConfirmed($event)">
+</app-google-sheets-sync-dialog>
 
 <div class="results-sticky-bar" role="region" aria-label="Thao tác lưu kết quả">
   <div class="change-summary">

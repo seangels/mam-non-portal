@@ -326,13 +326,14 @@ Content-Type: application/json
 
 ###
 
-# Đọc live toàn bộ kết quả [F0.ĐG] của một học sinh (chỉ Admin/SuperAdmin).
+# Đọc toàn bộ danh mục và latest mirror trong DB của một học sinh; không gọi Google (chỉ Admin/SuperAdmin).
 GET {{host}}/api/v1/students/{{studentId}}/assessment-results
 Authorization: Bearer {{accessToken}}
 
 ###
 
-# Lưu các dòng đã sửa. expectedVersion lấy từ response GET/PATCH gần nhất.
+# Lưu các dòng đã sửa. expectedVersion là DB token lấy từ response GET/PATCH gần nhất.
+# 409 AssessmentResultsVersionConflict: DB đã đổi; 409 AssessmentResultsSourceOutOfSync: Google khác baseline DB.
 PATCH {{host}}/api/v1/students/{{studentId}}/assessment-results
 Authorization: Bearer {{accessToken}}
 Content-Type: application/json

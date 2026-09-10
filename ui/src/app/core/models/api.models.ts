@@ -38,6 +38,13 @@ export interface ProblemDetails {
     currentGrade?: string | null;
     currentNote?: string | null;
   }>;
+  sourceConflicts?: Array<{
+    assessmentId: string;
+    databaseGrade?: string | null;
+    databaseNote?: string | null;
+    sourceGrade?: string | null;
+    sourceNote?: string | null;
+  }>;
   googleWriteSucceeded?: boolean;
 }
 

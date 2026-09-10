@@ -6,6 +6,7 @@ import { DxDataGridModule } from 'devextreme-angular/ui/data-grid';
 import { DxLoadIndicatorModule } from 'devextreme-angular/ui/load-indicator';
 import { DxSelectBoxModule } from 'devextreme-angular/ui/select-box';
 import { DxTextAreaModule } from 'devextreme-angular/ui/text-area';
+import { GoogleSheetsSyncDialogModule } from '../../shared/components';
 import { AssessmentResultsComponent } from './assessment-results.component';
 
 @NgModule({
@@ -16,7 +17,8 @@ import { AssessmentResultsComponent } from './assessment-results.component';
     DxDataGridModule,
     DxLoadIndicatorModule,
     DxSelectBoxModule,
-    DxTextAreaModule
+    DxTextAreaModule,
+    GoogleSheetsSyncDialogModule
   ],
   declarations: [AssessmentResultsComponent],
   exports: [AssessmentResultsComponent]

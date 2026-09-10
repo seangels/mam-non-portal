@@ -2,7 +2,7 @@
 
 ## Tóm tắt ngắn
 
-1. ✅ Thêm màn hình manager-only chọn học sinh và đọc trực tiếp toàn bộ kết quả từ `[F0.ĐG]`.
+1. ✅ Thêm màn hình manager-only chọn học sinh; từ `ASH-KQ-DB-SYNC-01`, màn hình đọc toàn bộ kết quả từ latest mirror trong DB thay vì đọc trực tiếp `[F0.ĐG]`.
 2. ✅ Cho sửa `grade`/`note` tại client, chỉ ghi batch khi bấm nút lưu trên sticky bar.
 3. ✅ Chặn ghi đè bằng version theo dòng; xung đột trả `409` và không ghi partial.
 4. ✅ Sau khi Google ghi thành công, cập nhật mirror latest của đúng học sinh và audit từng ô thay đổi.
@@ -11,7 +11,7 @@
 
 ## Contract đã chốt
 
-- `GET /api/v1/students/{studentId}/assessment-results` đọc live `[F0.ĐG]`, ghép toàn bộ catalog `Assessment` và trả version opaque theo dòng.
+- `GET /api/v1/students/{studentId}/assessment-results` ban đầu đọc live `[F0.ĐG]`; contract hiện hành theo `ASH-KQ-DB-SYNC-01` đọc catalog + latest mirror trong DB và trả version opaque theo dòng.
 - `PATCH /api/v1/students/{studentId}/assessment-results` chỉ nhận các dòng đã sửa với `assessmentId`, `expectedVersion`, `grade`, `note`.
 - `grade` nhận `A|B|C|D|null`; `note` tối đa 2.000 ký tự; `null`/rỗng dùng để xóa ô.
 - Chỉ `SuperAdmin`/`Admin`; `Teacher` nhận `403`.
@@ -21,7 +21,7 @@
 ## Điều kiện hoàn thành
 
 - ✅ UI route `/#/assessment-results`, menu `Cập nhật kết quả`, DataGrid có selector học sinh, edit client-only, sticky save và nút lên đầu/xuống cuối trang.
-- ✅ GET phản ánh giá trị live Google thay vì cache portal; PATCH chỉ batch-update ô thực sự đổi.
+- ✅ PATCH chỉ batch-update ô thực sự đổi; GET hiện phản ánh mirror DB và không gọi Google.
 - ✅ Version stale trả `AssessmentResultsVersionConflict` và không ghi bất kỳ ô nào; integration test concurrency xác nhận đúng một lượt thành công và một lượt conflict khi cùng version.
 - ✅ Mirror latest của học sinh phản ánh grade/note mới ngay sau save; note-only không bị full sync làm mất.
 - ✅ Có audit tổng hợp/từng ô và xử lý riêng trường hợp Google đã ghi nhưng readback/DB thất bại.

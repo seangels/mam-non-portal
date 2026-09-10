@@ -52,7 +52,7 @@ Production build, IIS package và deploy không thuộc plan này; chỉ chạy 
   - `PlanGrade` (`AssessmentGrade?`) + `PlanNote` (`string?`, giới hạn 2000 ký tự) — giai đoạn lập kế hoạch.
   - `FinalGrade` (`AssessmentGrade?`) + `FinalNote` (`string?`, giới hạn 2000 ký tự) — kết quả đánh giá thật, độc lập với cặp Plan.
   - Đây là bản khôi phục đúng thiết kế "hai cặp tách biệt" ban đầu; **một phiên bản trung gian của tài liệu này (và của chính entity, trong lúc soạn) từng gộp lại thành một field `Grade` duy nhất — bản đó đã lỗi thời, không dùng nữa.**
-- `AssessmentSheetLatest` (`AssessmentSheetLatest.cs`) và `AssessmentRecordLatest` (`AssessmentRecordLatest.cs`) — cặp entity mirror **chỉ-đọc đối với người dùng**, được nạp/ghi đè bởi luồng fetch từ `[F0.data_DG]`; ngoại lệ `ASH-KQ-DIRECT-01` được rebuild đúng một học sinh sau khi PATCH manager-only ghi Google thành công. Mirror dùng để UI hiển thị/lọc dữ liệu gần nhất và gửi lại trong request tạo mới `AssessmentSheet` — không phục vụ mục đích nào khác, không liên quan gì tới cơ chế file `[F01]` riêng ở mục 6. `AssessmentRecordLatest.LatestGrade` vẫn là **field đơn** (không tách Plan/Final) vì đây chỉ là dữ liệu nguồn tham chiếu, không phải working record.
+- `AssessmentSheetLatest` (`AssessmentSheetLatest.cs`) và `AssessmentRecordLatest` (`AssessmentRecordLatest.cs`) — cặp entity mirror phục vụ dữ liệu gần nhất trong portal. Full sync thay toàn bộ mirror; `ASH-KQ-DB-SYNC-01` cho phép direct PATCH và `submit-results` cập nhật một phần đúng học sinh/tập Assessment sau khi ghi Google thành công. Mirror dùng để UI hiển thị/lọc dữ liệu gần nhất và gửi lại trong request tạo mới `AssessmentSheet`; `AssessmentRecordLatest.LatestGrade` vẫn là **field đơn** (không tách Plan/Final).
   - `AssessmentSheetLatest` mirror gần như nguyên cấu trúc `AssessmentSheet` nhưng **vẫn còn `ClosedDate`** và **không có** `SubmissionDate`/`AssessmentSheetSpreadsheetId`/`PlanFileLinkPdf`/`ResultFileLinkPdf`.
   - `AssessmentRecordLatest` có khoá ngoại `AssessmentSheetLatestId`/`AssessmentSheetLatest`, snapshot mục đánh giá và field `LatestGrade` đơn.
 - `GoogleSheetsService.SyncAssessmentsAsync` (đọc `_data_DG_only_item`, ghi đè toàn bộ `Assessment`) và `GoogleSheetsController.SyncAssessmentsFromGoogleSheets` (`POST /api/v1/google-sheets/sync-assessments`, policy `PortalManagers`) — **chưa đọc/ghi `AssessmentSheetLatest`/`AssessmentRecordLatest`, chưa có bất kỳ thao tác Drive file copy hay ghi ngược sheet nào.**
@@ -81,7 +81,7 @@ Việc đầu tiên của backend agent là đối chiếu lại các file trên
 
 - `AssessmentRecord` giữ nguyên 4 field như mục 4: `PlanGrade`/`PlanNote`/`FinalGrade`/`FinalNote` — không gộp lại thành một field. `PlanGrade`/`PlanNote` khởi tạo từ `records[].latestGrade`/`records[].note` trong request tạo mới (UI lấy từ dữ liệu latest đang hiển thị), sau đó mutable trực tiếp qua bước sửa plan (mục 7). `FinalGrade`/`FinalNote` để trống tới khi nhập kết quả (mục 9), độc lập với `PlanGrade`/`PlanNote`, không tự động fill từ kế hoạch/latest.
 - **`AssessmentSheet.AssessmentSheetSpreadsheetId` hiện là legacy DB-only**: field từng phục vụ file Google Sheet riêng `[F01]`, nhưng luồng này đã ngừng dùng từ 2026-08-27. Code mới không expose qua DTO/API/UI và không ghi giá trị mới.
-- `AssessmentSheetLatest`/`AssessmentRecordLatest`: đã có EF configuration + migration (`ASH-BE-01`) và luồng đồng bộ `sync-assessments` hiện đã nạp lại cả `Assessment`, `AssessmentSheetLatest`, `AssessmentRecordLatest` từ Google Sheet. Không có API CRUD trực tiếp cho cặp bảng này; `ASH-KQ-DIRECT-01` chỉ rebuild mirror của một học sinh như bước hậu xử lý bắt buộc sau khi ghi live thành công.
+- `AssessmentSheetLatest`/`AssessmentRecordLatest`: đã có EF configuration + migration (`ASH-BE-01`) và luồng đồng bộ `sync-assessments` nạp lại cả `Assessment`, `AssessmentSheetLatest`, `AssessmentRecordLatest` từ Google Sheet. Không có API CRUD trực tiếp cho cặp bảng này; direct PATCH và `submit-results` dùng chung partial mirror updater sau khi ghi nguồn thành công.
 - **Đính chính kỹ thuật 2026-08-25:** bản trung gian từng dùng field scalar `AssessmentRecordLatest.AssessmentCode` để index/upsert vì EF không index được sub-property JSON. Source hiện tại đã đổi sang liên kết trực tiếp `AssessmentRecordLatest.AssessmentId`/`Assessment` và unique index (`AssessmentSheetLatestId`, `AssessmentId`). Các đoạn/log cũ nhắc `AssessmentCode` chỉ còn giá trị lịch sử, không phải contract hiện hành.
 - Khoá upsert khi đồng bộ (`ASH-DEC-05`) đã áp dụng trong migration hiện hành: `AssessmentSheetLatest` unique index trên `StudentId`; `AssessmentRecordLatest` unique index trên (`AssessmentSheetLatestId`, `AssessmentId`).
 - `ClosedDate` trên `AssessmentSheetLatest` đã bỏ (`ASH-DEC-03`, áp dụng đầy đủ — trước đó chỉ `AssessmentSheet` đã bỏ, giờ cả hai).
@@ -108,7 +108,7 @@ Việc đầu tiên của backend agent là đối chiếu lại các file trên
 
 - Mở rộng `SyncAssessmentsAsync` để, ngoài việc thay thế `Assessment`, đọc thêm cột kết quả để nạp lại `AssessmentSheetLatest` (một dòng mirror mỗi học sinh, unique index theo `StudentId`) và các `AssessmentRecordLatest` con (`LatestGrade` đơn = kết quả đọc được — không tách Plan/Final ở bảng này). Record latest liên kết tới mục đánh giá bằng `AssessmentId`/`Assessment`, không dùng `AssessmentCode` trong source hiện hành. Cân nhắc đổi tên DTO mẫu có sẵn `AssessmentLastResultGoogleSheetResponse` trong `GoogleSheetsModels.cs` cho khớp ngữ cảnh mới khi code.
 - Đổi quyền: `Teacher`/`Admin`/`SuperAdmin` đều gọi được `POST /api/v1/google-sheets/sync-assessments`. **Không đổi định nghĩa policy `PortalManagers`** (sẽ vô tình mở quyền Student/Group/Teacher/User cho `Teacher`) — thêm role-check riêng tại handler (`EnsureAssessmentSyncRole`), theo `ASH-DEC-02`.
-- `AssessmentSheetLatest`/`AssessmentRecordLatest` là bảng mirror chỉ-đọc: chỉ full sync này và `ASH-KQ-DIRECT-01` (rebuild đúng một học sinh sau khi Google ghi thành công) được phép ghi. Hai luồng hoàn toàn tách biệt khỏi `AssessmentSheet` working records.
+- `AssessmentSheetLatest`/`AssessmentRecordLatest` là bảng mirror không có CRUD người dùng: full sync thay toàn bộ, còn direct PATCH và `submit-results` cập nhật một phần sau khi ghi Google. Chỉnh working record mà chưa submit không cập nhật mirror.
 
 ## 7. Thiết kế sinh PDF `[F02]`/`[F03]`
 
@@ -227,15 +227,15 @@ Tài liệu/handoff:
 
 - `ASH-QA-01`: chạy đầy đủ smoke ở mục 9 trên môi trường Development, ghi kết quả pass/fail vào memory; không mở rộng ngoài phạm vi đã giới hạn.
 
-## 11.1. Delta ASH-KQ-DIRECT-01 — cập nhật kết quả live theo học sinh
+## 11.1. Delta ASH-KQ-DIRECT-01 / ASH-KQ-DB-SYNC-01 — cập nhật kết quả theo học sinh
 
 - API manager-only:
-  - `GET /api/v1/students/{studentId}/assessment-results` đọc live ResultSource và trả học sinh (gồm ngày sinh) cùng toàn bộ Assessment: `assessmentId`, code/name/group, `rowIndex`, `grade`, `note`, opaque `version`.
+  - `GET /api/v1/students/{studentId}/assessment-results` đọc catalog + latest mirror trong DB, không gọi/fallback Google, và trả học sinh (gồm ngày sinh) cùng toàn bộ Assessment: `assessmentId`, code/name/group, `rowIndex`, `grade`, `note`, opaque DB `version`.
   - `PATCH /api/v1/students/{studentId}/assessment-results` nhận duy nhất các dòng dirty `{ assessmentId, expectedVersion, grade, note }`; grade nullable `A|B|C|D`, note tối đa 2.000 ký tự.
-- Server tự resolve địa chỉ từ `ResultSource_*`. Trước batch write phải read lại toàn bộ dòng dirty và so version; có một conflict thì trả `409 AssessmentResultsVersionConflict`, không ghi partial. Chỉ các ô thực sự đổi mới vào một `Values.BatchUpdate`.
-- Sau write phải readback và rebuild latest mirror của đúng học sinh, bao gồm record note-only. Nếu post-write/readback/mirror lỗi, trả lỗi riêng với `googleWriteSucceeded: true` để UI không tự retry.
+- Server kiểm tra toàn bộ `expectedVersion` với DB trước khi gọi Google; stale trả `409 AssessmentResultsVersionConflict`. Sau đó tự resolve địa chỉ từ `ResultSource_*`, đọc dòng dirty và so với baseline DB; nguồn lệch trả `409 AssessmentResultsSourceOutOfSync`. Không trường hợp conflict nào được ghi partial; chỉ ô thực sự đổi mới vào `Values.BatchUpdate`.
+- Sau write/readback, partial mirror updater upsert/delete đúng tập Assessment dirty và response canonical dựng lại từ DB. Cùng updater được `submit-results` dùng để phản ánh ngay toàn bộ record vừa submit, kể cả clear, note-only và Google no-op. Nếu post-write/readback/mirror lỗi, trả lỗi riêng với `googleWriteSucceeded: true` để UI không tự retry.
 - Advisory lock tuần tự hóa write cùng học sinh và loại trừ tương thích với full sync. Audit gồm một entry tổng hợp và từng ô Grade/Note thay đổi.
-- UI `/#/assessment-results` dùng route guards `SetupCompletedGuard`, `AuthGuardService`, `RoleGuard`, `PendingChangesGuard`; menu/route chỉ `SuperAdmin|Admin`. Grid giữ baseline + draft local, xác nhận khi bỏ draft, chống response race, hiển thị conflict/reload và sticky bar save/top/bottom. Subtitle dùng DOB từ response để hiển thị ngày sinh `dd/MM/yyyy` và tuổi hiện tại bằng helper dùng chung.
+- UI `/#/assessment-results` dùng route guards `SetupCompletedGuard`, `AuthGuardService`, `RoleGuard`, `PendingChangesGuard`; menu/route chỉ `SuperAdmin|Admin`. Grid giữ baseline + draft local, xác nhận khi bỏ draft, chống response race, CTA riêng cho DB conflict và source drift/post-write, sticky bar save/top/bottom. Subtitle dùng DOB để hiển thị ngày sinh `dd/MM/yyyy` và tuổi hiện tại bằng helper dùng chung. Trang import shared Google sync dialog/service giống `/assessments`; Teacher vẫn đồng bộ được tại `/assessments`.
 - Không thêm migration/schema. Automated gate gồm backend build/unit và frontend `test:ci`/development build; integration chỉ chạy khi Docker sẵn có, Google live smoke chỉ chạy với học sinh test được chỉ định.
 
 ## 12. Definition of Done
@@ -245,7 +245,7 @@ Tài liệu/handoff:
 - EF xác nhận không còn pending model changes sau migration mới.
 - `Teacher` gọi được `sync-assessments` không còn `403`; các endpoint quản trị khác (Students/Groups/Teachers/Users/Attendance recovery) vẫn giữ nguyên giới hạn `PortalManagers` — không bị mở nhầm quyền.
 - Không còn tạo/copy Google Sheet riêng `[F01]`; source không còn endpoint/config/service method cho `export-to-sheet`, `sync-to-sheet`, `generate-plan-pdf`, `generate-result-pdf`.
-- Sửa `PlanGrade`/`FinalGrade`/plan hoặc gọi `submit-results` trên một `AssessmentSheet` không ghi ngược `AssessmentSheetLatest`/`AssessmentRecordLatest`/`Assessment` gốc. Hai bảng `*Latest` chỉ bị ghi bởi full sync hoặc ngoại lệ PATCH manager-only `ASH-KQ-DIRECT-01` cho đúng học sinh vừa ghi Google thành công. Sửa `FinalGrade` không làm đổi `PlanGrade` và ngược lại.
+- Sửa `PlanGrade`/`FinalGrade`/plan nhưng chưa submit không ghi ngược `AssessmentSheetLatest`/`AssessmentRecordLatest`/`Assessment` gốc. Hai bảng `*Latest` được ghi bởi full sync, PATCH manager-only `assessment-results`, hoặc `submit-results` cho đúng học sinh/tập Assessment sau khi ghi Google. Sửa `FinalGrade` không làm đổi `PlanGrade` và ngược lại.
 - `Done` khoá đúng các field theo mục 4 của requirements 09; `Open` mở lại được bởi mọi vai trò, không cần lý do.
 - README/`requests.http`/`docs/tasks/**`/`docs/plans/README.md`/memory được cập nhật.
 - Không chạy production/IIS build trong phạm vi plan này.

@@ -17,10 +17,11 @@ import {
   AssessmentGrade,
   compareAssessmentByFixedGroupOrder
 } from '../../core/models/api.models.assessment-sheets';
-import { Student } from '../../core/models/api.models';
+import { Student, SyncAssessmentFromGoogleSheetsRequest, SyncAssessmentFromGoogleSheetsResponse } from '../../core/models/api.models';
 import { ApiError } from '../../core/models/api-error';
 import { asLegacyWidgetDataSource } from '../../core/models/devextreme-legacy.types';
 import { AssessmentResultsService } from '../../core/services/assessment-results.service';
+import { GoogleSheetsService } from '../../core/services/google-sheets.service';
 import { StudentsService } from '../../core/services/students.service';
 import { calculateAgeText, formatDateText } from '../assessment-sheets/assessment-sheet-plan-preview.models';
 
@@ -41,7 +42,16 @@ interface ToolbarPreparingEvent {
 
 interface SelectValueChangedEvent {
   value?: unknown;
-  component?: { option(name: string, value: unknown): void };
+  component?: ToolbarWidgetInstance;
+}
+
+interface WidgetInitializedEvent {
+  component?: ToolbarWidgetInstance;
+}
+
+interface ToolbarWidgetInstance {
+  option(name: string, value: unknown): void;
+  option(options: Record<string, unknown>): void;
 }
 
 interface EditCellContext {
@@ -88,11 +98,14 @@ export class AssessmentResultsComponent implements OnDestroy {
   drafts: AssessmentResultDraft[] = [];
   loading = false;
   saving = false;
+  syncing = false;
+  syncDialogVisible = false;
   loadError = '';
   saveError = '';
   traceId = '';
   conflictMessage = '';
   reloadRequired = false;
+  syncRequired = false;
 
   private baseline = new Map<string, string>();
   private conflictIds = new Set<string>();
@@ -100,10 +113,13 @@ export class AssessmentResultsComponent implements OnDestroy {
   private restoringSelection = false;
   private destroyed = false;
   private gridBestFitGuarded = false;
+  private studentSelector?: ToolbarWidgetInstance;
+  private syncToolbarButton?: ToolbarWidgetInstance;
 
   constructor(
     private readonly assessmentResults: AssessmentResultsService,
-    private readonly students: StudentsService
+    private readonly students: StudentsService,
+    private readonly googleSheets: GoogleSheetsService
   ) {}
 
   get dirtyCount(): number {
@@ -115,20 +131,29 @@ export class AssessmentResultsComponent implements OnDestroy {
   }
 
   get saveDisabled(): boolean {
-    return !this.selectedStudentId || this.loading || this.saving || this.dirtyCount === 0 ||
-      this.invalidCount > 0 || this.reloadRequired;
+    return !this.selectedStudentId || this.loading || this.saving || this.syncing || this.dirtyCount === 0 ||
+      this.invalidCount > 0 || this.reloadRequired || this.syncRequired;
   }
 
   get canEdit(): boolean {
-    return !!this.selectedStudentId && !this.loading && !this.saving && !this.reloadRequired;
+    return !!this.selectedStudentId && !this.loading && !this.saving && !this.syncing &&
+      !this.reloadRequired && !this.syncRequired;
   }
 
   get saveButtonText(): string {
     return this.saving ? 'Đang lưu…' : `Lưu kết quả (${this.dirtyCount})`;
   }
 
+  get syncDisabled(): boolean {
+    return this.syncing || this.loading || this.saving;
+  }
+
+  get syncButtonText(): string {
+    return this.syncing ? 'Đang đồng bộ…' : 'Đồng bộ GGSheet';
+  }
+
   get studentSummary(): string {
-    if (!this.student) return 'Chọn học sinh để tải toàn bộ danh mục đánh giá và kết quả hiện tại.';
+    if (!this.student) return 'Chọn học sinh để tải toàn bộ danh mục đánh giá và kết quả hiện tại từ dữ liệu portal.';
     const birthDate = formatDateText(this.student.dateOfBirth);
     const age = calculateAgeText(this.student.dateOfBirth, new Date());
     return `${this.student.studentCode} · ${this.student.fullName} · ${this.student.nickName || 'Chưa có tên gọi'} · Ngày sinh ${birthDate} · ${age} · ${STUDENT_STATUS_LABELS[this.student.status]}`;
@@ -140,29 +165,50 @@ export class AssessmentResultsComponent implements OnDestroy {
 
   onToolbarPreparing(event: ToolbarPreparingEvent): void {
     const items = event.toolbarOptions?.items;
-    if (!items || items.some(item => item['name'] === 'assessmentStudentSelector')) return;
-    items.unshift({
-      name: 'assessmentStudentSelector',
-      location: 'before',
-      widget: 'dxSelectBox',
-      options: {
-        dataSource: this.studentDataSource,
-        value: this.selectedStudentId,
-        valueExpr: 'id',
-        displayExpr: this.studentDisplay,
-        searchEnabled: true,
-        searchExpr: ['studentCode', 'fullName', 'nickName'],
-        searchMode: 'contains',
-        searchTimeout: 300,
-        minSearchLength: 0,
-        showClearButton: true,
-        placeholder: 'Chọn học sinh (đang học hoặc đã nghỉ)',
-        noDataText: 'Không có học sinh phù hợp',
-        width: 480,
-        inputAttr: { 'aria-label': 'Chọn học sinh để cập nhật kết quả' },
-        onValueChanged: (valueEvent: SelectValueChangedEvent) => this.onStudentChanged(valueEvent)
-      }
-    });
+    if (!items) return;
+    if (!items.some(item => item['name'] === 'assessmentStudentSelector')) {
+      items.unshift({
+        name: 'assessmentStudentSelector',
+        location: 'before',
+        widget: 'dxSelectBox',
+        options: {
+          dataSource: this.studentDataSource,
+          value: this.selectedStudentId,
+          valueExpr: 'id',
+          displayExpr: this.studentDisplay,
+          searchEnabled: true,
+          searchExpr: ['studentCode', 'fullName', 'nickName'],
+          searchMode: 'contains',
+          searchTimeout: 300,
+          minSearchLength: 0,
+          showClearButton: true,
+          disabled: this.syncing,
+          placeholder: 'Chọn học sinh (đang học hoặc đã nghỉ)',
+          noDataText: 'Không có học sinh phù hợp',
+          width: 480,
+          inputAttr: { 'aria-label': 'Chọn học sinh để cập nhật kết quả' },
+          onInitialized: (initialized: WidgetInitializedEvent) => this.studentSelector = initialized.component,
+          onValueChanged: (valueEvent: SelectValueChangedEvent) => this.onStudentChanged(valueEvent)
+        }
+      });
+    }
+    if (!items.some(item => item['name'] === 'assessmentResultsSync')) {
+      items.splice(1, 0, {
+        name: 'assessmentResultsSync',
+        location: 'before',
+        widget: 'dxButton',
+        options: {
+          text: this.syncButtonText,
+          icon: 'refresh',
+          type: 'default',
+          stylingMode: 'outlined',
+          disabled: this.syncDisabled,
+          hint: 'Đồng bộ danh mục và kết quả từ Google Sheets vào portal',
+          onInitialized: (initialized: WidgetInitializedEvent) => this.syncToolbarButton = initialized.component,
+          onClick: () => this.openSyncDialog()
+        }
+      });
+    }
   }
 
   onStudentChanged(event: SelectValueChangedEvent): void {
@@ -173,11 +219,11 @@ export class AssessmentResultsComponent implements OnDestroy {
 
   async changeStudent(
     studentId: string | null,
-    selector?: { option(name: string, value: unknown): void }
+    selector?: ToolbarWidgetInstance
   ): Promise<void> {
     if (studentId === this.selectedStudentId) return;
     const previous = this.selectedStudentId;
-    if (this.saving || !(await this.confirmDiscard())) {
+    if (this.saving || this.syncing || !(await this.confirmDiscard())) {
       this.restoreSelector(selector, previous);
       return;
     }
@@ -188,7 +234,7 @@ export class AssessmentResultsComponent implements OnDestroy {
   }
 
   async reloadLatest(): Promise<void> {
-    if (!this.selectedStudentId || this.loading || this.saving) return;
+    if (!this.selectedStudentId || this.loading || this.saving || this.syncing) return;
     if (!(await this.confirmDiscard())) return;
     await this.loadSnapshot(this.selectedStudentId);
   }
@@ -204,6 +250,7 @@ export class AssessmentResultsComponent implements OnDestroy {
     }));
 
     this.saving = true;
+    this.syncToolbarState();
     this.saveError = '';
     this.traceId = '';
     this.conflictMessage = '';
@@ -212,11 +259,50 @@ export class AssessmentResultsComponent implements OnDestroy {
       const snapshot = await firstValueFrom(this.assessmentResults.update(this.selectedStudentId, { items: requestItems }));
       if (this.destroyed) return;
       this.applySnapshot(snapshot);
-      notify(`Đã lưu ${requestItems.length} dòng kết quả vào Google Sheet.`, 'success', 3000);
+      notify(`Đã lưu ${requestItems.length} dòng kết quả vào Google Sheet và cập nhật dữ liệu portal.`, 'success', 3000);
     } catch (error) {
       this.handleSaveError(error, requestItems);
     } finally {
       this.saving = false;
+      this.syncToolbarState();
+    }
+  }
+
+  openSyncDialog(): void {
+    if (this.syncDisabled) return;
+    this.syncDialogVisible = true;
+  }
+
+  async onSyncConfirmed(request: SyncAssessmentFromGoogleSheetsRequest): Promise<void> {
+    if (this.syncDisabled) return;
+    this.syncDialogVisible = false;
+    if (this.hasPendingChanges() && !(await this.confirmSyncWithDraft())) return;
+    this.syncing = true;
+    this.saveError = '';
+    this.traceId = '';
+    this.syncToolbarState();
+    try {
+      const result = await firstValueFrom(this.googleSheets.syncFromGoogleSheets(request));
+      if (this.destroyed) return;
+      const selectedStudentId = this.selectedStudentId;
+      if (selectedStudentId) this.prepareForPostSyncReload();
+      const reloaded = selectedStudentId ? await this.loadSnapshot(selectedStudentId) : true;
+      if (this.destroyed) return;
+      if (reloaded) {
+        notify(this.syncSuccessMessage(result), 'success', 3500);
+      } else {
+        notify('Đã đồng bộ Google Sheets vào portal nhưng chưa tải lại được kết quả học sinh.', 'warning', 4000);
+      }
+    } catch (error) {
+      if (this.destroyed) return;
+      const apiError = ApiError.from(error);
+      this.saveError = apiError.message;
+      this.traceId = apiError.traceId ?? '';
+      this.conflictMessage = '';
+      notify(this.withTrace(apiError), 'error', 4000);
+    } finally {
+      this.syncing = false;
+      this.syncToolbarState();
     }
   }
 
@@ -321,26 +407,29 @@ export class AssessmentResultsComponent implements OnDestroy {
     ++this.requestSequence;
   }
 
-  private async loadSnapshot(studentId: string): Promise<void> {
+  private async loadSnapshot(studentId: string): Promise<boolean> {
     const request = ++this.requestSequence;
     this.loading = true;
+    this.syncToolbarState();
     this.loadError = '';
     this.saveError = '';
     this.traceId = '';
-    this.conflictMessage = '';
-    this.reloadRequired = false;
-    this.conflictIds.clear();
     try {
       const snapshot = await firstValueFrom(this.assessmentResults.get(studentId));
-      if (this.destroyed || request !== this.requestSequence || studentId !== this.selectedStudentId) return;
+      if (this.destroyed || request !== this.requestSequence || studentId !== this.selectedStudentId) return false;
       this.applySnapshot(snapshot);
+      return true;
     } catch (error) {
-      if (request !== this.requestSequence || studentId !== this.selectedStudentId) return;
+      if (request !== this.requestSequence || studentId !== this.selectedStudentId) return false;
       const apiError = ApiError.from(error);
       this.loadError = apiError.message;
       this.traceId = apiError.traceId ?? '';
+      return false;
     } finally {
-      if (request === this.requestSequence) this.loading = false;
+      if (request === this.requestSequence) {
+        this.loading = false;
+        this.syncToolbarState();
+      }
     }
   }
 
@@ -357,6 +446,7 @@ export class AssessmentResultsComponent implements OnDestroy {
     this.traceId = '';
     this.conflictMessage = '';
     this.reloadRequired = false;
+    this.syncRequired = false;
     setTimeout(() => this.grid?.instance.pageIndex(0));
   }
 
@@ -371,6 +461,7 @@ export class AssessmentResultsComponent implements OnDestroy {
     this.traceId = '';
     this.conflictMessage = '';
     this.reloadRequired = false;
+    this.syncRequired = false;
   }
 
   private validate(): boolean {
@@ -393,10 +484,20 @@ export class AssessmentResultsComponent implements OnDestroy {
     this.traceId = apiError.traceId ?? '';
     if (apiError.code === 'AssessmentResultsVersionConflict') {
       this.reloadRequired = true;
+      this.syncRequired = false;
       this.conflictIds = new Set(apiError.conflicts.map(item => item.assessmentId));
       this.conflictMessage = `${apiError.message} ${apiError.conflicts.length} dòng đang xung đột; tải lại trước khi sửa tiếp.`;
+    } else if (apiError.code === 'AssessmentResultsSourceOutOfSync') {
+      this.reloadRequired = false;
+      this.syncRequired = true;
+      this.conflictIds = new Set(apiError.sourceConflicts.map(item => item.assessmentId));
+      const count = apiError.sourceConflicts.length;
+      this.conflictMessage = count > 0
+        ? `${apiError.message} ${count} dòng đang lệch nguồn; đồng bộ trước khi sửa tiếp.`
+        : apiError.message;
     } else if (apiError.code === 'AssessmentResultsPostWriteFailed' && apiError.googleWriteSucceeded) {
-      this.reloadRequired = true;
+      this.reloadRequired = false;
+      this.syncRequired = true;
       this.conflictMessage = apiError.message;
     }
     this.applyFieldErrors(apiError, requestItems);
@@ -451,8 +552,39 @@ export class AssessmentResultsComponent implements OnDestroy {
     );
   }
 
+  private async confirmSyncWithDraft(): Promise<boolean> {
+    return await confirm(
+      'Bạn đang có kết quả chưa lưu. Nếu đồng bộ thành công, dữ liệu mới từ portal sẽ thay thế các thay đổi này. Tiếp tục đồng bộ?',
+      'Đồng bộ và tải lại dữ liệu?'
+    );
+  }
+
+  private syncToolbarState(): void {
+    this.studentSelector?.option({ disabled: this.syncing });
+    this.syncToolbarButton?.option({ text: this.syncButtonText, disabled: this.syncDisabled });
+  }
+
+  private prepareForPostSyncReload(): void {
+    this.drafts = [];
+    this.baseline.clear();
+    this.conflictIds.clear();
+    this.saveError = '';
+    this.traceId = '';
+    this.syncRequired = false;
+    this.reloadRequired = true;
+    this.conflictMessage = 'Đã đồng bộ Google Sheets vào portal. Cần tải lại dữ liệu học sinh trước khi tiếp tục chỉnh sửa.';
+  }
+
+  private syncSuccessMessage(result: SyncAssessmentFromGoogleSheetsResponse): string {
+    return `Đã đồng bộ Google Sheets vào portal: thêm ${result.insertedRows}, cập nhật ${result.updatedRows}, xóa ${result.deletedRows} dòng.`;
+  }
+
+  private withTrace(error: ApiError): string {
+    return error.traceId ? `${error.message} Mã tra cứu: ${error.traceId}` : error.message;
+  }
+
   private restoreSelector(
-    selector: { option(name: string, value: unknown): void } | undefined,
+    selector: ToolbarWidgetInstance | undefined,
     value: string | null
   ): void {
     if (!selector) return;

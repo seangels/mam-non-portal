@@ -476,25 +476,31 @@ public class GoogleSheetsService : IGoogleSheetsService, IDisposable
         }
         var rowByAssessmentId = rows.ToDictionary(x => x.Target.AssessmentId);
         var conflicts = updates
-            .Where(x => !string.Equals(rowByAssessmentId[x.AssessmentId].Version, x.ExpectedVersion, StringComparison.Ordinal))
+            .Where(x =>
+            {
+                var current = rowByAssessmentId[x.AssessmentId];
+                return current.Grade != x.ExpectedGrade ||
+                    !string.Equals(current.Note, x.ExpectedNote, StringComparison.Ordinal);
+            })
             .Select(x =>
             {
                 var current = rowByAssessmentId[x.AssessmentId];
                 return new
                 {
                     x.AssessmentId,
-                    CurrentVersion = current.Version,
-                    CurrentGrade = current.Grade,
-                    CurrentNote = current.Note
+                    DatabaseGrade = x.ExpectedGrade,
+                    DatabaseNote = x.ExpectedNote,
+                    SourceGrade = current.Grade,
+                    SourceNote = current.Note
                 };
             })
             .ToList();
         if (conflicts.Count > 0)
         {
             throw new ConflictException(
-                "Kết quả trên Google Sheet đã thay đổi. Vui lòng tải lại dữ liệu.",
-                ProblemCodes.AssessmentResultsVersionConflict,
-                new Dictionary<string, object?> { ["conflicts"] = conflicts });
+                "Kết quả trên Google Sheet khác dữ liệu portal. Vui lòng đồng bộ trước khi tiếp tục.",
+                ProblemCodes.AssessmentResultsSourceOutOfSync,
+                new Dictionary<string, object?> { ["sourceConflicts"] = conflicts });
         }
 
         var pending = new List<DirectPendingCellUpdate>();

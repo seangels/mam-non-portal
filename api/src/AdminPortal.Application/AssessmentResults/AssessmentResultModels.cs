@@ -49,7 +49,8 @@ public sealed record AssessmentResultSourceValue(
 
 public sealed record AssessmentResultSourceUpdate(
     Guid AssessmentId,
-    string ExpectedVersion,
+    AssessmentGrade? ExpectedGrade,
+    string? ExpectedNote,
     AssessmentGrade? Grade,
     string? Note);
 
@@ -64,3 +65,8 @@ public sealed record AssessmentResultSourceCellChange(
 
 public sealed record AssessmentResultSourceWriteResult(
     IReadOnlyList<AssessmentResultSourceCellChange> Changes);
+
+public sealed record AssessmentLatestMirrorValue(
+    Guid AssessmentId,
+    AssessmentGrade? Grade,
+    string? Note);

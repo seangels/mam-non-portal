@@ -1,7 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { ProblemDetails } from './api.models';
 import { apiErrorCodeLabel } from '../i18n/ui-labels';
-import { AssessmentResultConflict } from './api.models.assessment-results';
+import { AssessmentResultConflict, AssessmentResultSourceConflict } from './api.models.assessment-results';
 
 export class ApiError extends Error {
   constructor(
@@ -12,7 +12,8 @@ export class ApiError extends Error {
     public readonly code?: string,
     public readonly currentVersion?: number,
     public readonly conflicts: AssessmentResultConflict[] = [],
-    public readonly googleWriteSucceeded = false
+    public readonly googleWriteSucceeded = false,
+    public readonly sourceConflicts: AssessmentResultSourceConflict[] = []
   ) {
     super(message);
     this.name = 'ApiError';
@@ -48,7 +49,8 @@ export class ApiError extends Error {
       problem.code,
       problem.currentVersion,
       (problem.conflicts ?? []) as AssessmentResultConflict[],
-      problem.googleWriteSucceeded === true
+      problem.googleWriteSucceeded === true,
+      (problem.sourceConflicts ?? []) as AssessmentResultSourceConflict[]
     );
   }
 }

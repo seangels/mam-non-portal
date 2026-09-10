@@ -39,6 +39,7 @@ public static class ProblemCodes
     public const string AssessmentSheetGoogleOperationFailed = nameof(AssessmentSheetGoogleOperationFailed);
     public const string AssessmentSheetPdfNotAvailable = nameof(AssessmentSheetPdfNotAvailable);
     public const string AssessmentResultsVersionConflict = nameof(AssessmentResultsVersionConflict);
+    public const string AssessmentResultsSourceOutOfSync = nameof(AssessmentResultsSourceOutOfSync);
     public const string AssessmentResultsSourceInvalid = nameof(AssessmentResultsSourceInvalid);
     public const string AssessmentResultsGoogleOperationFailed = nameof(AssessmentResultsGoogleOperationFailed);
     public const string AssessmentResultsPostWriteFailed = nameof(AssessmentResultsPostWriteFailed);

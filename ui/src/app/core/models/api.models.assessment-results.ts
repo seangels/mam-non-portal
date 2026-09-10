@@ -45,3 +45,11 @@ export interface AssessmentResultConflict {
   currentGrade?: AssessmentGrade | null;
   currentNote?: string | null;
 }
+
+export interface AssessmentResultSourceConflict {
+  assessmentId: string;
+  databaseGrade?: AssessmentGrade | null;
+  databaseNote?: string | null;
+  sourceGrade?: AssessmentGrade | null;
+  sourceNote?: string | null;
+}

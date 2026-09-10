@@ -1,5 +1,4 @@
 using System.Text.Json;
-using AdminPortal.Application.AssessmentSheets;
 using AdminPortal.Application.Common;
 using AdminPortal.Application.Common.Exceptions;
 using AdminPortal.Application.Common.Interfaces;
@@ -15,18 +14,16 @@ public sealed class AssessmentResultsService(
     ICurrentActor currentActor,
     TimeProvider timeProvider,
     IGoogleSheetsService googleSheetsService,
-    IResultSourcePersistence resultSourcePersistence) : IAssessmentResultsService
+    IResultSourcePersistence resultSourcePersistence,
+    IAssessmentLatestMirrorUpdater latestMirrorUpdater) : IAssessmentResultsService
 {
     public async Task<AssessmentResultsResponse> GetAsync(Guid studentId, CancellationToken cancellationToken)
     {
         EnsureManager(currentActor.GetRequired());
         var student = await FindStudentAsync(studentId, cancellationToken);
         var assessments = await LoadAssessmentsAsync(cancellationToken);
-        var sourceValues = await googleSheetsService.ReadAssessmentResultsFromSourceAsync(
-            student.StudentCode,
-            assessments.Select(ToSourceTarget).ToList(),
-            cancellationToken);
-        return BuildResponse(student, assessments, sourceValues);
+        var databaseValues = await LoadDatabaseValuesAsync(student.Id, cancellationToken);
+        return BuildResponse(student, assessments, databaseValues);
     }
 
     public async Task<AssessmentResultsResponse> UpdateAsync(
@@ -50,17 +47,45 @@ public sealed class AssessmentResultsService(
             .Distinct()
             .ToArray();
         if (missingIds.Length > 0)
+            throw new NotFoundException("Không tìm thấy mục đánh giá.", ProblemCodes.AssessmentNotFound);
+
+        var databaseValues = await LoadDatabaseValuesAsync(student.Id, cancellationToken);
+        var databaseValueByAssessmentId = databaseValues.ToDictionary(x => x.AssessmentId);
+        var versionConflicts = request.Items
+            .Where(x => !string.Equals(
+                x.ExpectedVersion,
+                CreateDatabaseVersion(assessmentById[x.AssessmentId], databaseValueByAssessmentId.GetValueOrDefault(x.AssessmentId)),
+                StringComparison.Ordinal))
+            .Select(x =>
+            {
+                var current = databaseValueByAssessmentId.GetValueOrDefault(x.AssessmentId);
+                return new
+                {
+                    x.AssessmentId,
+                    CurrentVersion = CreateDatabaseVersion(assessmentById[x.AssessmentId], current),
+                    CurrentGrade = current?.Grade,
+                    CurrentNote = current?.Note
+                };
+            })
+            .ToList();
+        if (versionConflicts.Count > 0)
         {
-            throw new NotFoundException(
-                "Không tìm thấy mục đánh giá.",
-                ProblemCodes.AssessmentNotFound);
+            throw new ConflictException(
+                "Kết quả trong dữ liệu portal đã thay đổi. Vui lòng tải lại dữ liệu.",
+                ProblemCodes.AssessmentResultsVersionConflict,
+                new Dictionary<string, object?> { ["conflicts"] = versionConflicts });
         }
 
-        var normalizedUpdates = request.Items.Select(x => new AssessmentResultSourceUpdate(
-            x.AssessmentId,
-            x.ExpectedVersion,
-            x.Grade,
-            AssessmentResultRules.NormalizeNote(x.Note))).ToList();
+        var normalizedUpdates = request.Items.Select(x =>
+        {
+            var current = databaseValueByAssessmentId.GetValueOrDefault(x.AssessmentId);
+            return new AssessmentResultSourceUpdate(
+                x.AssessmentId,
+                current?.Grade,
+                current?.Note,
+                x.Grade,
+                AssessmentResultRules.NormalizeNote(x.Note));
+        }).ToList();
         var requestedTargets = request.Items
             .Select(x => ToSourceTarget(assessmentById[x.AssessmentId]))
             .ToList();
@@ -71,26 +96,23 @@ public sealed class AssessmentResultsService(
             normalizedUpdates,
             cancellationToken);
 
-        IReadOnlyList<AssessmentResultSourceValue> canonicalValues;
+        IReadOnlyList<DatabaseResultValue> canonicalValues;
         try
         {
-            canonicalValues = await googleSheetsService.ReadAssessmentResultsFromSourceAsync(
-                student.StudentCode,
-                assessments.Select(ToSourceTarget).ToList(),
+            await latestMirrorUpdater.ApplyAsync(
+                student.Id,
+                normalizedUpdates.Select(x => new AssessmentLatestMirrorValue(x.AssessmentId, x.Grade, x.Note)).ToList(),
+                actor,
                 cancellationToken);
-            await ReplaceLatestMirrorAsync(student, canonicalValues, actor, cancellationToken);
             AddAudits(student, writeResult.Changes, actor);
             await dbContext.SaveChangesAsync(cancellationToken);
+            canonicalValues = await LoadDatabaseValuesAsync(student.Id, cancellationToken);
             await transaction.CommitAsync(cancellationToken);
         }
-        catch (AppException ex) when (ex.Code == ProblemCodes.AssessmentResultsPostWriteFailed)
-        {
-            throw;
-        }
-        catch (Exception ex)
+        catch (Exception ex) when (writeResult.Changes.Count > 0)
         {
             throw new NormalException(
-                "Google Sheet đã được cập nhật nhưng không thể xác nhận hoặc cập nhật dữ liệu gần nhất trong portal.",
+                "Google Sheet đã được cập nhật nhưng không thể cập nhật dữ liệu gần nhất trong portal.",
                 ProblemCodes.AssessmentResultsPostWriteFailed,
                 new Dictionary<string, object?>
                 {
@@ -100,60 +122,6 @@ public sealed class AssessmentResultsService(
         }
 
         return BuildResponse(student, assessments, canonicalValues);
-    }
-
-    private async Task ReplaceLatestMirrorAsync(
-        Student student,
-        IReadOnlyList<AssessmentResultSourceValue> values,
-        Common.Models.ActorContext actor,
-        CancellationToken cancellationToken)
-    {
-        var now = timeProvider.GetUtcNow();
-        var latest = await dbContext.AssessmentSheetLatests
-            .SingleOrDefaultAsync(x => x.StudentId == student.Id, cancellationToken);
-        if (latest is null)
-        {
-            latest = new AssessmentSheetLatest
-            {
-                Id = Guid.NewGuid(),
-                Name = "Kết quả gần nhất",
-                AssessmentSheetStatus = AssessmentSheetStatus.Open,
-                StudentId = student.Id,
-                Student = student,
-                StudentSnapshot = BuildStudentSnapshot(student),
-                UpdatedByUserId = actor.UserId,
-                CreatedAt = now,
-                UpdatedAt = now
-            };
-            dbContext.AssessmentSheetLatests.Add(latest);
-        }
-        else
-        {
-            await dbContext.AssessmentRecordLatests
-                .Where(x => x.AssessmentSheetLatestId == latest.Id)
-                .ExecuteDeleteAsync(cancellationToken);
-            latest.StudentSnapshot = BuildStudentSnapshot(student);
-            latest.UpdatedByUserId = actor.UserId;
-            latest.UpdatedAt = now;
-        }
-
-        var records = values
-            .Where(x => x.Grade is not null || x.Note is not null)
-            .Select(x => new AssessmentRecordLatest
-            {
-                Id = Guid.NewGuid(),
-                AssessmentSheetLatestId = latest.Id,
-                AssessmentSheetLatest = latest,
-                AssessmentId = x.AssessmentId,
-                // FK is sufficient; do not attach the AsNoTracking catalog entity as Added through the graph.
-                Assessment = null!,
-                LatestGrade = x.Grade,
-                Note = x.Note,
-                CreatedAt = now,
-                UpdatedAt = now
-            })
-            .ToList();
-        await dbContext.AssessmentRecordLatests.AddRangeAsync(records, cancellationToken);
     }
 
     private void AddAudits(
@@ -223,24 +191,32 @@ public sealed class AssessmentResultsService(
             .ThenBy(x => x.Code)
             .ToListAsync(cancellationToken);
 
+    private async Task<List<DatabaseResultValue>> LoadDatabaseValuesAsync(
+        Guid studentId,
+        CancellationToken cancellationToken)
+    {
+        var latestId = await dbContext.AssessmentSheetLatests.AsNoTracking()
+            .Where(x => x.StudentId == studentId)
+            .Select(x => (Guid?)x.Id)
+            .SingleOrDefaultAsync(cancellationToken);
+        if (latestId is null)
+            return [];
+
+        return await dbContext.AssessmentRecordLatests.AsNoTracking()
+            .Where(x => x.AssessmentSheetLatestId == latestId.Value)
+            .Select(x => new DatabaseResultValue(x.AssessmentId, x.Id, x.LatestGrade, x.Note, x.UpdatedAt))
+            .ToListAsync(cancellationToken);
+    }
+
     private static AssessmentResultSourceTarget ToSourceTarget(Assessment assessment) =>
         new(assessment.Id, assessment.Code, assessment.Name);
-
-    private static StudentSnapshot BuildStudentSnapshot(Student student) => new()
-    {
-        StudentCode = student.StudentCode,
-        FullName = student.FullName,
-        NickName = student.NickName,
-        DateOfBirth = student.DateOfBirth,
-        Gender = student.Gender
-    };
 
     private static AssessmentResultsResponse BuildResponse(
         Student student,
         IReadOnlyList<Assessment> assessments,
-        IReadOnlyList<AssessmentResultSourceValue> sourceValues)
+        IReadOnlyList<DatabaseResultValue> databaseValues)
     {
-        var valueByAssessmentId = sourceValues.ToDictionary(x => x.AssessmentId);
+        var valueByAssessmentId = databaseValues.ToDictionary(x => x.AssessmentId);
         return new AssessmentResultsResponse(
             new AssessmentResultsStudentResponse(
                 student.Id,
@@ -251,7 +227,7 @@ public sealed class AssessmentResultsService(
                 student.Status),
             assessments.Select(assessment =>
             {
-                var value = valueByAssessmentId[assessment.Id];
+                var value = valueByAssessmentId.GetValueOrDefault(assessment.Id);
                 return new AssessmentResultItemResponse(
                     assessment.Id,
                     assessment.Code,
@@ -260,11 +236,19 @@ public sealed class AssessmentResultsService(
                     assessment.GroupLv2Name,
                     assessment.GroupLv3Name,
                     assessment.RowIndex,
-                    value.Grade,
-                    value.Note,
-                    value.Version);
+                    value?.Grade,
+                    value?.Note,
+                    CreateDatabaseVersion(assessment, value));
             }).ToList());
     }
+
+    private static string CreateDatabaseVersion(Assessment assessment, DatabaseResultValue? value) =>
+        AssessmentResultRules.CreateDatabaseVersion(
+            assessment,
+            value?.RecordId,
+            value?.Grade,
+            value?.Note,
+            value?.UpdatedAt);
 
     private static void ValidateRequest(UpdateAssessmentResultsRequest request)
     {
@@ -286,4 +270,11 @@ public sealed class AssessmentResultsService(
         if (actor.Role is not (UserRole.SuperAdmin or UserRole.Admin))
             throw new ForbiddenException("Không đủ quyền cập nhật kết quả trực tiếp.");
     }
+
+    private sealed record DatabaseResultValue(
+        Guid AssessmentId,
+        Guid RecordId,
+        AssessmentGrade? Grade,
+        string? Note,
+        DateTimeOffset UpdatedAt);
 }

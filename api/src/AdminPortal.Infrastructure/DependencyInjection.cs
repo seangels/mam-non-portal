@@ -68,6 +68,7 @@ public static class DependencyInjection
         services.AddScoped<IAssessmentService, AssessmentService>();
         services.AddScoped<IAssessmentSheetService, AssessmentSheetService>();
         services.AddScoped<IAssessmentResultsService, AssessmentResultsService>();
+        services.AddScoped<IAssessmentLatestMirrorUpdater, AssessmentLatestMirrorUpdater>();
         services.AddScoped<IResultSourcePersistence, ResultSourcePersistence>();
 
         // 1. Map và đăng ký cấu hình vào DI Container

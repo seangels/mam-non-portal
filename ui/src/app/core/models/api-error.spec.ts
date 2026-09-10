@@ -63,7 +63,7 @@ describe('ApiError', () => {
     expect(emptyRoster.message).toBe('Không có học sinh có lịch học trong ngày này.');
   });
 
-  it('preserves safe assessment-result conflict and post-write extensions', () => {
+  it('preserves safe assessment-result conflict, source drift and post-write extensions', () => {
     const conflict = ApiError.from(new HttpErrorResponse({
       status: 409,
       error: {
@@ -75,9 +75,18 @@ describe('ApiError', () => {
       status: 500,
       error: { code: 'AssessmentResultsPostWriteFailed', googleWriteSucceeded: true }
     }));
+    const sourceDrift = ApiError.from(new HttpErrorResponse({
+      status: 409,
+      error: {
+        code: 'AssessmentResultsSourceOutOfSync',
+        sourceConflicts: [{ assessmentId: 'assessment-2', databaseGrade: 'A', sourceGrade: 'B' }]
+      }
+    }));
 
     expect(conflict.conflicts[0].assessmentId).toBe('assessment-1');
-    expect(conflict.message).toContain('Google Sheet');
+    expect(conflict.message).toContain('portal');
+    expect(sourceDrift.sourceConflicts[0].assessmentId).toBe('assessment-2');
+    expect(sourceDrift.message).toContain('đồng bộ');
     expect(postWrite.googleWriteSucceeded).toBeTrue();
     expect(postWrite.message).toContain('Không bấm Lưu lại');
   });
