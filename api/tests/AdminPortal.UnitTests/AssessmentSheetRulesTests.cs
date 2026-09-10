@@ -1,3 +1,4 @@
+using System.Text.Json;
 using AdminPortal.Application.AssessmentSheets;
 using AdminPortal.Application.Common;
 using AdminPortal.Application.Common.Exceptions;
@@ -64,6 +65,33 @@ public sealed class AssessmentSheetRulesTests
     [Fact]
     public void DistinctNonEmptyIdsPass() =>
         AssessmentSheetRules.EnsureDistinctIds([Guid.NewGuid(), Guid.NewGuid()], "assessmentIds");
+
+    [Fact]
+    public void DeletionAuditSnapshotContainsOnlySafeMetadata()
+    {
+        var studentId = Guid.NewGuid();
+        var sheet = new AssessmentSheet
+        {
+            AssessmentSheetStatus = AssessmentSheetStatus.Done,
+            StudentId = studentId,
+            StudentSnapshot = new StudentSnapshot(),
+            Note = "raw note must not be audited",
+            PlanFileLinkPdf = "https://drive.example.test/secret-plan-id",
+            ResultFileLinkPdf = "https://drive.example.test/secret-result-id"
+        };
+
+        var snapshot = AssessmentSheetRules.BuildDeletionAuditSnapshot(sheet, 3);
+
+        Assert.Equal("Done", snapshot.Status);
+        Assert.Equal(studentId, snapshot.StudentId);
+        Assert.Equal(3, snapshot.RecordCount);
+        Assert.True(snapshot.HasPlanPdf);
+        Assert.True(snapshot.HasResultPdf);
+        var json = JsonSerializer.Serialize(snapshot);
+        Assert.DoesNotContain("raw note must not be audited", json, StringComparison.Ordinal);
+        Assert.DoesNotContain("secret-plan-id", json, StringComparison.Ordinal);
+        Assert.DoesNotContain("secret-result-id", json, StringComparison.Ordinal);
+    }
 
     [Theory]
     [InlineData(AssessmentGrade.A, 3)]

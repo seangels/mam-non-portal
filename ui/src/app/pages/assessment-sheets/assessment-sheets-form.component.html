@@ -88,7 +88,18 @@
 
     <section *ngIf="!isCreate" class="records-panel" aria-labelledby="assessment-records-heading">
       <div class="records-heading">
-        <h3 id="assessment-records-heading">Danh mục đánh giá đã chọn</h3>
+        <div class="records-heading-title">
+          <h3 id="assessment-records-heading">Danh mục đánh giá đã chọn</h3>
+          <label class="records-visibility-toggle">
+            <input
+              type="checkbox"
+              [checked]="showSelectedRecordsTable"
+              aria-label="Hiện hoặc ẩn danh mục đánh giá đã chọn"
+              aria-controls="selected-assessment-records-content"
+              (change)="onSelectedRecordsVisibilityChanged($event)" />
+            <span>Hiện danh mục</span>
+          </label>
+        </div>
         <div class="records-heading-actions">
           <span>{{ records.length }} mục</span>
           <dx-button
@@ -129,10 +140,11 @@
         </div>
       </div>
 
-      <div *ngIf="!hasRecords" class="empty-records">Chưa có mục đánh giá trong kế hoạch này.</div>
+      <div *ngIf="showSelectedRecordsTable" id="selected-assessment-records-content">
+        <div *ngIf="!hasRecords" class="empty-records">Chưa có mục đánh giá trong kế hoạch này.</div>
 
-      <div *ngIf="hasRecords" class="records-table-wrapper">
-        <table class="records-table">
+        <div *ngIf="hasRecords" class="records-table-wrapper">
+          <table class="records-table">
           <thead>
             <tr>
               <th *ngIf="showGroupLv2MoveColumn" class="group-move-column" scope="col">Di chuyển</th>
@@ -176,7 +188,19 @@
                   </label>
                 </div>
               </th>
-              <th *ngIf="showPlan" class="plan-column" scope="col">Kế hoạch</th>
+              <th *ngIf="showCurrentGradeColumn" class="grade-column" scope="col">Kết quả hiện tại</th>
+              <th *ngIf="showPlan" class="plan-column" scope="col">
+                <div class="grade-header">
+                  <span>Kế hoạch</span>
+                  <label class="plan-toggle">
+                    <input
+                      type="checkbox"
+                      [(ngModel)]="showCurrentGradeColumn"
+                      [ngModelOptions]="standaloneNgModelOptions" />
+                    <span>Hiện tại</span>
+                  </label>
+                </div>
+              </th>
               <th *ngIf="showResult" class="grade-column" scope="col">
                 <div class="grade-header">
                   <span>Kết quả</span>
@@ -320,6 +344,15 @@
               </td>
               <td *ngIf="showCodeColumn" class="code-cell">{{ row.record.assessment.code }}</td>
               <td class="content-cell">{{ row.record.assessment.name }}</td>
+              <td *ngIf="showCurrentGradeColumn" class="grade-cell">
+                <span
+                  class="grade-value"
+                  [style.borderColor]="gradeColor(row.latestGrade)"
+                  [style.backgroundColor]="row.latestGrade ? gradeBgColor(row.latestGrade) : '#E8EAED'"
+                  [style.color]="row.latestGrade ? gradeColor(row.latestGrade) : '#344054'">
+                  {{ row.latestGrade ? gradeText(row.latestGrade) : 'Chưa có' }}
+                </span>
+              </td>
               <td *ngIf="showPlan" class="plan-cell">
                 <dx-button
                   class="plan-grade-button"
@@ -398,7 +431,8 @@
               </td>
             </tr>
           </tbody>
-        </table>
+          </table>
+        </div>
       </div>
     </section>
 
@@ -539,8 +573,11 @@
     mode="add"
     [studentId]="editor.studentId || null"
     [existingCodes]="existingAssessmentCodes"
+    [cachedAssessments]="assessmentCache"
     [addDisabled]="!canMutateRecords"
     (assessmentAdd)="addAssessmentToSheet($event)"
+    (assessmentsAdd)="addAssessmentsToSheet($event)"
+    (assessmentsRemove)="removeAssessmentsFromSheet($event)"
     (assessmentRemove)="removeAssessmentRecordByAssessment($event)">
   </app-assessment-picker>
 
@@ -550,6 +587,13 @@
       <small *ngIf="dirty">Có thay đổi chưa lưu</small>
     </span>
     <div class="form-action-buttons">
+      <dx-button *ngIf="canShowDeleteAssessmentSheet"
+        [text]="deleting ? 'Đang xóa...' : 'Xóa bảng đánh giá'"
+        icon="trash" type="danger" stylingMode="outlined"
+        hint="Xóa vĩnh viễn bảng đánh giá này khỏi ứng dụng; không xóa dữ liệu Google Sheet hoặc Google Drive"
+        aria-label="Xóa bảng đánh giá khỏi ứng dụng"
+        [disabled]="!canDeleteAssessmentSheet"
+        (onClick)="deleteAssessmentSheet()"></dx-button>
       <dx-button *ngIf="!isCreate" icon="arrowup" stylingMode="outlined"
         hint="Lên đầu danh mục đánh giá đã chọn" aria-label="Lên đầu danh mục đánh giá đã chọn"
         (onClick)="scrollToRecords()"></dx-button>

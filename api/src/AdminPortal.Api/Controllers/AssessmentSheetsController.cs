@@ -95,6 +95,14 @@ public sealed class AssessmentSheetsController(IAssessmentSheetService assessmen
         CancellationToken cancellationToken) =>
         Ok(await assessmentSheetService.UpdateStatusAsync(id, request, cancellationToken));
 
+    [HttpDelete("{id:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
+    {
+        await assessmentSheetService.DeleteAsync(id, cancellationToken);
+        return NoContent();
+    }
+
     [HttpPost("{id:guid}/upload-plan-pdf")]
     [Consumes("multipart/form-data")]
     [RequestSizeLimit(MaxPdfUploadBytes)]

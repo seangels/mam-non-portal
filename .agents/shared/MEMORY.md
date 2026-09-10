@@ -1,6 +1,6 @@
 # Shared workspace memory
 
-Last updated: 2026-09-09
+Last updated: 2026-09-10
 
 ## Product and ownership
 
@@ -10,6 +10,8 @@ Last updated: 2026-09-09
 - Root `tasks.md` is frozen legacy material only. The archived reference copy is `docs/tasks/archive/root-tasks-legacy-2026-08-25.md`; do not update either file for new work.
 
 ## Cross-stack contracts that must remain aligned
+
+- AssessmentSheet permanent delete (`ASH-DEL-01`, 2026-09-10): `DELETE /api/v1/assessment-sheets/{id}` allows Teacher/Admin/SuperAdmin and every status including `Done`; success is `204`, missing id is `404 AssessmentSheetNotFound`. Backend explicitly removes dependent `AssessmentRecord` rows then the `AssessmentSheet` in one `SaveChanges`, audits only safe metadata, and never calls Google or deletes Drive/PDF, Assessment catalog, or latest mirrors. Edit-form UI requires an explicit app-only confirmation, warns on dirty edits, locks concurrent mutations, and navigates to the list only after success. Verification: backend Release build 0/0 + unit 118/118; frontend test 190/190 + development build pass; integration test compiled but not run because Docker was unavailable. No migration/deploy.
 
 - API prefix: `/api/v1` with camelCase JSON and enum values serialized as strings.
 - Auth endpoints: `/auth/login`, `/auth/csrf`, `/auth/refresh`, `/auth/logout`, `/auth/me`.

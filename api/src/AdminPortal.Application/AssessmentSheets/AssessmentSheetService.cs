@@ -355,6 +355,26 @@ public sealed partial class AssessmentSheetService(
         return await BuildDetailAsync(sheet.Id, cancellationToken);
     }
 
+    public async Task DeleteAsync(Guid id, CancellationToken cancellationToken)
+    {
+        var actor = currentActor.GetRequired();
+        AssessmentSheetRules.EnsureAssessmentSheetRole(actor);
+        var sheet = await FindRequiredAsync(id, cancellationToken);
+        var records = await dbContext.AssessmentRecords
+            .Where(x => x.AssessmentSheetId == id)
+            .ToListAsync(cancellationToken);
+
+        AddAudit(
+            actor,
+            "AssessmentSheet.Deleted",
+            sheet.Id,
+            AssessmentSheetRules.BuildDeletionAuditSnapshot(sheet, records.Count),
+            null);
+        dbContext.AssessmentRecords.RemoveRange(records);
+        dbContext.AssessmentSheets.Remove(sheet);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
     public async Task<AssessmentSheetDetailResponse> UploadPlanPdfAsync(
         Guid id, string fileName, byte[] content, CancellationToken cancellationToken)
     {

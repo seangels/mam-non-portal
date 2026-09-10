@@ -75,6 +75,7 @@ export interface AssessmentSheetCreateRecordSeed {
 
 export interface AssessmentSheetRecordTableRow {
   record: AssessmentSheetRecord;
+  latestGrade: AssessmentGrade | null;
   groupLv2Name: string;
   groupLv3Name: string;
   groupLv3NameSubstring: string;
@@ -199,11 +200,6 @@ export function buildReplaceAssessmentSheetRecordsRequest(
   assessmentToAdd: Assessment,
   availableAssessments: Assessment[]
 ): ReplaceAssessmentSheetRecordsRequest {
-  const assessmentByCode = new Map(
-    availableAssessments
-      .map(assessment => [normalizeCode(assessment.code), assessment] as const)
-      .filter((entry): entry is readonly [string, Assessment] => !!entry[0])
-  );
   const existingCodes = new Set(
     currentRecords
       .map(record => normalizeCode(record.assessment.code))
@@ -217,35 +213,47 @@ export function buildReplaceAssessmentSheetRecordsRequest(
     throw new Error('Mục đánh giá này đã có trong bảng đánh giá.');
   }
 
-  const records = currentRecords.map(record => {
-    const code = normalizeCode(record.assessment.code);
-    const assessment = code ? assessmentByCode.get(code) : null;
-    if (!assessment) {
-      throw new Error(`Không thể xác định assessmentId cho mục ${record.assessment.code || record.assessment.name}. Vui lòng đồng bộ/tải lại danh sách mục đánh giá trước khi thêm.`);
-    }
-    return {
-      assessmentId: assessment.id,
-      planGrade: record.planGrade ?? null,
-      planNote: record.planNote ?? null,
-      finalGrade: record.finalGrade ?? null,
-      finalNote: record.finalNote ?? null,
-      displayOrder: record.displayOrder ?? null,
-      groupLv2Name: record.assessment.groupLv2Name ?? null,
-      groupLv3Name: record.assessment.groupLv3Name ?? null
-    };
-  });
-  const addedPlanGrade = normalizeAssessmentGrade(assessmentToAdd.latestGrade);
+  return buildAddAssessmentSheetRecordsRequest(currentRecords, [assessmentToAdd], availableAssessments);
+}
 
-  records.push({
-    assessmentId: assessmentToAdd.id,
-    planGrade: addedPlanGrade,
-    planNote: normalizeOptional(assessmentToAdd.latestNote),
-    finalGrade: null,
-    finalNote: null,
-    displayOrder: null,
-    groupLv2Name: assessmentToAdd.groupLv2Name ?? null,
-    groupLv3Name: assessmentToAdd.groupLv3Name ?? null
+export function buildAddAssessmentSheetRecordsRequest(
+  currentRecords: AssessmentSheetRecord[],
+  assessmentsToAdd: Assessment[],
+  availableAssessments: Assessment[]
+): ReplaceAssessmentSheetRecordsRequest {
+  const assessmentByCode = buildAssessmentByCode(availableAssessments);
+  const existingCodes = new Set(
+    currentRecords
+      .map(record => normalizeCode(record.assessment.code))
+      .filter((code): code is string => !!code)
+  );
+  const newAssessmentByCode = new Map<string, Assessment>();
+  assessmentsToAdd.forEach(assessment => {
+    const code = normalizeCode(assessment.code);
+    if (!code) {
+      throw new Error('Có mục đánh giá được chọn chưa có mã hợp lệ.');
+    }
+    if (!existingCodes.has(code) && !newAssessmentByCode.has(code)) {
+      newAssessmentByCode.set(code, assessment);
+    }
   });
+  if (newAssessmentByCode.size === 0) {
+    throw new Error('Các mục đánh giá được chọn đã có trong bảng đánh giá.');
+  }
+
+  const records: AssessmentSheetRecordRequest[] = currentRecords.map(record =>
+    buildRecordRequestFromRecord(record, assessmentByCode, 'thêm')
+  );
+  newAssessmentByCode.forEach(assessment => records.push({
+      assessmentId: assessment.id,
+      planGrade: normalizeAssessmentGrade(assessment.latestGrade),
+      planNote: normalizeOptional(assessment.latestNote),
+      finalGrade: null,
+      finalNote: null,
+      displayOrder: null,
+      groupLv2Name: assessment.groupLv2Name ?? null,
+      groupLv3Name: assessment.groupLv3Name ?? null
+    }));
 
   return { records };
 }
@@ -255,34 +263,29 @@ export function buildRemoveAssessmentSheetRecordRequest(
   recordToRemove: AssessmentSheetRecord,
   availableAssessments: Assessment[]
 ): ReplaceAssessmentSheetRecordsRequest {
-  const recordsToKeep = currentRecords.filter(record => record.id !== recordToRemove.id);
-  if (recordsToKeep.length === currentRecords.length) {
+  if (!currentRecords.some(record => record.id === recordToRemove.id)) {
     throw new Error('Không tìm thấy mục đánh giá cần xóa.');
   }
-  // G1: bảng đánh giá được phép rỗng — không chặn xóa mục cuối cùng.
+  return buildRemoveAssessmentSheetRecordsRequest(currentRecords, [recordToRemove.assessment], availableAssessments);
+}
 
-  const assessmentByCode = new Map(
-    availableAssessments
-      .map(assessment => [normalizeCode(assessment.code), assessment] as const)
-      .filter((entry): entry is readonly [string, Assessment] => !!entry[0])
+export function buildRemoveAssessmentSheetRecordsRequest(
+  currentRecords: AssessmentSheetRecord[],
+  assessmentsToRemove: Array<Pick<Assessment, 'code'>>,
+  availableAssessments: Assessment[]
+): ReplaceAssessmentSheetRecordsRequest {
+  const codesToRemove = new Set(
+    assessmentsToRemove
+      .map(assessment => normalizeCode(assessment.code))
+      .filter((code): code is string => !!code)
   );
-  const records: AssessmentSheetRecordRequest[] = recordsToKeep.map(record => {
-    const code = normalizeCode(record.assessment.code);
-    const assessment = code ? assessmentByCode.get(code) : null;
-    if (!assessment) {
-      throw new Error(`Không thể xác định assessmentId cho mục ${record.assessment.code || record.assessment.name}. Vui lòng đồng bộ/tải lại danh sách mục đánh giá trước khi xóa.`);
-    }
-    return {
-      assessmentId: assessment.id,
-      planGrade: record.planGrade ?? null,
-      planNote: record.planNote ?? null,
-      finalGrade: record.finalGrade ?? null,
-      finalNote: record.finalNote ?? null,
-      displayOrder: record.displayOrder ?? null,
-      groupLv2Name: record.assessment.groupLv2Name ?? null,
-      groupLv3Name: record.assessment.groupLv3Name ?? null
-    };
-  });
+  const recordsToKeep = currentRecords.filter(record => !codesToRemove.has(normalizeCode(record.assessment.code) ?? ''));
+  if (codesToRemove.size === 0 || recordsToKeep.length === currentRecords.length) {
+    throw new Error('Không tìm thấy mục đánh giá cần xóa.');
+  }
+  // Bảng đánh giá được phép rỗng; full replacement vẫn chỉ gửi một request.
+  const assessmentByCode = buildAssessmentByCode(availableAssessments);
+  const records = recordsToKeep.map(record => buildRecordRequestFromRecord(record, assessmentByCode, 'xóa'));
 
   return { records };
 }
@@ -328,8 +331,10 @@ export function initializeAssessmentSheetRecords(records: AssessmentSheetRecord[
 
 export function buildAssessmentSheetRecordRows(
   records: AssessmentSheetRecord[],
-  groupLv2Order?: readonly string[]
+  groupLv2Order?: readonly string[],
+  availableAssessments: Assessment[] = []
 ): AssessmentSheetRecordTableRow[] {
+  const assessmentByCode = buildAssessmentByCode(availableAssessments);
   const explicitOrder = groupLv2Order && groupLv2Order.length > 0
     ? new Map(groupLv2Order.map((name, index) => [name, index] as const))
     : null;
@@ -337,6 +342,9 @@ export function buildAssessmentSheetRecordRows(
     .map((record, originalIndex) => ({
       row: {
         record,
+        latestGrade: normalizeAssessmentGrade(
+          assessmentByCode.get(normalizeCode(record.assessment.code) ?? '')?.latestGrade
+        ),
         groupLv2Name: normalizeGroupName(record.assessment.groupLv2Name),
         groupLv3Name: normalizeGroupName(record.assessment.groupLv3Name),
         groupLv3NameSubstring: normalizeGroupName(record.assessment.groupLv3Name),
@@ -455,10 +463,13 @@ export class AssessmentSheetFormComponent implements OnInit, OnDestroy {
   showGroupLv2MoveColumn = false;
   showGroupLv3MoveColumn = false;
   showPlanColumn = false;
+  showCurrentGradeColumn = true;
+  showSelectedRecordsTable = true;
   // Thứ tự nhóm lớn tùy chỉnh khi người dùng dời nhóm lớn; null = dùng thứ tự cấu hình mặc định.
   groupLv2Order: string[] | null = null;
   loading = false;
   saving = false;
+  deleting = false;
   completingPlan = false;
   addingRecord = false;
   removingRecordId: string | null = null;
@@ -476,7 +487,7 @@ export class AssessmentSheetFormComponent implements OnInit, OnDestroy {
   loadError = '';
   formError = '';
   conflict = false;
-  private assessmentCache: Assessment[] = [];
+  assessmentCache: Assessment[] = [];
   private assessmentCacheStudentId: string | null = null;
   private baseline = this.serialize(this.editor);
   private allowPreviewNavigationOnce = false;
@@ -702,7 +713,24 @@ export class AssessmentSheetFormComponent implements OnInit, OnDestroy {
   }
 
   get recordMutationInProgress(): boolean {
-    return this.addingRecord || !!this.removingRecordId || this.groupCatalogSaving;
+    return this.deleting || this.addingRecord || !!this.removingRecordId || this.groupCatalogSaving;
+  }
+
+  get canShowDeleteAssessmentSheet(): boolean {
+    const role = this.auth.user?.role;
+    return !this.isCreate
+      && !!this.assessmentSheetId
+      && (role === 'Teacher' || role === 'Admin' || role === 'SuperAdmin');
+  }
+
+  get canDeleteAssessmentSheet(): boolean {
+    return this.canShowDeleteAssessmentSheet
+      && !this.loading
+      && !this.saving
+      && !this.completingPlan
+      && !this.recordMutationInProgress
+      && !this.submittingResults
+      && !this.preparingResultsSubmit;
   }
 
   get canShowGroupEditAction(): boolean {
@@ -959,6 +987,41 @@ export class AssessmentSheetFormComponent implements OnInit, OnDestroy {
     void this.router.navigate(['/assessment-sheets']);
   }
 
+  async deleteAssessmentSheet(): Promise<void> {
+    if (!this.canDeleteAssessmentSheet) {
+      return;
+    }
+
+    this.deleting = true;
+    try {
+      const dirtyWarning = this.dirty
+        ? 'Bảng đang có thay đổi chưa lưu; các thay đổi này cũng sẽ bị mất. '
+        : '';
+      const accepted = await this.confirmAssessmentSheetDeletion(
+        `${dirtyWarning}Bạn có chắc muốn xóa vĩnh viễn bảng đánh giá này? `
+        + 'Thao tác chỉ xóa bảng đánh giá cùng các mục và kết quả của bảng trong ứng dụng; '
+        + 'KHÔNG xóa tệp hoặc dữ liệu trên Google Sheet/Google Drive.'
+      );
+      if (!accepted) {
+        return;
+      }
+
+      this.formError = '';
+      this.conflict = false;
+      await firstValueFrom(this.assessmentSheets.delete(this.assessmentSheetId));
+      notify('Đã xóa bảng đánh giá khỏi ứng dụng.', 'success', 2000);
+      await this.router.navigate(['/assessment-sheets']);
+    } catch (error) {
+      this.formError = this.withTrace(ApiError.from(error));
+    } finally {
+      this.deleting = false;
+    }
+  }
+
+  protected confirmAssessmentSheetDeletion(message: string): Promise<boolean> {
+    return confirm(message, 'Xác nhận xóa bảng đánh giá');
+  }
+
   async openPlanPdfPreview(): Promise<void> {
     await this.openPdfPreview('plan');
   }
@@ -1087,17 +1150,75 @@ export class AssessmentSheetFormComponent implements OnInit, OnDestroy {
   }
 
   async addAssessmentToSheet(assessment: Assessment): Promise<void> {
+    await this.persistAddedAssessments([assessment], false);
+  }
+
+  onSelectedRecordsVisibilityChanged(event: Event): void {
+    const input = event.target instanceof HTMLInputElement ? event.target : null;
+    if (input) {
+      this.showSelectedRecordsTable = input.checked;
+    }
+  }
+
+  async addAssessmentsToSheet(assessments: Assessment[]): Promise<void> {
+    await this.persistAddedAssessments(assessments, true);
+  }
+
+  async removeAssessmentsFromSheet(assessments: Assessment[]): Promise<void> {
     if (!this.canMutateRecords) {
       return;
     }
-    // G2: thao tác thêm mục là hành động dạng icon nhanh — không confirm.
     let request: ReplaceAssessmentSheetRecordsRequest;
     try {
-      request = buildReplaceAssessmentSheetRecordsRequest(
+      request = buildRemoveAssessmentSheetRecordsRequest(
         this.records,
-        assessment,
-        this.assessmentPicker?.getCachedAssessments() ?? []
+        assessments,
+        await this.loadAssessmentCache()
       );
+    } catch (error) {
+      this.formError = error instanceof Error
+        ? error.message
+        : this.withTrace(ApiError.from(error));
+      return;
+    }
+
+    this.removingRecordId = '__bulk__';
+    this.formError = '';
+    this.conflict = false;
+    try {
+      const removedCount = this.records.length - request.records.length;
+      const saved = await firstValueFrom(this.assessmentSheets.replaceRecords(this.assessmentSheetId, request));
+      this.applyAssessmentSheet(saved);
+      this.showAddAssessmentPicker = true;
+      this.assessmentPicker?.clearBulkSelection();
+      notify(`Đã bỏ ${removedCount} mục đánh giá.`, 'success', 2000);
+    } catch (error) {
+      const apiError = ApiError.from(error);
+      this.formError = this.withTrace(apiError);
+      this.conflict = apiError.code === 'AssessmentSheetDone' || apiError.code === 'AssessmentSheetVersionConflict';
+    } finally {
+      this.removingRecordId = null;
+    }
+  }
+
+  private async persistAddedAssessments(assessments: Assessment[], clearBulkSelection: boolean): Promise<void> {
+    if (!this.canMutateRecords) {
+      return;
+    }
+    // Cả thao tác một dòng và bulk đều full-replace đúng một lần để việc thêm là atomic.
+    let request: ReplaceAssessmentSheetRecordsRequest;
+    try {
+      request = assessments.length === 1
+        ? buildReplaceAssessmentSheetRecordsRequest(
+          this.records,
+          assessments[0],
+          this.assessmentPicker?.getCachedAssessments() ?? []
+        )
+        : buildAddAssessmentSheetRecordsRequest(
+          this.records,
+          assessments,
+          this.assessmentPicker?.getCachedAssessments() ?? []
+        );
     } catch (error) {
       this.formError = error instanceof Error ? error.message : 'Không thể thêm mục đánh giá. Vui lòng thử lại.';
       return;
@@ -1106,11 +1227,16 @@ export class AssessmentSheetFormComponent implements OnInit, OnDestroy {
     this.addingRecord = true;
     this.formError = '';
     this.conflict = false;
+    const previousRecordCount = this.records.length;
     try {
       const saved = await firstValueFrom(this.assessmentSheets.replaceRecords(this.assessmentSheetId, request));
       this.applyAssessmentSheet(saved);
       this.showAddAssessmentPicker = true;
-      notify('Đã thêm mục đánh giá.', 'success', 2000);
+      if (clearBulkSelection) {
+        this.assessmentPicker?.clearBulkSelection();
+      }
+      const addedCount = request.records.length - previousRecordCount;
+      notify(clearBulkSelection ? `Đã thêm ${addedCount} mục đánh giá.` : 'Đã thêm mục đánh giá.', 'success', 2000);
     } catch (error) {
       const apiError = ApiError.from(error);
       this.formError = this.withTrace(apiError);
@@ -1505,7 +1631,11 @@ export class AssessmentSheetFormComponent implements OnInit, OnDestroy {
   }
 
   private rebuildRecordRows(): void {
-    this.recordRows = buildAssessmentSheetRecordRows(this.records, this.groupLv2Order ?? undefined);
+    this.recordRows = buildAssessmentSheetRecordRows(
+      this.records,
+      this.groupLv2Order ?? undefined,
+      this.assessmentCache
+    );
   }
 
   private renumberDisplayOrder(): void {
@@ -1562,8 +1692,7 @@ export class AssessmentSheetFormComponent implements OnInit, OnDestroy {
   private async loadAssessmentCache(): Promise<Assessment[]> {
     const pickerCache = this.assessmentPicker?.getCachedAssessments() ?? [];
     if (pickerCache.length > 0) {
-      this.assessmentCache = pickerCache;
-      this.assessmentCacheStudentId = normalizeOptional(this.editor.studentId);
+      this.setAssessmentCache(pickerCache, normalizeOptional(this.editor.studentId));
       return pickerCache;
     }
 
@@ -1593,9 +1722,14 @@ export class AssessmentSheetFormComponent implements OnInit, OnDestroy {
       page += 1;
     } while (page <= totalPages);
 
-    this.assessmentCache = loaded;
-    this.assessmentCacheStudentId = requestedStudentId;
+    this.setAssessmentCache(loaded, requestedStudentId);
     return loaded;
+  }
+
+  private setAssessmentCache(assessments: Assessment[], studentId: string | null): void {
+    this.assessmentCache = [...assessments];
+    this.assessmentCacheStudentId = studentId;
+    this.rebuildRecordRows();
   }
 
   private async saveExisting(): Promise<AssessmentSheetDetail> {
@@ -1632,6 +1766,12 @@ export class AssessmentSheetFormComponent implements OnInit, OnDestroy {
     this.conflict = false;
     try {
       this.applyAssessmentSheet(await firstValueFrom(this.assessmentSheets.get(id)));
+      try {
+        await this.loadAssessmentCache();
+      } catch (error) {
+        // Cache chỉ bổ sung cột "Kết quả hiện tại"; lỗi cache không được làm mất sheet đã tải.
+        this.formError = this.withTrace(ApiError.from(error));
+      }
     } catch (error) {
       this.loadError = this.withTrace(ApiError.from(error));
     } finally {
@@ -1640,6 +1780,11 @@ export class AssessmentSheetFormComponent implements OnInit, OnDestroy {
   }
 
   private applyAssessmentSheet(sheet: AssessmentSheetDetail): void {
+    const nextStudentId = normalizeOptional(sheet.studentId);
+    if (this.assessmentCacheStudentId !== nextStudentId) {
+      this.assessmentCache = [];
+      this.assessmentCacheStudentId = null;
+    }
     this.assessmentSheetId = sheet.id;
     this.originalStatus = sheet.status;
     this.editor = {

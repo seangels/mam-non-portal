@@ -1,4 +1,4 @@
-import { of } from 'rxjs';
+import { of, throwError } from 'rxjs';
 import {
   ASSESSMENT_GROUP_LV2_CONFIGS,
   assessmentGroupLv2Order,
@@ -29,8 +29,10 @@ import {
   assessmentGroupLv2Color,
   buildAssessmentSheetRecordGroupTarget,
   buildAssessmentSheetRecordRows,
+  buildAddAssessmentSheetRecordsRequest,
   buildCreateAssessmentSheetRequest,
   buildRemoveAssessmentSheetRecordRequest,
+  buildRemoveAssessmentSheetRecordsRequest,
   buildReplaceAssessmentSheetRecordsRequest,
   buildSaveAssessmentSheetRecordsRequest,
   buildUpdateAssessmentSheetRequest,
@@ -838,6 +840,108 @@ describe('Assessment sheet plan PDF preview mapping', () => {
     expect(resultNoteText(preview.rows[0].record)).toBe('Đã đạt mục tiêu');
   });
 
+  it('builds one bulk replace request, skips existing/duplicate selections, and preserves current values', () => {
+    const currentRecord = {
+      assessment: { code: 'A01', name: 'Ngôn ngữ', groupLv2Name: 'Nhóm cũ 2', groupLv3Name: 'Nhóm cũ 3' },
+      planGrade: 'B',
+      planNote: 'Kế hoạch cũ',
+      finalGrade: 'C',
+      finalNote: 'Kết quả cũ',
+      displayOrder: 4
+    } as any;
+    const existingSelection = { id: 'assessment-1', code: 'A01', name: 'Đã có' } as any;
+    const firstNew = {
+      id: 'assessment-2', code: 'A02', name: 'Vận động', latestGrade: 'A', latestNote: 'Ghi chú A02',
+      groupLv2Name: 'Nhóm mới 2', groupLv3Name: 'Nhóm mới 3'
+    } as any;
+    const duplicateFirstNew = { ...firstNew, id: 'assessment-2-copy' } as any;
+    const secondNew = {
+      id: 'assessment-3', code: 'A03', name: 'Nhận thức', latestGrade: null, latestNote: '   '
+    } as any;
+
+    const request = buildAddAssessmentSheetRecordsRequest(
+      [currentRecord],
+      [existingSelection, firstNew, duplicateFirstNew, secondNew],
+      [{ id: 'assessment-1', code: 'A01' } as any, firstNew, secondNew]
+    );
+
+    expect(request.records).toEqual([
+      {
+        assessmentId: 'assessment-1',
+        planGrade: 'B',
+        planNote: 'Kế hoạch cũ',
+        finalGrade: 'C',
+        finalNote: 'Kết quả cũ',
+        displayOrder: 4,
+        groupLv2Name: 'Nhóm cũ 2',
+        groupLv3Name: 'Nhóm cũ 3'
+      },
+      {
+        assessmentId: 'assessment-2',
+        planGrade: 'A',
+        planNote: 'Ghi chú A02',
+        finalGrade: null,
+        finalNote: null,
+        displayOrder: null,
+        groupLv2Name: 'Nhóm mới 2',
+        groupLv3Name: 'Nhóm mới 3'
+      },
+      {
+        assessmentId: 'assessment-3',
+        planGrade: null,
+        planNote: null,
+        finalGrade: null,
+        finalNote: null,
+        displayOrder: null,
+        groupLv2Name: null,
+        groupLv3Name: null
+      }
+    ]);
+  });
+
+  it('maps current grades from the student assessment cache by normalized code', () => {
+    const rows = buildAssessmentSheetRecordRows(
+      [
+        { id: 'record-1', assessment: { code: ' A01 ', name: 'Mục 1' } } as any,
+        { id: 'record-2', assessment: { code: 'A02', name: 'Mục 2' } } as any
+      ],
+      undefined,
+      [
+        { id: 'assessment-1', code: 'a01', latestGrade: 'B' } as any,
+        { id: 'assessment-2', code: 'A02', latestGrade: null } as any
+      ]
+    );
+
+    expect(rows.map(row => row.latestGrade)).toEqual(['B', null]);
+  });
+
+  it('builds one bulk remove replacement and preserves all remaining record values', () => {
+    const first = {
+      id: 'record-1', assessment: { code: 'A01', name: 'Mục 1' }, planGrade: 'A', finalGrade: 'B'
+    } as any;
+    const second = {
+      id: 'record-2', assessment: { code: 'A02', name: 'Mục 2', groupLv2Name: 'Nhóm 2' },
+      planGrade: 'C', planNote: 'Giữ lại', finalGrade: 'D', finalNote: 'Kết quả', displayOrder: 2
+    } as any;
+
+    const request = buildRemoveAssessmentSheetRecordsRequest(
+      [first, second],
+      [{ code: ' a01 ' }],
+      [{ id: 'assessment-1', code: 'A01' } as any, { id: 'assessment-2', code: 'a02' } as any]
+    );
+
+    expect(request.records).toEqual([{
+      assessmentId: 'assessment-2',
+      planGrade: 'C',
+      planNote: 'Giữ lại',
+      finalGrade: 'D',
+      finalNote: 'Kết quả',
+      displayOrder: 2,
+      groupLv2Name: 'Nhóm 2',
+      groupLv3Name: null
+    }]);
+  });
+
   it('uses the final-grade background in result preview even when plan grade is empty', () => {
     const component = new AssessmentSheetPlanPreviewComponent(
       {} as any,
@@ -875,6 +979,192 @@ describe('Assessment sheet form DevExtreme option stability', () => {
       { snapshot: { data: { mode }, paramMap: { get: () => null } } } as any,
       {} as any
     );
+
+  it('adds selected picker rows with one replace request and clears selection only after success', async () => {
+    const saved = {
+      id: 'sheet-1',
+      studentId: 'student-1',
+      studentSnapshot: { studentCode: 'S01', fullName: 'Bé An' },
+      status: 'Open',
+      records: []
+    } as any;
+    const assessmentSheets = {
+      replaceRecords: jasmine.createSpy('replaceRecords').and.returnValue(of(saved))
+    };
+    const component = new AssessmentSheetFormComponent(
+      assessmentSheets as any,
+      {} as any,
+      { user: { role: 'Admin' } } as any,
+      {} as any,
+      {} as any,
+      { snapshot: { data: { mode: 'edit' }, paramMap: { get: () => 'sheet-1' } } } as any,
+      {} as any
+    );
+    const current = { id: 'record-1', assessment: { code: 'A01', name: 'Mục 1' } } as any;
+    const firstNew = { id: 'assessment-2', code: 'A02', name: 'Mục 2' } as any;
+    const secondNew = { id: 'assessment-3', code: 'A03', name: 'Mục 3' } as any;
+    const clearBulkSelection = jasmine.createSpy('clearBulkSelection');
+    component.assessmentSheetId = 'sheet-1';
+    component.editor.status = 'Open';
+    component.records = [current];
+    component.assessmentPicker = {
+      getCachedAssessments: () => [
+        { id: 'assessment-1', code: 'A01', name: 'Mục 1' } as any,
+        firstNew,
+        secondNew
+      ],
+      clearBulkSelection
+    } as any;
+
+    await component.addAssessmentsToSheet([firstNew, secondNew]);
+
+    expect(assessmentSheets.replaceRecords).toHaveBeenCalledTimes(1);
+    expect(assessmentSheets.replaceRecords.calls.mostRecent().args[1].records.length).toBe(3);
+    expect(clearBulkSelection).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps picker selection when a bulk replace request fails', async () => {
+    const assessmentSheets = {
+      replaceRecords: jasmine.createSpy('replaceRecords').and.returnValue(throwError(() => new Error('Không lưu được')))
+    };
+    const component = new AssessmentSheetFormComponent(
+      assessmentSheets as any,
+      {} as any,
+      { user: { role: 'Admin' } } as any,
+      {} as any,
+      {} as any,
+      { snapshot: { data: { mode: 'edit' }, paramMap: { get: () => 'sheet-1' } } } as any,
+      {} as any
+    );
+    const selected = { id: 'assessment-2', code: 'A02', name: 'Mục 2' } as any;
+    const clearBulkSelection = jasmine.createSpy('clearBulkSelection');
+    component.assessmentSheetId = 'sheet-1';
+    component.editor.status = 'Open';
+    component.assessmentPicker = {
+      getCachedAssessments: () => [selected],
+      clearBulkSelection
+    } as any;
+
+    await component.addAssessmentsToSheet([selected]);
+
+    expect(assessmentSheets.replaceRecords).toHaveBeenCalledTimes(1);
+    expect(clearBulkSelection).not.toHaveBeenCalled();
+  });
+
+  it('removes selected existing rows with one replace request and clears selection only after success', async () => {
+    const remaining = { id: 'record-2', assessment: { code: 'A02', name: 'Mục 2' } } as any;
+    const saved = {
+      id: 'sheet-1', studentId: 'student-1', studentSnapshot: {}, status: 'Open', records: [remaining]
+    } as any;
+    const assessmentSheets = {
+      replaceRecords: jasmine.createSpy('replaceRecords').and.returnValue(of(saved))
+    };
+    const assessments = {
+      list: jasmine.createSpy('list').and.returnValue(of({
+        items: [
+          { id: 'assessment-1', code: 'A01' },
+          { id: 'assessment-2', code: 'A02' }
+        ],
+        pagination: { page: 1, pageSize: 100, totalItems: 2, totalPages: 1 }
+      }))
+    };
+    const component = new AssessmentSheetFormComponent(
+      assessmentSheets as any, assessments as any, { user: { role: 'Admin' } } as any,
+      {} as any, {} as any,
+      { snapshot: { data: { mode: 'edit' }, paramMap: { get: () => 'sheet-1' } } } as any, {} as any
+    );
+    const removed = { id: 'assessment-1', code: 'A01', name: 'Mục 1' } as any;
+    const clearBulkSelection = jasmine.createSpy('clearBulkSelection');
+    component.assessmentSheetId = 'sheet-1';
+    component.editor.studentId = 'student-1';
+    component.editor.status = 'Open';
+    component.records = [
+      { id: 'record-1', assessment: { code: 'A01', name: 'Mục 1' } } as any,
+      remaining
+    ];
+    component.assessmentPicker = { getCachedAssessments: () => [], clearBulkSelection } as any;
+
+    await component.removeAssessmentsFromSheet([removed]);
+
+    expect(assessmentSheets.replaceRecords).toHaveBeenCalledTimes(1);
+    expect(assessmentSheets.replaceRecords.calls.mostRecent().args[1].records.map((item: any) => item.assessmentId))
+      .toEqual(['assessment-2']);
+    expect(clearBulkSelection).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps picker selection when bulk remove fails', async () => {
+    const assessmentSheets = {
+      replaceRecords: jasmine.createSpy('replaceRecords').and.returnValue(throwError(() => new Error('Không lưu được')))
+    };
+    const component = new AssessmentSheetFormComponent(
+      assessmentSheets as any, {} as any, { user: { role: 'Admin' } } as any,
+      {} as any, {} as any,
+      { snapshot: { data: { mode: 'edit' }, paramMap: { get: () => 'sheet-1' } } } as any, {} as any
+    );
+    const selected = { id: 'assessment-1', code: 'A01', name: 'Mục 1' } as any;
+    const clearBulkSelection = jasmine.createSpy('clearBulkSelection');
+    component.assessmentSheetId = 'sheet-1';
+    component.editor.status = 'Open';
+    component.records = [{ id: 'record-1', assessment: selected } as any];
+    component.assessmentPicker = { getCachedAssessments: () => [selected], clearBulkSelection } as any;
+
+    await component.removeAssessmentsFromSheet([selected]);
+
+    expect(assessmentSheets.replaceRecords).toHaveBeenCalledTimes(1);
+    expect(clearBulkSelection).not.toHaveBeenCalled();
+  });
+
+  it('loads current grades for edit records before the picker is opened', async () => {
+    const assessmentSheets = {
+      get: jasmine.createSpy('get').and.returnValue(of({
+        id: 'sheet-1', studentId: 'student-1', studentSnapshot: {}, status: 'Open',
+        records: [{ id: 'record-1', assessment: { code: ' A01 ', name: 'Mục 1' } }]
+      }))
+    };
+    const assessments = {
+      list: jasmine.createSpy('list').and.returnValue(of({
+        items: [{ id: 'assessment-1', code: 'a01', latestGrade: 'C' }],
+        pagination: { page: 1, pageSize: 100, totalItems: 1, totalPages: 1 }
+      }))
+    };
+    const component = new AssessmentSheetFormComponent(
+      assessmentSheets as any, assessments as any, { user: { role: 'Admin' } } as any,
+      {} as any, {} as any,
+      { snapshot: { data: { mode: 'edit' }, paramMap: { get: () => 'sheet-1' } } } as any, {} as any
+    );
+
+    await (component as any).load('sheet-1');
+
+    expect(assessments.list).toHaveBeenCalledWith({
+      page: 1, pageSize: 100, sortBy: 'rowindex', sortOrder: 'asc', studentId: 'student-1'
+    });
+    expect(component.recordRows[0].latestGrade).toBe('C');
+    expect(component.showCurrentGradeColumn).toBeTrue();
+  });
+
+  it('keeps the loaded edit sheet usable when the current-grade cache fails', async () => {
+    const assessmentSheets = {
+      get: jasmine.createSpy('get').and.returnValue(of({
+        id: 'sheet-1', studentId: 'student-1', studentSnapshot: {}, status: 'Open',
+        records: [{ id: 'record-1', assessment: { code: 'A01', name: 'Mục 1' } }]
+      }))
+    };
+    const assessments = {
+      list: jasmine.createSpy('list').and.returnValue(throwError(() => new Error('Cache unavailable')))
+    };
+    const component = new AssessmentSheetFormComponent(
+      assessmentSheets as any, assessments as any, { user: { role: 'Admin' } } as any,
+      {} as any, {} as any,
+      { snapshot: { data: { mode: 'edit' }, paramMap: { get: () => 'sheet-1' } } } as any, {} as any
+    );
+
+    await (component as any).load('sheet-1');
+
+    expect(component.records.length).toBe(1);
+    expect(component.recordRows[0].latestGrade).toBeNull();
+    expect(component.loadError).toBe('');
+    expect(component.formError).toBeTruthy();
+  });
 
   it('highlights the row only while focus is inside a Kế hoạch / Kết quả / Ghi chú cell', () => {
     const component = createComponent('edit');
@@ -959,6 +1249,30 @@ describe('Assessment sheet form DevExtreme option stability', () => {
     component.isCreate = false;
     component.records = [{ id: 'record-1' } as any, { id: 'record-2' } as any, { id: 'record-3' } as any];
     expect(component.selectedAssessmentCount).toBe(3);
+  });
+
+  it('shows the selected-records table by default and toggles it without changing records', () => {
+    const component = createComponent('edit');
+    const records = [{ id: 'record-1' } as any, { id: 'record-2' } as any];
+    component.isCreate = false;
+    component.records = records;
+
+    expect(component.showSelectedRecordsTable).toBeTrue();
+
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.checked = false;
+    component.onSelectedRecordsVisibilityChanged({ target: checkbox } as unknown as Event);
+
+    expect(component.showSelectedRecordsTable).toBeFalse();
+    expect(component.records).toBe(records);
+    expect(component.selectedAssessmentCount).toBe(2);
+
+    checkbox.checked = true;
+    component.onSelectedRecordsVisibilityChanged({ target: checkbox } as unknown as Event);
+
+    expect(component.showSelectedRecordsTable).toBeTrue();
+    expect(component.records).toBe(records);
   });
 
   it('allows opening the plan PDF preview only for saved edit sheets past Open status with records', () => {
@@ -1415,6 +1729,203 @@ describe('Assessment picker filter and selection', () => {
     expect(component.isExistingAssessment(assessment({ code: 'A01' }))).toBeTrue();
   });
 
+  it('selects mixed add-mode rows and emits separate bulk add/remove actions', () => {
+    const { component } = createPicker();
+    const existing = assessment({ id: 'assessment-1', code: 'A01' });
+    const firstNew = assessment({ id: 'assessment-2', code: 'A02' });
+    const secondNew = assessment({ id: 'assessment-3', code: 'A03' });
+    const emitted: string[][] = [];
+    const removed: string[][] = [];
+    component.mode = 'add';
+    component.allAssessments = [existing, firstNew, secondNew];
+    component.existingCodes = ['A01'];
+    component.ngOnChanges({ existingCodes: {} as any });
+    component.assessmentsAdd.subscribe(items => emitted.push(items.map(item => item.id)));
+    component.assessmentsRemove.subscribe(items => removed.push(items.map(item => item.id)));
+
+    component.onSelectCheckboxChanged(existing, { value: true, event: {} });
+    component.onSelectCheckboxChanged(firstNew, { value: true, event: {} });
+    component.onSelectCheckboxChanged(secondNew, { value: true, event: {} });
+    component.onAddSelectedAssessmentsClick();
+    component.onRemoveSelectedAssessmentsClick();
+
+    expect(component.isAddSelectionDisabled(existing)).toBeFalse();
+    expect(component.selectedAddCount).toBe(2);
+    expect(component.selectedRemoveCount).toBe(1);
+    expect(component.bulkAddText).toBe('Thêm các mục đã chọn (2)');
+    expect(component.bulkRemoveText).toBe('Bỏ các mục đã chọn (1)');
+    expect(emitted).toEqual([['assessment-2', 'assessment-3']]);
+    expect(removed).toEqual([['assessment-1']]);
+  });
+
+  it('adds a bulk button to the add-mode toolbar and clears its selection on request', () => {
+    const { component } = createPicker();
+    const selected = assessment({ id: 'assessment-2', code: 'A02' });
+    const existing = assessment({ id: 'assessment-1', code: 'A01' });
+    const emitted: string[][] = [];
+    component.mode = 'add';
+    component.allAssessments = [existing, selected];
+    component.existingCodes = ['A01'];
+    component.selectedIds = [existing.id, selected.id];
+    component.ngOnChanges({ existingCodes: {} as any, selectedIds: {} as any });
+    component.selectedIdsChange.subscribe(ids => emitted.push(ids));
+    const items: any[] = [];
+
+    component.onToolbarPreparing({ toolbarOptions: { items } });
+    const bulkButton = items.find(item => item.options?.text === 'Thêm các mục đã chọn (1)');
+    const bulkRemoveButton = items.find(item => item.options?.text === 'Bỏ các mục đã chọn (1)');
+    component.clearBulkSelection();
+
+    expect(bulkButton).toBeTruthy();
+    expect(bulkButton.options.disabled).toBeFalse();
+    expect(bulkRemoveButton.options.disabled).toBeFalse();
+    expect(emitted).toEqual([[]]);
+    expect(component.bulkAddDisabled).toBeTrue();
+  });
+
+  it('selects every eligible row in the current grid filter across pages and preserves selections outside it', () => {
+    const { component } = createPicker();
+    const existing = assessment({ id: 'assessment-1', code: 'A01', groupLv1Name: '3-4 tuổi' });
+    const filteredFirst = assessment({ id: 'assessment-2', code: 'A02', groupLv1Name: '3-4 tuổi' });
+    const filteredSecond = assessment({ id: 'assessment-3', code: 'A03', groupLv1Name: '3-4 tuổi' });
+    const outsideFilter = assessment({ id: 'assessment-4', code: 'A04', groupLv1Name: '4-5 tuổi' });
+    component.mode = 'add';
+    component.allAssessments = [existing, filteredFirst, filteredSecond, outsideFilter];
+    component.filteredAssessments = [...component.allAssessments];
+    component.existingCodes = ['A01'];
+    component.selectedIds = [outsideFilter.id];
+    component.grid = {
+      instance: {
+        getCombinedFilter: () => ['groupLv1Name', '=', '3-4 tuổi'],
+        repaint: () => undefined
+      }
+    } as any;
+    component.ngOnChanges({ existingCodes: {} as any, selectedIds: {} as any });
+
+    expect(component.selectAllFilteredText).toBe('Chọn tất cả (0/3)');
+    expect(component.selectAllFilteredValue).toBeFalse();
+
+    component.onSelectAllFilteredChanged({ event: {} });
+
+    expect(component.selectedIds).toEqual(['assessment-4', 'assessment-1', 'assessment-2', 'assessment-3']);
+    expect(component.selectAllFilteredText).toBe('Chọn tất cả (3/3)');
+    expect(component.selectAllFilteredValue).toBeTrue();
+
+    component.onSelectAllFilteredChanged({ event: {} });
+
+    expect(component.selectedIds).toEqual(['assessment-4']);
+    expect(component.selectAllFilteredValue).toBeFalse();
+  });
+
+  it('reapplies the round-one membership filter when existing codes change', () => {
+    const { component } = createPicker();
+    const first = assessment({ id: 'assessment-1', code: ' A01 ' });
+    const second = assessment({ id: 'assessment-2', code: 'A02' });
+    component.allAssessments = [first, second];
+    component.membershipFilterValues = ['existing'];
+    component.grid = { instance: { pageIndex: () => undefined, repaint: () => undefined } } as any;
+    component.existingCodes = ['a01'];
+
+    component.ngOnChanges({ existingCodes: {} as any });
+    expect(component.filteredAssessments.map(item => item.id)).toEqual(['assessment-1']);
+
+    component.existingCodes = ['A02'];
+    component.ngOnChanges({ existingCodes: {} as any });
+
+    expect(component.filteredAssessments.map(item => item.id)).toEqual(['assessment-2']);
+  });
+
+  it('applies all, existing-only, and missing-only membership filters in the round-one local pipeline', () => {
+    const { component } = createPicker();
+    component.mode = 'add';
+    component.allAssessments = [
+      assessment({ id: 'assessment-1', code: 'A01' }),
+      assessment({ id: 'assessment-2', code: 'A02' })
+    ];
+    component.existingCodes = ['A01'];
+    component.grid = { instance: { pageIndex: () => undefined, repaint: () => undefined } } as any;
+    component.ngOnChanges({ existingCodes: {} as any });
+
+    expect(component.planMembershipFilterOptions.map(option => option.text)).toEqual(['Trong KH', 'Chưa có trong KH']);
+    expect(component.membershipFilterValues).toEqual(['existing', 'missing']);
+    expect(component.filteredAssessments.map(item => item.id)).toEqual(['assessment-1', 'assessment-2']);
+
+    component.onMembershipFilterChanged({ value: ['existing'], previousValue: ['existing', 'missing'], event: {} });
+    expect(component.membershipFilterValues).toEqual(['existing']);
+    expect(component.filteredAssessments.map(item => item.id)).toEqual(['assessment-1']);
+
+    component.onMembershipFilterChanged({ value: ['missing'], previousValue: ['existing'], event: {} });
+    expect(component.membershipFilterValues).toEqual(['missing']);
+    expect(component.filteredAssessments.map(item => item.id)).toEqual(['assessment-2']);
+
+    component.onMembershipFilterChanged({ value: ['existing', 'missing'], previousValue: ['missing'], event: {} });
+    expect(component.membershipFilterValues).toEqual(['existing', 'missing']);
+    expect(component.filteredAssessments.map(item => item.id)).toEqual(['assessment-1', 'assessment-2']);
+
+    component.onMembershipFilterChanged({ value: [], previousValue: ['existing', 'missing'], event: {} });
+    expect(component.membershipFilterValues).toEqual(['existing', 'missing']);
+    expect(component.filteredAssessments.map(item => item.id)).toEqual(['assessment-1', 'assessment-2']);
+  });
+
+  it('keeps round-one membership independent from grid filters and resets it only with all filters', () => {
+    const { component } = createPicker();
+    const columnOption = jasmine.createSpy('columnOption');
+    component.allAssessments = [
+      assessment({ id: 'assessment-1', code: 'A01' }),
+      assessment({ id: 'assessment-2', code: 'A02' })
+    ];
+    component.existingCodes = ['A01'];
+    component.membershipFilterValues = ['existing'];
+    component.grid = {
+      instance: {
+        columnOption,
+        clearFilter: jasmine.createSpy('clearFilter'),
+        pageIndex: () => undefined,
+        repaint: () => undefined
+      }
+    } as any;
+    component.ngOnChanges({ existingCodes: {} as any });
+
+    component.onGridOptionChanged({ fullName: 'columns[2].filterValues' });
+    expect(component.membershipFilterValues).toEqual(['existing']);
+
+    component.resetGridFilters();
+    expect(component.membershipFilterValues).toEqual(['existing']);
+    expect(component.filteredAssessments.map(item => item.id)).toEqual(['assessment-1']);
+    expect(columnOption).not.toHaveBeenCalledWith('planMembership', 'filterValues', jasmine.anything());
+
+    component.resetFilters();
+    expect(component.membershipFilterValues).toEqual(['existing', 'missing']);
+    expect(component.filteredAssessments.map(item => item.id)).toEqual(['assessment-1', 'assessment-2']);
+  });
+
+  it('shows an indeterminate accessible select-all toolbar state for a partial filtered selection', () => {
+    const { component } = createPicker();
+    const first = assessment({ id: 'assessment-1', code: 'A01', groupLv1Name: '3-4 tuổi' });
+    const second = assessment({ id: 'assessment-2', code: 'A02', groupLv1Name: '3-4 tuổi' });
+    component.mode = 'add';
+    component.allAssessments = [first, second];
+    component.filteredAssessments = [first, second];
+    component.selectedIds = [first.id];
+    component.grid = {
+      instance: {
+        getCombinedFilter: () => ['groupLv1Name', '=', '3-4 tuổi'],
+        repaint: () => undefined
+      }
+    } as any;
+    component.ngOnChanges({ selectedIds: {} as any });
+    const items: any[] = [];
+
+    component.onToolbarPreparing({ toolbarOptions: { items } });
+    const selectAll = items.find(item => item.widget === 'dxCheckBox');
+
+    expect(component.selectAllFilteredValue).toBeNull();
+    expect(selectAll.options.value).toBeNull();
+    expect(selectAll.options.text).toBe('Chọn tất cả (1/2)');
+    expect(selectAll.options.hint).toBe('Chọn tất cả 2 mục đang khớp bộ lọc');
+    expect(selectAll.options.elementAttr['aria-label']).toBe(selectAll.options.hint);
+  });
+
   it('emits remove action only for rows already in the sheet (G2)', () => {
     const { component } = createPicker();
     const removed: string[] = [];
@@ -1709,15 +2220,80 @@ describe('Assessment picker filter and selection', () => {
 });
 
 describe('Assessment sheet edit sticky-bar actions (G6a/G6b)', () => {
-  const makeForm = (mode = 'edit') => {
+  const makeForm = (mode = 'edit', assessmentSheets: any = {}) => {
     const router = { navigate: jasmine.createSpy('navigate').and.resolveTo(true) } as any;
     const component = new AssessmentSheetFormComponent(
-      {} as any, {} as any, { user: { role: 'Admin' } } as any, {} as any, {} as any,
+      assessmentSheets, {} as any, { user: { role: 'Admin' } } as any, {} as any, {} as any,
       { snapshot: { data: { mode }, paramMap: { get: () => (mode === 'edit' ? 'sheet-1' : null) } } } as any,
       router
     );
     return { component, router };
   };
+
+  it('cancels permanent deletion without calling the API or navigating', async () => {
+    const assessmentSheets = { delete: jasmine.createSpy('delete') };
+    const { component, router } = makeForm('edit', assessmentSheets);
+    component.isCreate = false;
+    component.assessmentSheetId = 'sheet-1';
+    const confirmDelete = spyOn<any>(component, 'confirmAssessmentSheetDeletion').and.resolveTo(false);
+
+    await component.deleteAssessmentSheet();
+
+    expect(confirmDelete).toHaveBeenCalledTimes(1);
+    expect(assessmentSheets.delete).not.toHaveBeenCalled();
+    expect(router.navigate).not.toHaveBeenCalled();
+    expect(component.deleting).toBeFalse();
+  });
+
+  it('warns about application-only scope and navigates to the list after deletion', async () => {
+    const assessmentSheets = { delete: jasmine.createSpy('delete').and.returnValue(of(undefined)) };
+    const { component, router } = makeForm('edit', assessmentSheets);
+    component.isCreate = false;
+    component.assessmentSheetId = 'sheet-1';
+    component.editor.note = 'Thay đổi chưa lưu';
+    const confirmDelete = spyOn<any>(component, 'confirmAssessmentSheetDeletion').and.resolveTo(true);
+
+    await component.deleteAssessmentSheet();
+
+    const message = confirmDelete.calls.mostRecent().args[0] as string;
+    expect(message).toContain('thay đổi chưa lưu');
+    expect(message).toContain('chỉ xóa bảng đánh giá cùng các mục và kết quả của bảng trong ứng dụng');
+    expect(message).toContain('KHÔNG xóa tệp hoặc dữ liệu trên Google Sheet/Google Drive');
+    expect(assessmentSheets.delete).toHaveBeenCalledOnceWith('sheet-1');
+    expect(router.navigate).toHaveBeenCalledOnceWith(['/assessment-sheets']);
+    expect(component.deleting).toBeFalse();
+  });
+
+  it('surfaces a delete API error and remains on the edit form', async () => {
+    const assessmentSheets = {
+      delete: jasmine.createSpy('delete').and.returnValue(throwError(() => new Error('Không thể xóa')))
+    };
+    const { component, router } = makeForm('edit', assessmentSheets);
+    component.isCreate = false;
+    component.assessmentSheetId = 'sheet-1';
+    spyOn<any>(component, 'confirmAssessmentSheetDeletion').and.resolveTo(true);
+
+    await component.deleteAssessmentSheet();
+
+    expect(component.formError).toBeTruthy();
+    expect(router.navigate).not.toHaveBeenCalled();
+    expect(component.deleting).toBeFalse();
+  });
+
+  it('does not open another delete confirmation while a mutation is busy', async () => {
+    const assessmentSheets = { delete: jasmine.createSpy('delete') };
+    const { component } = makeForm('edit', assessmentSheets);
+    component.isCreate = false;
+    component.assessmentSheetId = 'sheet-1';
+    component.deleting = true;
+    const confirmDelete = spyOn<any>(component, 'confirmAssessmentSheetDeletion');
+
+    await component.deleteAssessmentSheet();
+
+    expect(component.canDeleteAssessmentSheet).toBeFalse();
+    expect(confirmDelete).not.toHaveBeenCalled();
+    expect(assessmentSheets.delete).not.toHaveBeenCalled();
+  });
 
   it('shows "Hoàn thành kế hoạch" only for a saved Open sheet', () => {
     const { component } = makeForm('edit');

@@ -35,8 +35,8 @@ Theo mục 13 của plan. Cả 5 quyết định đã được khoá. `ASH-DEC-0
 | Backend | 6 | 0 | 3 | 3 | 0 |
 | Backend delta | 1 | 0 | 0 | 1 | 0 |
 | Frontend | 6 | 5 | 0 | 1 | 0 |
-| Frontend delta | 9 | 0 | 4 | 5 | 0 |
-| Contract delta | 2 | 0 | 0 | 2 | 0 |
+| Frontend delta | 11 | 0 | 4 | 7 | 0 |
+| Contract delta | 3 | 0 | 0 | 3 | 0 |
 | Cleanup delta | 1 | 0 | 0 | 1 | 0 |
 | Import delta | 2 | 0 | 1 | 1 | 0 |
 | Group editing delta | 1 | 1 | 0 | 0 | 0 |
@@ -91,6 +91,8 @@ Cập nhật bảng này mỗi khi đổi trạng thái một dòng bên dưới
 | `[~]` | [`ASH-FE-11`](details/18-ASH-FE-11.md) | Đã code nút `In Kế hoạch PDF`, trang preview A4 (co 1 trang tự động), mở blob PDF bằng `html2pdf.js`, endpoint upload PDF do UI tạo lên Google Drive học viên, show/hide cột Kế hoạch/Kết quả + khoá nút PDF theo `status`, tên file PDF đổi sang cú pháp `khcn - <code>.<nick>_<assessmentName>.pdf`; `npm --prefix ui run test:ci` 114/114, build dev pass; smoke thủ công và kiểm tra lưu Drive thật vẫn chừa lại theo yêu cầu | `ASH-FE-10` |
 | `[~]` | [`ASH-FE-12`](details/19-ASH-FE-12.md) | Đã code nút `In Kết Quả PDF`, chỉ enable khi `status != Open`, route preview kết quả dùng `FinalGrade`/`FinalNote`, mở blob PDF và upload Google Drive vào `ResultFileLinkPdf`; ngày 2026-09-04 đã sửa cột Kết quả chọn màu nền theo đúng grade của loại preview (`FinalGrade` cho KQ, `PlanGrade` cho KHCN), chỉ fallback màu nhóm khi grade tương ứng trống. Frontend `test:ci` 166/166 và build dev pass hash `800ffe77d1b2135036f9`; smoke thủ công và kiểm tra Drive thật chưa chạy | `ASH-FE-11` |
 | `[x]` | [`ASH-FE-13`](details/23-ASH-FE-13.md) | Chỉ tự động fill `PlanGrade`/`PlanNote`; không tự động fill `FinalGrade`/`FinalNote` từ kế hoạch/latest khi mở edit, thêm record hoặc lưu records. Frontend `test:ci` 118/118 và build dev pass | `ASH-FE-10`, `ASH-CR-01` |
+| `[x]` | [`ASH-PICKER-MULTI-01`](details/36-ASH-PICKER-MULTI-01.md) | Picker trong form edit có cột checkbox chọn nhiều dòng, `Chọn tất cả` theo toàn bộ kết quả khớp filter và nút `Thêm các mục đã chọn (n)`; batch full-replace một request, không thêm trùng. Frontend test 175/175 + development build pass | `ASH-FB-W1`, `PUT /assessment-sheets/{id}/records` |
+| `[x]` | [`ASH-PICKER-BULK-02`](details/37-ASH-PICKER-BULK-02.md) | Records table thêm `Kết quả hiện tại`, toggle cột hiện tại và checkbox ẩn/hiện toàn bảng; picker có TagBox filter vòng 1 đã có/chưa có độc lập với filter lưới, không hiện cột membership, hỗ trợ chọn hỗn hợp và thêm/bỏ nhiều mục bằng một request full-replace. Frontend test 185/185 + development build pass | `ASH-PICKER-MULTI-01`, `GET /assessments?studentId`, `PUT /assessment-sheets/{id}/records` |
 
 ## Contract delta — owner: `root` / phối hợp backend + frontend
 
@@ -98,6 +100,7 @@ Cập nhật bảng này mỗi khi đổi trạng thái một dòng bên dưới
 |---|---|---|---|
 | `[x]` | `ASH-CR-01` | `POST /assessment-sheets` đổi payload tạo mới từ `assessmentIds[]` sang `records[]` gồm `assessmentId`, `latestGrade`, `note`; backend lưu vào `PlanGrade`/`PlanNote`, UI picker gửi dữ liệu latest đang hiển thị | `ASH-FE-05`, latest contract `/assessments?studentId=...` |
 | `[x]` | [`ASH-CR-02`](details/20-ASH-CR-02.md) | Đã thêm nút `Cập nhật Kết Quả` gọi `submit-results`; UI chỉ hiện khi sheet `Done` và disable cho role `Teacher`, còn backend không chặn riêng Teacher. Backend ghi ResultSource chỉ với cell có thay đổi và audit từng cell được ghi; `FinalNote` ghi vào cột kế bên phải cột kết quả của học sinh; automated gate pass, chưa smoke Google Sheet thật | `ASH-FE-10`, `ASH-BE-03` |
+| `[x]` | [`ASH-DEL-01`](details/38-ASH-DEL-01.md) | API/UI xóa vĩnh viễn `AssessmentSheet` cùng records trong app; không xóa Google Sheet/Drive/Assessment/latest; xác nhận rõ phạm vi, audit an toàn. Backend 118/118 + build pass; frontend 190/190 + build dev pass | `ASH-BE-02`, AssessmentSheet UI |
 
 ## Cleanup delta — owner: `root` / phối hợp backend + frontend
 

@@ -400,6 +400,12 @@ Content-Type: application/json
 }
 
 ###
+# Xóa vĩnh viễn sheet + records chỉ trong DB app.
+# Không xóa Assessment/latest mirrors và không gọi/xóa file Google Drive.
+DELETE {{host}}/api/v1/assessment-sheets/{{assessmentSheetId}}
+Authorization: Bearer {{accessToken}}
+
+###
 # Upload PDF kế hoạch do UI preview tạo bằng html2pdf.js.
 # Endpoint này không gọi generate-plan-pdf cũ và yêu cầu Student.driveFolderId để lưu đúng thư mục Drive học viên.
 # Đổi đường dẫn file PDF mẫu bên dưới trước khi chạy thật.

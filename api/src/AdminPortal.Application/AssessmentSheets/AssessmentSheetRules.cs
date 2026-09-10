@@ -27,6 +27,15 @@ public static class AssessmentSheetRules
             { [field] = ["Danh sách phải có ít nhất một mục hợp lệ và không được trùng."] });
     }
 
+    public static AssessmentSheetDeletionAuditSnapshot BuildDeletionAuditSnapshot(
+        AssessmentSheet sheet,
+        int recordCount) => new(
+            sheet.AssessmentSheetStatus.ToString(),
+            sheet.StudentId,
+            recordCount,
+            !string.IsNullOrWhiteSpace(sheet.PlanFileLinkPdf),
+            !string.IsNullOrWhiteSpace(sheet.ResultFileLinkPdf));
+
     /// <summary>
     /// Thang xếp hạng FinalGrade/PlanGrade đã chốt với người dùng (2026-08-30):
     /// A = 3 (cao nhất) &gt; B = 2 &gt; C = 1 &gt; D = 0 (thấp nhất). Giá trị ngoài enum trả -1.

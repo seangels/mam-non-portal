@@ -11,6 +11,9 @@
 .records-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
 .records-heading h3 { margin: 0; font-size: 16px; }
 .records-heading span { color: #667085; }
+.records-heading-title { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
+.records-visibility-toggle { display: inline-flex; align-items: center; gap: 5px; color: #475467; font-size: 13px; cursor: pointer; }
+.records-visibility-toggle input { width: 14px; height: 14px; margin: 0; cursor: pointer; }
 .records-heading-actions { display: flex; align-items: center; gap: 10px; }
 .empty-records { padding: 14px; border: 1px dashed #c8d0dc; border-radius: 8px; color: #667085; text-align: center; }
 .records-table-wrapper { overflow: auto; border: 1px solid #1f2937; border-radius: 2px; background: #fff; }

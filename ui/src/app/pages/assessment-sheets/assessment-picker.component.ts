@@ -1,6 +1,7 @@
 import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import notify from 'devextreme/ui/notify';
+import query from 'devextreme/data/query';
 import { DxDataGridComponent } from 'devextreme-angular/ui/data-grid';
 import { ApiError } from '../../core/models/api-error';
 import { Assessment, AssessmentGroup, AssessmentListQuery } from '../../core/models/api.models';
@@ -20,6 +21,7 @@ const LATEST_GRADE_NONE_LABEL = 'Chưa có';
 type AssessmentPickerViewMode = 'all' | 'selected';
 type AssessmentPickerMode = 'select' | 'add';
 type LatestGradeFilterValue = AssessmentGrade | 'none';
+type PlanMembershipFilterValue = 'existing' | 'missing';
 
 @Component({
   selector: 'app-assessment-picker',
@@ -32,9 +34,12 @@ export class AssessmentPickerComponent implements OnChanges, OnInit, OnDestroy {
   @Input() selectedIds: string[] = [];
   @Input() studentId: string | null = null;
   @Input() existingCodes: string[] = [];
+  @Input() cachedAssessments: Assessment[] = [];
   @Input() addDisabled = false;
   @Output() selectedIdsChange = new EventEmitter<string[]>();
   @Output() assessmentAdd = new EventEmitter<Assessment>();
+  @Output() assessmentsAdd = new EventEmitter<Assessment[]>();
+  @Output() assessmentsRemove = new EventEmitter<Assessment[]>();
   @Output() assessmentRemove = new EventEmitter<Assessment>();
 
   search = '';
@@ -61,6 +66,10 @@ export class AssessmentPickerComponent implements OnChanges, OnInit, OnDestroy {
   private selectedViewSnapshotIdSet = new Set<string>();
   private initialized = false;
   private loadedStudentId: string | null = null;
+  private bulkAddToolbarButton?: { option: (options: Record<string, unknown>) => void };
+  private bulkRemoveToolbarButton?: { option: (options: Record<string, unknown>) => void };
+  private selectAllToolbarCheckBox?: { option: (options: Record<string, unknown>) => void };
+  private membershipToolbarTagBox?: { option: (options: Record<string, unknown>) => void };
   readonly gridRemoteOperations = false;
   readonly gridDefaultPageSize = 50;
   readonly gridPageSizes = [20, 50, 100, 200, 1000, 2000];
@@ -89,6 +98,11 @@ export class AssessmentPickerComponent implements OnChanges, OnInit, OnDestroy {
     LATEST_GRADE_NONE_LABEL,
     ...ASSESSMENT_GRADE_OPTIONS.filter(option => option.value !== 'A').map(option => option.text)
   ];
+  readonly planMembershipFilterOptions: Array<{ value: PlanMembershipFilterValue; text: string }> = [
+    { value: 'existing', text: 'Trong KH' },
+    { value: 'missing', text: 'Chưa có trong KH' }
+  ];
+  membershipFilterValues: PlanMembershipFilterValue[] = ['existing', 'missing'];
   // Header filter cột "Nhóm 2" giữ đúng thứ tự cố định của nhóm Lv2 thay vì abc.
   readonly groupLv2HeaderFilter = {
     dataSource: (data: { dataSource: { postProcess?: (items: Array<{ value?: string }>) => Array<{ value?: string }> } }): void => {
@@ -110,6 +124,15 @@ export class AssessmentPickerComponent implements OnChanges, OnInit, OnDestroy {
     if (changes['existingCodes']) {
       this.refreshExistingCodeSet();
     }
+    if (changes['cachedAssessments'] && this.cachedAssessments.length > 0) {
+      this.useCachedAssessments(this.cachedAssessments);
+    }
+    if (changes['mode']) {
+      this.syncSelectionToolbar();
+    }
+    if (changes['addDisabled']) {
+      this.syncSelectionToolbar();
+    }
     if (changes['studentId'] && this.initialized) {
       const nextStudentId = this.normalizeOptionalId(this.studentId);
       if (nextStudentId !== this.loadedStudentId) {
@@ -122,13 +145,21 @@ export class AssessmentPickerComponent implements OnChanges, OnInit, OnDestroy {
     this.refreshSelectedSet();
     this.refreshExistingCodeSet();
     this.initialized = true;
-    void this.loadAssessmentsFromServer();
+    if (this.cachedAssessments.length > 0) {
+      this.useCachedAssessments(this.cachedAssessments);
+    } else {
+      void this.loadAssessmentsFromServer();
+    }
   }
 
   ngOnDestroy(): void {
     if (this.searchTimer !== undefined) {
       window.clearTimeout(this.searchTimer);
     }
+    this.bulkAddToolbarButton = undefined;
+    this.bulkRemoveToolbarButton = undefined;
+    this.selectAllToolbarCheckBox = undefined;
+    this.membershipToolbarTagBox = undefined;
   }
 
   focus(): void {
@@ -154,6 +185,50 @@ export class AssessmentPickerComponent implements OnChanges, OnInit, OnDestroy {
     return this.mode === 'add';
   }
 
+  get selectedAddCount(): number {
+    return this.isAddMode ? this.getSelectedAssessments().filter(item => !this.isExistingAssessment(item)).length : 0;
+  }
+
+  get selectedRemoveCount(): number {
+    return this.isAddMode ? this.getSelectedAssessments().filter(item => this.isExistingAssessment(item)).length : 0;
+  }
+
+  get bulkAddText(): string {
+    return `Thêm các mục đã chọn (${this.selectedAddCount})`;
+  }
+
+  get bulkAddDisabled(): boolean {
+    return this.addDisabled || this.selectedAddCount === 0;
+  }
+
+  get bulkRemoveText(): string {
+    return `Bỏ các mục đã chọn (${this.selectedRemoveCount})`;
+  }
+
+  get bulkRemoveDisabled(): boolean {
+    return this.addDisabled || this.selectedRemoveCount === 0;
+  }
+
+  get selectAllFilteredValue(): boolean | null {
+    const state = this.filteredSelectionState();
+    if (state.selectedCount === 0) {
+      return false;
+    }
+    return state.selectedCount === state.totalCount ? true : null;
+  }
+
+  get selectAllFilteredText(): string {
+    const state = this.filteredSelectionState();
+    return `Chọn tất cả (${state.selectedCount}/${state.totalCount})`;
+  }
+
+  get selectAllFilteredHint(): string {
+    const state = this.filteredSelectionState();
+    return state.totalCount > 0 && state.selectedCount === state.totalCount
+      ? `Bỏ chọn ${state.totalCount} mục đang khớp bộ lọc`
+      : `Chọn tất cả ${state.totalCount} mục đang khớp bộ lọc`;
+  }
+
   scheduleSearch(): void {
     if (this.searchTimer !== undefined) {
       window.clearTimeout(this.searchTimer);
@@ -173,8 +248,9 @@ export class AssessmentPickerComponent implements OnChanges, OnInit, OnDestroy {
     this.filteredAssessments = source
       .filter(assessment => this.matchesCurrentFilters(assessment))
       .sort(compareAssessmentByFixedGroupOrder);
-    this.grid?.instance.pageIndex(0);
-    this.grid?.instance.repaint();
+    const grid = this.grid?.instance as unknown as { pageIndex?: (value: number) => void; repaint?: () => void } | undefined;
+    grid?.pageIndex?.(0);
+    grid?.repaint?.();
   }
 
   retryLoad(): void {
@@ -187,6 +263,8 @@ export class AssessmentPickerComponent implements OnChanges, OnInit, OnDestroy {
     this.groupLv2Name = null;
     this.groupLv3Name = null;
     this.latestGradeFilters = [];
+    this.membershipFilterValues = ['existing', 'missing'];
+    this.syncMembershipToolbar();
     this.resetGridFilters();
     this.refreshGroupOptions();
     this.applyFilters();
@@ -205,9 +283,82 @@ export class AssessmentPickerComponent implements OnChanges, OnInit, OnDestroy {
   }
 
   // Toolbar của lưới picker (DevExtreme 19.2 chưa có option `toolbar` khai báo được, dùng event này):
-  // giữ nút "Chọn cột" mặc định, thêm nút "Đặt lại lọc lưới" ở bên trái.
+  // giữ nút "Chọn cột" mặc định, thêm nút bulk-add (ở add-mode) và "Đặt lại lọc lưới" ở bên trái.
   onToolbarPreparing(event: { toolbarOptions?: { items?: any[] } }): void {
-    event.toolbarOptions?.items?.unshift({
+    const items = event.toolbarOptions?.items;
+    if (!items) {
+      return;
+    }
+    const customItems: any[] = [];
+    if (this.isAddMode) {
+      customItems.push({
+        location: 'before',
+        widget: 'dxCheckBox',
+        options: {
+          value: this.selectAllFilteredValue,
+          text: this.selectAllFilteredText,
+          hint: this.selectAllFilteredHint,
+          disabled: this.addDisabled || this.filteredSelectionState().totalCount === 0,
+          elementAttr: { 'aria-label': this.selectAllFilteredHint },
+          onInitialized: (e: { component?: unknown }) => {
+            this.selectAllToolbarCheckBox = e.component as { option: (options: Record<string, unknown>) => void };
+            this.syncSelectAllToolbar();
+          },
+          onValueChanged: (e: { event?: unknown }) => this.onSelectAllFilteredChanged(e)
+        }
+      }, {
+        location: 'before',
+        widget: 'dxTagBox',
+        options: {
+          dataSource: this.planMembershipFilterOptions,
+          valueExpr: 'value',
+          displayExpr: 'text',
+          value: [...this.membershipFilterValues],
+          width: 260,
+          showSelectionControls: true,
+          placeholder: 'Lọc trạng thái kế hoạch',
+          inputAttr: { 'aria-label': 'Lọc mục đánh giá theo trạng thái trong kế hoạch' },
+          onInitialized: (e: { component?: unknown }) => {
+            this.membershipToolbarTagBox = e.component as { option: (options: Record<string, unknown>) => void };
+            this.syncMembershipToolbar();
+          },
+          onValueChanged: (e: { value?: PlanMembershipFilterValue[]; previousValue?: PlanMembershipFilterValue[]; event?: unknown }) =>
+            this.onMembershipFilterChanged(e)
+        }
+      }, {
+        location: 'before',
+        widget: 'dxButton',
+        options: {
+          icon: 'add',
+          text: this.bulkAddText,
+          type: 'default',
+          hint: 'Thêm tất cả mục đang chọn vào bảng đánh giá trong một lần lưu',
+          disabled: this.bulkAddDisabled,
+          onInitialized: (e: { component?: unknown }) => {
+            this.bulkAddToolbarButton = e.component as { option: (options: Record<string, unknown>) => void };
+            this.syncBulkAddToolbar();
+          },
+          onClick: () => this.onAddSelectedAssessmentsClick()
+        }
+      }, {
+        location: 'before',
+        widget: 'dxButton',
+        options: {
+          icon: 'trash',
+          text: this.bulkRemoveText,
+          type: 'danger',
+          stylingMode: 'outlined',
+          hint: 'Bỏ tất cả mục đã chọn đang có trong kế hoạch bằng một lần lưu',
+          disabled: this.bulkRemoveDisabled,
+          onInitialized: (e: { component?: unknown }) => {
+            this.bulkRemoveToolbarButton = e.component as { option: (options: Record<string, unknown>) => void };
+            this.syncBulkRemoveToolbar();
+          },
+          onClick: () => this.onRemoveSelectedAssessmentsClick()
+        }
+      });
+    }
+    customItems.push({
       location: 'before',
       widget: 'dxButton',
       options: {
@@ -218,6 +369,7 @@ export class AssessmentPickerComponent implements OnChanges, OnInit, OnDestroy {
         onClick: () => this.resetGridFilters()
       }
     });
+    items.unshift(...customItems);
   }
 
   onGroupLv1Changed(): void {
@@ -256,6 +408,9 @@ export class AssessmentPickerComponent implements OnChanges, OnInit, OnDestroy {
   }
 
   selectCheckboxHint(assessment: Assessment | null | undefined): string {
+    if (assessment && this.isAddMode && this.isExistingAssessment(assessment)) {
+      return `Chọn mục ${assessment.code} · ${assessment.name} để bỏ khỏi kế hoạch`;
+    }
     return assessment ? `Chọn mục ${assessment.code} · ${assessment.name}` : 'Chọn mục đánh giá';
   }
 
@@ -272,6 +427,10 @@ export class AssessmentPickerComponent implements OnChanges, OnInit, OnDestroy {
     return code ? this.existingCodeSet.has(code) : false;
   }
 
+  isAddSelectionDisabled(assessment: Assessment | null | undefined): boolean {
+    return this.isAddMode && this.addDisabled;
+  }
+
   latestGradeText(value: string | null | undefined): string {
     if (!value) {
       return '-';
@@ -279,13 +438,17 @@ export class AssessmentPickerComponent implements OnChanges, OnInit, OnDestroy {
     return ASSESSMENT_GRADE_OPTIONS.find(item => item.value === value)?.text ?? value;
   }
 
-  onSelectCheckboxChanged(id: unknown, event: { value?: boolean; event?: unknown }): void {
-    if (!this.isSelectMode) {
-      return;
-    }
+  onSelectCheckboxChanged(assessmentOrId: Assessment | unknown, event: { value?: boolean; event?: unknown }): void {
     if (!event.event) {
       return;
     }
+    const assessment = typeof assessmentOrId === 'object' && assessmentOrId !== null
+      ? assessmentOrId as Assessment
+      : this.allAssessments.find(item => item.id === this.normalizeSelectedId(assessmentOrId));
+    if (this.isAddSelectionDisabled(assessment)) {
+      return;
+    }
+    const id = assessment?.id ?? assessmentOrId;
     const normalizedId = this.normalizeSelectedId(id);
     if (!normalizedId) {
       return;
@@ -306,6 +469,67 @@ export class AssessmentPickerComponent implements OnChanges, OnInit, OnDestroy {
     this.assessmentAdd.emit(assessment);
   }
 
+  onAddSelectedAssessmentsClick(): void {
+    if (this.bulkAddDisabled) {
+      return;
+    }
+    const selectedAssessments = this.getSelectedAssessments().filter(item => !this.isExistingAssessment(item));
+    if (selectedAssessments.length > 0) {
+      this.assessmentsAdd.emit(selectedAssessments);
+    }
+  }
+
+  onRemoveSelectedAssessmentsClick(): void {
+    if (this.bulkRemoveDisabled) {
+      return;
+    }
+    const selectedAssessments = this.getSelectedAssessments().filter(item => this.isExistingAssessment(item));
+    if (selectedAssessments.length > 0) {
+      this.assessmentsRemove.emit(selectedAssessments);
+    }
+  }
+
+  clearBulkSelection(): void {
+    this.emitSelectedIds(new Set<string>());
+  }
+
+  onSelectAllFilteredChanged(event: { event?: unknown }): void {
+    if (!event.event || this.addDisabled) {
+      return;
+    }
+    this.setAllFilteredSelected(this.selectAllFilteredValue !== true);
+  }
+
+  onMembershipFilterChanged(event: {
+    value?: PlanMembershipFilterValue[];
+    previousValue?: PlanMembershipFilterValue[];
+    event?: unknown;
+  }): void {
+    if (!event.event) {
+      return;
+    }
+    const next = this.normalizeMembershipFilterValues(event.value ?? []);
+    this.membershipFilterValues = next;
+    this.applyFilters();
+    this.syncMembershipToolbar();
+  }
+
+  setAllFilteredSelected(selected: boolean): void {
+    const next = new Set(this.selectedIdSet);
+    this.getFilteredSelectableAssessments().forEach(assessment => {
+      const id = this.normalizeSelectedId(assessment.id);
+      if (!id) {
+        return;
+      }
+      if (selected) {
+        next.add(id);
+      } else {
+        next.delete(id);
+      }
+    });
+    this.emitSelectedIds(next);
+  }
+
   onRemoveAssessmentClick(assessment: Assessment | null | undefined): void {
     if (!assessment || this.addDisabled || !this.isExistingAssessment(assessment)) {
       return;
@@ -323,8 +547,13 @@ export class AssessmentPickerComponent implements OnChanges, OnInit, OnDestroy {
 
   setAllVisibleSelected(selected: boolean): void {
     const next = new Set(this.selectedIdSet);
+    const assessmentById = new Map(this.allAssessments.map(assessment => [assessment.id, assessment]));
     if (selected) {
-      this.visibleAssessmentIds.forEach(id => next.add(id));
+      this.visibleAssessmentIds.forEach(id => {
+        if (!this.isAddSelectionDisabled(assessmentById.get(id))) {
+          next.add(id);
+        }
+      });
     } else {
       this.visibleAssessmentIds.forEach(id => next.delete(id));
     }
@@ -333,6 +562,7 @@ export class AssessmentPickerComponent implements OnChanges, OnInit, OnDestroy {
 
   onContentReady(): void {
     this.refreshVisibleAssessmentIds();
+    this.syncSelectAllToolbar();
     // DevExtreme 19.2: `_synchronizeColumns`/`_toggleBestFitMode` (trên ResizingController) có thể chạy
     // sau khi grid picker bị hủy (đóng picker / rời form) → null-css. Vá trên đúng controller `resizing`.
     if (!this.gridBestFitGuarded && patchGridBestFit(this.grid?.instance, '[AssessmentPicker]')) {
@@ -415,6 +645,7 @@ export class AssessmentPickerComponent implements OnChanges, OnInit, OnDestroy {
       this.loadedStudentId = requestedStudentId;
       this.refreshGroupOptions();
       this.applyFilters();
+      this.syncSelectionToolbar();
       this.loadError = '';
     } catch (error) {
       const apiError = ApiError.from(error);
@@ -465,7 +696,14 @@ export class AssessmentPickerComponent implements OnChanges, OnInit, OnDestroy {
       && (!this.groupLv1Name || assessment.groupLv1Name === this.groupLv1Name)
       && (!this.groupLv2Name || assessment.groupLv2Name === this.groupLv2Name)
       && (!this.groupLv3Name || assessment.groupLv3Name === this.groupLv3Name)
-      && this.matchesLatestGradeFilter(assessment.latestGrade);
+      && this.matchesLatestGradeFilter(assessment.latestGrade)
+      && this.matchesMembershipFilter(assessment);
+  }
+
+  private matchesMembershipFilter(assessment: Assessment): boolean {
+    return this.membershipFilterValues.length === this.planMembershipFilterOptions.length
+      || (this.membershipFilterValues.includes('existing') && this.isExistingAssessment(assessment))
+      || (this.membershipFilterValues.includes('missing') && !this.isExistingAssessment(assessment));
   }
 
   private matchesLatestGradeFilter(latestGrade: string | null | undefined): boolean {
@@ -505,6 +743,7 @@ export class AssessmentPickerComponent implements OnChanges, OnInit, OnDestroy {
   private refreshSelectedSet(): void {
     this.selectedIdSet = new Set(this.normalizeSelectedIds(this.selectedIds));
     this.grid?.instance.repaint();
+    this.syncSelectionToolbar();
   }
 
   private refreshExistingCodeSet(): void {
@@ -513,7 +752,8 @@ export class AssessmentPickerComponent implements OnChanges, OnInit, OnDestroy {
         .map(code => this.normalizeCode(code))
         .filter((code): code is string => !!code)
     );
-    this.grid?.instance.repaint();
+    this.applyFilters();
+    this.syncSelectionToolbar();
   }
 
   private emitSelectedIds(selectedIdSet: Set<string>): void {
@@ -522,6 +762,87 @@ export class AssessmentPickerComponent implements OnChanges, OnInit, OnDestroy {
     this.selectedIdSet = selectedIdSet;
     this.selectedIdsChange.emit(selectedIds);
     this.grid?.instance.repaint();
+    this.syncSelectionToolbar();
+  }
+
+  onGridOptionChanged(event: { name?: string; fullName?: string }): void {
+    const optionName = event.fullName ?? event.name ?? '';
+    if (event.name === 'filterValue' || /filterValue|filterValues|selectedFilterOperation|searchPanel\.text/.test(optionName)) {
+      this.syncSelectAllToolbar();
+    }
+  }
+
+  private syncBulkAddToolbar(): void {
+    this.bulkAddToolbarButton?.option({
+      text: this.bulkAddText,
+      disabled: this.bulkAddDisabled
+    });
+  }
+
+  private syncBulkRemoveToolbar(): void {
+    this.bulkRemoveToolbarButton?.option({
+      text: this.bulkRemoveText,
+      disabled: this.bulkRemoveDisabled
+    });
+  }
+
+  private syncSelectAllToolbar(): void {
+    const state = this.filteredSelectionState();
+    const value = state.selectedCount === 0
+      ? false
+      : state.selectedCount === state.totalCount ? true : null;
+    const hint = state.totalCount > 0 && state.selectedCount === state.totalCount
+      ? `Bỏ chọn ${state.totalCount} mục đang khớp bộ lọc`
+      : `Chọn tất cả ${state.totalCount} mục đang khớp bộ lọc`;
+    this.selectAllToolbarCheckBox?.option({
+      value,
+      text: `Chọn tất cả (${state.selectedCount}/${state.totalCount})`,
+      hint,
+      disabled: this.addDisabled || state.totalCount === 0,
+      elementAttr: { 'aria-label': hint }
+    });
+  }
+
+  private syncSelectionToolbar(): void {
+    this.syncBulkAddToolbar();
+    this.syncBulkRemoveToolbar();
+    this.syncSelectAllToolbar();
+    this.syncMembershipToolbar();
+  }
+
+  private syncMembershipToolbar(): void {
+    this.membershipToolbarTagBox?.option({ value: [...this.membershipFilterValues] });
+  }
+
+  private normalizeMembershipFilterValues(values: PlanMembershipFilterValue[]): PlanMembershipFilterValue[] {
+    const unique = Array.from(new Set(values.filter(value => value === 'existing' || value === 'missing')));
+    return unique.length === 1 ? unique : ['existing', 'missing'];
+  }
+
+  private filteredSelectionState(): { selectedCount: number; totalCount: number } {
+    const assessments = this.getFilteredSelectableAssessments();
+    return {
+      selectedCount: assessments.filter(assessment => this.selectedIdSet.has(assessment.id)).length,
+      totalCount: assessments.length
+    };
+  }
+
+  private getFilteredSelectableAssessments(): Assessment[] {
+    const filter = (this.grid?.instance as unknown as { getCombinedFilter?: () => unknown } | undefined)
+      ?.getCombinedFilter?.();
+    const matching = filter
+      ? query(this.filteredAssessments).filter(filter as any).toArray() as Assessment[]
+      : this.filteredAssessments;
+    return matching.filter(assessment => !this.isAddSelectionDisabled(assessment));
+  }
+
+  private useCachedAssessments(assessments: Assessment[]): void {
+    this.allAssessments = [...assessments];
+    this.loadedStudentId = this.normalizeOptionalId(this.studentId);
+    this.refreshGroupOptions();
+    this.applyFilters();
+    this.syncSelectionToolbar();
+    this.loadError = '';
   }
 
   private refreshVisibleAssessmentIds(): void {

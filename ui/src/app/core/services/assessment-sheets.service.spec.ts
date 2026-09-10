@@ -4,6 +4,16 @@ import { AssessmentSheetsService } from './assessment-sheets.service';
 import { AssessmentsService } from './assessments.service';
 
 describe('AssessmentSheetsService', () => {
+  it('deletes an assessment sheet through the DELETE contract', () => {
+    const api = jasmine.createSpyObj<ApiClient>('ApiClient', ['delete']);
+    api.delete.and.returnValue(of(undefined));
+    const service = new AssessmentSheetsService(api);
+
+    service.delete('sheet-1').subscribe(result => expect(result).toBeUndefined());
+
+    expect(api.delete).toHaveBeenCalledWith('assessment-sheets/sheet-1');
+  });
+
   it('replaces records (including snapshot group names) through the PUT contract', () => {
     const detail = { id: 'sheet-1', records: [] } as any;
     const api = jasmine.createSpyObj<ApiClient>('ApiClient', ['put']);

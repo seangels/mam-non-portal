@@ -301,6 +301,147 @@ public sealed class AdminPortalApiTests(ApiFactory factory) : IClassFixture<ApiF
     }
 
     [Fact]
+    public async Task AssessmentSheetDeletePermanentlyRemovesOnlyAppSheetAndRecords()
+    {
+        var googleSheets = new FakeGoogleSheetsService();
+        using var deleteFactory = factory.WithWebHostBuilder(builder => builder.ConfigureServices(services =>
+        {
+            services.RemoveAll<IGoogleSheetsService>();
+            services.AddSingleton<IGoogleSheetsService>(googleSheets);
+        }));
+        using var client = deleteFactory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            BaseAddress = new Uri("https://localhost"),
+            AllowAutoRedirect = false,
+            HandleCookies = true
+        });
+        var auth = await LoginAsync(client, ApiFactory.SuperAdminEmail, ApiFactory.SuperAdminPassword);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", auth.AccessToken);
+        var marker = Guid.NewGuid().ToString("N")[..8];
+        var student = await CreateStudentAsync(client, $"DEL-{marker}", $"Delete Sheet {marker}");
+        var assessmentId = Guid.NewGuid();
+        var latestSheetId = Guid.NewGuid();
+        var latestRecordId = Guid.NewGuid();
+        var now = DateTimeOffset.UtcNow;
+
+        using (var scope = deleteFactory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<AdminPortalDbContext>();
+            var actor = await dbContext.Users.AsNoTracking()
+                .SingleAsync(x => x.Email == ApiFactory.SuperAdminEmail);
+            var assessment = new Assessment
+            {
+                Id = assessmentId,
+                Code = $"DEL-{marker}-001",
+                Name = $"Delete Assessment {marker}",
+                RowIndex = 1,
+                UpdatedByUserId = actor.Id,
+                CreatedAt = now,
+                UpdatedAt = now
+            };
+            var latestSheet = new AssessmentSheetLatest
+            {
+                Id = latestSheetId,
+                Name = $"Latest {marker}",
+                AssessmentSheetStatus = AssessmentSheetStatus.Done,
+                StudentId = student.Id,
+                StudentSnapshot = new StudentSnapshot
+                {
+                    StudentCode = student.StudentCode,
+                    FullName = student.FullName,
+                    NickName = student.NickName,
+                    DateOfBirth = student.DateOfBirth,
+                    Gender = student.Gender
+                },
+                UpdatedByUserId = actor.Id,
+                CreatedAt = now,
+                UpdatedAt = now
+            };
+            await dbContext.Assessments.AddAsync(assessment);
+            await dbContext.AssessmentSheetLatests.AddAsync(latestSheet);
+            await dbContext.AssessmentRecordLatests.AddAsync(new AssessmentRecordLatest
+            {
+                Id = latestRecordId,
+                AssessmentSheetLatestId = latestSheetId,
+                AssessmentSheetLatest = latestSheet,
+                AssessmentId = assessmentId,
+                Assessment = assessment,
+                LatestGrade = AssessmentGrade.B,
+                Note = "latest remains",
+                CreatedAt = now,
+                UpdatedAt = now
+            });
+            await dbContext.SaveChangesAsync();
+        }
+
+        var create = await client.PostAsJsonAsync("/api/v1/assessment-sheets", new
+        {
+            studentId = student.Id,
+            responsibleTeacherId = (Guid?)null,
+            note = "app-only delete",
+            startDate = "2026-08-01T00:00:00+07:00",
+            dueDate = "2026-08-31T00:00:00+07:00",
+            records = new[]
+            {
+                new { assessmentId, latestGrade = (AssessmentGrade?)AssessmentGrade.B, note = "latest remains" }
+            }
+        }, JsonOptions);
+        create.EnsureSuccessStatusCode();
+        var sheet = await create.Content.ReadFromJsonAsync<AssessmentSheetDetailResponse>(JsonOptions);
+        Assert.NotNull(sheet);
+        Assert.Single(sheet.Records);
+
+        // Xóa được ở mọi status và không dùng link Drive để xóa tài nguyên ngoài app.
+        using (var scope = deleteFactory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<AdminPortalDbContext>();
+            var persistedSheet = await dbContext.AssessmentSheets.SingleAsync(x => x.Id == sheet.Id);
+            persistedSheet.AssessmentSheetStatus = AssessmentSheetStatus.Done;
+            persistedSheet.PlanFileLinkPdf = $"https://drive.example.test/{sheet.Id:N}/plan.pdf";
+            persistedSheet.ResultFileLinkPdf = $"https://drive.example.test/{sheet.Id:N}/result.pdf";
+            await dbContext.SaveChangesAsync();
+        }
+
+        var delete = await client.DeleteAsync($"/api/v1/assessment-sheets/{sheet.Id}");
+
+        Assert.Equal(HttpStatusCode.NoContent, delete.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound,
+            (await client.DeleteAsync($"/api/v1/assessment-sheets/{sheet.Id}")).StatusCode);
+
+        using (var scope = deleteFactory.Services.CreateScope())
+        {
+            var dbContext = scope.ServiceProvider.GetRequiredService<AdminPortalDbContext>();
+            Assert.False(await dbContext.AssessmentSheets.AnyAsync(x => x.Id == sheet.Id));
+            Assert.False(await dbContext.AssessmentRecords.AnyAsync(x => x.AssessmentSheetId == sheet.Id));
+            Assert.True(await dbContext.Assessments.AnyAsync(x => x.Id == assessmentId));
+            Assert.True(await dbContext.AssessmentSheetLatests.AnyAsync(x => x.Id == latestSheetId));
+            Assert.True(await dbContext.AssessmentRecordLatests.AnyAsync(x => x.Id == latestRecordId));
+
+            var audit = await dbContext.AuditLogs.AsNoTracking()
+                .SingleAsync(x => x.EntityId == sheet.Id && x.Action == "AssessmentSheet.Deleted");
+            Assert.Equal("AssessmentSheet", audit.EntityType);
+            Assert.NotNull(audit.OldValues);
+            Assert.Null(audit.NewValues);
+            Assert.True(AuditJsonValueEquals(audit.OldValues, "Status", "Done"));
+            Assert.True(AuditJsonValueEquals(audit.OldValues, "RecordCount", 1));
+            Assert.Contains("\"HasPlanPdf\":true", audit.OldValues, StringComparison.Ordinal);
+            Assert.Contains("\"HasResultPdf\":true", audit.OldValues, StringComparison.Ordinal);
+            Assert.DoesNotContain("drive.example.test", audit.OldValues, StringComparison.Ordinal);
+            Assert.DoesNotContain("app-only delete", audit.OldValues, StringComparison.Ordinal);
+            Assert.DoesNotContain("latest remains", audit.OldValues, StringComparison.Ordinal);
+        }
+
+        Assert.Equal(Guid.Empty, googleSheets.UploadedAssessmentSheetId);
+        Assert.Equal(Guid.Empty, googleSheets.UploadedStudentId);
+        Assert.Null(googleSheets.UploadedFileName);
+        Assert.Null(googleSheets.UploadedContent);
+        Assert.Null(googleSheets.SubmittedStudentCode);
+        Assert.Null(googleSheets.PreviewedStudentCode);
+        Assert.Null(googleSheets.DownloadedPdfLink);
+        Assert.False(googleSheets.SmokeWasCalled);
+    }
+
+    [Fact]
     public async Task AssessmentSheetImportExcelPreviewAndSubmitCreatesThenUpdatesSheets()
     {
         using var client = CreateClient();

@@ -39,6 +39,8 @@ public interface IAssessmentSheetService
         UpdateAssessmentSheetStatusRequest request,
         CancellationToken cancellationToken);
 
+    Task DeleteAsync(Guid id, CancellationToken cancellationToken);
+
     Task<AssessmentSheetDetailResponse> UploadPlanPdfAsync(
         Guid id, string fileName, byte[] content, CancellationToken cancellationToken);
 

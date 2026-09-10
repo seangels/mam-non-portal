@@ -19,6 +19,7 @@
       [rowAlternationEnabled]="true"
       [hoverStateEnabled]="true"
       (onContentReady)="onContentReady()"
+      (onOptionChanged)="onGridOptionChanged($event)"
       (onRowPrepared)="onRowPrepared($event)"
       (onToolbarPreparing)="onToolbarPreparing($event)"
       noDataText="Không có mục đánh giá phù hợp"
@@ -32,10 +33,10 @@
       <dxo-column-chooser [enabled]="true" mode="select"></dxo-column-chooser>
 
       <dxi-column
-        [visible]="isSelectMode"
-        caption=""
+        [visible]="true"
+        caption="Chọn"
         cellTemplate="selectCell"
-        [width]="52"
+        [width]="64"
         [fixed]="true"
         fixedPosition="left"
         [allowSorting]="false"
@@ -76,8 +77,9 @@
       <div *dxTemplate="let cell of 'selectCell'" class="select-cell">
         <dx-check-box
           [value]="isSelected(cell.data.id)"
+          [disabled]="isAddSelectionDisabled(cell.data)"
           [hint]="selectCheckboxHint(cell.data)"
-          (onValueChanged)="onSelectCheckboxChanged(cell.data.id, $event)">
+          (onValueChanged)="onSelectCheckboxChanged(cell.data, $event)">
         </dx-check-box>
       </div>
       <div *dxTemplate="let cell of 'addCell'" class="add-cell">
