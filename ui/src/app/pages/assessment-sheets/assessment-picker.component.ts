@@ -16,7 +16,7 @@ import { patchGridBestFit } from '../../core/errors/dx-grid-bestfit-guard';
 import { includesVietnamese } from '../../core/utils/vietnamese-search';
 
 const SELECTED_ROW_CLASS = 'assessment-picker-selected-row';
-const ASSESSMENT_CACHE_PAGE_SIZE = 100;
+const ASSESSMENT_CACHE_PAGE_SIZE = 1000;
 const LATEST_GRADE_NONE_LABEL = 'Chưa có';
 type AssessmentPickerViewMode = 'all' | 'selected';
 type AssessmentPickerMode = 'select' | 'add';

@@ -206,3 +206,11 @@ _Chưa có hoạt động. Khi chạy `ASH-QA-01`, ghi kết quả từng bướ
 - Bổ sung regression test cho tuổi năm/tháng, đồng thời cập nhật fallback khi snapshot thiếu ngày sinh.
 - Verification trên worktree hiện tại: frontend `test:ci` **208/208**, development build pass hash `65246eafe3ff45524737`, `git diff --check` sạch ngoài cảnh báo LF/CRLF.
 - Không chạy production/IIS/deploy; browser smoke chưa chạy.
+
+## 2026-09-10 — ASH-CACHE-PAGE-01 hoàn tất
+
+- Đổi cache page size của form AssessmentSheet và picker từ 100 lên 1000; vẫn lặp đủ `totalPages` và giữ nguyên phân trang hiển thị.
+- Cập nhật regression tests để xác nhận cả hai loader gọi trang 1/trang 2 với `pageSize: 1000`.
+- Focused AssessmentSheet tests **101/101** và development build pass hash `27123ece4b665d606a86`.
+- Full frontend suite ban đầu lộ test sticky-bar Assessment Results còn assert `window.scrollTo` trong khi production đã đổi sang `scrollIntoView`; đã sửa tối thiểu test này, không đổi runtime source, và chạy lại đạt **208/208**.
+- Không backend/API/schema/production/IIS/deploy; `git diff --check` sạch ngoài cảnh báo LF/CRLF.

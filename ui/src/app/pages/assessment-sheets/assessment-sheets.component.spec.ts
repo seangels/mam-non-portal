@@ -1104,7 +1104,7 @@ describe('Assessment sheet form DevExtreme option stability', () => {
           { id: 'assessment-1', code: 'A01' },
           { id: 'assessment-2', code: 'A02' }
         ],
-        pagination: { page: 1, pageSize: 100, totalItems: 2, totalPages: 1 }
+        pagination: { page: 1, pageSize: 1000, totalItems: 2, totalPages: 1 }
       }))
     };
     const component = new AssessmentSheetFormComponent(
@@ -1153,7 +1153,7 @@ describe('Assessment sheet form DevExtreme option stability', () => {
     expect(clearBulkSelection).not.toHaveBeenCalled();
   });
 
-  it('loads current grades for edit records before the picker is opened', async () => {
+  it('loads current grades for edit records through all cache pages before the picker is opened', async () => {
     const assessmentSheets = {
       get: jasmine.createSpy('get').and.returnValue(of({
         id: 'sheet-1', studentId: 'student-1', studentSnapshot: {}, status: 'Open',
@@ -1161,10 +1161,16 @@ describe('Assessment sheet form DevExtreme option stability', () => {
       }))
     };
     const assessments = {
-      list: jasmine.createSpy('list').and.returnValue(of({
-        items: [{ id: 'assessment-1', code: 'a01', latestGrade: 'C' }],
-        pagination: { page: 1, pageSize: 100, totalItems: 1, totalPages: 1 }
-      }))
+      list: jasmine.createSpy('list').and.returnValues(
+        of({
+          items: [{ id: 'assessment-1', code: 'a01', latestGrade: 'C' }],
+          pagination: { page: 1, pageSize: 1000, totalItems: 1001, totalPages: 2 }
+        }),
+        of({
+          items: [{ id: 'assessment-2', code: 'a02', latestGrade: 'B' }],
+          pagination: { page: 2, pageSize: 1000, totalItems: 1001, totalPages: 2 }
+        })
+      )
     };
     const component = new AssessmentSheetFormComponent(
       assessmentSheets as any, assessments as any, { user: { role: 'Admin' } } as any,
@@ -1174,9 +1180,10 @@ describe('Assessment sheet form DevExtreme option stability', () => {
 
     await (component as any).load('sheet-1');
 
-    expect(assessments.list).toHaveBeenCalledWith({
-      page: 1, pageSize: 100, sortBy: 'rowindex', sortOrder: 'asc', studentId: 'student-1'
-    });
+    expect(assessments.list.calls.allArgs()).toEqual([
+      [{ page: 1, pageSize: 1000, sortBy: 'rowindex', sortOrder: 'asc', studentId: 'student-1' }],
+      [{ page: 2, pageSize: 1000, sortBy: 'rowindex', sortOrder: 'asc', studentId: 'student-1' }]
+    ]);
     expect(component.recordRows[0].latestGrade).toBe('C');
     expect(component.showCurrentGradeColumn).toBeTrue();
   });
@@ -2055,13 +2062,13 @@ describe('Assessment picker filter and selection', () => {
           assessment({ id: 'assessment-1', code: 'NN01', name: 'Ngôn ngữ', groupLv1Name: '3-4 tuổi', latestGrade: 'A' }),
           assessment({ id: 'assessment-2', code: 'TC01', name: 'Thể chất', groupLv1Name: '4-5 tuổi', groupLv2Name: 'Vận động', latestGrade: 'B' })
         ],
-        pagination: { page: 1, pageSize: 100, totalItems: 3, totalPages: 2 }
+        pagination: { page: 1, pageSize: 1000, totalItems: 1001, totalPages: 2 }
       }),
       of({
         items: [
           assessment({ id: 'assessment-3', code: 'TM01', name: 'Thẩm mỹ', groupLv1Name: '3-4 tuổi', groupLv2Name: 'Nghệ thuật', latestGrade: 'C' })
         ],
-        pagination: { page: 2, pageSize: 100, totalItems: 3, totalPages: 2 }
+        pagination: { page: 2, pageSize: 1000, totalItems: 1001, totalPages: 2 }
       })
     );
 
@@ -2070,13 +2077,13 @@ describe('Assessment picker filter and selection', () => {
     expect(assessments.list.calls.allArgs()).toEqual([
       [{
         page: 1,
-        pageSize: 100,
+        pageSize: 1000,
         sortBy: 'rowindex',
         sortOrder: 'asc'
       }],
       [{
         page: 2,
-        pageSize: 100,
+        pageSize: 1000,
         sortBy: 'rowindex',
         sortOrder: 'asc'
       }]
@@ -2123,14 +2130,14 @@ describe('Assessment picker filter and selection', () => {
     component.studentId = ' student-1 ';
     assessments.list.and.returnValue(of({
       items: [assessment({ id: 'assessment-1', latestGrade: 'A', latestNote: 'Cáº§n quan sÃ¡t thÃªm' })],
-      pagination: { page: 1, pageSize: 100, totalItems: 1, totalPages: 1 }
+      pagination: { page: 1, pageSize: 1000, totalItems: 1, totalPages: 1 }
     }));
 
     await component.loadAssessmentsFromServer();
 
     expect(assessments.list).toHaveBeenCalledWith({
       page: 1,
-      pageSize: 100,
+      pageSize: 1000,
       sortBy: 'rowindex',
       sortOrder: 'asc',
       studentId: 'student-1'
@@ -2241,7 +2248,7 @@ describe('Assessment picker filter and selection', () => {
     const { component, assessments } = createPicker();
     assessments.list.and.returnValue(of({
       items: [assessment({ id: 'assessment-1' })],
-      pagination: { page: 1, pageSize: 100, totalItems: 1, totalPages: 1 }
+      pagination: { page: 1, pageSize: 1000, totalItems: 1, totalPages: 1 }
     }));
 
     await component.loadAssessmentsFromServer();

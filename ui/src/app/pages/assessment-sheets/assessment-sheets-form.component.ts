@@ -35,7 +35,7 @@ import { normalizeVietnamese } from '../../core/utils/vietnamese-search';
 import { AssessmentPickerComponent } from './assessment-picker.component';
 import { calculateAgeText, formatAssessmentPeriod } from './assessment-sheet-plan-preview.models';
 
-const ASSESSMENT_CACHE_PAGE_SIZE = 100;
+const ASSESSMENT_CACHE_PAGE_SIZE = 1000;
 // Thời gian giữ highlight cho các dòng vừa được bấm Di chuyển; phải >= animation dài nhất trong SCSS.
 const MOVE_HIGHLIGHT_DURATION_MS = 1600;
 // Các ô giá trị có thể nhập trong records-table; focus vào đây thì highlight cả hàng (trừ ô nhóm merge).

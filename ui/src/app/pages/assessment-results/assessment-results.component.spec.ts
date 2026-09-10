@@ -279,16 +279,23 @@ describe('AssessmentResultsComponent', () => {
   });
 
   it('scrolls the sticky-bar arrow actions to the start and end of the page', () => {
-    const scroll = spyOn(window, 'scrollTo');
-    const documentHeight = document.documentElement.scrollHeight;
+    const title = document.createElement('h1');
+    title.id = 'assessment-results-title';
+    const footer = document.createElement('app-footer');
+    document.body.append(title, footer);
+    const scrollTitleIntoView = spyOn(title, 'scrollIntoView');
+    const scrollFooterIntoView = spyOn(footer, 'scrollIntoView');
 
-    component.scrollToTop();
-    component.scrollToBottom();
+    try {
+      component.scrollToTop();
+      component.scrollToBottom();
 
-    const topOptions = scroll.calls.argsFor(0)[0] as unknown as ScrollToOptions;
-    const bottomOptions = scroll.calls.argsFor(1)[0] as unknown as ScrollToOptions;
-    expect(topOptions).toEqual({ top: 0, behavior: 'smooth' });
-    expect(bottomOptions).toEqual({ top: documentHeight, behavior: 'smooth' });
+      expect(scrollTitleIntoView).toHaveBeenCalledOnceWith({ behavior: 'smooth', block: 'start' });
+      expect(scrollFooterIntoView).toHaveBeenCalledOnceWith({ behavior: 'smooth', block: 'end' });
+    } finally {
+      title.remove();
+      footer.remove();
+    }
   });
 });
 

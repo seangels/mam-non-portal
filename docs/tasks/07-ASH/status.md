@@ -94,6 +94,7 @@ Cập nhật bảng này mỗi khi đổi trạng thái một dòng bên dưới
 | `[x]` | [`ASH-PICKER-MULTI-01`](details/36-ASH-PICKER-MULTI-01.md) | Picker trong form edit có cột checkbox chọn nhiều dòng, `Chọn tất cả` theo toàn bộ kết quả khớp filter và nút `Thêm các mục đã chọn (n)`; batch full-replace một request, không thêm trùng. Frontend test 175/175 + development build pass | `ASH-FB-W1`, `PUT /assessment-sheets/{id}/records` |
 | `[x]` | [`ASH-PICKER-BULK-02`](details/37-ASH-PICKER-BULK-02.md) | Records table thêm `Kết quả hiện tại`, toggle cột hiện tại và checkbox ẩn/hiện toàn bảng; picker có TagBox filter vòng 1 đã có/chưa có độc lập với filter lưới, không hiện cột membership, hỗ trợ chọn hỗn hợp và thêm/bỏ nhiều mục bằng một request full-replace. Frontend test 185/185 + development build pass | `ASH-PICKER-MULTI-01`, `GET /assessments?studentId`, `PUT /assessment-sheets/{id}/records` |
 | `[x]` | [`ASH-FORM-AGE-01`](details/40-ASH-FORM-AGE-01.md) | Form edit hiển thị tuổi hiện tại của học sinh dạng năm/tháng trong summary snapshot, dùng lại `calculateAgeText`. Frontend test 208/208 + development build pass | `StudentSnapshot.DateOfBirth` |
+| `[x]` | [`ASH-CACHE-PAGE-01`](details/41-ASH-CACHE-PAGE-01.md) | Form và picker tải cache Assessment theo lô 1000 thay vì 100, vẫn lặp đủ mọi trang. Focused test 101/101, full frontend 208/208 + development build pass | `GET /assessments` hỗ trợ `pageSize <= 5000` |
 
 ## Contract delta — owner: `root` / phối hợp backend + frontend
 
