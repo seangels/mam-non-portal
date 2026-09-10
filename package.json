@@ -1,0 +1,23 @@
+{
+  "name": "api-portal",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "build:iis": "powershell -ExecutionPolicy Bypass -File ./deploy/iis/build-iis-package.ps1 -SkipNpmInstall",
+    "upload:release": "powershell -ExecutionPolicy Bypass -File ./deploy/iis/upload-release-to-drive.ps1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/seangels/mam-non-portal.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/seangels/mam-non-portal/issues"
+  },
+  "homepage": "https://github.com/seangels/mam-non-portal#readme"
+}
