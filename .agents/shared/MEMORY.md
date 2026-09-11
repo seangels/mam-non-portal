@@ -7,6 +7,12 @@
 
 Last updated: 2026-09-10
 
+## 2026-09-11 — AUTH-BEARER-01
+
+- Auth contract chuyển sang Bearer access/refresh token, không auth cookie, không CSRF; vẫn giữ `auth_sessions` để kiểm tra `sid` và revoke ngay. Backend response login/refresh có `accessToken`, `expiresIn`, `refreshToken`, `user`; refresh/logout nhận `{ refreshToken }`.
+- UI lưu access/refresh token trong `localStorage`, bỏ `withCredentials`, CSRF header và `/auth/csrf`; các tab đồng bộ token qua storage event và dùng refresh lock.
+- Đã sửa source/test contract chính và đồng bộ docs/API request mẫu. Backend unit `124/124`; integration chưa chạy vì Docker chưa sẵn sàng; API Debug build cần chạy lại sau khi process hiện tại giải phóng DLL.
+
 ## Product and ownership
 
 - Admin portal with a .NET 10 REST API, PostgreSQL 17, and Angular 12.2.17/DevExtreme 19.2.5 UI.

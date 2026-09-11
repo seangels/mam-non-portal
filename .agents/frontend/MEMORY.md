@@ -1,5 +1,17 @@
 # Frontend role memory
 
+## 2026-09-11 — AUTH-BEARER-01
+
+- Auth UI dùng Bearer access token và refresh token trong JSON body, không `withCredentials`, cookie hoặc CSRF. Token lưu `localStorage` để nhiều tab dùng chung.
+- `AuthStateService` đồng bộ access/refresh/logout qua `storage` event; `AuthService` có refresh lock liên-tab để tránh refresh rotation cạnh tranh.
+- Đã cập nhật model/interceptor/API client/auth tests. Lệnh build/test Angular đã được chạy ngoài sandbox; runner chỉ trả banner npm, không có output lỗi chi tiết, và thư mục build đã được tạo. Cần chạy lại trên máy dev nếu cần số test/hash chính thức.
+
+## 2026-09-11 — NAV-LINK-DETAIL-01
+
+- Replaced the sidebar DevExtreme TreeView renderer with native HTML navigation links using Angular `routerLink`; links now expose real hash `href`s for normal click, modified click and browser context-menu/new-tab behavior while preserving role filtering, selected state and responsive drawer closing.
+- Teacher detail action now uses a real link to `/teachers/:id`; AssessmentSheet list detail/edit action uses `/assessment-sheets/:id/edit`; other list behaviors remain unchanged.
+- Verification: browser smoke confirmed 9 sidebar anchors and `#/assessment-sheets/{id}/edit`, normal navigation to `#/assessments`; `npm --prefix ui run test:ci` **214/214**; development build pass hash `c8dcbb5a41e1128540dd`; known CommonJS warnings only.
+
 ## 2026-09-11 — ASH-PDF-DIRECT-01
 
 - `AssessmentSheetsService.downloadPdfArchive` now returns `HttpResponse<Blob>` so the list handles `application/pdf`, `image/*`, and `application/zip`, preferring exposed `Content-Disposition` filenames. Row image buttons call the same endpoint with one ID and `Images`; fallback image names follow `<stem> - trang 001.png`.

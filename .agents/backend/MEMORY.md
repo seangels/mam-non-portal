@@ -1,5 +1,11 @@
 # Backend persistent memory
 
+## 2026-09-11 — AUTH-BEARER-01
+
+- Auth chuyển sang Bearer access/refresh token, không cookie và không CSRF. Login/refresh trả `accessToken`, `expiresIn`, `refreshToken`, `user`; refresh/logout nhận `{ refreshToken }`.
+- `auth_sessions` vẫn được giữ để hash refresh token, gắn `sid` vào access token và revoke ngay khi logout/đổi tài khoản. Không có migration schema.
+- Đã sửa controller/model/token service/CORS và integration contract test. Unit `124/124`; integration runtime chưa chạy (Docker chưa sẵn sàng). Solution build Debug bị process API hiện tại khóa DLL; cần build lại sau khi process dừng hoặc dùng output riêng.
+
 ## 2026-09-11 — ASH-PDF-DIRECT-01
 
 - `POST /assessment-sheets/pdf-archive` now returns `AssessmentSheetPdfArchiveResult` with content type: single PDF direct, single-page image direct PNG, otherwise ZIP. Multiple IDs always ZIP; image PDFs with multiple pages ZIP. `Content-Disposition` is exposed by the configured CORS policy.
