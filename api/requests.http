@@ -1,6 +1,6 @@
 @host = https://localhost:7158
 @accessToken = paste-access-token
-@csrfToken = paste-csrf-token
+@refreshToken = paste-refresh-token
 @userId = 00000000-0000-0000-0000-000000000000
 @studentId = 00000000-0000-0000-0000-000000000000
 @teacherId = 00000000-0000-0000-0000-000000000000
@@ -38,12 +38,12 @@ Content-Type: application/json
 
 ###
 
-GET {{host}}/api/v1/auth/csrf
-
-###
-
 POST {{host}}/api/v1/auth/refresh
-X-CSRF-TOKEN: {{csrfToken}}
+Content-Type: application/json
+
+{
+  "refreshToken": "{{refreshToken}}"
+}
 
 ###
 
@@ -527,4 +527,8 @@ Content-Type: application/json
 ###
 
 POST {{host}}/api/v1/auth/logout
-X-CSRF-TOKEN: {{csrfToken}}
+Content-Type: application/json
+
+{
+  "refreshToken": "{{refreshToken}}"
+}

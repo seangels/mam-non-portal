@@ -152,9 +152,8 @@ public sealed class AuthService(
         dbContext.AuthSessions.Add(session);
 
         var accessToken = tokenService.CreateAccessToken(user, session.Id);
-        var csrfToken = tokenService.CreateCsrfToken();
-        var response = new AccessTokenResponse(accessToken.Token, accessToken.ExpiresIn, csrfToken, MapUser(user));
-        return (session, new AuthResult(response, refreshToken.Token, csrfToken, refreshToken.ExpiresAt));
+        var response = new AccessTokenResponse(accessToken.Token, accessToken.ExpiresIn, refreshToken.Token, MapUser(user));
+        return (session, new AuthResult(response, refreshToken.ExpiresAt));
     }
 
     private void AddAudit(

@@ -51,8 +51,6 @@ public sealed class TokenService(IOptions<JwtOptions> options, TimeProvider time
         return new(token, HashOpaqueToken(token), timeProvider.GetUtcNow().AddDays(_options.RefreshTokenDays));
     }
 
-    public string CreateCsrfToken() => CreateRandomToken(32);
-
     public string HashOpaqueToken(string token) =>
         Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(token)));
 

@@ -7,8 +7,8 @@ RESTful API quản trị tài khoản Admin, giáo viên, học sinh, nhóm và 
 - Login, refresh rotation, logout và `/me`; không có đăng ký công khai.
 - Khởi tạo SuperAdmin đầu tiên qua UI/API một lần duy nhất khi database chưa có user.
 - JWT access token 15 phút gắn `sid`; mọi request xác thực đều kiểm tra auth session trong PostgreSQL để revoke tức thời.
-- Refresh token 30 ngày trong cookie `HttpOnly`, `Secure`, `SameSite=None`.
-- Double-submit CSRF cho refresh/logout bằng cookie `XSRF-TOKEN` và header `X-CSRF-TOKEN`.
+- Refresh token 30 ngày trả trong JSON và gửi lại trong body; không dùng auth cookie.
+- Không cần CSRF vì browser không tự động gửi Bearer/refresh token cross-site.
 - Phân quyền `SuperAdmin`, `Admin`, `Teacher`.
 - User CRUD dành cho tài khoản Admin; đổi mật khẩu dùng chung cho Admin/Teacher; soft delete, pagination/filter/sort.
 - Student CRUD, lịch học tuần, optimistic concurrency, soft delete, pagination/filter/sort và tái sử dụng student code sau khi xóa.
@@ -60,7 +60,7 @@ Docker Compose chỉ chạy PostgreSQL; API không chạy trong container. Khi A
 
 Ở lần chạy đầu, frontend gọi `GET /api/v1/setup/status`. Nếu database chưa có bất kỳ user nào, ứng dụng chuyển đến `/setup` để nhập thông tin SuperAdmin. `POST /api/v1/setup/super-admin` chỉ tạo được đúng một tài khoản đầu tiên; sau đó endpoint luôn trả `409 Conflict`. Cơ chế khóa transaction của PostgreSQL bảo vệ cả trường hợp nhiều instance/request khởi tạo đồng thời.
 
-Cookie auth luôn có cờ `Secure`. Khi UI gọi API khác site, API phải được phục vụ qua HTTPS (trực tiếp hoặc sau reverse proxy TLS). Port HTTP trong Compose chủ yếu phục vụ health check/test backend; không nên dùng luồng cookie cross-site qua HTTP.
+Bearer token vẫn phải được truyền qua HTTPS ở môi trường thật. Port HTTP trong Compose chủ yếu phục vụ health check/test backend.
 
 Các cấu hình bắt buộc/quan trọng:
 
@@ -100,7 +100,7 @@ dotnet tool run dotnet-ef migrations add <MigrationName> `
 
 Đặt `Jwt__SigningKey` tối thiểu 32 ký tự trong environment khi chạy EF CLI qua startup project. Không sửa tay hoặc xóa `AdminPortalDbContextModelSnapshot.cs` vì đây là baseline để EF tạo diff cho migration tiếp theo.
 
-## Authentication và CSRF
+## Authentication
 
 `POST /api/v1/auth/login` và `POST /api/v1/auth/refresh` trả:
 
@@ -108,7 +108,7 @@ dotnet tool run dotnet-ef migrations add <MigrationName> `
 {
   "accessToken": "...",
   "expiresIn": 900,
-  "csrfToken": "...",
+  "refreshToken": "...",
   "user": {
     "id": "00000000-0000-0000-0000-000000000000",
     "email": "admin@example.com",
@@ -122,11 +122,10 @@ dotnet tool run dotnet-ef migrations add <MigrationName> `
 
 Frontend phải:
 
-1. Gửi request auth với credentials để browser nhận/gửi refresh cookie.
-2. Giữ access token trong memory và gửi `Authorization: Bearer <token>`.
-3. Giữ `csrfToken` từ response; gửi nó qua `X-CSRF-TOKEN` khi refresh/logout.
-4. Khi reload trang, gọi `GET /api/v1/auth/csrf` với credentials để lấy `{ "csrfToken": "..." }`, rồi gọi refresh.
-5. Có thể gọi logout chỉ bằng refresh cookie + CSRF; bearer hết hạn không ngăn server revoke session.
+1. Lưu access/refresh token ở client và gửi access token qua `Authorization: Bearer <token>`.
+2. Gọi refresh/logout với JSON `{ "refreshToken": "..." }`.
+3. Khi reload hoặc nhiều tab cùng refresh, phối hợp để chỉ một request refresh chạy tại một thời điểm.
+4. Logout xóa token ở client và server revoke auth session; bearer cũ bị từ chối ngay.
 
 ## Endpoint
 
@@ -135,7 +134,6 @@ GET    /api/v1/setup/status
 POST   /api/v1/setup/super-admin
 
 POST   /api/v1/auth/login
-GET    /api/v1/auth/csrf
 POST   /api/v1/auth/refresh
 POST   /api/v1/auth/logout
 GET    /api/v1/auth/me

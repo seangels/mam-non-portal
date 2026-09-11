@@ -18,15 +18,13 @@ public sealed record AuthenticatedUser(
 public sealed record AccessTokenResponse(
     string AccessToken,
     int ExpiresIn,
-    string CsrfToken,
+    string RefreshToken,
     AuthenticatedUser User);
 
-public sealed record CsrfTokenResponse(string CsrfToken);
+public sealed record RefreshTokenRequest(string RefreshToken);
 
 public sealed record AuthResult(
     AccessTokenResponse Response,
-    string RefreshToken,
-    string CsrfToken,
     DateTimeOffset RefreshTokenExpiresAt);
 
 public sealed record AccessTokenIssue(string Token, int ExpiresIn);

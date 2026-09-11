@@ -7,6 +7,5 @@ public interface ITokenService
 {
     AccessTokenIssue CreateAccessToken(User user, Guid sessionId);
     RefreshTokenIssue CreateRefreshToken();
-    string CreateCsrfToken();
     string HashOpaqueToken(string token);
 }

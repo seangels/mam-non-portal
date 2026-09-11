@@ -250,6 +250,8 @@ Audit tối thiểu các hành động:
 
 ## 6. Authentication và authorization
 
+> Quyết định cập nhật 2026-09-11: Auth transport dùng `Authorization: Bearer` cho access token và request body cho refresh token; không dùng auth cookie, session cookie hoặc CSRF. Bảng `auth_sessions` vẫn là trạng thái revoke tối thiểu để access token có `sid` bị từ chối ngay sau logout. UI lưu token trong `localStorage` và phối hợp refresh giữa nhiều tab.
+
 ### 6.1. Endpoint
 
 ```http
@@ -259,7 +261,6 @@ POST /api/v1/setup/super-admin
 POST /api/v1/auth/login
 POST /api/v1/auth/refresh
 POST /api/v1/auth/logout
-GET  /api/v1/auth/csrf
 GET  /api/v1/auth/me
 ```
 
@@ -274,16 +275,15 @@ Không tạo endpoint đăng ký.
 5. Phát hành access token sống 15 phút, có claim `sid` là ID của auth session.
 6. Phát hành refresh token sống 30 ngày.
 7. Lưu hash refresh token trong auth session.
-8. Gửi refresh token bằng cookie `HttpOnly`, `Secure`, `SameSite=None` vì frontend chạy khác site.
-9. Trả access token và CSRF token cho frontend; frontend gửi access token qua header `Authorization: Bearer ...`.
-10. Khi bootstrap lại ứng dụng, frontend gọi `GET /api/v1/auth/csrf` bằng refresh cookie để lấy lại CSRF token vì JavaScript ở site frontend không thể đọc cookie host-only của API.
+8. Trả access token và refresh token trong JSON; frontend gửi access token qua header `Authorization: Bearer ...` và refresh token trong body.
+9. Khi bootstrap lại ứng dụng, frontend đọc refresh token từ `localStorage`, gọi `/auth/refresh`, rồi tải `/auth/me`.
 
 Mọi endpoint yêu cầu xác thực phải kiểm tra cả chữ ký/hạn của JWT và trạng thái auth session tương ứng. Việc kiểm tra session trong PostgreSQL trên mỗi request là đánh đổi có chủ đích để hỗ trợ vô hiệu hóa access token ngay lập tức. Có thể bổ sung distributed cache sau nếu đo đạc cho thấy cần, nhưng cache không được làm mất yêu cầu thu hồi tức thời.
 
 ### 6.3. Logout
 
-- Thu hồi refresh token/session hiện tại bằng refresh cookie; logout vẫn hoạt động khi access token đã hết hạn.
-- Xóa refresh-token cookie.
+- Thu hồi refresh token/session hiện tại bằng refresh token trong body; logout vẫn hoạt động khi access token đã hết hạn.
+- Xóa access/refresh token ở client.
 - Trả `204 No Content`.
 - Mọi access token mang `sid` của session đã thu hồi bị từ chối ngay ở request tiếp theo, kể cả khi JWT chưa hết hạn.
 
@@ -524,11 +524,10 @@ Chỉ thêm PostgreSQL `pg_trgm` cho tìm kiếm tên/email khi dữ liệu ho�
 
 - Bắt buộc HTTPS ở production.
 - JWT signing key lấy từ secret manager/environment và có kế hoạch rotation.
-- Refresh-token cookie dùng `HttpOnly` và `Secure`.
-- Frontend chạy khác site nên refresh-token cookie dùng `SameSite=None` và bắt buộc `Secure`.
+- Không dùng refresh-token cookie; access/refresh token do frontend gửi rõ ràng qua header/body.
 - Danh sách frontend origin được cấu hình bằng `Security:AllowedOrigins` trong `appsettings`, có thể override bằng environment ở từng môi trường.
-- CORS chỉ cho phép origin nằm trong `Security:AllowedOrigins`, chỉ cho phép credential khi cần gửi refresh-token cookie và không dùng wildcard origin.
-- Endpoint refresh/logout dùng cookie cross-site nên gửi `X-CSRF-TOKEN` lấy từ response login/refresh hoặc `GET /auth/csrf`; API so sánh với cookie host-only `XSRF-TOKEN`.
+- CORS chỉ cho phép origin nằm trong `Security:AllowedOrigins`, không dùng wildcard origin và không bật credentials.
+- Endpoint refresh/logout không dùng cookie nên không cần CSRF; server xác thực refresh token với `auth_sessions`.
 - Rate limit login và refresh.
 - Account lockout khi đăng nhập sai nhiều lần.
 - Giới hạn độ dài tất cả chuỗi đầu vào.

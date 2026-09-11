@@ -39,12 +39,7 @@ export class AuthInterceptor implements HttpInterceptor {
       headers['Authorization'] = `Bearer ${token}`;
     }
 
-    const csrfToken = this.state.csrfToken;
-    if (csrfToken && request.method !== 'GET' && request.method !== 'HEAD') {
-      headers['X-CSRF-TOKEN'] = csrfToken;
-    }
-
-    return request.clone({ setHeaders: headers, withCredentials: true });
+    return request.clone({ setHeaders: headers });
   }
 
   private refreshAccessToken(): Observable<string> {
@@ -58,7 +53,7 @@ export class AuthInterceptor implements HttpInterceptor {
   }
 
   private isAuthEndpoint(url: string): boolean {
-    return ['/auth/login', '/auth/refresh', '/auth/logout', '/auth/csrf', '/setup/status', '/setup/super-admin']
+    return ['/auth/login', '/auth/refresh', '/auth/logout', '/setup/status', '/setup/super-admin']
       .some(path => url.endsWith(path));
   }
 }

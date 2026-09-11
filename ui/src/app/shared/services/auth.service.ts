@@ -1,8 +1,8 @@
 import { Injectable } from '@angular/core';
 import { ActivatedRouteSnapshot, CanActivate, Router, RouterStateSnapshot, UrlTree } from '@angular/router';
-import { Observable, catchError, firstValueFrom, map, of, switchMap, tap, throwError } from 'rxjs';
+import { Observable, catchError, finalize, firstValueFrom, map, of, shareReplay, switchMap, tap } from 'rxjs';
 import { ApiError } from '../../core/models/api-error';
-import { AuthResponse, CsrfResponse, CurrentUser, LoginRequest, UserRole } from '../../core/models/api.models';
+import { AuthResponse, CurrentUser, LoginRequest, UserRole } from '../../core/models/api.models';
 import { ApiClient } from '../../core/services/api-client.service';
 import { AuthStateService } from '../../core/services/auth-state.service';
 
@@ -16,6 +16,7 @@ export interface AuthResult {
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
+  private refreshRequest$: Observable<string> | null = null;
   readonly user$ = this.state.user$;
 
   get user(): CurrentUser | null {
@@ -35,7 +36,7 @@ export class AuthService {
   async logIn(email: string, password: string): Promise<AuthResult> {
     try {
       const auth = await firstValueFrom(this.api.post<AuthResponse>('auth/login', { email, password } as LoginRequest));
-      this.state.setSession(auth.accessToken, auth.user, auth.csrfToken);
+      this.state.setSession(auth.accessToken, auth.user, auth.refreshToken);
       const user = auth.user ?? await firstValueFrom(this.loadCurrentUser());
       return { isOk: true, data: user };
     } catch (error) {
@@ -59,9 +60,7 @@ export class AuthService {
 
   restoreSession(): Promise<void> {
     return firstValueFrom(
-      this.api.get<CsrfResponse>('auth/csrf').pipe(
-        tap(response => this.state.setCsrfToken(response.csrfToken)),
-        switchMap(() => this.refreshAccessToken()),
+      this.refreshAccessToken().pipe(
         switchMap(() => this.loadCurrentUser()),
         map(() => undefined),
         catchError(() => {
@@ -73,15 +72,73 @@ export class AuthService {
   }
 
   refreshAccessToken(): Observable<string> {
-    return this.api.post<AuthResponse>('auth/refresh').pipe(
-      tap(response => this.state.setSession(response.accessToken, response.user, response.csrfToken)),
-      map(response => response.accessToken)
-    );
+    if (!this.refreshRequest$) {
+      this.refreshRequest$ = new Observable<string>(subscriber => {
+        const initialAccessToken = this.state.accessToken;
+        const owner = `${Date.now()}-${Math.random()}`;
+        const lockKey = 'admin-portal.refresh-lock';
+        const deadline = Date.now() + 10000;
+        let timer: number | undefined;
+        let stopped = false;
+
+        const finish = (error?: unknown, token?: string) => {
+          if (stopped) return;
+          stopped = true;
+          if (timer !== undefined) window.clearTimeout(timer);
+          if (localStorage.getItem(lockKey)?.includes(owner)) localStorage.removeItem(lockKey);
+          if (error) subscriber.error(error);
+          else if (token) {
+            subscriber.next(token);
+            subscriber.complete();
+          } else subscriber.error(new Error('Không nhận được access token mới.'));
+        };
+
+        const waitForOtherTab = () => {
+          const token = localStorage.getItem('admin-portal.access-token');
+          if (token && token !== initialAccessToken) {
+            this.state.setSession(token);
+            finish(undefined, token);
+            return;
+          }
+          if (Date.now() >= deadline) {
+            localStorage.removeItem(lockKey);
+            tryRefresh();
+            return;
+          }
+          timer = window.setTimeout(waitForOtherTab, 100);
+        };
+
+        const tryRefresh = () => {
+          const lock = localStorage.getItem(lockKey);
+          if (!lock || Number(lock.split('|')[0]) <= Date.now()) {
+            localStorage.setItem(lockKey, `${Date.now() + 10000}|${owner}`);
+          }
+          if (localStorage.getItem(lockKey)?.endsWith(owner)) {
+            this.api.post<AuthResponse>('auth/refresh', { refreshToken: this.state.refreshToken }).subscribe({
+              next: response => {
+                this.state.setSession(response.accessToken, response.user, response.refreshToken);
+                finish(undefined, response.accessToken);
+              },
+              error: error => finish(error)
+            });
+          } else {
+            waitForOtherTab();
+          }
+        };
+
+        tryRefresh();
+        return () => finish(new Error('Refresh bị hủy.'));
+      }).pipe(
+        shareReplay(1),
+        finalize(() => this.refreshRequest$ = null)
+      );
+    }
+    return this.refreshRequest$;
   }
 
   async logOut(): Promise<void> {
     try {
-      await firstValueFrom(this.api.post<void>('auth/logout'));
+      await firstValueFrom(this.api.post<void>('auth/logout', { refreshToken: this.state.refreshToken }));
     } catch (error) {
       const apiError = ApiError.from(error);
       if (apiError.status !== 401) {

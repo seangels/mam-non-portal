@@ -20,7 +20,6 @@ describe('SetupService', () => {
     const statePromise = service.loadStatus();
     const request = http.expectOne(`${baseUrl}/setup/status`);
     expect(request.request.method).toBe('GET');
-    expect(request.request.withCredentials).toBeTrue();
     request.flush({ requiresInitialization: true });
 
     expect(await statePromise).toBe('required');

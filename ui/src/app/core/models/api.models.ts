@@ -162,12 +162,8 @@ export interface LoginRequest {
 export interface AuthResponse {
   accessToken: string;
   expiresIn: number;
-  csrfToken: string;
+  refreshToken: string;
   user: CurrentUser;
-}
-
-export interface CsrfResponse {
-  csrfToken: string;
 }
 
 export interface SetupStatusResponse {

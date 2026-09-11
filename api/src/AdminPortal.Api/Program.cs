@@ -18,7 +18,6 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<AdminPortal.Application.Common.Interfaces.ICurrentActor, HttpCurrentActor>();
-builder.Services.AddScoped<CsrfTokenValidator>();
 builder.Services.AddAdminPortalAuthentication();
 builder.Services.AddControllers()
     .AddJsonOptions(options => options.JsonSerializerOptions.Converters.Add(
@@ -91,8 +90,7 @@ builder.Services.AddCors(options => options.AddDefaultPolicy(policy =>
         policy.WithOrigins(securityOptions.AllowedOrigins)
             .AllowAnyHeader()
             .AllowAnyMethod()
-            .WithExposedHeaders("Content-Disposition")
-            .AllowCredentials();
+            .WithExposedHeaders("Content-Disposition");
     }
 }));
 

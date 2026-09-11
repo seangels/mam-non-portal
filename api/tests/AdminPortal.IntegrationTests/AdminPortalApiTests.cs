@@ -39,18 +39,12 @@ public sealed class AdminPortalApiTests(ApiFactory factory) : IClassFixture<ApiF
     };
 
     [Fact]
-    public async Task LogoutWithoutBearerRevokesAccessSession()
+    public async Task LogoutWithRefreshTokenRevokesAccessSession()
     {
         using var client = CreateClient();
         var auth = await LoginAsync(client, ApiFactory.SuperAdminEmail, ApiFactory.SuperAdminPassword);
 
-        var csrfResponse = await client.GetAsync("/api/v1/auth/csrf");
-        csrfResponse.EnsureSuccessStatusCode();
-        var csrf = await csrfResponse.Content.ReadFromJsonAsync<CsrfTokenResponse>(JsonOptions);
-        Assert.Equal(auth.CsrfToken, csrf?.CsrfToken);
-
-        client.DefaultRequestHeaders.Add("X-CSRF-TOKEN", auth.CsrfToken);
-        var logoutResponse = await client.PostAsync("/api/v1/auth/logout", null);
+        var logoutResponse = await client.PostAsJsonAsync("/api/v1/auth/logout", new RefreshTokenRequest(auth.RefreshToken));
         Assert.Equal(HttpStatusCode.NoContent, logoutResponse.StatusCode);
 
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", auth.AccessToken);

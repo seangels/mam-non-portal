@@ -9,17 +9,19 @@ describe('AuthStateService', () => {
     status: 'Active' as const
   };
 
-  it('keeps tokens in memory and clears the complete session', () => {
+  it('shares bearer tokens across tabs and clears the complete session', () => {
+    localStorage.clear();
     const state = new AuthStateService();
-    state.setSession('access-token', user, 'csrf-token');
+    state.setSession('access-token', user, 'refresh-token');
 
     expect(state.accessToken).toBe('access-token');
-    expect(state.csrfToken).toBe('csrf-token');
+    expect(state.refreshToken).toBe('refresh-token');
     expect(state.user).toEqual(user);
 
     state.clear();
     expect(state.accessToken).toBeNull();
-    expect(state.csrfToken).toBeNull();
+    expect(state.refreshToken).toBeNull();
+    localStorage.clear();
     expect(state.user).toBeNull();
   });
 });

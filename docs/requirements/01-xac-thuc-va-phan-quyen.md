@@ -1,5 +1,7 @@
 # 01 — Xác thực và phân quyền
 
+> Quyết định cập nhật 2026-09-11: Auth dùng Bearer access token và refresh token gửi trong request body, không dùng cookie/session cookie và không cần CSRF. Vẫn giữ bảng `auth_sessions` tối thiểu để kiểm tra `sid` và revoke access token ngay khi logout. UI lưu token trong `localStorage` để các tab dùng chung; refresh có phối hợp liên-tab.
+
 ## 1. Khởi tạo hệ thống lần đầu
 
 - Khi hệ thống chưa có bất kỳ user nào, UI phải hiển thị màn hình khởi tạo `SuperAdmin` thay vì màn hình đăng nhập thông thường.
@@ -21,16 +23,15 @@ POST /api/v1/setup/super-admin
 - Không có endpoint đăng ký công khai.
 - Người dùng đăng nhập bằng email và mật khẩu.
 - Chỉ tài khoản hợp lệ, không bị vô hiệu hóa hoặc khóa mới đăng nhập được.
-- Access token có thời hạn 15 phút và được UI giữ trong bộ nhớ.
-- Refresh token có thời hạn 30 ngày, được rotate khi refresh và lưu bằng cookie `HttpOnly`, `Secure`, `SameSite=None`.
+- Access token có thời hạn 15 phút và được gửi bằng `Authorization: Bearer ...`.
+- Refresh token có thời hạn 30 ngày, được rotate khi refresh và gửi trong JSON body; UI lưu trong `localStorage` để các tab dùng chung.
 - Mọi request cần xác thực phải kiểm tra cả token và trạng thái phiên để session bị thu hồi có hiệu lực ngay.
-- UI có thể khôi phục phiên sau khi tải lại trang thông qua refresh cookie và CSRF token.
+- UI có thể khôi phục phiên sau khi tải lại trang thông qua refresh token trong `localStorage`; các tab phối hợp để chỉ một tab refresh tại một thời điểm.
 
 Các endpoint chức năng:
 
 ```http
 POST /api/v1/auth/login
-GET  /api/v1/auth/csrf
 POST /api/v1/auth/refresh
 POST /api/v1/auth/logout
 GET  /api/v1/auth/me
@@ -38,8 +39,8 @@ GET  /api/v1/auth/me
 
 ## 3. Đăng xuất và thu hồi phiên
 
-- Logout phải hoạt động kể cả khi access token đã hết hạn nhưng refresh cookie còn hợp lệ.
-- Logout xóa cookie và thu hồi session hiện tại.
+- Logout phải hoạt động kể cả khi access token đã hết hạn nhưng refresh token còn hợp lệ.
+- Logout xóa token phía client và thu hồi session hiện tại.
 - Access token gắn với session đã thu hồi phải bị từ chối ngay ở request tiếp theo.
 - Đổi mật khẩu, đổi role, đổi trạng thái hoặc soft-delete tài khoản phải thu hồi toàn bộ session của tài khoản đó.
 
@@ -47,7 +48,7 @@ GET  /api/v1/auth/me
 
 - Giới hạn số lần đăng nhập sai và khóa tạm tài khoản khi vượt ngưỡng.
 - Áp dụng rate limit cho login, refresh và setup.
-- Refresh/logout phải được bảo vệ CSRF bằng header `X-CSRF-TOKEN` và cookie tương ứng.
+- Không cần CSRF vì server không dùng cookie để xác thực; refresh và logout phải kiểm tra refresh token với `auth_sessions`.
 - Không ghi mật khẩu, access token, refresh token, cookie hoặc secret vào log/audit.
 
 ## 5. Quyền quản trị hiện hành

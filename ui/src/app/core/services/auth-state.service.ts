@@ -5,8 +5,20 @@ import { CurrentUser } from '../models/api.models';
 @Injectable({ providedIn: 'root' })
 export class AuthStateService {
   private readonly userSubject = new BehaviorSubject<CurrentUser | null>(null);
-  private accessTokenValue: string | null = null;
-  private csrfTokenValue: string | null = null;
+  private accessTokenValue: string | null = localStorage.getItem('admin-portal.access-token');
+  private refreshTokenValue: string | null = localStorage.getItem('admin-portal.refresh-token');
+
+  constructor() {
+    window.addEventListener('storage', event => {
+      if (event.key === 'admin-portal.access-token') this.accessTokenValue = event.newValue;
+      if (event.key === 'admin-portal.refresh-token') this.refreshTokenValue = event.newValue;
+      if (event.key === 'admin-portal.logout') {
+        this.accessTokenValue = null;
+        this.refreshTokenValue = null;
+        this.userSubject.next(null);
+      }
+    });
+  }
 
   readonly user$ = this.userSubject.asObservable();
 
@@ -18,14 +30,16 @@ export class AuthStateService {
     return this.accessTokenValue;
   }
 
-  get csrfToken(): string | null {
-    return this.csrfTokenValue;
+  get refreshToken(): string | null {
+    return this.refreshTokenValue;
   }
 
-  setSession(accessToken: string, user?: CurrentUser | null, csrfToken?: string): void {
+  setSession(accessToken: string, user?: CurrentUser | null, refreshToken?: string): void {
     this.accessTokenValue = accessToken;
-    if (csrfToken) {
-      this.csrfTokenValue = csrfToken;
+    localStorage.setItem('admin-portal.access-token', accessToken);
+    if (refreshToken) {
+      this.refreshTokenValue = refreshToken;
+      localStorage.setItem('admin-portal.refresh-token', refreshToken);
     }
     if (user !== undefined) {
       this.userSubject.next(user);
@@ -36,13 +50,12 @@ export class AuthStateService {
     this.userSubject.next(user);
   }
 
-  setCsrfToken(token: string): void {
-    this.csrfTokenValue = token;
-  }
-
   clear(): void {
     this.accessTokenValue = null;
-    this.csrfTokenValue = null;
+    this.refreshTokenValue = null;
+    localStorage.removeItem('admin-portal.access-token');
+    localStorage.removeItem('admin-portal.refresh-token');
+    localStorage.setItem('admin-portal.logout', String(Date.now()));
     this.userSubject.next(null);
   }
 }

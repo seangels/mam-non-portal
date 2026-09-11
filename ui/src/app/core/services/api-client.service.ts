@@ -14,45 +14,41 @@ export class ApiClient {
 
   get<T>(path: string, query?: object): Observable<T> {
     return this.http.get<T>(this.url(path), {
-      params: this.toParams(query),
-      withCredentials: true
+      params: this.toParams(query)
     }).pipe(catchError(error => throwError(() => ApiError.from(error))));
   }
 
   postBlob(path: string, body: unknown): Observable<Blob> {
     return this.http.post(this.url(path), body ?? {}, {
-      withCredentials: true,
       responseType: 'blob'
     }).pipe(catchError(error => throwError(() => ApiError.from(error))));
   }
 
   postBlobResponse(path: string, body: unknown): Observable<HttpResponse<Blob>> {
     return this.http.post(this.url(path), body ?? {}, {
-      withCredentials: true,
       observe: 'response',
       responseType: 'blob'
     }).pipe(catchError(error => throwError(() => ApiError.from(error))));
   }
 
   post<T>(path: string, body?: unknown): Observable<T> {
-    return this.http.post<T>(this.url(path), body ?? {}, { withCredentials: true })
+    return this.http.post<T>(this.url(path), body ?? {})
       .pipe(catchError(error => throwError(() => ApiError.from(error))));
   }
 
   put<T>(path: string, body: unknown): Observable<T> {
-    return this.http.put<T>(this.url(path), body, { withCredentials: true })
+    return this.http.put<T>(this.url(path), body)
       .pipe(catchError(error => throwError(() => ApiError.from(error))));
   }
 
   patch<T>(path: string, body: unknown): Observable<T> {
-    return this.http.patch<T>(this.url(path), body, { withCredentials: true })
+    return this.http.patch<T>(this.url(path), body)
       .pipe(catchError(error => throwError(() => ApiError.from(error))));
   }
 
   delete(path: string, query?: object): Observable<void> {
     return this.http.delete<void>(this.url(path), {
-      params: this.toParams(query),
-      withCredentials: true
+      params: this.toParams(query)
     })
       .pipe(catchError(error => throwError(() => ApiError.from(error))));
   }
