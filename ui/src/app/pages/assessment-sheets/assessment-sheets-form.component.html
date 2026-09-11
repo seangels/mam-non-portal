@@ -347,12 +347,12 @@
               <td *ngIf="showCodeColumn" class="age-cell">{{ row.record.assessment.groupLv1Name }}</td>
               <td class="content-cell">{{ row.record.assessment.name }}</td>
               <td *ngIf="showCurrentGradeColumn" class="grade-cell">
-                <span
+                <span *ngIf="row.latestGrade !== null"
                   class="grade-value"
                   [style.borderColor]="gradeColor(row.latestGrade)"
                   [style.backgroundColor]="row.latestGrade ? gradeBgColor(row.latestGrade) : '#E8EAED'"
                   [style.color]="row.latestGrade ? gradeColor(row.latestGrade) : '#344054'">
-                  {{ row.latestGrade ? gradeText(row.latestGrade) : 'Chưa có' }}
+                  {{ row.latestGrade ? gradeText(row.latestGrade) : '' }}
                 </span>
               </td>
               <td *ngIf="showPlan" class="plan-cell">

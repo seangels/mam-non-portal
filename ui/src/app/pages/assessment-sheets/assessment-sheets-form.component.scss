@@ -50,6 +50,10 @@
   background-color: #dbeafe;
   transition: background-color .12s ease-out;
 }
+.records-table tr:hover > td:not(.group-cell):not(.group-move-cell) {
+  background-color: #dbeafe;
+  transition: background-color .12s ease-out;
+}
 
 .action-column { width: 42px; }
 .group-lv2-column { width: 142px; }
@@ -116,6 +120,16 @@
     align-items: center;
     border-radius: 4px !important;
     border: 1px solid;
+  }
+}
+td.grade-cell {
+  .grade-value{
+      display: flex;
+      justify-content: center;
+      border-radius: 4px;
+      border-width: 1px;
+      border-style: solid;
+      padding: 2px;
   }
 }
 :host ::ng-deep .grade-select-box .dx-dropdowneditor-icon { color: inherit; }
