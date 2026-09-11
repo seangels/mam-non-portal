@@ -176,6 +176,7 @@
               <th class="number-column" scope="col">STT</th>
               <th *ngIf="showCodeColumn" class="move-column" scope="col">Di chuyển</th>
               <th *ngIf="showCodeColumn" class="code-column" scope="col">Mã</th>
+              <th *ngIf="showCodeColumn" class="age-column" scope="col">Độ tuổi</th>
               <th scope="col">
                 <div class="content-header">
                   <span>Nội dung đánh giá</span>
@@ -184,7 +185,7 @@
                       type="checkbox"
                       [(ngModel)]="showCodeColumn"
                       [ngModelOptions]="standaloneNgModelOptions" />
-                    <span>Hiện mã + ▲/▼</span>
+                    <span>Hiện mã + ▲/▼ + độ tuổi</span>
                   </label>
                 </div>
               </th>
@@ -343,6 +344,7 @@
                 </div>
               </td>
               <td *ngIf="showCodeColumn" class="code-cell">{{ row.record.assessment.code }}</td>
+              <td *ngIf="showCodeColumn" class="age-cell">{{ row.record.assessment.groupLv1Name }}</td>
               <td class="content-cell">{{ row.record.assessment.name }}</td>
               <td *ngIf="showCurrentGradeColumn" class="grade-cell">
                 <span
