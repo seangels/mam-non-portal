@@ -854,6 +854,46 @@ describe('Assessment sheet plan PDF preview mapping', () => {
     expect(resultNoteText(preview.rows[0].record)).toBe('Đã đạt mục tiêu');
   });
 
+  it('keeps saved displayOrder in both plan and result previews, including moved groups and stable fallbacks', () => {
+    const sheet = {
+      id: 'sheet-order',
+      studentId: 'student-1',
+      studentSnapshot: {},
+      records: [
+        {
+          id: 'physical-third', displayOrder: 3,
+          assessment: { code: 'P3', name: 'Thể chất', groupLv2Name: 'Phát triển thể chất', groupLv3Name: 'Vận động' }
+        },
+        {
+          id: 'language-second', displayOrder: 2,
+          assessment: { code: 'L2', name: 'Ngôn ngữ 2', groupLv2Name: 'Phát triển ngôn ngữ', groupLv3Name: 'Giao tiếp' }
+        },
+        {
+          id: 'language-first', displayOrder: 1,
+          assessment: { code: 'L1', name: 'Ngôn ngữ 1', groupLv2Name: 'Phát triển ngôn ngữ', groupLv3Name: 'Giao tiếp' }
+        },
+        {
+          id: 'physical-fallback-first', displayOrder: null,
+          assessment: { code: 'P4', name: 'Fallback 1', groupLv2Name: 'Phát triển thể chất', groupLv3Name: 'Vận động' }
+        },
+        {
+          id: 'physical-fallback-second', displayOrder: 0,
+          assessment: { code: 'P5', name: 'Fallback 2', groupLv2Name: 'Phát triển thể chất', groupLv3Name: 'Vận động' }
+        }
+      ]
+    } as any;
+    const expectedOrder = [
+      'language-first',
+      'language-second',
+      'physical-third',
+      'physical-fallback-first',
+      'physical-fallback-second'
+    ];
+
+    expect(buildAssessmentSheetPlanPreview(sheet).rows.map(row => row.record.id)).toEqual(expectedOrder);
+    expect(buildAssessmentSheetResultPreview(sheet).rows.map(row => row.record.id)).toEqual(expectedOrder);
+  });
+
   it('builds one bulk replace request, skips existing/duplicate selections, and preserves current values', () => {
     const currentRecord = {
       assessment: { code: 'A01', name: 'Ngôn ngữ', groupLv2Name: 'Nhóm cũ 2', groupLv3Name: 'Nhóm cũ 3' },

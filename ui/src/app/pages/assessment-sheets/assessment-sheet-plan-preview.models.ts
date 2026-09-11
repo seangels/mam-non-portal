@@ -5,7 +5,8 @@ import {
   assessmentGradeText,
   assessmentGradeBgColor,
   assessmentGradeColor,
-  buildAssessmentSheetRecordRows
+  buildAssessmentSheetRecordRows,
+  distinctGroupLv2Names
 } from './assessment-sheets-form.component';
 
 export interface AssessmentSheetPlanPreviewModel {
@@ -42,6 +43,7 @@ export function buildAssessmentSheetPdfPreview(
   const snapshot = sheet.studentSnapshot ?? {};
   const studentCode = snapshot.studentCode || sheet.studentCode || '';
   const isResult = kind === 'result';
+  const orderedRecords = orderRecordsForPreview(sheet.records ?? []);
 
   return {
     kind,
@@ -57,8 +59,23 @@ export function buildAssessmentSheetPdfPreview(
     fileName: isResult
       ? buildResultPdfFileName(studentCode || sheet.id, snapshot.nickName, sheet.startDate, sheet.dueDate)
       : buildPlanPdfFileName(studentCode || sheet.id, snapshot.nickName, sheet.startDate, sheet.dueDate),
-    rows: buildAssessmentSheetRecordRows(sheet.records ?? [])
+    rows: buildAssessmentSheetRecordRows(orderedRecords, distinctGroupLv2Names(orderedRecords))
   };
+}
+
+function orderRecordsForPreview(records: AssessmentSheetRecord[]): AssessmentSheetRecord[] {
+  return records
+    .map((record, originalIndex) => ({ record, originalIndex }))
+    .sort((left, right) =>
+      displayOrderKey(left.record.displayOrder) - displayOrderKey(right.record.displayOrder)
+      || left.originalIndex - right.originalIndex)
+    .map(item => item.record);
+}
+
+function displayOrderKey(value: number | null | undefined): number {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0
+    ? value
+    : Number.MAX_SAFE_INTEGER;
 }
 
 export function planGradeText(record: AssessmentSheetRecord): string {
