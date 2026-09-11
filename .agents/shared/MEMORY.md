@@ -1,5 +1,10 @@
 # Shared workspace memory
 
+## 2026-09-11 — ASH-PDF-DIRECT-01
+
+- Assessment-sheet archive contract is now MIME-dependent: one valid `Pdf` record → `application/pdf`; one valid one-page `Images` record → `image/png`; multiple records or multi-page image rendering → `application/zip`. Missing/render failures retain ZIP fallback with `_bo-qua.txt`.
+- UI bulk and per-row image downloads use the same endpoint and response handling; image naming follows `<original stem> - trang NNN.png` (single-page direct file uses `trang 001`).
+
 Last updated: 2026-09-10
 
 ## Product and ownership

@@ -1,4 +1,5 @@
 import { of, throwError } from 'rxjs';
+import { HttpHeaders, HttpResponse } from '@angular/common/http';
 import {
   ASSESSMENT_GROUP_LV2_CONFIGS,
   assessmentGroupLv2Order,
@@ -310,7 +311,10 @@ describe('Assessment sheets Excel import', () => {
       })),
       previewImportExcel: jasmine.createSpy('previewImportExcel').and.returnValue(of(previewResult)),
       importExcel: jasmine.createSpy('importExcel').and.returnValue(of(importResult)),
-      downloadPdfArchive: jasmine.createSpy('downloadPdfArchive').and.returnValue(of(new Blob(['zip'])))
+      downloadPdfArchive: jasmine.createSpy('downloadPdfArchive').and.returnValue(of(new HttpResponse({
+        body: new Blob(['zip'], { type: 'application/zip' }),
+        headers: new HttpHeaders({ 'content-disposition': 'attachment; filename="archive.zip"' })
+      })))
     };
     const component = new AssessmentSheetsComponent(
       assessmentSheets as any,

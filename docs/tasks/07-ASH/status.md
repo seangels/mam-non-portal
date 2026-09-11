@@ -98,6 +98,8 @@ Cập nhật bảng này mỗi khi đổi trạng thái một dòng bên dưới
 
 ## Contract delta — owner: `root` / phối hợp backend + frontend
 
+- `[x]` `ASH-PDF-DIRECT-01` — Endpoint `pdf-archive` trả file đơn theo MIME khi một bản ghi phù hợp (PDF trực tiếp; PNG trực tiếp nếu ảnh chỉ một trang), vẫn ZIP khi nhiều bản ghi/PDF ảnh nhiều trang; Bulk Action và icon tải ảnh theo dòng đọc MIME/tên file, có loading/error handling. Backend unit **124/124**, frontend **214/214**, development build đã xác nhận.
+
 | Status | Mã | Việc cần làm | Phụ thuộc |
 |---|---|---|---|
 | `[x]` | `ASH-CR-01` | `POST /assessment-sheets` đổi payload tạo mới từ `assessmentIds[]` sang `records[]` gồm `assessmentId`, `latestGrade`, `note`; backend lưu vào `PlanGrade`/`PlanNote`, UI picker gửi dữ liệu latest đang hiển thị | `ASH-FE-05`, latest contract `/assessments?studentId=...` |

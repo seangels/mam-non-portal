@@ -1,5 +1,10 @@
 # Frontend role memory
 
+## 2026-09-11 — ASH-PDF-DIRECT-01
+
+- `AssessmentSheetsService.downloadPdfArchive` now returns `HttpResponse<Blob>` so the list handles `application/pdf`, `image/*`, and `application/zip`, preferring exposed `Content-Disposition` filenames. Row image buttons call the same endpoint with one ID and `Images`; fallback image names follow `<stem> - trang 001.png`.
+- Verification: full `npm --prefix ui run test:ci` **214/214**; development build pass, hash `85cc404028cfe0a7454a`; known CommonJS warnings only. Existing unrelated worktree changes in `assessment-sheets-form.*` and `angular.json` remain preserved.
+
 Last updated: 2026-09-10 (ASH-KQ-DB-SYNC-01 — direct results đọc DB + shared Google sync)
 
 ## Resume here

@@ -200,7 +200,7 @@ public sealed class AssessmentSheetsController(IAssessmentSheetService assessmen
         CancellationToken cancellationToken)
     {
         var result = await assessmentSheetService.BuildPdfArchiveAsync(request, cancellationToken);
-        return File(result.Content, "application/zip", result.FileName);
+        return File(result.Content, result.ContentType, result.FileName);
     }
 
     private static void ValidateExcelImportFile(IFormFile? file)

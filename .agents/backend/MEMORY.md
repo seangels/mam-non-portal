@@ -1,5 +1,10 @@
 # Backend persistent memory
 
+## 2026-09-11 — ASH-PDF-DIRECT-01
+
+- `POST /assessment-sheets/pdf-archive` now returns `AssessmentSheetPdfArchiveResult` with content type: single PDF direct, single-page image direct PNG, otherwise ZIP. Multiple IDs always ZIP; image PDFs with multiple pages ZIP. `Content-Disposition` is exposed by the configured CORS policy.
+- Verification: `dotnet build api/AdminPortal.slnx --no-restore` 0 warnings/errors; `dotnet test api/tests/AdminPortal.UnitTests --no-restore` **124/124**. Integration not run (Docker unavailable); no migration/schema/production deployment.
+
 > Snapshot này giúp Backend agent mới tiếp tục công việc qua session khác. Source, test và diff hiện tại vẫn là bằng chứng ưu tiên. Không lưu secret trong file này.
 
 ## Trạng thái gần nhất

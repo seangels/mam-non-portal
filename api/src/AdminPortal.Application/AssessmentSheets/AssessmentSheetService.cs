@@ -459,6 +459,10 @@ public sealed partial class AssessmentSheetService(
         var kindLabel = request.Kind == AssessmentSheetPdfKind.Plan ? "kế hoạch" : "kết quả";
         var files = new List<(string Path, byte[] Content)>();
         var skipped = new List<string>();
+        var shouldZip = ids.Length > 1;
+        var singleFileContentType = request.Format == AssessmentSheetPdfArchiveFormat.Pdf
+            ? "application/pdf"
+            : "image/png";
         // Đặt tên file trong zip theo đúng tên gốc trên Google Drive; đụng tên thì thêm " (2)".
         // Ảnh nằm phẳng ở gốc zip (không tạo thư mục riêng từng bảng).
         var usedNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -517,17 +521,26 @@ public sealed partial class AssessmentSheetService(
                 }
 
                 var pageStem = UniqueName(stem, string.Empty, usedNames);
+                if (pages.Count > 1)
+                    shouldZip = true;
                 for (var i = 0; i < pages.Count; i++)
                     files.Add(($"{pageStem} - trang {i + 1:D3}.png", pages[i]));
             }
         }
 
-        var content = AssessmentSheetPdfArchive.BuildZip(files, skipped);
         var formatLabel = request.Format == AssessmentSheetPdfArchiveFormat.Pdf ? "pdf" : "anh";
         var kindSlug = request.Kind == AssessmentSheetPdfKind.Plan ? "khcn" : "KQ";
         var stamp = timeProvider.GetUtcNow().ToOffset(BusinessDateOffset)
             .ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture);
-        return new AssessmentSheetPdfArchiveResult(content, $"{kindSlug}-{formatLabel}-{stamp}.zip");
+        shouldZip |= files.Count != 1 || skipped.Count > 0;
+        if (!shouldZip && files.Count == 1)
+        {
+            var single = files[0];
+            return new AssessmentSheetPdfArchiveResult(single.Content, single.Path, singleFileContentType);
+        }
+
+        var content = AssessmentSheetPdfArchive.BuildZip(files, skipped);
+        return new AssessmentSheetPdfArchiveResult(content, $"{kindSlug}-{formatLabel}-{stamp}.zip", "application/zip");
     }
 
     // Tên duy nhất trong zip: giữ nguyên stem gốc, đụng thì "<stem> (2)<ext>".

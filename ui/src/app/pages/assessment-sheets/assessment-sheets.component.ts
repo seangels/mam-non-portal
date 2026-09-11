@@ -54,6 +54,7 @@ export class AssessmentSheetsComponent implements OnInit, OnDestroy {
     dataSource: ASSESSMENT_SHEET_STATUS_OPTIONS.map(option => ({ text: option.text, value: option.value }))
   };
   bulkActionInProgress = false;
+  downloadingRowKey: string | null = null;
   readonly bulkActionItems: Array<{ id: string; text: string; kind: 'Plan' | 'Result'; format: 'Pdf' | 'Images' | 'Drive' }> = [
     { id: 'plan-pdf', text: 'Tải PDF khcn', kind: 'Plan', format: 'Pdf' },
     { id: 'plan-img', text: 'Tải ảnh khcn', kind: 'Plan', format: 'Images' },
@@ -332,9 +333,16 @@ export class AssessmentSheetsComponent implements OnInit, OnDestroy {
     this.loadError = '';
     this.syncToolbar();
     try {
-      const blob = await firstValueFrom(this.assessmentSheets.downloadPdfArchive(ids, action.kind, action.format));
-      this.downloadBlob(blob, `${action.text} ${this.timestamp()}.zip`);
-      notify(`Đã tải ${action.text.toLowerCase()} cho ${ids.length} bảng đánh giá. Xem file _bo-qua.txt trong zip nếu có dòng bị bỏ qua.`, 'success', 4000);
+      const response = await firstValueFrom(this.assessmentSheets.downloadPdfArchive(ids, action.kind, action.format));
+      const blob = response.body;
+      if (!blob) {
+        throw new Error('API không trả về file tải xuống.');
+      }
+      const fileName = ids.length === 1 && blob.type !== 'application/zip'
+        ? this.fileNameFromResponse(response.headers.get('content-disposition')) || this.singleDownloadName(this.selectedSheets[0], action.kind, action.format, blob.type)
+        : `${action.text} ${this.timestamp()}.zip`;
+      this.downloadBlob(blob, fileName);
+      notify(`Đã tải ${action.text.toLowerCase()} cho ${ids.length} bảng đánh giá.`, 'success', 4000);
     } catch (error) {
       const apiError = ApiError.from(error);
       this.loadError = this.withTrace(apiError);
@@ -544,6 +552,52 @@ export class AssessmentSheetsComponent implements OnInit, OnDestroy {
   // Cột "Bắt đầu" hiển thị cả khoảng kế hoạch (giống tên kế hoạch): "3 tháng 10.11.12.26".
   periodText(sheet: AssessmentSheet): string {
     return formatAssessmentPeriod(sheet.startDate, sheet.dueDate);
+  }
+
+  async downloadRowImage(sheet: AssessmentSheet, kind: 'Plan' | 'Result', event?: Event): Promise<void> {
+    event?.stopPropagation();
+    const key = `${sheet.id}:${kind}`;
+    if (this.downloadingRowKey || !(kind === 'Plan' ? sheet.planFileLinkPdf : sheet.resultFileLinkPdf)) {
+      return;
+    }
+    this.downloadingRowKey = key;
+    try {
+      const response = await firstValueFrom(this.assessmentSheets.downloadPdfArchive([sheet.id], kind, 'Images'));
+      const blob = response.body;
+      if (!blob) {
+        throw new Error('API không trả về file tải xuống.');
+      }
+      const fileName = this.fileNameFromResponse(response.headers.get('content-disposition'))
+        || this.singleDownloadName(sheet, kind, 'Images', blob.type);
+      this.downloadBlob(blob, fileName);
+      notify(`Đã tải ảnh ${kind === 'Plan' ? 'kế hoạch' : 'kết quả'}.`, 'success', 3000);
+    } catch (error) {
+      const apiError = ApiError.from(error);
+      this.loadError = this.withTrace(apiError);
+      notify(this.loadError, 'error', 3500);
+    } finally {
+      this.downloadingRowKey = null;
+    }
+  }
+
+  isRowImageDownloading(sheet: AssessmentSheet, kind: 'Plan' | 'Result'): boolean {
+    return this.downloadingRowKey === `${sheet.id}:${kind}`;
+  }
+
+  private fileNameFromResponse(contentDisposition: string | null): string | null {
+    const encoded = contentDisposition?.match(/filename\*=UTF-8''([^;]+)/i)?.[1];
+    if (encoded) {
+      return decodeURIComponent(encoded.replace(/^"|"$/g, ''));
+    }
+    return contentDisposition?.match(/filename="?([^";]+)"?/i)?.[1] ?? null;
+  }
+
+  private singleDownloadName(sheet: AssessmentSheet, kind: 'Plan' | 'Result', format: 'Pdf' | 'Images', contentType: string): string {
+    const stem = `${kind === 'Plan' ? 'khcn' : 'KQ'} - ${sheet.studentFullName || sheet.studentCode || sheet.id}`;
+    if (contentType === 'application/pdf') {
+      return `${stem}.pdf`;
+    }
+    return format === 'Images' ? `${stem} - trang 001.png` : `${stem}.bin`;
   }
 
   studentAgeText(sheet: AssessmentSheet): string {

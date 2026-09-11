@@ -224,4 +224,4 @@ public sealed record AssessmentSheetPdfArchiveRequest(
     AssessmentSheetPdfKind Kind,
     AssessmentSheetPdfArchiveFormat Format);
 
-public sealed record AssessmentSheetPdfArchiveResult(byte[] Content, string FileName);
+public sealed record AssessmentSheetPdfArchiveResult(byte[] Content, string FileName, string ContentType);

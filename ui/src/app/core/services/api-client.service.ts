@@ -1,4 +1,4 @@
-import { HttpClient, HttpParams } from '@angular/common/http';
+import { HttpClient, HttpParams, HttpResponse } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Observable, catchError, throwError } from 'rxjs';
 import { environment } from '../../../environments/environment';
@@ -22,6 +22,14 @@ export class ApiClient {
   postBlob(path: string, body: unknown): Observable<Blob> {
     return this.http.post(this.url(path), body ?? {}, {
       withCredentials: true,
+      responseType: 'blob'
+    }).pipe(catchError(error => throwError(() => ApiError.from(error))));
+  }
+
+  postBlobResponse(path: string, body: unknown): Observable<HttpResponse<Blob>> {
+    return this.http.post(this.url(path), body ?? {}, {
+      withCredentials: true,
+      observe: 'response',
       responseType: 'blob'
     }).pipe(catchError(error => throwError(() => ApiError.from(error))));
   }

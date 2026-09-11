@@ -477,8 +477,9 @@ GET {{host}}/api/v1/assessment-sheets?page=1&pageSize=20&responsibleTeacherId={{
 Authorization: Bearer {{accessToken}}
 
 ### Bulk Action: tải + gộp PDF/ảnh của nhiều bảng đánh giá thành 1 zip (backend tải từ Drive).
-# kind: Plan | Result ; format: Pdf (zip các PDF gốc) | Images (zip PNG từng trang, render server-side).
-# Bảng thiếu link / lỗi tải bị bỏ qua và ghi trong _bo-qua.txt của zip; response luôn application/zip.
+# kind: Plan | Result ; format: Pdf | Images (render PNG server-side).
+# 1 ID: Pdf trả application/pdf; Images trả image/png nếu PDF 1 trang.
+# Nhiều ID, hoặc Images với PDF nhiều trang: application/zip. Bảng thiếu link/lỗi tải ghi _bo-qua.txt.
 POST {{host}}/api/v1/assessment-sheets/pdf-archive
 Authorization: Bearer {{accessToken}}
 Content-Type: application/json

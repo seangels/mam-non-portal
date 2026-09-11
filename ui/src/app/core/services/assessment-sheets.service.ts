@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
+import { HttpResponse } from '@angular/common/http';
 import {
   PagedResponse,
 } from '../models/api.models';
@@ -83,8 +84,8 @@ export class AssessmentSheetsService {
     ids: string[],
     kind: 'Plan' | 'Result',
     format: 'Pdf' | 'Images'
-  ): Observable<Blob> {
-    return this.api.postBlob('assessment-sheets/pdf-archive', { ids, kind, format });
+  ): Observable<HttpResponse<Blob>> {
+    return this.api.postBlobResponse('assessment-sheets/pdf-archive', { ids, kind, format });
   }
 
   delete(id: string): Observable<void> {

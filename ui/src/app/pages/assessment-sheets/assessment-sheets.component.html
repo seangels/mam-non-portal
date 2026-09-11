@@ -85,11 +85,19 @@
     <div *dxTemplate="let cell of 'planLinkCell'">
       <a *ngIf="cell.data.planFileLinkPdf as link; else noPlanLink" [href]="link" target="_blank"
         rel="noopener noreferrer">khcn</a>
+      <dx-button *ngIf="cell.data.planFileLinkPdf" icon="download" stylingMode="text"
+        hint="Tải ảnh kế hoạch" [disabled]="!!downloadingRowKey"
+        [elementAttr]="{ 'aria-label': 'Tải ảnh kế hoạch' }"
+        (onClick)="downloadRowImage(cell.data, 'Plan', $event.event)"></dx-button>
       <ng-template #noPlanLink><span class="link-empty">—</span></ng-template>
     </div>
     <div *dxTemplate="let cell of 'resultLinkCell'">
       <a *ngIf="cell.data.resultFileLinkPdf as link; else noResultLink" [href]="link" target="_blank"
         rel="noopener noreferrer">KQ</a>
+      <dx-button *ngIf="cell.data.resultFileLinkPdf" icon="download" stylingMode="text"
+        hint="Tải ảnh kết quả" [disabled]="!!downloadingRowKey"
+        [elementAttr]="{ 'aria-label': 'Tải ảnh kết quả' }"
+        (onClick)="downloadRowImage(cell.data, 'Result', $event.event)"></dx-button>
       <ng-template #noResultLink><span class="link-empty">—</span></ng-template>
     </div>
     <div *dxTemplate="let cell of 'updatedAtCell'">{{ dateText(cell.data.updatedAt) }}</div>

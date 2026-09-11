@@ -214,3 +214,9 @@ _Chưa có hoạt động. Khi chạy `ASH-QA-01`, ghi kết quả từng bướ
 - Focused AssessmentSheet tests **101/101** và development build pass hash `27123ece4b665d606a86`.
 - Full frontend suite ban đầu lộ test sticky-bar Assessment Results còn assert `window.scrollTo` trong khi production đã đổi sang `scrollIntoView`; đã sửa tối thiểu test này, không đổi runtime source, và chạy lại đạt **208/208**.
 - Không backend/API/schema/production/IIS/deploy; `git diff --check` sạch ngoài cảnh báo LF/CRLF.
+
+## 2026-09-11 — ASH-PDF-DIRECT-01 hoàn tất
+
+- Backend `POST /assessment-sheets/pdf-archive` nay xác định `shouldZip`: nhiều ID luôn ZIP; PDF một ID trả `application/pdf`; ảnh một ID chỉ ZIP khi PDF có nhiều trang, còn một trang trả `image/png`. Fallback lỗi/mất file vẫn ZIP kèm `_bo-qua.txt`.
+- Frontend `ApiClient`/`AssessmentSheetsService` giữ response headers + MIME; Bulk Action tải đúng PDF/PNG/ZIP, và cột Kế hoạch/Kết quả có icon tải ảnh theo dòng với trạng thái disable trong lúc gọi API.
+- Verification: backend unit **124/124**, frontend `npm --prefix ui run test:ci` **214/214**; development build pass. Integration không chạy (Docker không khả dụng); không production/IIS/deploy.
