@@ -355,19 +355,15 @@
                   {{ row.latestGrade ? gradeText(row.latestGrade) : '' }}
                 </span>
               </td>
-              <td *ngIf="showPlan" class="plan-cell">
-                <dx-button
-                  class="plan-grade-button"
-                  stylingMode="contained"
-                  [text]="gradeText(row.record.planGrade)"
-                  [focusStateEnabled]="false"
-                  [hoverStateEnabled]="false"
-                  [activeStateEnabled]="false"
-                  [tabIndex]="-1"
+              <td *ngIf="showPlan" class="grade-cell plan-cell">
+                <span
+                  *ngIf="row.record.planGrade !== null"
+                  class="grade-value"
                   [style.borderColor]="gradeColor(row.record.planGrade)"
                   [style.backgroundColor]="gradeBgColor(row.record.planGrade)"
                   [style.color]="gradeColor(row.record.planGrade)">
-                </dx-button>
+                  {{ gradeText(row.record.planGrade) }}
+                </span>
               </td>
               <td *ngIf="showResult" class="grade-cell"
                 [class.grade-cell--changed]="row.record.finalGrade && row.record.finalGrade !== row.record.planGrade"
