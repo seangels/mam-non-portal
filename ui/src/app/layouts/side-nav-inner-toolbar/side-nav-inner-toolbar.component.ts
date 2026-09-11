@@ -78,21 +78,25 @@ export class SideNavInnerToolbarComponent implements OnInit {
     const path = event.itemData?.path;
     const pointerEvent = event.event;
 
-    if (path && this.menuOpened) {
-      if (event.node?.selected) {
-        pointerEvent?.preventDefault?.();
-      } else {
-        this.router.navigate([path]);
-        this.scrollView.instance.scrollTo(0);
-      }
+    if (!path || !this.menuOpened) {
+      pointerEvent?.preventDefault?.();
+      return;
+    }
+
+    const isModifiedClick = pointerEvent?.button === 1
+      || pointerEvent?.ctrlKey
+      || pointerEvent?.metaKey
+      || pointerEvent?.shiftKey
+      || pointerEvent?.altKey;
+
+    if (!isModifiedClick) {
+      this.scrollView.instance.scrollTo(0);
 
       if (this.hideMenuAfterNavigation) {
         this.temporaryMenuOpened = false;
         this.menuOpened = false;
         pointerEvent?.stopPropagation?.();
       }
-    } else {
-      pointerEvent?.preventDefault?.();
     }
   }
 

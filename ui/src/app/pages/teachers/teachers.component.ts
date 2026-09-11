@@ -32,7 +32,6 @@ export class TeachersComponent implements OnDestroy {
     { value: 'Locked', text: USER_STATUS_LABELS.Locked }
   ];
   readonly rowButtons = [
-    { hint: 'Xem chi tiết', icon: 'eyeopen', onClick: (event: any) => this.openDetail(event.row.data as Teacher) },
     { hint: 'Chỉnh sửa', icon: 'edit', onClick: (event: any) => this.openEdit(event.row.data as Teacher) },
     { hint: 'Đổi mật khẩu', icon: 'key', onClick: (event: any) => this.openPassword(event.row.data as Teacher) },
     { hint: 'Xóa giáo viên', icon: 'trash', onClick: (event: any) => this.remove(event.row.data as Teacher) }
@@ -138,10 +137,6 @@ export class TeachersComponent implements OnDestroy {
     if (this.unassigned) {
       this.groupId = null;
     }
-  }
-
-  openDetail(teacher: Teacher): void {
-    void this.router.navigate(['/teachers', teacher.id]);
   }
 
   openEdit(teacher: Teacher): void {

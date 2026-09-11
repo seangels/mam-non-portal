@@ -5,6 +5,11 @@ export type DrawerOpenedStateMode = 'overlap' | 'shrink' | 'push';
 export type DrawerRevealMode = 'slide' | 'expand';
 
 export interface LegacyPointerEvent {
+  button?: number;
+  ctrlKey?: boolean;
+  metaKey?: boolean;
+  shiftKey?: boolean;
+  altKey?: boolean;
   preventDefault?(): void;
   stopPropagation?(): void;
 }

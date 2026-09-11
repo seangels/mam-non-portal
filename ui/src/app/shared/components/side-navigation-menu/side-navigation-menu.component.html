@@ -1,13 +1,16 @@
 <ng-content></ng-content>
 
-<div class="menu-container">
-  <dx-tree-view
-    [items]="items"
-    keyExpr="path"
-    selectionMode="single"
-    [focusStateEnabled]="false"
-    expandEvent="click"
-    (onItemClick)="onItemClick($event)"
-    width="100%">
-  </dx-tree-view>
+<div class="menu-container" [class.compact-mode]="compactMode">
+  <nav class="navigation-list" aria-label="Điều hướng chính">
+    <a
+      *ngFor="let item of items"
+      class="navigation-link"
+      [class.navigation-link-selected]="item.path === selectedItemValue"
+      [routerLink]="item.path"
+      [attr.aria-current]="item.path === selectedItemValue ? 'page' : null"
+      (click)="onNavigationClick($event, item)">
+      <i *ngIf="item.icon" class="dx-icon dx-icon-{{ item.icon }}" aria-hidden="true"></i>
+      <span class="navigation-label">{{ item.text }}</span>
+    </a>
+  </nav>
 </div>

@@ -64,14 +64,6 @@ export class AssessmentSheetsComponent implements OnInit, OnDestroy {
     // KQ và bấm hộ nút "Tạo PDF kết quả lên Google Drive" đã có (xem AssessmentSheetBulkUploadQueueService).
     { id: 'result-drive', text: 'Tạo KQ lên Drive', kind: 'Result', format: 'Drive' }
   ];
-  readonly rowButtons = [
-    {
-      hint: 'Chỉnh sửa',
-      icon: 'edit',
-      onClick: (event: any) => this.openEdit(event.row.data as AssessmentSheet)
-    }
-  ];
-
   // Ô lọc ngày (startDate/dueDate) làm việc ở mức THÁNG: cận dưới = đầu tháng đã chọn,
   // cận trên = hết tháng đã chọn (`< đầu tháng kế tiếp`). Áp cho mọi toán tử của filter row.
   readonly monthGranularFilterExpression = function (

@@ -48,7 +48,7 @@
     <dxo-sorting mode="single"></dxo-sorting>
     <dxo-selection mode="multiple" selectAllMode="page" showCheckBoxesMode="always" [deferred]="false"></dxo-selection>
 
-    <dxi-column type="buttons" [width]="72" [buttons]="rowButtons" [allowReordering]="false" [allowResizing]="false"></dxi-column>
+    <dxi-column caption="Chi tiết" [width]="72" cellTemplate="detailCell" [allowReordering]="false" [allowResizing]="false"></dxi-column>
     <dxi-column dataField="studentFullName" caption="Học sinh" cellTemplate="studentCell" [width]="180" [minWidth]="140"></dxi-column>
     <dxi-column dataField="responsibleTeacherFullName" caption="Giáo viên phụ trách" [width]="150" [minWidth]="120"></dxi-column>
     <dxi-column dataField="status" caption="Trạng thái" cellTemplate="statusCell" [width]="120"
@@ -101,6 +101,15 @@
       <ng-template #noResultLink><span class="link-empty">—</span></ng-template>
     </div>
     <div *dxTemplate="let cell of 'updatedAtCell'">{{ dateText(cell.data.updatedAt) }}</div>
+    <div *dxTemplate="let cell of 'detailCell'" class="grid-detail-link-cell">
+      <a
+        class="grid-detail-link"
+        [routerLink]="['/assessment-sheets', cell.data.id, 'edit']"
+        title="Chỉnh sửa"
+        aria-label="Chỉnh sửa">
+        <i class="dx-icon dx-icon-edit" aria-hidden="true"></i>
+      </a>
+    </div>
   </dx-data-grid>
 </div>
 

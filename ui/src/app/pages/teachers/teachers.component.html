@@ -54,7 +54,8 @@
     <dxi-column dataField="status" caption="Trạng thái tài khoản" cellTemplate="statusCell" [width]="155"></dxi-column>
     <dxi-column dataField="responsibleGroupCount" caption="Số nhóm" alignment="center" [width]="95"></dxi-column>
     <dxi-column dataField="attendanceEditWindowDays" caption="Thời hạn sửa" cellTemplate="policyCell" [width]="125"></dxi-column>
-    <dxi-column type="buttons" caption="Thao tác" [width]="190" [buttons]="rowButtons" [fixed]="true" fixedPosition="right"></dxi-column>
+    <dxi-column caption="Chi tiết" [width]="58" cellTemplate="detailCell" [allowReordering]="false" [allowResizing]="false" [fixed]="true" fixedPosition="right"></dxi-column>
+    <dxi-column type="buttons" caption="Thao tác" [width]="145" [buttons]="rowButtons" [fixed]="true" fixedPosition="right"></dxi-column>
 
     <div *dxTemplate="let cell of 'contactCell'" class="contact-cell">
       <span>{{ cell.data.email }}</span>
@@ -64,6 +65,15 @@
       {{ statusText(cell.value) }}
     </div>
     <div *dxTemplate="let cell of 'policyCell'">{{ cell.value }} ngày</div>
+    <div *dxTemplate="let cell of 'detailCell'" class="grid-detail-link-cell">
+      <a
+        class="grid-detail-link"
+        [routerLink]="['/teachers', cell.data.id]"
+        title="Xem chi tiết"
+        aria-label="Xem chi tiết">
+        <i class="dx-icon dx-icon-eyeopen" aria-hidden="true"></i>
+      </a>
+    </div>
   </dx-data-grid>
 </div>
 
