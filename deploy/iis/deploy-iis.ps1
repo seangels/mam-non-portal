@@ -91,6 +91,29 @@ function Invoke-NativeCommand {
     }
 }
 
+function Resolve-PortableNpm {
+    $portableDir = Join-Path $repoRoot "ui\.tools\node-v14.21.3-win-x64"
+    $portableNpm = Join-Path $portableDir "npm.cmd"
+    $portableNode = Join-Path $portableDir "node.exe"
+    if (Test-Path -LiteralPath $portableNpm -PathType Leaf) {
+        $nodeVersion = (& $portableNode --version).Trim()
+        $npmVersion = (& $portableNpm --version).Trim()
+        if ($nodeVersion -ne "v14.21.3" -or $npmVersion -ne "8.19.4") {
+            throw "Node portable sai phien ban: $nodeVersion + npm $npmVersion (can v14.21.3 + 8.19.4). Cai lai theo ui/README.md muc Node portable."
+        }
+        Write-Host "Dung Node portable: $nodeVersion + npm $npmVersion" -ForegroundColor Green
+        # npm sinh tien trinh con (ng, node-gyp...) qua `node` tren PATH,
+        # nen phai prepend portable dir cho ca process hien tai.
+        $pathParts = $env:PATH -split ';'
+        if ($pathParts[0] -ne $portableDir) {
+            $env:PATH = "$portableDir;$env:PATH"
+        }
+        return $portableNpm
+    }
+    Write-Host "Khong thay Node portable ($portableNpm); dung npm.cmd tren PATH. Cai portable theo ui/README.md muc Node portable." -ForegroundColor Yellow
+    return "npm.cmd"
+}
+
 function Build-Artifacts {
     Write-Step "Build .NET 10 API and Angular UI for IIS"
     New-Item -ItemType Directory -Path $ArtifactsPath -Force | Out-Null
@@ -109,14 +132,15 @@ function Build-Artifacts {
     ) -WorkingDirectory (Join-Path $repoRoot "api")
 
     $uiSourcePath = Join-Path $repoRoot "ui"
+    $npmCmd = Resolve-PortableNpm
     if (-not $SkipNpmInstall) {
-        Invoke-NativeCommand -FilePath "npm.cmd" -CommandArguments @("ci") -WorkingDirectory $uiSourcePath
+        Invoke-NativeCommand -FilePath $npmCmd -CommandArguments @("ci") -WorkingDirectory $uiSourcePath
     }
     elseif (-not (Test-Path -LiteralPath (Join-Path $uiSourcePath "node_modules"))) {
         throw "ui\node_modules was not found. Remove -SkipNpmInstall or run npm ci first."
     }
 
-    Invoke-NativeCommand -FilePath "npm.cmd" -CommandArguments @(
+    Invoke-NativeCommand -FilePath $npmCmd -CommandArguments @(
         "run",
         "build",
         "--",

@@ -1,5 +1,9 @@
 # Shared workspace memory
 
+## 2026-09-18 — NODE-PORTABLE-02 (build-machine toolchain)
+
+- `deploy/iis/deploy-iis.ps1 -Build` giờ ưu tiên Node portable `ui/.tools/node-v14.21.3-win-x64` (verify `v14.21.3` + npm `8.19.4`); thiếu mới fallback `npm.cmd` global kèm warning. Dev tương tác dùng `. .\ui\use-node-portable.ps1` trước mọi lệnh npm (ghi trong `ui/AGENTS.md`, root `AGENTS.md`, skill `$gv-portal-production`). Chi tiết ở `.agents/frontend/MEMORY.md`.
+
 ## 2026-09-11 — ASH-PDF-DIRECT-01
 
 - Assessment-sheet archive contract is now MIME-dependent: one valid `Pdf` record → `application/pdf`; one valid one-page `Images` record → `image/png`; multiple records or multi-page image rendering → `application/zip`. Missing/render failures retain ZIP fallback with `_bo-qua.txt`.

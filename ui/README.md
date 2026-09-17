@@ -10,7 +10,47 @@ Admin portal xây bằng Angular 12.2.17 và DevExtreme 19.2.5. Ứng dụng h�
 
 Node 14, Angular 12 và DevExtreme 19.2.5 đều đã EOL. Ma trận này được khóa do ràng buộc sản phẩm, không còn nhận bản vá bảo mật chính thức và cần được đánh giá riêng trước khi đưa lên production.
 
+## Node portable (Windows, không cần admin)
+
+Binary Node giải nén tại `ui/.tools/node-v14.21.3-win-x64/` (đã gitignore, không commit).
+Mỗi máy chỉ cần làm một lần:
+
+```powershell
+# 1. Tai + verify checksum
+Invoke-WebRequest -Uri "https://nodejs.org/dist/v14.21.3/node-v14.21.3-win-x64.zip" -OutFile "$env:TEMP\node-v14.21.3-win-x64.zip"
+# 2. Giai nen vao ui/.tools/ (ghi de thu muc node-v14.21.3-win-x64 neu co)
+# 3. Nang npm portable len 8.19.4 (npm 6 kem san khong qua duoc preinstall guard):
+Rename-Item "ui\.tools\node-v14.21.3-win-x64\npm.cmd" "npm.cmd.bak"
+Rename-Item "ui\.tools\node-v14.21.3-win-x64\npm" "npm.bak"
+Rename-Item "ui\.tools\node-v14.21.3-win-x64\npx.cmd" "npx.cmd.bak"
+Rename-Item "ui\.tools\node-v14.21.3-win-x64\npx" "npx.bak"
+ui\.tools\node-v14.21.3-win-x64\node.exe ui\.tools\node-v14.21.3-win-x64\node_modules\npm\bin\npm-cli.js install -g npm@8.19.4
+Remove-Item "ui\.tools\node-v14.21.3-win-x64\npm.bak", "ui\.tools\node-v14.21.3-win-x64\npm.cmd.bak", "ui\.tools\node-v14.21.3-win-x64\npx.bak", "ui\.tools\node-v14.21.3-win-x64\npx.cmd.bak" -Force
+```
+
+Dùng trong mỗi terminal mới (từ workspace root):
+
+```powershell
+. .\ui\use-node-portable.ps1
+node --version  # v14.21.3
+npm --version   # 8.19.4
+```
+
+Script chỉ prepend thư mục portable vào `PATH` của session hiện tại, không đổi PATH hệ thống và không cần quyền admin. Xóa thư mục `ui/.tools/node-v14.21.3-win-x64/` là rollback sạch.
+
 ## Chạy local
+
+Windows (khuyến nghị, không cần admin) — kích hoạt Node portable từ workspace root:
+
+```powershell
+. .\ui\use-node-portable.ps1
+node --version  # v14.21.3
+npm --version   # 8.19.4
+npm --prefix ui ci
+npm --prefix ui start
+```
+
+Máy non-Windows hoặc chưa giải nén portable thì dùng `nvm` thay cho dòng dot-source:
 
 ```bash
 nvm install 14.21.3
@@ -22,6 +62,17 @@ npm start
 ```
 
 Trước `npm ci`, kết quả bắt buộc là `v14.21.3` và `8.19.4`. npm được cài cho đúng Node đang active trong NVM; không dùng `--force` hoặc `--legacy-peer-deps` để vượt qua guard.
+
+Cách tiện nhất từ workspace root (không cần dot-source trước): proxy `npm run ui` tự kích hoạt Node portable rồi forward mọi lệnh sang `ui/`:
+
+```powershell
+npm run ui -- start
+npm run ui -- test:ci
+npm run ui -- build -- --configuration development
+npm run ui -- ci
+```
+
+Có thể bỏ chữ `run` (`npm run ui -- build`); các lệnh builtin/flag của npm (`ci`, `start`, `ls`, `--version`…) giữ nguyên.
 
 Lần chạy đầu, script `prestart` sẽ tạo/trust chứng thư HTTPS development của .NET và export cặp PEM vào `.certs/` (thư mục này không được commit). Chấp nhận hộp thoại trust certificate của hệ điều hành nếu được hỏi.
 

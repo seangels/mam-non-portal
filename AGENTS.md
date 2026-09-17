@@ -70,8 +70,9 @@ Backend:
     dotnet build api/AdminPortal.slnx --no-restore
     dotnet test api/tests/AdminPortal.UnitTests --no-restore
 
-Frontend:
+Frontend (dot-source Node portable trước để đúng bản 14.21.3 + npm 8.19.4):
 
+    . .\ui\use-node-portable.ps1
     npm --prefix ui run build -- --configuration development
     npm --prefix ui run test:ci
 

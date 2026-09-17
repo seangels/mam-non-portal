@@ -7,6 +7,8 @@
     "doc": "docs"
   },
   "scripts": {
+    "api": "dotnet run --project api/src/AdminPortal.Api",
+    "ui": "powershell -ExecutionPolicy Bypass -File ./scripts/ui.ps1",
     "build:iis": "powershell -ExecutionPolicy Bypass -File ./deploy/iis/build-iis-package.ps1 -SkipNpmInstall",
     "upload:release": "powershell -ExecutionPolicy Bypass -File ./deploy/iis/upload-release-to-drive.ps1"
   },

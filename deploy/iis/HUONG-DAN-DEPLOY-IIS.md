@@ -167,7 +167,7 @@ Build sạch nhưng chưa thay đổi IIS:
 Lệnh trên chạy:
 
 - dotnet publish Release cho API.
-- npm ci.
+- npm ci (bằng Node portable `ui/.tools/node-v14.21.3-win-x64` nếu đã giải nén theo `ui/README.md`, ngược lại dùng npm trên PATH — sai bản sẽ bị preinstall guard chặn).
 - Angular build với configuration iis.
 - Kiểm tra UI artifact thực sự trỏ tới API HTTPS local.
 

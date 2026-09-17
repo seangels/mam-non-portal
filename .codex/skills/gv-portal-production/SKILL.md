@@ -37,8 +37,9 @@ Run only after explicit invocation of this skill.
        dotnet test api/tests/AdminPortal.UnitTests --no-restore
        dotnet test api/tests/AdminPortal.IntegrationTests -c Release --no-restore
 
-3. Run frontend gates:
+3. Run frontend gates (Windows: dot-source Node portable trước để đúng bản 14.21.3 + npm 8.19.4):
 
+       . .\ui\use-node-portable.ps1
        npm --prefix ui run test:ci
        npm --prefix ui run build
 

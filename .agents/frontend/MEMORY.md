@@ -1,5 +1,38 @@
 # Frontend role memory
 
+## 2026-09-18 — NODE-PORTABLE-05 (proxy bỏ được chữ `run`)
+
+- `scripts/ui.ps1` tự chèn `run` khi arg đầu không phải builtin/flag npm: `npm run ui -- build` == `npm run ui -- run build`; `ci`/`start`/`ls`/`--version`… đi thẳng.
+- Verification: `ls devextreme --depth=0` → `devextreme@19.2.5`; `setup:https` → chạy đúng script `run setup:https`, cert OK, exit 0.
+
+## 2026-09-18 — NODE-PORTABLE-04 (root proxy `npm run ui`)
+
+- Mới `scripts/ui.ps1` + script root `npm run ui`: forward mọi lệnh sang `npm --prefix ui`, tự resolve/prepend portable (verify đúng bản, thiếu thì fallback + warning như `deploy-iis.ps1`). Không đụng `ui/package.json`.
+- Gotcha PowerShell 5.1: `[CmdletBinding()]` + `ValueFromRemainingArguments` bind sai bare-word đứng trước `--` (`exec -- node --version` → PositionalParameterNotFound, đã tái hiện bằng probe). Fix: bỏ param block, dùng `$args` giữ verbatim cả `--`.
+- Verification: parser 0 error; không args → usage exit 1; `--version` → `8.19.4`; `run build -- --configuration development` pass hash `aa79ad97ae07ad34ec04` chỉ warnings CommonJS đã biết. `ui/README.md` đã ghi cách dùng.
+
+## 2026-09-18 — NODE-PORTABLE-03 (fix ng ăn nhầm Node 22)
+
+- Triệu chứng user báo: `npm run build:iis` nổ `ERR_OSSL_EVP_UNSUPPORTED` (webpack MD4), stack ghi `Node.js v22.23.2` dù log đã `Dung Node portable`. Nguyên nhân: portable `npm.cmd` đúng, nhưng `ng` sinh tiến trình con qua `node` trên PATH của terminal (đang là Node global v22).
+- Fix: `Resolve-PortableNpm` trong `deploy/iis/deploy-iis.ps1` giờ prepend portable dir vào `$env:PATH` của process khi resolve thành công (chỉ ảnh hưởng process chạy script, không đổi PATH máy).
+- Verification end-to-end (chạy bằng portable npm do session agent thiếu Node global trên PATH): `ng build --configuration iis` pass 82.6s, hash `bddf035246313b7ade15`, chỉ warnings CommonJS/budget đã biết; package `release/gv-portal-iis-20260917-200834.zip` SHA-256 `A304EE2A…280AC07`; `PrepareOnly` nên IIS không bị đụng.
+
+## 2026-09-18 — NODE-PORTABLE-02 (script alignment)
+
+- Mọi script liên quan đã chuyển sang portable: `check-toolchain.cjs` gợi ý wrapper khi sai bản; `ui/README.md` §Chạy local lấy wrapper làm primary, `nvm` làm fallback; `ui/AGENTS.md` + root `AGENTS.md` + skill `$gv-portal-production` thêm bước dot-source; `HUONG-DAN-DEPLOY-IIS.md` §5 ghi rõ portable.
+- `deploy/iis/deploy-iis.ps1`: thêm `Resolve-PortableNpm` (ưu tiên `ui/.tools/node-v14.21.3-win-x64/npm.cmd`, verify đúng bản, thiếu thì fallback `npm.cmd` global + warning; preinstall guard vẫn chặn sai bản). `build-iis-package.ps1` gọi qua deploy-iis nên hưởng ké, không sửa.
+- Không đụng `package.json`/`package-lock.json`/`.nvmrc`/plan DX19 (lý do đã giải thích cho user).
+- Verification: parser 0 error (deploy-iis + wrapper), `node --check` cjs OK, `Resolve-PortableNpm` trả đúng portable path, guard exit 0, wrapper từ root ra `v14.21.3`/`8.19.4`. Không chạy `-Build` thật (gate production).
+- Sự cố giữa chừng: lệnh chuẩn hóa CRLF viết sai làm rỗng 5 file; đã khôi phục 4 file từ HEAD + viết lại wrapper, áp lại edits, diff hiện minimal đúng ý. Bài học: không bao giờ read/write cùng file trong một expression; kiểm tra diff sau mọi thao tác byte-level.
+
+## 2026-09-18 — NODE-PORTABLE-01
+
+- Node portable Windows x64 `14.21.3` + npm `8.19.4` giải nén tại `ui/.tools/node-v14.21.3-win-x64/` (gitignored bởi rule `ui/.tools/` có sẵn ở root `.gitignore`, binary không commit). ZIP `nodejs.org/dist/v14.21.3` đã verify SHA-256 `47cfb919…796a6`.
+- npm 6.14.18 kèm sẵn không qua được `preinstall` guard nên đã nâng tại chỗ lên `8.19.4` (rename 4 shim `npm/npx` → `.bak` để tránh lỗi EEXIST khi self-upgrade, cài qua `node node_modules/npm/bin/npm-cli.js install -g npm@8.19.4`, xóa `.bak`).
+- Mới: `ui/use-node-portable.ps1` (dot-source, chỉ prepend portable dir vào session `PATH`, verify đúng bản, không cần admin, không đổi PATH hệ thống) + mục `Node portable` trong `ui/README.md`.
+- Verification: wrapper chạy từ root và từ `ui/` đều ra `v14.21.3`/`8.19.4`, `node scripts/check-toolchain.cjs` exit 0, `git diff` chỉ còn `ui/README.md` + file ps1 mới (root `.gitignore` dirty là change có sẵn của user, giữ nguyên). `npm ci`/`test:ci`/build không chạy lại (không đổi dependency/source; node_modules hiện hữu đã đúng bản).
+- Rủi ro: mỗi máy dev/build mới phải giải nén + nâng npm 1 lần theo README; quên dot-source wrapper sẽ dùng nhầm Node global.
+
 ## 2026-09-11 — AUTH-BEARER-01
 
 - Auth UI dùng Bearer access token và refresh token trong JSON body, không `withCredentials`, cookie hoặc CSRF. Token lưu `localStorage` để nhiều tab dùng chung.

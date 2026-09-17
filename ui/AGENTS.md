@@ -63,9 +63,10 @@ Before changing frontend code:
 
 ## Commands and verification
 
-From the workspace root:
+From the workspace root (dot-source Node portable trước để đúng bản 14.21.3 + npm 8.19.4):
 
 ```powershell
+. .\ui\use-node-portable.ps1
 npm --prefix ui ci
 npm --prefix ui start
 npm --prefix ui run test:ci
