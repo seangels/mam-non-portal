@@ -8,3 +8,7 @@
 deploy/iis/client_secret.json
 deploy/iis/*.token.json
 deploy/iis/upload-release-to-drive.json
+
+ui/.tools/
+!ui/.tools/*.ps1
+!ui/.tools/README.md
