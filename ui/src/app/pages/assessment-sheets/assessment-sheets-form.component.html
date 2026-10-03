@@ -356,14 +356,43 @@
                 </span>
               </td>
               <td *ngIf="showPlan" class="grade-cell plan-cell">
-                <span
-                  *ngIf="row.record.planGrade !== null"
-                  class="grade-value"
-                  [style.borderColor]="gradeColor(row.record.planGrade)"
-                  [style.backgroundColor]="gradeBgColor(row.record.planGrade)"
-                  [style.color]="gradeColor(row.record.planGrade)">
-                  {{ gradeText(row.record.planGrade) }}
-                </span>
+                <div *ngIf="canEditPlanGrade; else readOnlyPlanGrade"
+                  class="grade-select-shell"
+                  [class.disabled]="planGradeControlsDisabled">
+                  <dx-select-box
+                    class="grade-select-box"
+                    [style.borderColor]="gradeColor(row.record.planGrade)"
+                    [style.backgroundColor]="row.record.planGrade ? gradeBgColor(row.record.planGrade) : ''"
+                    [style.color]="gradeColor(row.record.planGrade)"
+                    [dataSource]="gradeSelectOptions"
+                    valueExpr="value"
+                    displayExpr="text"
+                    [readOnly]="planGradeControlsDisabled"
+                    [value]="row.record.planGrade ?? null"
+                    (onValueChanged)="updateRecordPlanGrade(row.record, $event.value)"
+                    [attr.aria-label]="'Kế hoạch của ' + row.record.assessment.code"
+                    itemTemplate="item">
+                    <div *dxTemplate="let data of 'item'" class="grade-select-box-item">
+                      <span
+                        class="grade-value"
+                        [style.borderColor]="gradeColor(data.value)"
+                        [style.backgroundColor]="data.value ? gradeBgColor(data.value) : ''"
+                        [style.color]="gradeColor(data.value)">
+                        {{ data.text }}
+                      </span>
+                    </div>
+                  </dx-select-box>
+                </div>
+                <ng-template #readOnlyPlanGrade>
+                  <span
+                    *ngIf="row.record.planGrade !== null"
+                    class="grade-value"
+                    [style.borderColor]="gradeColor(row.record.planGrade)"
+                    [style.backgroundColor]="gradeBgColor(row.record.planGrade)"
+                    [style.color]="gradeColor(row.record.planGrade)">
+                    {{ gradeText(row.record.planGrade) }}
+                  </span>
+                </ng-template>
               </td>
               <td *ngIf="showResult" class="grade-cell"
                 [class.grade-cell--changed]="row.record.finalGrade && row.record.finalGrade !== row.record.planGrade"

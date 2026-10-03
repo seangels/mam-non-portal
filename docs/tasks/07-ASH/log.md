@@ -220,3 +220,17 @@ _Chưa có hoạt động. Khi chạy `ASH-QA-01`, ghi kết quả từng bướ
 - Backend `POST /assessment-sheets/pdf-archive` nay xác định `shouldZip`: nhiều ID luôn ZIP; PDF một ID trả `application/pdf`; ảnh một ID chỉ ZIP khi PDF có nhiều trang, còn một trang trả `image/png`. Fallback lỗi/mất file vẫn ZIP kèm `_bo-qua.txt`.
 - Frontend `ApiClient`/`AssessmentSheetsService` giữ response headers + MIME; Bulk Action tải đúng PDF/PNG/ZIP, và cột Kế hoạch/Kết quả có icon tải ảnh theo dòng với trạng thái disable trong lúc gọi API.
 - Verification: backend unit **124/124**, frontend `npm --prefix ui run test:ci` **214/214**; development build pass. Integration không chạy (Docker không khả dụng); không production/IIS/deploy.
+
+## 2026-10-03 — ASH-PLAN-GRADE-01 bắt đầu
+
+- Người dùng chốt sửa riêng mức đánh giá ở cột Kế hoạch khi trạng thái đang chọn là `Open` hoặc `Canceled`; Ghi chú kế hoạch giữ chỉ đọc.
+- Dropdown dùng màu/mức đánh giá hiện có và lựa chọn null; tận dụng dirty tracking và `PUT /assessment-sheets/{id}/records`, không đổi API/schema.
+- Agent frontend phụ trách source/test và frontend memory; root cập nhật requirements/task, review và phối hợp kiểm chứng `test:ci` + development build bằng Node portable.
+
+## 2026-10-03 — ASH-PLAN-GRADE-01 hoàn tất
+
+- Cột Kế hoạch dùng dropdown màu với lựa chọn null khi `editor.status` là `Open`/`Canceled`; `Planed`/`Done` giữ hiển thị chỉ đọc. Cột rộng 100px như Kết quả; Ghi chú kế hoạch giữ nguyên.
+- Control và handler đều kiểm tra busy lock; dùng nguyên dirty tracking, pending-change guard và full-replace records khi lưu. Không đổi API/DTO/schema, final hoặc latest.
+- Thêm 8 regression tests kiểm tra role/trạng thái, busy locks, dirty/hoàn tác/beforeunload, payload/lưu/tải lại A hoặc null, thứ tự hoàn thành kế hoạch và giữ draft khi lưu thất bại. Các service được stub trong test.
+- Verification: frontend `npm --prefix ui run test:ci` **222/222**, development build **pass** hash `d04cf984caee75ab5868`, chỉ CommonJS warnings đã biết. Dùng Node portable 14.21.3/npm 8.19.4; process-local execution policy cho wrapper, gọi npm.cmd với `--configuration=development` để tránh PowerShell shim xử lý mất dấu `--`.
+- Root review diff không có phát hiện; `git diff --check` sạch ngoài LF/CRLF warnings. Browser/live API smoke chưa chạy; không backend tests, production/IIS/deploy.

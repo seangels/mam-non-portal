@@ -790,6 +790,20 @@ export class AssessmentSheetFormComponent implements OnInit, OnDestroy {
       || !canEditAssessmentSheetRecordValues(this.editor.status);
   }
 
+  get canEditPlanGrade(): boolean {
+    return this.editor.status === 'Open' || this.editor.status === 'Canceled';
+  }
+
+  get planGradeControlsDisabled(): boolean {
+    return !this.canEditPlanGrade
+      || this.loading
+      || this.saving
+      || this.completingPlan
+      || this.recordMutationInProgress
+      || this.preparingResultsSubmit
+      || this.submittingResults;
+  }
+
   get recordMutationLockHint(): string {
     return this.recordStructureLockedMessage();
   }
@@ -1297,6 +1311,13 @@ export class AssessmentSheetFormComponent implements OnInit, OnDestroy {
       return;
     }
     void this.removeAssessmentRecord(record);
+  }
+
+  updateRecordPlanGrade(record: AssessmentSheetRecord, value: AssessmentGrade | null): void {
+    if (this.planGradeControlsDisabled) {
+      return;
+    }
+    record.planGrade = value ?? null;
   }
 
   updateRecordFinalGrade(record: AssessmentSheetRecord, value: AssessmentGrade | null): void {

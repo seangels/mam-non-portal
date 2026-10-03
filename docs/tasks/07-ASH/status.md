@@ -35,7 +35,7 @@ Theo mục 13 của plan. Cả 5 quyết định đã được khoá. `ASH-DEC-0
 | Backend | 6 | 0 | 3 | 3 | 0 |
 | Backend delta | 1 | 0 | 0 | 1 | 0 |
 | Frontend | 6 | 5 | 0 | 1 | 0 |
-| Frontend delta | 11 | 0 | 4 | 7 | 0 |
+| Frontend delta | 14 | 0 | 4 | 10 | 0 |
 | Contract delta | 4 | 0 | 0 | 4 | 0 |
 | Cleanup delta | 1 | 0 | 0 | 1 | 0 |
 | Import delta | 2 | 0 | 1 | 1 | 0 |
@@ -95,6 +95,7 @@ Cập nhật bảng này mỗi khi đổi trạng thái một dòng bên dưới
 | `[x]` | [`ASH-PICKER-BULK-02`](details/37-ASH-PICKER-BULK-02.md) | Records table thêm `Kết quả hiện tại`, toggle cột hiện tại và checkbox ẩn/hiện toàn bảng; picker có TagBox filter vòng 1 đã có/chưa có độc lập với filter lưới, không hiện cột membership, hỗ trợ chọn hỗn hợp và thêm/bỏ nhiều mục bằng một request full-replace. Frontend test 185/185 + development build pass | `ASH-PICKER-MULTI-01`, `GET /assessments?studentId`, `PUT /assessment-sheets/{id}/records` |
 | `[x]` | [`ASH-FORM-AGE-01`](details/40-ASH-FORM-AGE-01.md) | Form edit hiển thị tuổi hiện tại của học sinh dạng năm/tháng trong summary snapshot, dùng lại `calculateAgeText`. Frontend test 208/208 + development build pass | `StudentSnapshot.DateOfBirth` |
 | `[x]` | [`ASH-CACHE-PAGE-01`](details/41-ASH-CACHE-PAGE-01.md) | Form và picker tải cache Assessment theo lô 1000 thay vì 100, vẫn lặp đủ mọi trang. Focused test 101/101, full frontend 208/208 + development build pass | `GET /assessments` hỗ trợ `pageSize <= 5000` |
+| `[x]` | [`ASH-PLAN-GRADE-01`](details/43-ASH-PLAN-GRADE-01.md) | Dropdown màu sửa riêng cột Kế hoạch khi Open/Canceled; lưu qua luồng records hiện có, giữ Ghi chú kế hoạch chỉ đọc. Frontend test 222/222 + development build pass | `PUT /assessment-sheets/{id}/records` |
 
 ## Contract delta — owner: `root` / phối hợp backend + frontend
 

@@ -1,5 +1,13 @@
 # Frontend role memory
 
+## 2026-10-03 — ASH-PLAN-GRADE-01
+
+- `assessment-sheets-form.component.{ts,html,scss}`: cột Kế hoạch trong danh mục đã chọn dùng dropdown màu với bốn mức hiện có và `Chưa có` (`null`) khi `editor.status` là `Open`/`Canceled`; `Planed`/`Done` giữ hiển thị chỉ đọc. Giữ quy tắc ẩn/hiện cột, ghi chú kế hoạch và cách sửa Kết quả hiện có; độ rộng cột Kế hoạch tăng lên 100px để khớp dropdown Kết quả.
+- Predicate/lock riêng `canEditPlanGrade` + `planGradeControlsDisabled`; handler kiểm tra lock trước khi đổi `planGrade`. Khóa khi loading/saving/completingPlan, xóa sheet, thêm/xóa record, cập nhật nhóm catalog và chuẩn bị/submit kết quả. Dùng dirty/beforeunload/full-replace save hiện có, không đổi API/DTO/schema hoặc quyền Teacher/Admin/SuperAdmin.
+- `assessment-sheets-plan-grade.spec.ts`: 8 ca mới xác nhận trạng thái/quyền, status đang chọn, các busy lock, dirty/hoàn tác/cảnh báo rời trang, lưu rồi tải lại grade mới/`null`, giữ note/final/latest và thứ tự completePlan cùng nhánh lưu lỗi giữ draft.
+- Verification (Node portable `v14.21.3` + npm `8.19.4`, `NG_BUILD_MAX_WORKERS=1`): `powershell -NoProfile -ExecutionPolicy Bypass -Command '. .\ui\use-node-portable.ps1; $env:NG_BUILD_MAX_WORKERS = "1"; npm --prefix ui run test:ci'` **222/222 pass**, exit 0. `powershell -NoProfile -ExecutionPolicy Bypass -Command '. .\ui\use-node-portable.ps1; $env:NG_BUILD_MAX_WORKERS = "1"; npm.cmd --prefix ui run build -- --configuration=development'` **pass**, hash `d04cf984caee75ab5868`, exit 0; chỉ CommonJS warnings đã biết. `git diff --check -- ui/` sạch ngoài cảnh báo LF/CRLF.
+- Shell hiện tại chặn script chưa ký nên dùng `-ExecutionPolicy Bypass` chỉ ở process chạy gate. npm shim đã làm mất flag khi gọi `npm ... -- --configuration development` trong nested PowerShell (lỗi `Project 'development' does not exist`); dùng `npm.cmd ... -- --configuration=development` để giữ flag. Không production/IIS/deploy; chưa browser/live API smoke. Root quản lý requirements/task/commit.
+
 ## 2026-09-18 — NODE-PORTABLE-05 (proxy bỏ được chữ `run`)
 
 - `scripts/ui.ps1` tự chèn `run` khi arg đầu không phải builtin/flag npm: `npm run ui -- build` == `npm run ui -- run build`; `ci`/`start`/`ls`/`--version`… đi thẳng.
