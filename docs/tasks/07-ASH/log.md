@@ -234,3 +234,14 @@ _Chưa có hoạt động. Khi chạy `ASH-QA-01`, ghi kết quả từng bướ
 - Thêm 8 regression tests kiểm tra role/trạng thái, busy locks, dirty/hoàn tác/beforeunload, payload/lưu/tải lại A hoặc null, thứ tự hoàn thành kế hoạch và giữ draft khi lưu thất bại. Các service được stub trong test.
 - Verification: frontend `npm --prefix ui run test:ci` **222/222**, development build **pass** hash `d04cf984caee75ab5868`, chỉ CommonJS warnings đã biết. Dùng Node portable 14.21.3/npm 8.19.4; process-local execution policy cho wrapper, gọi npm.cmd với `--configuration=development` để tránh PowerShell shim xử lý mất dấu `--`.
 - Root review diff không có phát hiện; `git diff --check` sạch ngoài LF/CRLF warnings. Browser/live API smoke chưa chạy; không backend tests, production/IIS/deploy.
+
+## 2026-10-05 — ASH-PRINT-NEWLINE-01 bắt đầu
+
+- Sửa ô nội dung đánh giá trong mẫu preview/in/PDF dùng chung cho kế hoạch và kết quả để giữ xuống dòng bằng `white-space: pre-line`, tránh dòng trống do whitespace của template.
+- Frontend phụ trách source và chạy `test:ci` + development build bằng Node portable; root cập nhật yêu cầu/task/memory và review.
+
+## 2026-10-05 — ASH-PRINT-NEWLINE-01 hoàn tất
+
+- Thêm `white-space: pre-line` cho `.content-cell` trong `assessment-sheet-plan-preview.component.scss`; gộp markup ô nội dung ở template HTML để không sinh dòng trống từ whitespace. Hai route kế hoạch/kết quả dùng chung component, PDF lấy cùng DOM nên đều nhận bản sửa.
+- Verification: sau dot-source Node portable 14.21.3/npm 8.19.4, `NG_BUILD_MAX_WORKERS=1`, `npm.cmd --prefix ui run build -- --configuration=development` **pass** hash `0fdac87bd007fcea5e30`; `npm.cmd --prefix ui run test:ci` **222/222 pass**. Chỉ CommonJS warnings đã biết; wrapper PowerShell dùng process-local `-ExecutionPolicy Bypass`.
+- Root review source/template, luồng PDF và print styles không có phát hiện; `git diff --check` sạch ngoài cảnh báo LF/CRLF. Chưa smoke trực quan PDF; không thêm test chỉ lặp lại CSS, không đổi API hoặc production/IIS/deploy.

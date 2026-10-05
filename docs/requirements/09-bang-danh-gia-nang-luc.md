@@ -132,6 +132,7 @@
 
 ## 8. Sinh PDF [F02] — Kế hoạch cá nhân
 
+- Ô nội dung đánh giá trong preview, bản in và PDF của cả kế hoạch `[F02]` và kết quả `[F03]` phải giữ các dòng xuống hàng trong dữ liệu; nội dung dài vẫn tự ngắt theo độ rộng ô, không sinh dòng trống từ template (`ASH-PRINT-NEWLINE-01`).
 - Khi người dùng bấm nút `In Kế hoạch PDF` (không tự động), UI mở trang preview HTML/A4, render dữ liệu kế hoạch hiện tại (`PlanGrade`/`PlanNote`) bằng `html2pdf.js`.
 - Link tới file PDF này được lưu vào field `PlanFileLinkPdf` của `AssessmentSheet`.
 - PDF `[F02]` phản ánh plan tại thời điểm render; chỉ giữ **bản mới nhất** trên link hiện tại.

@@ -1,5 +1,11 @@
 # Frontend role memory
 
+## 2026-10-05 — ASH-PRINT-NEWLINE-01
+
+- `assessment-sheet-plan-preview.component.scss`: `.content-cell` dùng `white-space: pre-line` để giữ xuống dòng nội dung đánh giá cho cả preview/in/PDF kế hoạch và kết quả. Template `.html` gộp markup ô này thành một dòng để không sinh dòng trống thừa; cả hai route dùng chung component và PDF lấy cùng DOM.
+- Verification: dot-source `ui/use-node-portable.ps1` (Node 14.21.3/npm 8.19.4), `NG_BUILD_MAX_WORKERS=1`; `npm.cmd --prefix ui run build -- --configuration=development` **pass**, hash `0fdac87bd007fcea5e30`, chỉ CommonJS warnings đã biết; `npm.cmd --prefix ui run test:ci` **222/222 pass**. Wrapper dùng PowerShell process-local `-ExecutionPolicy Bypass`. `git diff --check` sạch ngoài LF/CRLF warnings.
+- Chưa smoke trực quan PDF; không đổi API, không production/IIS/deploy. Không còn việc triển khai bắt buộc cho bản sửa này.
+
 ## 2026-10-03 — ASH-PLAN-GRADE-01
 
 - `assessment-sheets-form.component.{ts,html,scss}`: cột Kế hoạch trong danh mục đã chọn dùng dropdown màu với bốn mức hiện có và `Chưa có` (`null`) khi `editor.status` là `Open`/`Canceled`; `Planed`/`Done` giữ hiển thị chỉ đọc. Giữ quy tắc ẩn/hiện cột, ghi chú kế hoạch và cách sửa Kết quả hiện có; độ rộng cột Kế hoạch tăng lên 100px để khớp dropdown Kết quả.

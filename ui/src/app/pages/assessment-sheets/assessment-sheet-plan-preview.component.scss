@@ -149,7 +149,7 @@
 .group-cell { text-align: center; font-weight: 700; }
 .group-lv2-cell { text-transform: uppercase; }
 .order-cell { text-align: center; }
-.content-cell { text-align: left; }
+.content-cell { text-align: left; white-space: pre-line; }
 .content-cell strong { margin-right: 2mm; }
 .result-cell { color: #c00000; }
 .note-cell { white-space: pre-wrap; }

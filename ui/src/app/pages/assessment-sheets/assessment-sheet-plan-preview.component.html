@@ -85,9 +85,7 @@
             {{ row.groupLv3NameSubstring }}
           </td>
           <td class="order-cell" [style.backgroundColor]="row.groupColor">{{ row.rowNumber }}</td>
-          <td class="content-cell" [style.backgroundColor]="row.groupColor">
-            <span>{{ row.record.assessment.name }}</span>
-          </td>
+          <td class="content-cell" [style.backgroundColor]="row.groupColor"><span>{{ row.record.assessment.name }}</span></td>
           <td class="result-cell" [style.color]="gradeColor(row.record)" [style.backgroundColor]="gradeBgColor(row.record, row.groupColor)">{{ gradeText(row.record) }}</td>
           <td class="note-cell" [style.backgroundColor]="row.groupColor">{{ noteText(row.record) }}</td>
         </tr>
