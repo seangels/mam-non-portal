@@ -1,5 +1,10 @@
 # Frontend role memory
 
+## 2026-10-17 — ASH-LIST-COLUMNS-01
+
+- `ui/src/app/pages/assessment-sheets/assessment-sheets.component.html`: thu cột Giáo viên phụ trách còn `width/minWidth=80`; chuyển Hạn hoàn thành rồi Ngày nộp ngay sau Kết quả và đặt `[visible]="false"` để ẩn mặc định nhưng vẫn có trong Chọn cột. Giữ nguyên template/filter/định dạng ngày; không đổi API/model/backend/database.
+- Verification: Node portable `v14.21.3` + npm `8.19.4`; `npm.cmd --prefix ui run test:ci` **222/222 pass** trước khi người dùng dừng verification. Development build bị dừng/không ghi nhận pass; không chạy thêm build/smoke. Người dùng xác nhận manual review **đạt** ngày 2026-10-17. Không production/IIS/deploy.
+
 ## 2026-10-05 — ASH-PRINT-NEWLINE-01
 
 - `assessment-sheet-plan-preview.component.scss`: `.content-cell` dùng `white-space: pre-line` để giữ xuống dòng nội dung đánh giá cho cả preview/in/PDF kế hoạch và kết quả. Template `.html` gộp markup ô này thành một dòng để không sinh dòng trống thừa; cả hai route dùng chung component và PDF lấy cùng DOM.

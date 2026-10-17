@@ -250,3 +250,9 @@ _Chưa có hoạt động. Khi chạy `ASH-QA-01`, ghi kết quả từng bướ
 
 - `GET /api/v1/google-sheets/credential-smoke` nhận query tùy chọn `return`. Không truyền tham số thì giữ JSON `200`; smoke thành công và URL hợp lệ thì trả `302`. Hỗ trợ path local `/`, `/#/` và URL tuyệt đối `http`/`https`; chặn protocol-relative, backslash-relative, `javascript:` và URL không hợp lệ. Smoke thất bại vẫn trả JSON.
 - Verification: Release solution build pass 0 warning/error; backend unit **124/124** pass; integration runtime **not run (Docker not available)**; integration project đã compile trong Release build. Debug build bị process API đang chạy khóa DLL, nên cần restart API cổng `7158` để nạp code mới. Không schema/migration/UI/production/IIS/deploy.
+
+## 2026-10-17 — ASH-LIST-COLUMNS-01 hoàn tất
+
+- Màn danh sách KH cá nhân thu cột `Giáo viên phụ trách` về `width/minWidth = 80`; chuyển `Hạn hoàn thành` và `Ngày nộp` xuống ngay sau `Kết quả`, đặt ẩn mặc định bằng `visible=false` nhưng vẫn giữ trong column chooser.
+- Không đổi logic ngày, filter, cell template, API, backend hoặc schema. Yêu cầu được đồng bộ vào requirement 09 §16.1.
+- `npm --prefix ui run test:ci` đã hoàn tất **222/222 pass** trước khi người dùng chốt thay đổi nhỏ không cần kiểm thử thêm. Development build và browser smoke không chạy; người dùng xác nhận review thủ công đạt ngày 2026-10-17. Không production/IIS/deploy.

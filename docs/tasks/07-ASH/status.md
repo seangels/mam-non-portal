@@ -97,6 +97,7 @@ Cập nhật bảng này mỗi khi đổi trạng thái một dòng bên dưới
 | `[x]` | [`ASH-CACHE-PAGE-01`](details/41-ASH-CACHE-PAGE-01.md) | Form và picker tải cache Assessment theo lô 1000 thay vì 100, vẫn lặp đủ mọi trang. Focused test 101/101, full frontend 208/208 + development build pass | `GET /assessments` hỗ trợ `pageSize <= 5000` |
 | `[x]` | [`ASH-PLAN-GRADE-01`](details/43-ASH-PLAN-GRADE-01.md) | Dropdown màu sửa riêng cột Kế hoạch khi Open/Canceled; lưu qua luồng records hiện có, giữ Ghi chú kế hoạch chỉ đọc. Frontend test 222/222 + development build pass | `PUT /assessment-sheets/{id}/records` |
 | `[x]` | `ASH-PRINT-NEWLINE-01` | Giữ xuống dòng trong ô nội dung đánh giá của preview/bản in/PDF kế hoạch và kết quả bằng `white-space: pre-line`, tránh dòng trống từ template. Frontend test 222/222 + development build pass | `ASH-FE-11`, `ASH-FE-12` |
+| `[x]` | `ASH-LIST-COLUMNS-01` | Màn KH cá nhân thu cột Giáo viên phụ trách còn 80 px; chuyển Hạn hoàn thành/Ngày nộp sau Kết quả và ẩn mặc định nhưng vẫn giữ trong Chọn cột. Frontend test 222/222 pass trước khi user chốt không cần chạy thêm; development build và browser smoke không chạy; user review thủ công đạt | `ASH-FB-W5` |
 
 ## Contract delta — owner: `root` / phối hợp backend + frontend
 

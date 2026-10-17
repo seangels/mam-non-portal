@@ -50,23 +50,23 @@
 
     <dxi-column caption="Chi tiết" [width]="72" cellTemplate="detailCell" [allowReordering]="false" [allowResizing]="false"></dxi-column>
     <dxi-column dataField="studentFullName" caption="Học sinh" cellTemplate="studentCell" [width]="180" [minWidth]="140"></dxi-column>
-    <dxi-column dataField="responsibleTeacherFullName" caption="Giáo viên phụ trách" [width]="150" [minWidth]="120"></dxi-column>
+    <dxi-column dataField="responsibleTeacherFullName" caption="Giáo viên phụ trách" [width]="80" [minWidth]="80"></dxi-column>
     <dxi-column dataField="status" caption="Trạng thái" cellTemplate="statusCell" [width]="120"
       [headerFilter]="statusHeaderFilter"></dxi-column>
     <dxi-column dataField="startDate" caption="Bắt đầu" dataType="date" cellTemplate="startDateCell"
       sortOrder="desc" [width]="170" [minWidth]="140" [allowHeaderFiltering]="false"
       [filterOperations]="['<=', '>=', 'between', '=']" selectedFilterOperation="<="
       [calculateFilterExpression]="monthGranularFilterExpression"></dxi-column>
-    <dxi-column dataField="dueDate" caption="Hạn hoàn thành" dataType="date" cellTemplate="dueDateCell"
-      [width]="120" [allowHeaderFiltering]="false"
-      [filterOperations]="['>=', '<=', 'between', '=']" selectedFilterOperation=">="
-      [calculateFilterExpression]="monthGranularFilterExpression"></dxi-column>
-    <dxi-column dataField="submissionDate" caption="Ngày nộp" dataType="date" cellTemplate="submissionDateCell"
-      [width]="110" [allowHeaderFiltering]="false"></dxi-column>
     <dxi-column dataField="planFileLinkPdf" caption="Kế hoạch" cellTemplate="planLinkCell"
       [allowSorting]="false" [allowFiltering]="false" [allowHeaderFiltering]="false" [width]="72"></dxi-column>
     <dxi-column dataField="resultFileLinkPdf" caption="Kết quả" cellTemplate="resultLinkCell"
       [allowSorting]="false" [allowFiltering]="false" [allowHeaderFiltering]="false" [width]="72"></dxi-column>
+    <dxi-column dataField="dueDate" caption="Hạn hoàn thành" dataType="date" cellTemplate="dueDateCell"
+      [width]="120" [visible]="false" [allowHeaderFiltering]="false"
+      [filterOperations]="['>=', '<=', 'between', '=']" selectedFilterOperation=">="
+      [calculateFilterExpression]="monthGranularFilterExpression"></dxi-column>
+    <dxi-column dataField="submissionDate" caption="Ngày nộp" dataType="date" cellTemplate="submissionDateCell"
+      [width]="110" [visible]="false" [allowHeaderFiltering]="false"></dxi-column>
     <dxi-column dataField="updatedAt" caption="Cập nhật" dataType="date" cellTemplate="updatedAtCell"
       [allowHeaderFiltering]="false"></dxi-column>
 
