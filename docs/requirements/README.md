@@ -16,6 +16,7 @@ Thư mục này là bản tổng hợp yêu cầu đã được chốt cho Admin
 | 07 | [API, bảo mật và vận hành](07-api-bao-mat-va-van-hanh.md) | Quy ước REST, lỗi, bảo mật, audit, retention và health check |
 | 08 | [Triển khai IIS local HTTPS](08-trien-khai-iis-local-https.md) | Yêu cầu gói bàn giao và máy đích IIS/PostgreSQL |
 | 09 | [Bảng đánh giá năng lực](09-bang-danh-gia-nang-luc.md) | AssessmentSheet theo đợt, PDF preview/upload Drive và đồng bộ Google Sheet nguồn `[F0]` |
+| 10 | [Cập nhật UI cho API chạy từ source](10-cap-nhat-ui-tu-source.md) | Build/copy UI, gói ZIP trên Drive và cập nhật ClientApp trên máy clone source |
 
 ## Thứ tự ưu tiên khi có nội dung cũ mâu thuẫn
 

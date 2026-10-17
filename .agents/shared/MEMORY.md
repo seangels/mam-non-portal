@@ -1,5 +1,14 @@
 # Shared workspace memory
 
+## 2026-10-17 — SPA-PKG-01 / SPA-UPD-01 (API chạy từ source)
+
+- Thêm `deploy/spa/build-ui-package.ps1` và `update-ui-from-drive.ps1`, helper `SpaPackage.ps1`/`GoogleDrive.ps1`, hướng dẫn `deploy/spa/README.md`; yêu cầu `docs/requirements/10-cap-nhat-ui-tu-source.md`, task `docs/tasks/10-SPA/`.
+- Máy nguồn: Node portable 14.21.3/npm 8.19.4, `npm ci` (có `-SkipNpmInstall`), production UI dùng `/api/v1`, build vào thư mục mới rồi copy vào `api/src/AdminPortal.Api/ClientApp/build`, ZIP chỉ `ClientApp/build/**` trong `release/spa`, upload folder Drive `packages` ID `1EJK12xqBWBlsVchCeXUlwYOpouzZ_D_B`. `-SkipUpload` bỏ OAuth/upload.
+- Tên gói `gv-portal-ui-yyyyMMddTHHmmssfffZ.zip` (UTC), regex mặc định `\Agv-portal-ui-(?<timestamp>\d{8}T\d{9}Z)\.zip\z`. Máy app không cần Node: duyệt đủ trang Drive, chọn timestamp trong tên mới nhất, kiểm tra size/MD5, ZIP paths/index/main rồi thay build. Timestamp mới nhất trùng bị từ chối. Backup tại `artifacts/spa/backups/`, rollback nếu move build mới thất bại; giữ `.gitkeep` và cấu hình/credential API.
+- OAuth Desktop client tìm ở API rồi `deploy/iis/client_secret.json`; token riêng `deploy/spa/{upload,download}.token.json` (gitignored). PKCE/state + loopback, lần đầu đăng nhập trên từng máy, upload scope `drive`, tải scope `drive.readonly`.
+- Bật `Spa__ServeFromClientAppBuild=true`, `Spa__BuildPath=ClientApp/build` trên máy app. Tên file cấu hình đúng `appsettings.Development.json`. Gate `$gv-portal-production` vẫn áp dụng khi agent thực thi production; luồng IIS không đổi.
+- Verification 2026-10-17: Windows PowerShell 5.1 `powershell -NoProfile -ExecutionPolicy Bypass -File deploy/spa/tests/test-spa-package.ps1` đạt **51 assertions**, gồm builder bằng npm giả lập, updater/Drive HTTP mock, phân trang, date/regex, size/checksum, ZIP xấu, stale asset removal, rollback, bảo toàn config/credential, `-WhatIf`. Syntax parse 5 script pass, `git diff --check` pass. Drive connector readback xác nhận folder `packages`; credential API chỉ kiểm tra loại `installed`, không in giá trị. Chưa chạy Angular production build, upload/OAuth Google thật hoặc máy app; không có thay đổi API/UI source, DB hoặc IIS.
+
 ## 2026-09-18 — NODE-PORTABLE-02 (build-machine toolchain)
 
 - `deploy/iis/deploy-iis.ps1 -Build` giờ ưu tiên Node portable `ui/.tools/node-v14.21.3-win-x64` (verify `v14.21.3` + npm `8.19.4`); thiếu mới fallback `npm.cmd` global kèm warning. Dev tương tác dùng `. .\ui\use-node-portable.ps1` trước mọi lệnh npm (ghi trong `ui/AGENTS.md`, root `AGENTS.md`, skill `$gv-portal-production`). Chi tiết ở `.agents/frontend/MEMORY.md`.

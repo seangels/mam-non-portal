@@ -9,6 +9,9 @@ deploy/iis/client_secret.json
 deploy/iis/*.token.json
 deploy/iis/upload-release-to-drive.json
 
+# Machine-local OAuth state for source-hosted SPA package scripts
+deploy/spa/*.token.json
+
 ui/.tools/
 !ui/.tools/*.ps1
 !ui/.tools/README.md

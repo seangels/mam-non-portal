@@ -31,6 +31,7 @@
 | 07 | `ASH` | [`07-ASH/status.md`](07-ASH/status.md) | [`07-ASH/log.md`](07-ASH/log.md) |
 | 08 | `CQRS` | [`08-CQRS/status.md`](08-CQRS/status.md) | [`08-CQRS/log.md`](08-CQRS/log.md) |
 | 09 | `STU` | [`09-STU/status.md`](09-STU/status.md) | [`09-STU/log.md`](09-STU/log.md) |
+| 10 | `SPA` | [`10-SPA/status.md`](10-SPA/status.md) | [`10-SPA/log.md`](10-SPA/log.md) |
 
 ## Legacy archive
 
