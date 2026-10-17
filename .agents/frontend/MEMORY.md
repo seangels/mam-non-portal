@@ -1,5 +1,10 @@
 # Frontend role memory
 
+## 2026-10-17 — Hướng dẫn cuộn ngang trong authenticated header
+
+- `HeaderComponent` hiển thị thanh gợi ý cố định ngay dưới toolbar trên mọi trang đã đăng nhập: “Mẹo: Đặt con trỏ lên bảng, giữ Shift và lăn chuột để cuộn ngang.” Thanh dùng icon thông tin, màu accent và padding responsive; login/setup không đổi. Chỉ sửa `header.component.html` và `header.component.scss`, không đổi DataGrid/API.
+- Verification: development build với Node portable 14.21.3/npm 8.19.4 pass, hash `14fb79f267b402e34360`; `npm --prefix ui run test:ci` pass **222/222** trên Chrome Headless 155; `git diff --check` pass. Không chạy production/IIS build.
+
 ## 2026-10-17 — ASH-LIST-COLUMNS-01
 
 - `ui/src/app/pages/assessment-sheets/assessment-sheets.component.html`: thu cột Giáo viên phụ trách còn `width/minWidth=80`; chuyển Hạn hoàn thành rồi Ngày nộp ngay sau Kết quả và đặt `[visible]="false"` để ẩn mặc định nhưng vẫn có trong Chọn cột. Giữ nguyên template/filter/định dạng ngày; không đổi API/model/backend/database.
