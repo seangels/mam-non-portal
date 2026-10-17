@@ -35,6 +35,8 @@ public class GoogleSheetsSettings : IGoogleSheetsSettings
     public string SheetConfigRange { get; set; } = string.Empty;
     public string SheetConfigLastRow { get; set; } = string.Empty;
     public string StudentDriveFolderPoolId { get; set; } = string.Empty;
+    public string StudentSpreadsheetId { get; set; } = string.Empty;
+    public int StudentSheetId { get; set; }
 
 }
 internal sealed class AssessmentGroupSync
@@ -47,7 +49,7 @@ internal sealed class AssessmentGroupSync
     public DateTimeOffset CreatedAt { get; set; }
 }
 
-public class GoogleSheetsService : IGoogleSheetsService, IDisposable
+public partial class GoogleSheetsService : IGoogleSheetsService, IStudentGoogleSheetsService, IDisposable
 {
     private readonly Lazy<UserCredential> _credential;
     private readonly Lazy<SheetsService> _sheetsService;
@@ -75,6 +77,9 @@ public class GoogleSheetsService : IGoogleSheetsService, IDisposable
     private const string ResultSource_AssessmentCodeRange = "ResultSource_AssessmentCodeRange";
     private const string ResultSource_StudentCodeRange = "ResultSource_StudentCodeRange";
     private Dictionary<string, string>? ResultLatestSheetConfigCacheInTransient;
+    private bool studentSheetValidated;
+    private string? studentSheetName;
+    private static readonly SemaphoreSlim StudentSheetCreateLock = new(1, 1);
     private static readonly Action<ILogger, string, Exception?> GoogleSheetsCredentialSmokeFailed =
         LoggerMessage.Define<string>(
             LogLevel.Warning,
@@ -139,6 +144,222 @@ public class GoogleSheetsService : IGoogleSheetsService, IDisposable
         HttpClientInitializer = _credential.Value,
         ApplicationName = "CleanArchGoogleSheets"
     });
+
+    public async Task<StudentSheetMutation> CreateOrUpdateAsync(
+        string studentCode,
+        string fullName,
+        string nickName,
+        DateOnly dateOfBirth,
+        CancellationToken cancellationToken)
+    {
+        await StudentSheetCreateLock.WaitAsync(cancellationToken);
+        try
+        {
+            return await CreateOrUpdateCoreAsync(
+                studentCode, fullName, nickName, dateOfBirth, cancellationToken);
+        }
+        finally
+        {
+            StudentSheetCreateLock.Release();
+        }
+    }
+
+    private async Task<StudentSheetMutation> CreateOrUpdateCoreAsync(
+        string studentCode,
+        string fullName,
+        string nickName,
+        DateOnly dateOfBirth,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var rows = await ReadStudentRowsAsync(cancellationToken);
+            var existingRow = StudentGoogleSheetsRules.FindUniqueRow(rows, studentCode);
+            var rowNumber = existingRow ?? StudentGoogleSheetsRules.FindFirstAvailableRow(rows);
+            var previous = ReadStudentRow(rows, rowNumber);
+            var writeStudentId = existingRow is null;
+
+            await WriteStudentCellsAsync(
+                rowNumber,
+                writeStudentId ? studentCode : null,
+                fullName,
+                nickName,
+                StudentGoogleSheetsRules.ToGoogleDateSerial(dateOfBirth),
+                writeStudentId,
+                cancellationToken);
+
+            return new StudentSheetMutation(
+                rowNumber,
+                previous.StudentId,
+                previous.FullName,
+                previous.NickName,
+                previous.DateOfBirth,
+                writeStudentId);
+        }
+        catch (AppException)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            LogStudentSheetFailure(logger, exception.GetType().Name);
+            throw StudentSheetOperationFailed("Không thể tạo học sinh trong Google Sheets.");
+        }
+    }
+
+    public async Task<StudentSheetMutation> UpdateAsync(
+        string sheetStudentId,
+        string fullName,
+        string nickName,
+        DateOnly dateOfBirth,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var rows = await ReadStudentRowsAsync(cancellationToken);
+            var rowNumber = StudentGoogleSheetsRules.FindUniqueRow(rows, sheetStudentId)
+                ?? throw StudentSheetOperationFailed($"Không tìm thấy StudentID '{sheetStudentId}' trong Google Sheets.");
+            var previous = ReadStudentRow(rows, rowNumber);
+
+            await WriteStudentCellsAsync(
+                rowNumber,
+                null,
+                fullName,
+                nickName,
+                StudentGoogleSheetsRules.ToGoogleDateSerial(dateOfBirth),
+                writeStudentId: false,
+                cancellationToken);
+
+            return new StudentSheetMutation(
+                rowNumber,
+                previous.StudentId,
+                previous.FullName,
+                previous.NickName,
+                previous.DateOfBirth,
+                StudentIdWasWritten: false);
+        }
+        catch (AppException)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            LogStudentSheetFailure(logger, exception.GetType().Name);
+            throw StudentSheetOperationFailed("Không thể cập nhật học sinh trong Google Sheets.");
+        }
+    }
+
+    public async Task RestoreAsync(StudentSheetMutation mutation, CancellationToken cancellationToken)
+    {
+        await EnsureStudentSheetConfiguredAsync(cancellationToken);
+        var data = new List<Google.Apis.Sheets.v4.Data.ValueRange>();
+        if (mutation.StudentIdWasWritten)
+            data.Add(StudentCell(mutation.RowNumber, "B", mutation.PreviousStudentId));
+        data.Add(StudentCell(mutation.RowNumber, "C", mutation.PreviousFullName));
+        data.Add(StudentCell(mutation.RowNumber, "D", mutation.PreviousNickName));
+        data.Add(StudentCell(mutation.RowNumber, "H", mutation.PreviousDateOfBirth));
+        await ExecuteStudentBatchAsync(data, cancellationToken);
+    }
+
+    private async Task<IReadOnlyList<IList<object>>> ReadStudentRowsAsync(CancellationToken cancellationToken)
+    {
+        await EnsureStudentSheetConfiguredAsync(cancellationToken);
+        var request = _sheetsService.Value.Spreadsheets.Values.Get(
+            googleSheetsSettings.StudentSpreadsheetId,
+            $"{QuoteSheetName(studentSheetName!)}B2:H");
+        request.ValueRenderOption = SpreadsheetsResource.ValuesResource.GetRequest.ValueRenderOptionEnum.UNFORMATTEDVALUE;
+        var response = await request.ExecuteAsync(cancellationToken);
+        return response.Values?.ToList() ?? [];
+    }
+
+    private async Task EnsureStudentSheetConfiguredAsync(CancellationToken cancellationToken)
+    {
+        if (studentSheetValidated) return;
+        if (string.IsNullOrWhiteSpace(googleSheetsSettings.StudentSpreadsheetId) ||
+            googleSheetsSettings.StudentSheetId <= 0)
+        {
+            throw StudentSheetOperationFailed("Chưa cấu hình Google Sheets cho danh sách học sinh.");
+        }
+
+        var request = _sheetsService.Value.Spreadsheets.Get(googleSheetsSettings.StudentSpreadsheetId);
+        request.Fields = "sheets.properties(sheetId,title)";
+        var spreadsheet = await request.ExecuteAsync(cancellationToken);
+        var sheet = spreadsheet.Sheets?.SingleOrDefault(x => x.Properties?.SheetId == googleSheetsSettings.StudentSheetId);
+        if (string.IsNullOrWhiteSpace(sheet?.Properties?.Title))
+        {
+            throw StudentSheetOperationFailed("Không tìm thấy StudentSheetId trong Google Sheets đã cấu hình.");
+        }
+
+        studentSheetName = sheet.Properties.Title;
+        studentSheetValidated = true;
+    }
+
+    private async Task WriteStudentCellsAsync(
+        int rowNumber,
+        string? studentId,
+        string fullName,
+        string nickName,
+        double dateOfBirth,
+        bool writeStudentId,
+        CancellationToken cancellationToken)
+    {
+        var values = new Dictionary<string, object?>
+        {
+            ["B"] = studentId,
+            ["C"] = fullName,
+            ["D"] = nickName,
+            ["H"] = dateOfBirth
+        };
+        var columns = writeStudentId
+            ? StudentGoogleSheetsRules.CreateColumns
+            : StudentGoogleSheetsRules.UpdateColumns;
+        var data = columns.Select(column => StudentCell(rowNumber, column, values[column])).ToList();
+        await ExecuteStudentBatchAsync(data, cancellationToken);
+    }
+
+    private async Task ExecuteStudentBatchAsync(
+        IList<Google.Apis.Sheets.v4.Data.ValueRange> data,
+        CancellationToken cancellationToken)
+    {
+        var request = new Google.Apis.Sheets.v4.Data.BatchUpdateValuesRequest
+        {
+            ValueInputOption = "RAW",
+            Data = data
+        };
+        await _sheetsService.Value.Spreadsheets.Values
+            .BatchUpdate(request, googleSheetsSettings.StudentSpreadsheetId)
+            .ExecuteAsync(cancellationToken);
+    }
+
+    private Google.Apis.Sheets.v4.Data.ValueRange StudentCell(int rowNumber, string column, object? value) =>
+        new()
+        {
+            Range = $"{QuoteSheetName(studentSheetName!)}{column}{rowNumber}",
+            Values = [[value ?? string.Empty]]
+        };
+
+    private static (string? StudentId, string? FullName, string? NickName, object? DateOfBirth) ReadStudentRow(
+        IReadOnlyList<IList<object>> rows,
+        int rowNumber)
+    {
+        var index = rowNumber - StudentGoogleSheetsRules.FirstDataRow;
+        if (index < 0 || index >= rows.Count) return (null, null, null, null);
+        var row = rows[index];
+        return (
+            CellString(row, 0),
+            CellString(row, 1),
+            CellString(row, 2),
+            row.Count > 6 ? row[6] : null);
+    }
+
+    private static string? CellString(IList<object> row, int index) =>
+        row.Count > index ? row[index]?.ToString() : null;
+
+    private static NormalException StudentSheetOperationFailed(string message) =>
+        new(message, ProblemCodes.StudentGoogleSheetsOperationFailed);
+
+    [LoggerMessage(EventId = 2, Level = LogLevel.Warning, Message = "Student Google Sheets operation failed with {ExceptionType}.")]
+    private static partial void LogStudentSheetFailure(ILogger logger, string exceptionType);
 
     // 2. Hiện thực hàm Dispose để giải phóng _sheetsService
     public void Dispose()

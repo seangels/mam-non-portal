@@ -4,6 +4,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using AdminPortal.Application.StudentDrive;
+using AdminPortal.Application.GoogleSheets;
 using Testcontainers.PostgreSql;
 
 namespace AdminPortal.IntegrationTests;
@@ -42,6 +43,8 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         {
             services.RemoveAll<IStudentDriveFolderService>();
             services.AddSingleton<IStudentDriveFolderService, FakeStudentDriveFolderService>();
+            services.RemoveAll<IStudentGoogleSheetsService>();
+            services.AddSingleton<IStudentGoogleSheetsService, FakeStudentGoogleSheetsService>();
         });
     }
 }

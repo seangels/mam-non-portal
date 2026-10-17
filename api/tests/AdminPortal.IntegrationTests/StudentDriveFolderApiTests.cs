@@ -4,8 +4,10 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using AdminPortal.Application.Auth;
 using AdminPortal.Application.StudentDrive;
+using AdminPortal.Application.GoogleSheets;
 using AdminPortal.Application.Students;
 using AdminPortal.Application.Teachers;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace AdminPortal.IntegrationTests;
 
@@ -84,6 +86,57 @@ public sealed class StudentDriveFolderApiTests(ApiFactory factory) : IClassFixtu
         var renamed = await renameResponse.Content.ReadFromJsonAsync<StudentDriveFolderActionResponse>(JsonOptions);
         Assert.NotNull(renamed);
         Assert.Equal($"{studentCode} - Drive Student", renamed.FolderName);
+
+        var changedCode = $"NEW-{Guid.NewGuid():N}"[..20].ToUpperInvariant();
+        var updateResponse = await client.PutAsJsonAsync($"/api/v1/students/{student.Id}", new
+        {
+            studentCode = changedCode,
+            fullName = "Tên mới",
+            nickName = "Nickname mới",
+            dateOfBirth = "2021-02-03",
+            gender = "Male",
+            status = "Active",
+            guardianName = (string?)null,
+            guardianPhone = (string?)null,
+            note = (string?)null,
+            driveFolderId = (string?)null,
+            studySchedule = new { mode = "FullDay", weekdays = FullDayWeekdays },
+            expectedVersion = student.Version
+        });
+        updateResponse.EnsureSuccessStatusCode();
+        var updated = await updateResponse.Content.ReadFromJsonAsync<StudentResponse>(JsonOptions);
+        Assert.NotNull(updated);
+
+        var secondUpdateResponse = await client.PutAsJsonAsync($"/api/v1/students/{student.Id}", new
+        {
+            studentCode = changedCode,
+            fullName = "Tên mới lần hai",
+            nickName = "Nickname lần hai",
+            dateOfBirth = "2021-03-04",
+            gender = "Male",
+            status = "Active",
+            guardianName = (string?)null,
+            guardianPhone = (string?)null,
+            note = (string?)null,
+            driveFolderId = (string?)null,
+            studySchedule = new { mode = "FullDay", weekdays = FullDayWeekdays },
+            expectedVersion = updated.Version
+        });
+        secondUpdateResponse.EnsureSuccessStatusCode();
+
+        var sheetService = Assert.IsType<FakeStudentGoogleSheetsService>(
+            factory.Services.GetRequiredService<IStudentGoogleSheetsService>());
+        var relevantCalls = sheetService.Calls.Where(x =>
+            string.Equals(x.SheetStudentId, studentCode, StringComparison.OrdinalIgnoreCase)).ToList();
+        Assert.Contains(relevantCalls, x => x.Operation == "Create" && x.FullName == "Drive Student");
+        Assert.Contains(relevantCalls, x =>
+            x.Operation == "Update" && x.FullName == "Tên mới" &&
+            x.NickName == "Nickname mới" && x.DateOfBirth == new DateOnly(2021, 2, 3));
+        Assert.Contains(relevantCalls, x =>
+            x.Operation == "Update" && x.FullName == "Tên mới lần hai" &&
+            x.NickName == "Nickname lần hai" && x.DateOfBirth == new DateOnly(2021, 3, 4));
+        Assert.DoesNotContain(sheetService.Calls, x =>
+            x.Operation == "Update" && string.Equals(x.SheetStudentId, changedCode, StringComparison.OrdinalIgnoreCase));
 
         var reconcileResponse = await client.PostAsync("/api/v1/students/drive-folders/reconcile", null);
         reconcileResponse.EnsureSuccessStatusCode();

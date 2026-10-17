@@ -6,6 +6,7 @@ using AdminPortal.Application.Common.Models;
 using AdminPortal.Domain.Entities;
 using AdminPortal.Domain.Enums;
 using AdminPortal.Application.StudentDrive;
+using AdminPortal.Application.GoogleSheets;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -17,6 +18,7 @@ public sealed partial class StudentService(
     IAttendancePersistence attendancePersistence,
     IBusinessDateProvider businessDateProvider,
     IStudentDriveFolderService studentDriveFolderService,
+    IStudentGoogleSheetsService studentGoogleSheetsService,
     TimeProvider timeProvider,
     ILogger<StudentService> logger) : IStudentService
 {
@@ -99,6 +101,7 @@ public sealed partial class StudentService(
             throw new ConflictException("Mã học sinh đã được sử dụng.");
         }
 
+        await using var transaction = await attendancePersistence.BeginTransactionAsync(cancellationToken);
         var driveMutation = await studentDriveFolderService.EnsureStudentFolderAsync(
             code,
             request.FullName.Trim(),
@@ -119,6 +122,7 @@ public sealed partial class StudentService(
             GuardianPhone = NormalizeOptional(request.GuardianPhone),
             Note = NormalizeOptional(request.Note),
             DriveFolderId = driveMutation.Folder.Id,
+            GoogleSheetsStudentId = code,
             StudyMode = request.StudySchedule.Mode,
             StudyWeekdayMask = weekdayMask,
             Version = 1,
@@ -126,14 +130,23 @@ public sealed partial class StudentService(
             UpdatedAt = now
         };
         dbContext.Students.Add(student);
+        StudentSheetMutation? sheetMutation = null;
         try
         {
             AddAudit(actor, "Student.Created", student.Id, null,
                 AuditState(student, StudentEditableFields, false));
             await dbContext.SaveChangesAsync(cancellationToken);
+            sheetMutation = await studentGoogleSheetsService.CreateOrUpdateAsync(
+                student.GoogleSheetsStudentId,
+                student.FullName,
+                student.NickName,
+                student.DateOfBirth,
+                cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
         }
         catch
         {
+            await CompensateStudentSheetAsync(sheetMutation, CancellationToken.None);
             await CompensateAsync(driveMutation, cancellationToken);
             throw;
         }
@@ -186,6 +199,9 @@ public sealed partial class StudentService(
             destinationFolderId,
             cancellationToken);
         var driveFolderId = driveMutation.Folder.Id;
+        var sheetStudentId = StudentGoogleSheetsRules.ResolveStableStudentId(
+            student.GoogleSheetsStudentId,
+            student.StudentCode);
         var changedFields = ChangedFields(student, request, code, driveFolderId, weekdayMask);
         var snapshotChanged = student.GroupId is not null &&
             StudentRules.AffectsAttendanceSnapshot(changedFields);
@@ -201,6 +217,7 @@ public sealed partial class StudentService(
         student.GuardianPhone = NormalizeOptional(request.GuardianPhone);
         student.Note = NormalizeOptional(request.Note);
         student.DriveFolderId = driveFolderId;
+        student.GoogleSheetsStudentId = sheetStudentId;
         student.StudyMode = request.StudySchedule.Mode;
         student.StudyWeekdayMask = weekdayMask;
         student.Version++;
@@ -221,15 +238,23 @@ public sealed partial class StudentService(
             throw;
         }
 
+        StudentSheetMutation? sheetMutation = null;
         try
         {
             AddAudit(actor, "Student.Updated", student.Id, oldAudit,
                 AuditState(student, changedFields, changedFields.Contains("note", StringComparer.Ordinal)));
             await SaveWithVersionGuardAsync(cancellationToken);
+            sheetMutation = await studentGoogleSheetsService.UpdateAsync(
+                sheetStudentId,
+                student.FullName,
+                student.NickName,
+                student.DateOfBirth,
+                cancellationToken);
             await transaction.CommitAsync(cancellationToken);
         }
         catch
         {
+            await CompensateStudentSheetAsync(sheetMutation, CancellationToken.None);
             await CompensateAsync(driveMutation, cancellationToken);
             throw;
         }
@@ -483,6 +508,21 @@ public sealed partial class StudentService(
         }
     }
 
+    private async Task CompensateStudentSheetAsync(
+        StudentSheetMutation? mutation,
+        CancellationToken cancellationToken)
+    {
+        if (mutation is null) return;
+        try
+        {
+            await studentGoogleSheetsService.RestoreAsync(mutation, cancellationToken);
+        }
+        catch (Exception exception)
+        {
+            LogStudentSheetCompensationFailure(logger, exception.GetType().Name);
+        }
+    }
+
     private static string SafeReconcileMessage(string code) => code switch
     {
         ProblemCodes.StudentDrivePoolNotConfigured => "Chưa cấu hình thư mục pool Google Drive.",
@@ -494,6 +534,9 @@ public sealed partial class StudentService(
 
     [LoggerMessage(EventId = 33, Level = LogLevel.Error, Message = "Student Drive compensation failed with {ExceptionType}.")]
     private static partial void LogCompensationFailure(ILogger logger, string exceptionType);
+
+    [LoggerMessage(EventId = 34, Level = LogLevel.Error, Message = "Student Google Sheets compensation failed with {ExceptionType}.")]
+    private static partial void LogStudentSheetCompensationFailure(ILogger logger, string exceptionType);
 
     private async Task<Student> FindRequiredAsync(Guid id, bool tracked, CancellationToken cancellationToken)
     {

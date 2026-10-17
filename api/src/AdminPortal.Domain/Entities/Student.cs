@@ -26,6 +26,8 @@ public sealed class Student
     public string? Note { get; set; }
     /// <summary>Id thư mục Google Drive riêng của học sinh, dùng khi upload PDF kế hoạch/kết quả của AssessmentSheet.</summary>
     public string? DriveFolderId { get; set; }
+    /// <summary>Khóa StudentID bất biến ở cột B của tab Google Sheets học sinh.</summary>
+    public string? GoogleSheetsStudentId { get; set; }
     public StudyMode StudyMode { get; set; }
     public short StudyWeekdayMask { get; set; }
     public int Version { get; set; } = 1;

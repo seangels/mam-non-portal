@@ -42,6 +42,8 @@ DELETE /api/v1/students/{studentId}?expectedVersion={version}
 - Create/update phải kèm lịch học hợp lệ theo tài liệu [04](04-lich-hoc-hoc-sinh.md).
 - Full update, đổi nhóm và xóa phải dùng `expectedVersion` để tránh ghi đè dữ liệu cũ.
 - Sửa mã/họ tên không tự đổi tên folder Drive; form sửa có action riêng dùng dữ liệu đã lưu và không tăng Student version.
+- Tạo/sửa Student phải đồng bộ sang Google Sheet danh sách học sinh được cấu hình riêng. Dòng được nhận diện bằng `studentCode` tại cột B (`StudentID`): khi chưa có dòng, hệ thống chỉ ghi khóa B để tạo dòng mới; dữ liệu Student chỉ ghi họ tên vào C, nickname vào D và ngày sinh chuẩn vào H. Khi sửa, không được ghi đè công thức hay dữ liệu ở bất kỳ cột nào ngoài C, D, H.
+- Spreadsheet/tab đích phải lấy từ `GoogleSheets:StudentSpreadsheetId` và `GoogleSheets:StudentSheetId` (gid), không hard-code trong nghiệp vụ. Backend nhận diện tab bằng gid để việc đổi tên tab không làm hỏng kết nối. Cấu hình nền chỉ để giá trị rỗng; giá trị môi trường thật đặt trong cấu hình Development hoặc nguồn cấu hình triển khai tương ứng. Lỗi Google Sheets phải được báo rõ và không được trả kết quả thành công giả làm người dùng hiểu rằng hai nguồn đã đồng bộ.
 
 ## 3. Danh sách học sinh
 

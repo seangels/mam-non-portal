@@ -777,6 +777,11 @@ namespace AdminPortal.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(20)")
                         .HasColumnName("gender");
 
+                    b.Property<string>("GoogleSheetsStudentId")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("google_sheets_student_id");
+
                     b.Property<DateTimeOffset?>("GroupAssignedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("group_assigned_at");

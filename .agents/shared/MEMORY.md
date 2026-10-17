@@ -1,5 +1,11 @@
 # Shared workspace memory
 
+## 2026-10-17 — STU-GSHEET-01 Student roster sync
+
+- Student create/full PUT đồng bộ Google roster cấu hình bằng `GoogleSheets:StudentSpreadsheetId` và `StudentSheetId` (gid; runtime resolve tên tab). Cột B `StudentID` là khóa bất biến: create chỉ ghi B khi tạo dòng; create/update dữ liệu chỉ ghi C/D/H, H là RAW numeric date serial, không chạm F/G hay cột khác.
+- Migration `20261017143754_AddStudentGoogleSheetsKey` thêm `students.google_sheets_student_id` để đổi `studentCode` vẫn cập nhật đúng dòng B cũ. Sheets lỗi rollback DB/Drive; commit DB lỗi sau khi Sheets đã ghi có bù trừ best-effort.
+- Base `appsettings.json` giữ Student ID rỗng và gid 0; giá trị thật chỉ nằm trong ignored local Development/runtime config. Verification: Release build 0 warning/error, unit 138/138, EF pending-model sạch; integration runtime not run (Docker unavailable). Không gọi Google live, không production package/deploy.
+
 ## 2026-10-17 — DRV student/teacher Google Drive folders
 
 - Thêm `GoogleSheets:StudentDriveFolderPoolId`, nullable `Teacher.driveFolderId` và migration `20261017130930_AddTeacherDriveFolder`. Student create/update/reconcile bảo đảm folder; assignment Student/Teacher/Group move folder giữa pool và Teacher folder. Folder chuẩn `<studentCode> - <fullName>`; rename là action riêng có `expectedVersion`, không tăng version; reconcile trả partial result an toàn.

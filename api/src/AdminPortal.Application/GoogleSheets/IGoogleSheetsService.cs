@@ -10,6 +10,8 @@ public interface IGoogleSheetsSettings
     public string AuthUser { get; }
     public string SpreadsheetId { get; }
     public string StudentDriveFolderPoolId { get; }
+    public string StudentSpreadsheetId { get; }
+    public int StudentSheetId { get; }
 }
 
 public interface IGoogleSheetsService

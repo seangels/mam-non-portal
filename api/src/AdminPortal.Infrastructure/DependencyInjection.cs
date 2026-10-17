@@ -80,7 +80,9 @@ public static class DependencyInjection
             configuration.GetSection("GoogleSheets").Get<GoogleSheetsSettings>() ?? new GoogleSheetsSettings());
 
         // 3. Đăng ký Service thao tác Sheets
-        services.AddScoped<IGoogleSheetsService, GoogleSheetsService>();
+        services.AddScoped<GoogleSheetsService>();
+        services.AddScoped<IGoogleSheetsService>(provider => provider.GetRequiredService<GoogleSheetsService>());
+        services.AddScoped<IStudentGoogleSheetsService>(provider => provider.GetRequiredService<GoogleSheetsService>());
         services.AddScoped<IStudentDriveFolderService, GoogleStudentDriveFolderService>();
 
         services.AddSingleton(TimeProvider.System);
