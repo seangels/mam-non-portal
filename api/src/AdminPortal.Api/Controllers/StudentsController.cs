@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using AdminPortal.Application.Common.Models;
 using AdminPortal.Application.Students;
+using AdminPortal.Application.StudentDrive;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -63,4 +64,20 @@ public sealed class StudentsController(IStudentService studentService) : Control
         await studentService.DeleteAsync(id, expectedVersion, cancellationToken);
         return NoContent();
     }
+
+    [HttpPost("{id:guid}/drive-folder/rename")]
+    [Authorize(Policy = "PortalManagers")]
+    [ProducesResponseType<StudentDriveFolderActionResponse>(StatusCodes.Status200OK)]
+    public async Task<ActionResult<StudentDriveFolderActionResponse>> RenameDriveFolder(
+        Guid id,
+        RenameStudentDriveFolderRequest request,
+        CancellationToken cancellationToken) =>
+        Ok(await studentService.RenameDriveFolderAsync(id, request, cancellationToken));
+
+    [HttpPost("drive-folders/reconcile")]
+    [Authorize(Policy = "PortalManagers")]
+    [ProducesResponseType<StudentDriveReconcileResponse>(StatusCodes.Status200OK)]
+    public async Task<ActionResult<StudentDriveReconcileResponse>> ReconcileDriveFolders(
+        CancellationToken cancellationToken) =>
+        Ok(await studentService.ReconcileDriveFoldersAsync(cancellationToken));
 }

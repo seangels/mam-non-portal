@@ -3,8 +3,13 @@
     <h1 class="page-title">Quản lý học sinh</h1>
     <p class="page-subtitle">Tra cứu hồ sơ, lịch học và nhóm hiện tại của học sinh.</p>
   </div>
-  <dx-button text="Thêm học sinh" icon="plus" type="default" hint="Tạo hồ sơ học sinh"
-    (onClick)="openCreate()"></dx-button>
+  <div class="toolbar-actions">
+    <dx-button text="Đồng bộ thư mục Drive" icon="refresh" stylingMode="outlined"
+      hint="Đồng bộ thư mục Drive cho toàn bộ học sinh" [disabled]="reconcilingDriveFolders"
+      (onClick)="reconcileDriveFolders()"></dx-button>
+    <dx-button text="Thêm học sinh" icon="plus" type="default" hint="Tạo hồ sơ học sinh"
+      [disabled]="reconcilingDriveFolders" (onClick)="openCreate()"></dx-button>
+  </div>
 </div>
 
 <div class="content-block dx-card grid-card">
@@ -98,8 +103,8 @@
 </div>
 
 <dx-popup [(visible)]="editorVisible" [title]="editorTitle" [width]="1120" [maxWidth]="'96vw'"
-  [height]="'auto'" [maxHeight]="'94vh'" [showCloseButton]="!saving" [dragEnabled]="false"
-  [closeOnOutsideClick]="!saving" (onHiding)="onEditorHiding($event)">
+  [height]="'auto'" [maxHeight]="'94vh'" [showCloseButton]="!saving && !renamingDriveFolder" [dragEnabled]="false"
+  [closeOnOutsideClick]="!saving && !renamingDriveFolder" (onHiding)="onEditorHiding($event)">
   <form *dxTemplate="let _ of 'content'" class="student-form" (submit)="save($event)">
     <div *ngIf="editorConflict" class="form-message conflict" role="alert">
       <span>{{ editorConflict }}</span>
@@ -188,11 +193,43 @@
     </section>
 
     <div class="popup-actions">
-      <dx-button text="Hủy" stylingMode="outlined" [disabled]="saving" (onClick)="closeEditor()"></dx-button>
+      <dx-button *ngIf="isEditing" text="Cập nhật tên thư mục Drive" icon="refresh" stylingMode="outlined"
+        [disabled]="!canRenameDriveFolder" hint="Lưu thay đổi học sinh trước khi đổi tên thư mục"
+        (onClick)="renameDriveFolder()"></dx-button>
+      <dx-button text="Hủy" stylingMode="outlined" [disabled]="saving || renamingDriveFolder" (onClick)="closeEditor()"></dx-button>
       <dx-button [text]="isEditing ? 'Lưu thay đổi' : 'Thêm học sinh'" type="default"
-        [useSubmitBehavior]="true" [disabled]="saving"></dx-button>
+        [useSubmitBehavior]="true" [disabled]="saving || renamingDriveFolder"></dx-button>
     </div>
   </form>
+</dx-popup>
+
+<dx-popup [(visible)]="reconcileResultVisible" title="Kết quả đồng bộ thư mục Drive" [width]="760"
+  [maxWidth]="'96vw'" [height]="'auto'" [maxHeight]="'90vh'" [dragEnabled]="false">
+  <div *dxTemplate="let _ of 'content'" class="reconcile-result">
+    <ng-container *ngIf="reconcileResult as result">
+      <div class="reconcile-summary" role="status">
+        <span>Đã xử lý <strong>{{ result.processed }}</strong></span>
+        <span>Tạo mới <strong>{{ result.created }}</strong></span>
+        <span>Dùng lại <strong>{{ result.reused }}</strong></span>
+        <span>Đã di chuyển <strong>{{ result.moved }}</strong></span>
+        <span>Không đổi <strong>{{ result.unchanged }}</strong></span>
+        <span class="failed">Thất bại <strong>{{ result.failed }}</strong></span>
+      </div>
+      <div *ngIf="result.errors.length" class="reconcile-errors">
+        <h3>Học sinh chưa đồng bộ được</h3>
+        <ul>
+          <li *ngFor="let error of result.errors">
+            <strong>{{ error.studentCode }} · {{ error.fullName }}</strong>
+            <span>{{ reconcileErrorText(error) }}</span>
+          </li>
+        </ul>
+      </div>
+      <p *ngIf="!result.errors.length" class="form-message info">Tất cả học sinh đã được xử lý thành công.</p>
+      <div class="popup-actions">
+        <dx-button text="Đóng" type="default" (onClick)="reconcileResultVisible = false"></dx-button>
+      </div>
+    </ng-container>
+  </div>
 </dx-popup>
 
 <dx-popup [(visible)]="groupAssignmentVisible" [title]="assignmentTitle" [width]="600" [maxWidth]="'96vw'"

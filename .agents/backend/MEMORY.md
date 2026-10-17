@@ -1,5 +1,13 @@
 # Backend persistent memory
 
+## 2026-10-17 — DRV student/teacher Google Drive folders
+
+- Added `GoogleSheets:StudentDriveFolderPoolId`, nullable `Teacher.DriveFolderId`, and migration `20261017130930_AddTeacherDriveFolder` (`teachers.drive_folder_id varchar(200)`). EF pending-model check reports no changes.
+- `IStudentDriveFolderService`/`GoogleStudentDriveFolderService` normalize raw IDs/Drive URLs, validate editable non-trashed folders, exact-match/create `<studentCode> - <fullName>` in the pool, enforce a single destination parent, rename, and expose compensation primitives. Logs contain operation/exception type only.
+- Student create/update/group assignment now guarantees a folder and moves it to pool or responsible Teacher folder. Teacher folder changes and group responsible-Teacher changes/removals preflight existing folders, move all affected Student folders, block missing Teacher folders, and best-effort compensate external mutations when DB work fails. Teacher create/full PUT/list/detail expose `driveFolderId`.
+- New manager endpoints: `POST /api/v1/students/{id}/drive-folder/rename` with `expectedVersion` (does not increment version), and `POST /api/v1/students/drive-folders/reconcile` with partial per-Student results and safe errors. Wire DTOs: `StudentDriveFolderActionResponse` and `StudentDriveReconcileResponse`.
+- Verification: `dotnet build AdminPortal.slnx -c Release --no-restore` passed 0 warnings/errors; `dotnet test tests/AdminPortal.UnitTests -c Release --no-restore` passed 131/131; EF pending-model check passed. Root ran the integration command: the runner discovered 47 tests, but all 47 stopped at fixture initialization because the Docker npipe endpoint was unavailable, so no business test body executed and integration is not considered passed. The production skill's default Debug build failed because the already-running API locked the Debug DLLs; the process was preserved. No live Google call, production package, IIS change, or deployment.
+
 ## 2026-09-11 — AUTH-BEARER-01
 
 - Auth chuyển sang Bearer access/refresh token, không cookie và không CSRF. Login/refresh trả `accessToken`, `expiresIn`, `refreshToken`, `user`; refresh/logout nhận `{ refreshToken }`.

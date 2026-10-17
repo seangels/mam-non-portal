@@ -15,7 +15,7 @@ describe('StudentsComponent schedule and remote list', () => {
 
   beforeEach(() => {
     students = jasmine.createSpyObj<StudentsService>('StudentsService', [
-      'list', 'get', 'create', 'update', 'assignGroup', 'delete'
+      'list', 'get', 'create', 'update', 'assignGroup', 'renameDriveFolder', 'reconcileDriveFolders', 'delete'
     ]);
     groups = jasmine.createSpyObj<StudentGroupsService>('StudentGroupsService', ['list', 'get']);
     students.list.and.returnValue(of({
@@ -126,6 +126,46 @@ describe('StudentsComponent schedule and remote list', () => {
     expect(component.driveFolderUrl('')).toBeNull();
   });
 
+  it('only enables Drive rename for a clean saved editor and sends expectedVersion', async () => {
+    const student = { ...studentRow(), driveFolderId: 'folder-1' };
+    component.openEdit(student);
+    expect(component.canRenameDriveFolder).toBeTrue();
+    component.editor.fullName = 'Tên mới chưa lưu';
+    expect(component.canRenameDriveFolder).toBeFalse();
+    component.editor.fullName = student.fullName;
+    students.renameDriveFolder.and.returnValue(of({
+      studentId: student.id,
+      driveFolderId: 'folder-1',
+      folderName: 'HS-01 - Nguyễn An',
+      webViewLink: 'https://drive.google.com/drive/folders/folder-1'
+    }));
+    (component as any).confirmDriveFolderRename = () => Promise.resolve(true);
+
+    await component.renameDriveFolder();
+
+    expect(students.renameDriveFolder).toHaveBeenCalledWith(student.id, { expectedVersion: student.version });
+    expect(component.editorDirty).toBeFalse();
+  });
+
+  it('keeps partial reconcile results and maps per-student errors to Vietnamese', async () => {
+    students.reconcileDriveFolders.and.returnValue(of({
+      processed: 2, created: 1, reused: 0, moved: 0, unchanged: 0, failed: 1,
+      errors: [{
+        studentId: 'student-2', studentCode: 'HS-02', fullName: 'Bé Bình',
+        code: 'TeacherDriveFolderRequired', message: 'Raw backend detail'
+      }]
+    }));
+    (component as any).confirmDriveFolderReconcile = () => Promise.resolve(true);
+
+    await component.reconcileDriveFolders();
+
+    expect(students.reconcileDriveFolders).toHaveBeenCalledTimes(1);
+    expect(component.reconcileResultVisible).toBeTrue();
+    expect(component.reconcileResult?.failed).toBe(1);
+    expect(component.reconcileErrorText(component.reconcileResult!.errors[0])).toContain('Giáo viên');
+    expect(component.reconcileErrorText(component.reconcileResult!.errors[0])).not.toContain('Raw backend');
+  });
+
   it('loads assignment groups remotely and marks current or full groups disabled', async () => {
     const current = groupRow('group-1', 20);
     const full = groupRow('group-2', 100);
@@ -216,7 +256,7 @@ describe('StudentsComponent DevExtreme form text-area integration', () => {
 
   beforeEach(async () => {
     students = jasmine.createSpyObj<StudentsService>('StudentsService', [
-      'list', 'get', 'create', 'update', 'assignGroup', 'delete'
+      'list', 'get', 'create', 'update', 'assignGroup', 'renameDriveFolder', 'reconcileDriveFolders', 'delete'
     ]);
     students.list.and.returnValue(of({
       items: [],

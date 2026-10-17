@@ -5,15 +5,19 @@ using AdminPortal.Application.Common.Interfaces;
 using AdminPortal.Application.Common.Models;
 using AdminPortal.Domain.Entities;
 using AdminPortal.Domain.Enums;
+using AdminPortal.Application.StudentDrive;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace AdminPortal.Application.StudentGroups;
 
-public sealed class StudentGroupService(
+public sealed partial class StudentGroupService(
     IApplicationDbContext dbContext,
     ICurrentActor currentActor,
     IAttendancePersistence attendancePersistence,
-    TimeProvider timeProvider) : IStudentGroupService
+    IStudentDriveFolderService studentDriveFolderService,
+    TimeProvider timeProvider,
+    ILogger<StudentGroupService> logger) : IStudentGroupService
 {
     public async Task<PagedResponse<StudentGroupResponse>> ListAsync(
         StudentGroupListQuery query,
@@ -127,8 +131,51 @@ public sealed class StudentGroupService(
             if (teacher.User.Status != UserStatus.Active)
                 throw new ConflictException("Chỉ có thể phân công giáo viên đang hoạt động.");
         }
+        if (teacher is not null)
+        {
+            if (string.IsNullOrWhiteSpace(teacher.DriveFolderId))
+                throw new ConflictException(
+                    "Giáo viên phụ trách phải có thư mục Google Drive.",
+                    ProblemCodes.TeacherDriveFolderRequired);
+            await studentDriveFolderService.ValidateFolderAsync(teacher.DriveFolderId, cancellationToken);
+        }
+
         if (group.ResponsibleTeacherId != teacher?.Id)
         {
+            var destinationFolderId = teacher?.DriveFolderId ?? studentDriveFolderService.GetRequiredPoolFolderId();
+            await studentDriveFolderService.ValidateFolderAsync(destinationFolderId, cancellationToken);
+            var students = await dbContext.Students
+                .Where(student => student.GroupId == group.Id)
+                .OrderBy(student => student.Id)
+                .ToListAsync(cancellationToken);
+            foreach (var existingFolderId in students
+                .Select(student => student.DriveFolderId)
+                .Where(folderId => !string.IsNullOrWhiteSpace(folderId))
+                .Distinct(StringComparer.Ordinal))
+            {
+                await studentDriveFolderService.ValidateFolderAsync(existingFolderId!, cancellationToken);
+            }
+            var driveMutations = new List<StudentDriveMutation>();
+            try
+            {
+                foreach (var student in students)
+                {
+                    var mutation = await studentDriveFolderService.EnsureStudentFolderAsync(
+                        student.StudentCode,
+                        student.FullName,
+                        student.DriveFolderId,
+                        destinationFolderId,
+                        cancellationToken);
+                    student.DriveFolderId = mutation.Folder.Id;
+                    driveMutations.Add(mutation);
+                }
+            }
+            catch
+            {
+                await CompensateAsync(driveMutations, cancellationToken);
+                throw;
+            }
+
             var old = new { group.ResponsibleTeacherId };
             group.ResponsibleTeacherId = teacher?.Id;
             group.ResponsibleTeacher = teacher;
@@ -136,11 +183,23 @@ public sealed class StudentGroupService(
             group.SnapshotChangedAt = timeProvider.GetUtcNow();
             group.UpdatedAt = group.SnapshotChangedAt;
             var action = teacher is null ? "Group.ResponsibleTeacherRemoved" : "Group.ResponsibleTeacherAssigned";
-            AddAudit(actor, action, group.Id, old,
-                new { group.ResponsibleTeacherId, group.SnapshotVersion });
-            await dbContext.SaveChangesAsync(cancellationToken);
+            try
+            {
+                AddAudit(actor, action, group.Id, old,
+                    new { group.ResponsibleTeacherId, group.SnapshotVersion });
+                await dbContext.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
+            }
+            catch
+            {
+                await CompensateAsync(driveMutations, cancellationToken);
+                throw;
+            }
         }
-        await transaction.CommitAsync(cancellationToken);
+        else
+        {
+            await transaction.CommitAsync(cancellationToken);
+        }
         return await GetAsync(group.Id, cancellationToken);
     }
 
@@ -226,4 +285,28 @@ public sealed class StudentGroupService(
             throw new AppValidationException(message, new Dictionary<string, string[]> { [field] = [message] });
         return value.Trim();
     }
+
+    private async Task CompensateAsync(
+        IReadOnlyList<StudentDriveMutation> mutations,
+        CancellationToken cancellationToken)
+    {
+        foreach (var mutation in mutations.Reverse())
+        {
+            try
+            {
+                if (mutation.Created)
+                    await studentDriveFolderService.DeleteFolderIfEmptyAsync(mutation.Folder.Id, cancellationToken);
+                else if (mutation.Moved)
+                    await studentDriveFolderService.RestoreParentsAsync(
+                        mutation.Folder.Id, mutation.PreviousParentIds, cancellationToken);
+            }
+            catch (Exception exception)
+            {
+                LogCompensationFailure(logger, exception.GetType().Name);
+            }
+        }
+    }
+
+    [LoggerMessage(EventId = 34, Level = LogLevel.Error, Message = "Group student-folder compensation failed with {ExceptionType}.")]
+    private static partial void LogCompensationFailure(ILogger logger, string exceptionType);
 }

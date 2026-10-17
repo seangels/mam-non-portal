@@ -19,6 +19,7 @@ export interface TeacherEditor {
   fullName: string;
   email: string;
   phoneNumber: string;
+  driveFolderId: string;
   status: UserStatus;
   note: string;
   password: string;
@@ -31,6 +32,7 @@ export function buildCreateTeacherRequest(editor: TeacherEditor): CreateTeacherR
     fullName: editor.fullName.trim(),
     email: editor.email.trim(),
     phoneNumber: editor.phoneNumber.trim() || null,
+    driveFolderId: editor.driveFolderId.trim() || null,
     status: editor.status,
     password: editor.password,
     note: editor.note.trim() || null
@@ -44,6 +46,7 @@ export function buildUpdateTeacherRequest(editor: TeacherEditor, expectedVersion
     fullName: request.fullName,
     email: request.email,
     phoneNumber: request.phoneNumber,
+    driveFolderId: request.driveFolderId,
     status: request.status,
     note: request.note,
     expectedVersion
@@ -213,6 +216,7 @@ export class TeacherFormComponent implements OnInit {
       fullName: teacher.fullName,
       email: teacher.email,
       phoneNumber: teacher.phoneNumber ?? '',
+      driveFolderId: teacher.driveFolderId ?? '',
       status: teacher.status,
       note: teacher.note ?? '',
       password: '',
@@ -236,6 +240,7 @@ export class TeacherFormComponent implements OnInit {
       fullName: '',
       email: '',
       phoneNumber: '',
+      driveFolderId: '',
       status: 'Active',
       note: '',
       password: '',

@@ -30,14 +30,14 @@ describe('TeachersService', () => {
   it('uses canonical create and full update payloads', () => {
     const create = {
       teacherCode: 'GV01', fullName: 'Nguyễn An', email: 'an@example.com',
-      phoneNumber: null, status: 'Active' as const, password: 'Strong#Pass123', note: null
+      phoneNumber: null, driveFolderId: 'folder-1', status: 'Active' as const, password: 'Strong#Pass123', note: null
     };
     service.create(create).subscribe();
     expect(api.post).toHaveBeenCalledWith('teachers', create);
 
     const update = {
       teacherCode: 'GV02', fullName: 'Nguyễn An', email: 'an@example.com',
-      phoneNumber: null, status: 'Inactive' as const, note: null, expectedVersion: 3
+      phoneNumber: null, driveFolderId: null, status: 'Inactive' as const, note: null, expectedVersion: 3
     };
     service.update('teacher-1', update).subscribe();
     expect(api.put).toHaveBeenCalledWith('teachers/teacher-1', update);

@@ -7,6 +7,7 @@ using AdminPortal.Application.Common.Exceptions;
 using AdminPortal.Application.Common.Interfaces;
 using AdminPortal.Application.Common.Models;
 using AdminPortal.Application.Users;
+using AdminPortal.Application.StudentDrive;
 using AdminPortal.Domain.Entities;
 using AdminPortal.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
@@ -20,6 +21,7 @@ public sealed partial class TeacherService(
     ICurrentActor currentActor,
     IAttendancePersistence attendancePersistence,
     IDatabaseExceptionClassifier databaseExceptionClassifier,
+    IStudentDriveFolderService studentDriveFolderService,
     TimeProvider timeProvider,
     ILogger<TeacherService> logger) : ITeacherService
 {
@@ -96,6 +98,9 @@ public sealed partial class TeacherService(
         AuthorizationRules.EnsurePortalManager(actor);
         var teacherCode = NormalizeTeacherCode(request.TeacherCode);
         var note = NormalizeOptional(request.Note);
+        var driveFolderId = StudentDriveFolderRules.NormalizeFolderId(request.DriveFolderId);
+        if (driveFolderId is not null)
+            await studentDriveFolderService.ValidateFolderAsync(driveFolderId, cancellationToken);
         if (await dbContext.Teachers.AnyAsync(x => x.TeacherCode == teacherCode, cancellationToken))
         {
             throw TeacherCodeConflict();
@@ -119,6 +124,7 @@ public sealed partial class TeacherService(
             User = user,
             TeacherCode = teacherCode,
             Note = note,
+            DriveFolderId = driveFolderId,
             AttendanceEditWindowDays = 7,
             Version = 1,
             CreatedAt = now,
@@ -144,63 +150,135 @@ public sealed partial class TeacherService(
 
         var teacherCode = NormalizeTeacherCode(request.TeacherCode);
         var note = NormalizeOptional(request.Note);
+        var driveFolderId = StudentDriveFolderRules.NormalizeFolderId(request.DriveFolderId);
         if (teacherCode != teacher.TeacherCode &&
             await dbContext.Teachers.AnyAsync(x => x.TeacherCode == teacherCode && x.Id != id, cancellationToken))
         {
             throw TeacherCodeConflict();
         }
 
+        var responsibleGroupIds = await dbContext.StudentGroups
+            .Where(group => group.ResponsibleTeacherId == teacher.Id)
+            .Select(group => group.Id)
+            .ToListAsync(cancellationToken);
+        if (responsibleGroupIds.Count > 0 && driveFolderId is null)
+            throw new ConflictException(
+                "Giáo viên đang phụ trách nhóm phải có thư mục Google Drive.",
+                ProblemCodes.TeacherDriveFolderRequired);
+        if (driveFolderId is not null)
+            await studentDriveFolderService.ValidateFolderAsync(driveFolderId, cancellationToken);
+
+        var driveMutations = new List<StudentDriveMutation>();
+        if (!string.Equals(teacher.DriveFolderId, driveFolderId, StringComparison.Ordinal) && driveFolderId is not null)
+        {
+            var students = await dbContext.Students
+                .Where(student => student.GroupId != null && responsibleGroupIds.Contains(student.GroupId.Value))
+                .OrderBy(student => student.Id)
+                .ToListAsync(cancellationToken);
+            foreach (var existingFolderId in students
+                .Select(student => student.DriveFolderId)
+                .Where(folderId => !string.IsNullOrWhiteSpace(folderId))
+                .Distinct(StringComparer.Ordinal))
+            {
+                await studentDriveFolderService.ValidateFolderAsync(existingFolderId!, cancellationToken);
+            }
+            try
+            {
+                foreach (var student in students)
+                {
+                    var mutation = string.IsNullOrWhiteSpace(student.DriveFolderId)
+                        ? await studentDriveFolderService.EnsureStudentFolderAsync(
+                            student.StudentCode, student.FullName, null, driveFolderId, cancellationToken)
+                        : await studentDriveFolderService.MoveFolderAsync(
+                            student.DriveFolderId, driveFolderId, cancellationToken);
+                    student.DriveFolderId = mutation.Folder.Id;
+                    driveMutations.Add(mutation);
+                }
+            }
+            catch
+            {
+                await CompensateAsync(driveMutations, cancellationToken);
+                throw;
+            }
+        }
+
         var now = timeProvider.GetUtcNow();
         var before = CaptureState(teacher);
-        var nameChanged = await userAccountCoordinator.UpdateAsync(
-            teacher.User,
-            request.Email,
-            request.FullName,
-            request.PhoneNumber,
-            request.Status,
-            now,
-            cancellationToken);
-
-        var affectedGroupIds = nameChanged
-            ? await dbContext.StudentGroups
-                .Where(group => group.ResponsibleTeacherId == teacher.Id)
-                .Select(group => group.Id)
-                .ToListAsync(cancellationToken)
-            : [];
-        await attendancePersistence.LockGroupsAsync(affectedGroupIds, cancellationToken);
-        if (affectedGroupIds.Count > 0)
+        bool nameChanged;
+        try
         {
-            var groups = await dbContext.StudentGroups
-                .Where(group => affectedGroupIds.Contains(group.Id) && group.ResponsibleTeacherId == teacher.Id)
-                .ToListAsync(cancellationToken);
-            foreach (var group in groups)
+            nameChanged = await userAccountCoordinator.UpdateAsync(
+                teacher.User,
+                request.Email,
+                request.FullName,
+                request.PhoneNumber,
+                request.Status,
+                now,
+                cancellationToken);
+        }
+        catch
+        {
+            await CompensateAsync(driveMutations, cancellationToken);
+            throw;
+        }
+
+        try
+        {
+            var affectedGroupIds = nameChanged
+                ? await dbContext.StudentGroups
+                    .Where(group => group.ResponsibleTeacherId == teacher.Id)
+                    .Select(group => group.Id)
+                    .ToListAsync(cancellationToken)
+                : [];
+            await attendancePersistence.LockGroupsAsync(affectedGroupIds, cancellationToken);
+            if (affectedGroupIds.Count > 0)
             {
-                group.SnapshotVersion++;
-                group.SnapshotChangedAt = now;
-                group.UpdatedAt = now;
+                var groups = await dbContext.StudentGroups
+                    .Where(group => affectedGroupIds.Contains(group.Id) && group.ResponsibleTeacherId == teacher.Id)
+                    .ToListAsync(cancellationToken);
+                foreach (var group in groups)
+                {
+                    group.SnapshotVersion++;
+                    group.SnapshotChangedAt = now;
+                    group.UpdatedAt = now;
+                }
             }
+        }
+        catch
+        {
+            await CompensateAsync(driveMutations, cancellationToken);
+            throw;
         }
 
         teacher.TeacherCode = teacherCode;
         teacher.Note = note;
+        teacher.DriveFolderId = driveFolderId;
         teacher.Version++;
         teacher.UpdatedAt = now;
         var noteChanged = !string.Equals(before.Note, note, StringComparison.Ordinal);
         var changedFields = ChangedFields(before, teacher, noteChanged);
-        AddAudit(actor, "Teacher.Updated", teacher,
-            AuditSnapshot(before),
-            new
-            {
-                values = AuditSnapshot(teacher),
-                changedFields,
-                noteChanged,
-                statusBefore = before.Status.ToString(),
-                statusAfter = teacher.User.Status.ToString(),
-                versionBefore = before.Version,
-                versionAfter = teacher.Version
-            });
-        await SaveTeacherChangesAsync(cancellationToken, teacher.Id);
-        await transaction.CommitAsync(cancellationToken);
+        try
+        {
+            AddAudit(actor, "Teacher.Updated", teacher,
+                AuditSnapshot(before),
+                new
+                {
+                    values = AuditSnapshot(teacher),
+                    changedFields,
+                    noteChanged,
+                    statusBefore = before.Status.ToString(),
+                    statusAfter = teacher.User.Status.ToString(),
+                    versionBefore = before.Version,
+                    versionAfter = teacher.Version
+                });
+            await SaveTeacherChangesAsync(cancellationToken, teacher.Id);
+            await transaction.CommitAsync(cancellationToken);
+        }
+        catch
+        {
+            await CompensateAsync(driveMutations, cancellationToken);
+            throw;
+        }
         return await GetAsync(teacher.Id, cancellationToken);
     }
 
@@ -361,6 +439,7 @@ public sealed partial class TeacherService(
         teacher.User.Status,
         teacher.AttendanceEditWindowDays,
         teacher.Note,
+        teacher.DriveFolderId,
         teacher.Version);
 
     private static TeacherAuditSnapshot AuditSnapshot(Teacher teacher) => new(
@@ -370,6 +449,7 @@ public sealed partial class TeacherService(
         teacher.AttendanceEditWindowDays,
         teacher.User.PhoneNumber is not null,
         teacher.Note is not null,
+        teacher.DriveFolderId is not null,
         teacher.Version);
 
     private static TeacherAuditSnapshot AuditSnapshot(TeacherState teacher) => new(
@@ -379,6 +459,7 @@ public sealed partial class TeacherService(
         teacher.AttendanceEditWindowDays,
         teacher.PhoneNumber is not null,
         teacher.Note is not null,
+        teacher.DriveFolderId is not null,
         teacher.Version);
 
     private static List<string> ChangedFields(
@@ -393,6 +474,7 @@ public sealed partial class TeacherService(
         AddIfChanged(fields, before.PhoneNumber, teacher.User.PhoneNumber, "phoneNumber");
         if (before.Status != teacher.User.Status) fields.Add("status");
         if (noteChanged) fields.Add("note");
+        AddIfChanged(fields, before.DriveFolderId, teacher.DriveFolderId, "driveFolderId");
         return fields;
     }
 
@@ -451,6 +533,7 @@ public sealed partial class TeacherService(
             x.User.Status,
             x.AttendanceEditWindowDays,
             x.ResponsibleGroups.Count,
+            x.DriveFolderId,
             x.CreatedAt,
             x.UpdatedAt,
             x.Version));
@@ -466,6 +549,7 @@ public sealed partial class TeacherService(
             x.User.Status,
             x.AttendanceEditWindowDays,
             x.ResponsibleGroups.Count,
+            x.DriveFolderId,
             x.CreatedAt,
             x.UpdatedAt,
             x.Version,
@@ -533,6 +617,7 @@ public sealed partial class TeacherService(
         UserStatus Status,
         int AttendanceEditWindowDays,
         string? Note,
+        string? DriveFolderId,
         int Version);
 
     private sealed record TeacherAuditSnapshot(
@@ -542,5 +627,30 @@ public sealed partial class TeacherService(
         int AttendanceEditWindowDays,
         bool PhoneNumberPresent,
         bool NotePresent,
+        bool DriveFolderPresent,
         int Version);
+
+    private async Task CompensateAsync(
+        IReadOnlyList<StudentDriveMutation> mutations,
+        CancellationToken cancellationToken)
+    {
+        foreach (var mutation in mutations.Reverse())
+        {
+            try
+            {
+                if (mutation.Created)
+                    await studentDriveFolderService.DeleteFolderIfEmptyAsync(mutation.Folder.Id, cancellationToken);
+                else if (mutation.Moved)
+                    await studentDriveFolderService.RestoreParentsAsync(
+                        mutation.Folder.Id, mutation.PreviousParentIds, cancellationToken);
+            }
+            catch (Exception exception)
+            {
+                LogCompensationFailure(logger, exception.GetType().Name);
+            }
+        }
+    }
+
+    [LoggerMessage(EventId = 32, Level = LogLevel.Error, Message = "Teacher student-folder compensation failed with {ExceptionType}.")]
+    private static partial void LogCompensationFailure(ILogger logger, string exceptionType);
 }

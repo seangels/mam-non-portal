@@ -21,6 +21,7 @@ internal sealed class TeacherConfiguration : IEntityTypeConfiguration<Teacher>
         builder.HasKey(x => x.Id);
         builder.Property(x => x.TeacherCode).HasMaxLength(50).IsRequired();
         builder.Property(x => x.Note).HasMaxLength(2000);
+        builder.Property(x => x.DriveFolderId).HasMaxLength(200);
         builder.Property(x => x.AttendanceEditWindowDays).HasDefaultValue((short)7);
         builder.Property(x => x.Version).HasDefaultValue(1).IsConcurrencyToken();
         builder.HasIndex(x => x.UserId).IsUnique();

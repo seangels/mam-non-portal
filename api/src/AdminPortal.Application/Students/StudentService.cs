@@ -5,16 +5,20 @@ using AdminPortal.Application.Common.Interfaces;
 using AdminPortal.Application.Common.Models;
 using AdminPortal.Domain.Entities;
 using AdminPortal.Domain.Enums;
+using AdminPortal.Application.StudentDrive;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace AdminPortal.Application.Students;
 
-public sealed class StudentService(
+public sealed partial class StudentService(
     IApplicationDbContext dbContext,
     ICurrentActor currentActor,
     IAttendancePersistence attendancePersistence,
     IBusinessDateProvider businessDateProvider,
-    TimeProvider timeProvider) : IStudentService
+    IStudentDriveFolderService studentDriveFolderService,
+    TimeProvider timeProvider,
+    ILogger<StudentService> logger) : IStudentService
 {
     public async Task<PagedResponse<StudentResponse>> ListAsync(StudentListQuery query, CancellationToken cancellationToken)
     {
@@ -87,7 +91,7 @@ public sealed class StudentService(
         ValidateRequired(request.NickName, "nickName", "Tên thường gọi là bắt buộc.");
         ValidateDateOfBirth(request.DateOfBirth);
         var weekdayMask = StudentScheduleRules.Encode(request.StudySchedule);
-        var driveFolderId = NormalizeDriveFolderId(request.DriveFolderId);
+        var requestedDriveFolderId = StudentDriveFolderRules.NormalizeFolderId(request.DriveFolderId);
 
         var code = NormalizeCode(request.StudentCode);
         if (await dbContext.Students.AnyAsync(student => student.StudentCode == code, cancellationToken))
@@ -95,6 +99,12 @@ public sealed class StudentService(
             throw new ConflictException("Mã học sinh đã được sử dụng.");
         }
 
+        var driveMutation = await studentDriveFolderService.EnsureStudentFolderAsync(
+            code,
+            request.FullName.Trim(),
+            requestedDriveFolderId,
+            studentDriveFolderService.GetRequiredPoolFolderId(),
+            cancellationToken);
         var now = timeProvider.GetUtcNow();
         var student = new Student
         {
@@ -108,7 +118,7 @@ public sealed class StudentService(
             GuardianName = NormalizeOptional(request.GuardianName),
             GuardianPhone = NormalizeOptional(request.GuardianPhone),
             Note = NormalizeOptional(request.Note),
-            DriveFolderId = driveFolderId,
+            DriveFolderId = driveMutation.Folder.Id,
             StudyMode = request.StudySchedule.Mode,
             StudyWeekdayMask = weekdayMask,
             Version = 1,
@@ -116,9 +126,17 @@ public sealed class StudentService(
             UpdatedAt = now
         };
         dbContext.Students.Add(student);
-        AddAudit(actor, "Student.Created", student.Id, null,
-            AuditState(student, StudentEditableFields, false));
-        await dbContext.SaveChangesAsync(cancellationToken);
+        try
+        {
+            AddAudit(actor, "Student.Created", student.Id, null,
+                AuditState(student, StudentEditableFields, false));
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch
+        {
+            await CompensateAsync(driveMutation, cancellationToken);
+            throw;
+        }
         return Map(student);
     }
 
@@ -140,7 +158,7 @@ public sealed class StudentService(
         ValidateRequired(request.NickName, "nickName", "Tên thường gọi không được để trống.");
         ValidateDateOfBirth(request.DateOfBirth);
         var weekdayMask = StudentScheduleRules.Encode(request.StudySchedule);
-        var driveFolderId = NormalizeDriveFolderId(request.DriveFolderId);
+        var requestedDriveFolderId = StudentDriveFolderRules.NormalizeFolderId(request.DriveFolderId);
         var code = NormalizeCode(request.StudentCode);
         if (code != student.StudentCode &&
             await dbContext.Students.AnyAsync(candidate => candidate.StudentCode == code && candidate.Id != id, cancellationToken))
@@ -160,6 +178,14 @@ public sealed class StudentService(
                 throw new ConflictException("Nhóm đã đủ tối đa 100 học sinh.", ProblemCodes.GroupCapacityExceeded);
         }
 
+        var destinationFolderId = await ResolveDestinationFolderIdAsync(student.GroupId, cancellationToken);
+        var driveMutation = await studentDriveFolderService.EnsureStudentFolderAsync(
+            code,
+            request.FullName.Trim(),
+            requestedDriveFolderId ?? student.DriveFolderId,
+            destinationFolderId,
+            cancellationToken);
+        var driveFolderId = driveMutation.Folder.Id;
         var changedFields = ChangedFields(student, request, code, driveFolderId, weekdayMask);
         var snapshotChanged = student.GroupId is not null &&
             StudentRules.AffectsAttendanceSnapshot(changedFields);
@@ -179,18 +205,34 @@ public sealed class StudentService(
         student.StudyWeekdayMask = weekdayMask;
         student.Version++;
         student.UpdatedAt = timeProvider.GetUtcNow();
-        if (snapshotChanged)
+        try
         {
-            var group = await dbContext.StudentGroups.SingleAsync(x => x.Id == student.GroupId, cancellationToken);
-            group.SnapshotVersion++;
-            group.SnapshotChangedAt = student.UpdatedAt;
-            group.UpdatedAt = student.UpdatedAt;
+            if (snapshotChanged)
+            {
+                var group = await dbContext.StudentGroups.SingleAsync(x => x.Id == student.GroupId, cancellationToken);
+                group.SnapshotVersion++;
+                group.SnapshotChangedAt = student.UpdatedAt;
+                group.UpdatedAt = student.UpdatedAt;
+            }
+        }
+        catch
+        {
+            await CompensateAsync(driveMutation, cancellationToken);
+            throw;
         }
 
-        AddAudit(actor, "Student.Updated", student.Id, oldAudit,
-            AuditState(student, changedFields, changedFields.Contains("note", StringComparer.Ordinal)));
-        await SaveWithVersionGuardAsync(cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
+        try
+        {
+            AddAudit(actor, "Student.Updated", student.Id, oldAudit,
+                AuditState(student, changedFields, changedFields.Contains("note", StringComparer.Ordinal)));
+            await SaveWithVersionGuardAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+        }
+        catch
+        {
+            await CompensateAsync(driveMutation, cancellationToken);
+            throw;
+        }
         return Map(student);
     }
 
@@ -259,6 +301,14 @@ public sealed class StudentService(
                 throw new ConflictException("Nhóm đã đủ tối đa 100 học sinh.", ProblemCodes.GroupCapacityExceeded);
         }
 
+        var destinationFolderId = await ResolveDestinationFolderIdAsync(group?.Id, cancellationToken);
+        var driveMutation = await studentDriveFolderService.EnsureStudentFolderAsync(
+            student.StudentCode,
+            student.FullName,
+            student.DriveFolderId,
+            destinationFolderId,
+            cancellationToken);
+
         var oldGroupId = student.GroupId;
         var versionBefore = student.Version;
         var now = timeProvider.GetUtcNow();
@@ -266,30 +316,184 @@ public sealed class StudentService(
         student.Group = group;
         student.GroupAssignedAt = group is null ? null : now;
         student.GroupAssignedByUserId = group is null ? null : actor.UserId;
+        student.DriveFolderId = driveMutation.Folder.Id;
         student.Version++;
         student.UpdatedAt = now;
-        var affectedGroups = await dbContext.StudentGroups
-            .Where(x => x.Id == oldGroupId || x.Id == student.GroupId)
-            .ToListAsync(cancellationToken);
-        foreach (var affected in affectedGroups)
+        try
         {
-            affected.SnapshotVersion++;
-            affected.SnapshotChangedAt = now;
-            affected.UpdatedAt = now;
-        }
+            var affectedGroups = await dbContext.StudentGroups
+                .Where(x => x.Id == oldGroupId || x.Id == student.GroupId)
+                .ToListAsync(cancellationToken);
+            foreach (var affected in affectedGroups)
+            {
+                affected.SnapshotVersion++;
+                affected.SnapshotChangedAt = now;
+                affected.UpdatedAt = now;
+            }
 
-        var action = oldGroupId is null
-            ? "Student.GroupAssigned"
-            : student.GroupId is null
-                ? "Student.GroupRemoved"
-                : "Student.GroupMoved";
-        AddAudit(actor, action, student.Id,
-            new { groupId = oldGroupId, version = versionBefore },
-            new { student.GroupId, student.Version });
-        await SaveWithVersionGuardAsync(cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
+            var action = oldGroupId is null
+                ? "Student.GroupAssigned"
+                : student.GroupId is null
+                    ? "Student.GroupRemoved"
+                    : "Student.GroupMoved";
+            AddAudit(actor, action, student.Id,
+                new { groupId = oldGroupId, version = versionBefore },
+                new { student.GroupId, student.Version });
+            await SaveWithVersionGuardAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+        }
+        catch
+        {
+            await CompensateAsync(driveMutation, cancellationToken);
+            throw;
+        }
         return Map(student);
     }
+
+    public async Task<StudentDriveFolderActionResponse> RenameDriveFolderAsync(
+        Guid id,
+        RenameStudentDriveFolderRequest request,
+        CancellationToken cancellationToken)
+    {
+        var actor = currentActor.GetRequired();
+        AuthorizationRules.EnsurePortalManager(actor);
+        var student = await dbContext.Students.AsNoTracking()
+            .SingleOrDefaultAsync(candidate => candidate.Id == id, cancellationToken)
+            ?? throw StudentNotFound();
+        EnsureVersion(student, request.ExpectedVersion);
+        if (string.IsNullOrWhiteSpace(student.DriveFolderId))
+            throw new ConflictException("Học sinh chưa có thư mục Google Drive.", ProblemCodes.StudentDriveFolderRequired);
+
+        var previousFolder = await studentDriveFolderService.ValidateFolderAsync(
+            student.DriveFolderId, cancellationToken);
+        var folder = await studentDriveFolderService.RenameFolderAsync(
+            student.DriveFolderId,
+            StudentDriveFolderRules.BuildFolderName(student.StudentCode, student.FullName),
+            cancellationToken);
+        try
+        {
+            AddAudit(actor, "Student.DriveFolderRenamed", student.Id, null,
+                new { folderPresent = true, student.Version });
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch
+        {
+            try
+            {
+                await studentDriveFolderService.RenameFolderAsync(
+                    student.DriveFolderId, previousFolder.Name, cancellationToken);
+            }
+            catch (Exception exception)
+            {
+                LogCompensationFailure(logger, exception.GetType().Name);
+            }
+            throw;
+        }
+        return new StudentDriveFolderActionResponse(student.Id, folder.Id, folder.Name, folder.WebViewLink);
+    }
+
+    public async Task<StudentDriveReconcileResponse> ReconcileDriveFoldersAsync(CancellationToken cancellationToken)
+    {
+        var actor = currentActor.GetRequired();
+        AuthorizationRules.EnsurePortalManager(actor);
+        var students = await dbContext.Students.AsNoTracking()
+            .OrderBy(student => student.Id)
+            .Select(student => new
+            {
+                student.Id,
+                student.StudentCode,
+                student.FullName,
+                student.DriveFolderId,
+                student.GroupId
+            })
+            .ToListAsync(cancellationToken);
+        var created = 0;
+        var reused = 0;
+        var moved = 0;
+        var unchanged = 0;
+        var errors = new List<StudentDriveReconcileError>();
+
+        foreach (var student in students)
+        {
+            StudentDriveMutation? mutation = null;
+            try
+            {
+                var destination = await ResolveDestinationFolderIdAsync(student.GroupId, cancellationToken);
+                mutation = await studentDriveFolderService.EnsureStudentFolderAsync(
+                    student.StudentCode, student.FullName, student.DriveFolderId, destination, cancellationToken);
+                if (!string.Equals(student.DriveFolderId, mutation.Folder.Id, StringComparison.Ordinal))
+                {
+                    await dbContext.Students.Where(candidate => candidate.Id == student.Id)
+                        .ExecuteUpdateAsync(setters => setters
+                            .SetProperty(candidate => candidate.DriveFolderId, mutation.Folder.Id), cancellationToken);
+                }
+                if (mutation.Created) created++;
+                if (mutation.Reused) reused++;
+                if (mutation.Moved) moved++;
+                if (!mutation.Created && !mutation.Reused && !mutation.Moved) unchanged++;
+            }
+            catch (Exception exception)
+            {
+                if (mutation is not null) await CompensateAsync(mutation, cancellationToken);
+                var code = exception is AppException appException && appException.Code is not null
+                    ? appException.Code
+                    : ProblemCodes.StudentDriveOperationFailed;
+                errors.Add(new StudentDriveReconcileError(
+                    student.Id, student.StudentCode, student.FullName, code, SafeReconcileMessage(code)));
+            }
+        }
+
+        AddAudit(actor, "Student.DriveFoldersReconciled", Guid.Empty, null,
+            new { processed = students.Count, created, reused, moved, unchanged, failed = errors.Count });
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return new StudentDriveReconcileResponse(
+            students.Count, created, reused, moved, unchanged, errors.Count, errors);
+    }
+
+    private async Task<string> ResolveDestinationFolderIdAsync(Guid? groupId, CancellationToken cancellationToken)
+    {
+        if (groupId is null) return studentDriveFolderService.GetRequiredPoolFolderId();
+        var destination = await dbContext.StudentGroups.AsNoTracking()
+            .Where(group => group.Id == groupId)
+            .Select(group => new
+            {
+                group.ResponsibleTeacherId,
+                DriveFolderId = group.ResponsibleTeacher == null ? null : group.ResponsibleTeacher.DriveFolderId
+            })
+            .SingleOrDefaultAsync(cancellationToken);
+        if (destination?.ResponsibleTeacherId is null) return studentDriveFolderService.GetRequiredPoolFolderId();
+        return destination.DriveFolderId ?? throw new ConflictException(
+            "Giáo viên phụ trách chưa có thư mục Google Drive.",
+            ProblemCodes.TeacherDriveFolderRequired);
+    }
+
+    private async Task CompensateAsync(StudentDriveMutation mutation, CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (mutation.Created)
+                await studentDriveFolderService.DeleteFolderIfEmptyAsync(mutation.Folder.Id, cancellationToken);
+            else if (mutation.Moved)
+                await studentDriveFolderService.RestoreParentsAsync(
+                    mutation.Folder.Id, mutation.PreviousParentIds, cancellationToken);
+        }
+        catch (Exception exception)
+        {
+            LogCompensationFailure(logger, exception.GetType().Name);
+        }
+    }
+
+    private static string SafeReconcileMessage(string code) => code switch
+    {
+        ProblemCodes.StudentDrivePoolNotConfigured => "Chưa cấu hình thư mục pool Google Drive.",
+        ProblemCodes.StudentDriveFolderInvalid => "Thư mục Google Drive không hợp lệ hoặc không có quyền chỉnh sửa.",
+        ProblemCodes.StudentDriveDuplicateFolder => "Có nhiều thư mục trùng tên trong pool Google Drive.",
+        ProblemCodes.TeacherDriveFolderRequired => "Giáo viên phụ trách chưa có thư mục Google Drive.",
+        _ => "Không thể đồng bộ thư mục Google Drive."
+    };
+
+    [LoggerMessage(EventId = 33, Level = LogLevel.Error, Message = "Student Drive compensation failed with {ExceptionType}.")]
+    private static partial void LogCompensationFailure(ILogger logger, string exceptionType);
 
     private async Task<Student> FindRequiredAsync(Guid id, bool tracked, CancellationToken cancellationToken)
     {
@@ -478,62 +682,6 @@ public sealed class StudentService(
 
     private static string NormalizeCode(string code) => code.Trim().ToUpperInvariant();
     private static string? NormalizeOptional(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
-
-    private static string? NormalizeDriveFolderId(string? value)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-            return null;
-
-        var input = value.Trim();
-        var folderId = Uri.TryCreate(input, UriKind.Absolute, out var uri)
-            ? ExtractDriveFolderId(uri)
-            : input;
-
-        if (!IsValidDriveFolderId(folderId))
-        {
-            const string message = "Drive Folder ID không hợp lệ. Hãy nhập ID thư mục hoặc link Google Drive có dạng /folders/{id} hay ?id={id}.";
-            throw new AppValidationException(message, new Dictionary<string, string[]>
-            {
-                ["driveFolderId"] = [message]
-            });
-        }
-
-        return folderId;
-    }
-
-    private static string? ExtractDriveFolderId(Uri uri)
-    {
-        if (uri.Scheme is not ("http" or "https") ||
-            !uri.Host.Equals("drive.google.com", StringComparison.OrdinalIgnoreCase))
-        {
-            return null;
-        }
-
-        var segments = uri.AbsolutePath.Split('/', StringSplitOptions.RemoveEmptyEntries);
-        for (var index = 0; index < segments.Length - 1; index++)
-        {
-            if (segments[index].Equals("folders", StringComparison.OrdinalIgnoreCase))
-                return Uri.UnescapeDataString(segments[index + 1]);
-        }
-
-        foreach (var pair in uri.Query.TrimStart('?').Split('&', StringSplitOptions.RemoveEmptyEntries))
-        {
-            var separatorIndex = pair.IndexOf('=');
-            var key = separatorIndex < 0 ? pair : pair[..separatorIndex];
-            if (!Uri.UnescapeDataString(key).Equals("id", StringComparison.OrdinalIgnoreCase))
-                continue;
-
-            var encodedValue = separatorIndex < 0 ? string.Empty : pair[(separatorIndex + 1)..];
-            return Uri.UnescapeDataString(encodedValue.Replace('+', ' '));
-        }
-
-        return null;
-    }
-
-    private static bool IsValidDriveFolderId(string? value) =>
-        !string.IsNullOrWhiteSpace(value) &&
-        value.Length <= 200 &&
-        value.All(character => char.IsAsciiLetterOrDigit(character) || character is '-' or '_');
 
     private void ValidateDateOfBirth(DateOnly value) =>
         StudentRules.ValidateDateOfBirth(value, DateOnly.FromDateTime(timeProvider.GetUtcNow().UtcDateTime));

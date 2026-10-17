@@ -134,7 +134,8 @@ Content-Type: application/json
   "phoneNumber": "0901234567",
   "status": "Active",
   "password": "replace-with-strong-password",
-  "note": null
+  "note": null,
+  "driveFolderId": "https://drive.google.com/drive/folders/replace-with-teacher-folder-id"
 }
 
 ###
@@ -155,6 +156,7 @@ Content-Type: application/json
   "phoneNumber": null,
   "status": "Active",
   "note": null,
+  "driveFolderId": "replace-with-teacher-folder-id",
   "expectedVersion": {{teacherVersion}}
 }
 
@@ -168,6 +170,19 @@ Content-Type: application/json
   "attendanceEditWindowDays": 7,
   "expectedVersion": {{teacherVersion}}
 }
+
+### Đổi tên folder Student theo dữ liệu studentCode/fullName đã lưu; không tăng version
+POST {{host}}/api/v1/students/{{studentId}}/drive-folder/rename
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "expectedVersion": {{studentVersion}}
+}
+
+### Đồng bộ toàn bộ folder Student chưa soft-delete; kết quả có thể thành công một phần
+POST {{host}}/api/v1/students/drive-folders/reconcile
+Authorization: Bearer {{accessToken}}
 
 ###
 

@@ -699,7 +699,8 @@ public sealed class AdminPortalApiTests(ApiFactory factory) : IClassFixture<ApiF
             phoneNumber = (string?)null,
             status = "Active",
             password = "StrongTeacherPassword1!",
-            note = (string?)null
+            note = (string?)null,
+            driveFolderId = $"teacher-{Guid.NewGuid():N}"
         });
         createTeacher.EnsureSuccessStatusCode();
 
@@ -1169,7 +1170,8 @@ public sealed class AdminPortalApiTests(ApiFactory factory) : IClassFixture<ApiF
             phoneNumber = (string?)null,
             status = "Active",
             password = "StrongTeacherPassword1!",
-            note = (string?)null
+            note = (string?)null,
+            driveFolderId = $"teacher-{Guid.NewGuid():N}"
         });
         createTeacher.EnsureSuccessStatusCode();
 
@@ -1885,7 +1887,8 @@ public sealed class AdminPortalApiTests(ApiFactory factory) : IClassFixture<ApiF
             phoneNumber = (string?)null,
             status = "Active",
             password = "StrongTeacherPassword1!",
-            note = (string?)null
+            note = (string?)null,
+            driveFolderId = $"teacher-{Guid.NewGuid():N}"
         });
         Assert.Equal(HttpStatusCode.Created, createTeacher.StatusCode);
         var teacherDetail = await createTeacher.Content.ReadFromJsonAsync<TeacherDetailResponse>(JsonOptions);

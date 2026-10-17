@@ -27,6 +27,12 @@ public static class ProblemCodes
     public const string StudentInactive = nameof(StudentInactive);
     public const string StudentNotFound = nameof(StudentNotFound);
     public const string StudentDriveFolderRequired = nameof(StudentDriveFolderRequired);
+    public const string StudentDrivePoolNotConfigured = nameof(StudentDrivePoolNotConfigured);
+    public const string StudentDriveFolderInvalid = nameof(StudentDriveFolderInvalid);
+    public const string StudentDriveDuplicateFolder = nameof(StudentDriveDuplicateFolder);
+    public const string TeacherDriveFolderRequired = nameof(TeacherDriveFolderRequired);
+    public const string StudentDriveOperationFailed = nameof(StudentDriveOperationFailed);
+    public const string StudentDriveCompensationFailed = nameof(StudentDriveCompensationFailed);
     public const string StudentVersionConflict = nameof(StudentVersionConflict);
     public const string NoScheduledStudents = nameof(NoScheduledStudents);
     public const string HistoricalRecoveryNotAllowed = nameof(HistoricalRecoveryNotAllowed);

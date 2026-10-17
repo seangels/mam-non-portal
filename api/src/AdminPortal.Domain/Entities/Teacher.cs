@@ -7,6 +7,7 @@ public sealed class Teacher
     public User User { get; set; } = null!;
     public required string TeacherCode { get; set; }
     public string? Note { get; set; }
+    public string? DriveFolderId { get; set; }
     public short AttendanceEditWindowDays { get; set; } = 7;
     public int Version { get; set; } = 1;
     public DateTimeOffset CreatedAt { get; set; }

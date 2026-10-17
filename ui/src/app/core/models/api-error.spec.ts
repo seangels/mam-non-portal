@@ -63,6 +63,16 @@ describe('ApiError', () => {
     expect(emptyRoster.message).toBe('Không có học sinh có lịch học trong ngày này.');
   });
 
+  it('maps Drive failures without exposing raw Google details', () => {
+    const result = ApiError.from(new HttpErrorResponse({
+      status: 502,
+      error: { code: 'StudentDriveOperationFailed', detail: 'Raw Google API exception' }
+    }));
+
+    expect(result.message).toBe('Không thể cập nhật thư mục Google Drive. Vui lòng thử lại.');
+    expect(result.message).not.toContain('Raw Google');
+  });
+
   it('preserves safe assessment-result conflict, source drift and post-write extensions', () => {
     const conflict = ApiError.from(new HttpErrorResponse({
       status: 409,

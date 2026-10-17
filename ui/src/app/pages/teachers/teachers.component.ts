@@ -180,6 +180,10 @@ export class TeachersComponent implements OnDestroy {
     return USER_STATUS_LABELS[status];
   }
 
+  driveFolderUrl(driveFolderId: string | null | undefined): string | null {
+    return driveFolderId ? `https://drive.google.com/drive/folders/${encodeURIComponent(driveFolderId)}` : null;
+  }
+
   private readSort(sortValue: unknown): { field: string; order: 'asc' | 'desc' } {
     const sort = Array.isArray(sortValue) ? sortValue[0] : sortValue;
     const config = sort && typeof sort === 'object' ? sort as { selector?: unknown; desc?: boolean } : undefined;

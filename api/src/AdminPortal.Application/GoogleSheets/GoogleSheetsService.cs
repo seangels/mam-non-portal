@@ -34,6 +34,7 @@ public class GoogleSheetsSettings : IGoogleSheetsSettings
     public string SpreadsheetId { get; set; } = string.Empty;
     public string SheetConfigRange { get; set; } = string.Empty;
     public string SheetConfigLastRow { get; set; } = string.Empty;
+    public string StudentDriveFolderPoolId { get; set; } = string.Empty;
 
 }
 internal sealed class AssessmentGroupSync

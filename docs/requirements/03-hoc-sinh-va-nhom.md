@@ -14,7 +14,7 @@ Thông tin học sinh:
 - Trạng thái `Active` hoặc `Inactive`.
 - Tên và số điện thoại người giám hộ tùy chọn.
 - Ghi chú tùy chọn.
-- Thư mục Google Drive tùy chọn: form cho nhập ID thư mục hoặc full link Google Drive; API chuẩn hóa và chỉ lưu folder ID.
+- Thư mục Google Drive: form cho phép nhập ID hoặc full link để ghi đè; API chuẩn hóa và chỉ lưu folder ID. Khi không nhập, hệ thống tìm hoặc tạo folder `<studentCode> - <fullName>` trong pool cấu hình.
 - Nhóm hiện tại.
 - Lịch học hiện tại và version.
 
@@ -41,6 +41,7 @@ DELETE /api/v1/students/{studentId}?expectedVersion={version}
 - Student đang thuộc nhóm vẫn không được xóa; phải gỡ khỏi nhóm trước khi xóa.
 - Create/update phải kèm lịch học hợp lệ theo tài liệu [04](04-lich-hoc-hoc-sinh.md).
 - Full update, đổi nhóm và xóa phải dùng `expectedVersion` để tránh ghi đè dữ liệu cũ.
+- Sửa mã/họ tên không tự đổi tên folder Drive; form sửa có action riêng dùng dữ liệu đã lưu và không tăng Student version.
 
 ## 3. Danh sách học sinh
 
@@ -58,6 +59,7 @@ Admin và SuperAdmin phải có thể:
 - Tạo, xem, sửa, chuyển inactive và xóa nhóm khi thỏa điều kiện nghiệp vụ.
 - Tìm kiếm, lọc, phân trang và sắp xếp danh sách nhóm.
 - Gán hoặc gỡ một giáo viên phụ trách hiện tại.
+- Gán/đổi/gỡ giáo viên phải chuyển folder của toàn bộ học sinh trong nhóm tới folder Teacher mới hoặc về pool; Teacher thiếu folder không được phân công.
 - Xem và quản lý roster học sinh.
 - Cấu hình policy điểm danh của giáo viên tại trang `Nhóm`.
 
@@ -91,6 +93,7 @@ Yêu cầu:
 - Request dùng `expectedVersion`; stale request phải bị từ chối.
 - Gửi lại đúng nhóm hiện tại với version đúng là no-op; không tăng version.
 - Sau thành công UI phải dùng response mới để cập nhật version và trạng thái nhóm.
+- Destination folder được đồng bộ cùng assignment: nhóm có giáo viên phụ trách dùng folder Teacher, còn lại dùng pool. Lỗi Drive phải chặn thay đổi assignment.
 
 ## 6. Lifecycle nhóm
 

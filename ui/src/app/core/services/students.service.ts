@@ -4,7 +4,10 @@ import {
   AssignStudentGroupRequest,
   CreateStudentRequest,
   PagedResponse,
+  RenameStudentDriveFolderRequest,
   Student,
+  StudentDriveFolderActionResponse,
+  StudentDriveFolderReconcileResponse,
   StudentListQuery,
   UpdateStudentRequest
 } from '../models/api.models';
@@ -32,6 +35,14 @@ export class StudentsService {
 
   assignGroup(id: string, request: AssignStudentGroupRequest): Observable<Student> {
     return this.api.put<Student>(`students/${id}/group`, request);
+  }
+
+  renameDriveFolder(id: string, request: RenameStudentDriveFolderRequest): Observable<StudentDriveFolderActionResponse> {
+    return this.api.post<StudentDriveFolderActionResponse>(`students/${id}/drive-folder/rename`, request);
+  }
+
+  reconcileDriveFolders(): Observable<StudentDriveFolderReconcileResponse> {
+    return this.api.post<StudentDriveFolderReconcileResponse>('students/drive-folders/reconcile', {});
   }
 
   delete(id: string, expectedVersion: number): Observable<void> {

@@ -9,6 +9,7 @@ public interface IGoogleSheetsSettings
     public string TokenStorePath { get; }
     public string AuthUser { get; }
     public string SpreadsheetId { get; }
+    public string StudentDriveFolderPoolId { get; }
 }
 
 public interface IGoogleSheetsService

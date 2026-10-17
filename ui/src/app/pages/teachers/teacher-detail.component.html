@@ -27,6 +27,11 @@
     <h2 id="teacher-profile-heading">Thông tin giáo viên</h2>
     <dl>
       <div><dt>Mã giáo viên</dt><dd>{{ teacher.teacherCode }}</dd></div>
+      <div><dt>Thư mục Google Drive</dt><dd>
+        <a *ngIf="driveFolderUrl(teacher.driveFolderId) as url; else noTeacherDrive" [href]="url"
+          target="_blank" rel="noopener noreferrer">Mở thư mục</a>
+        <ng-template #noTeacherDrive>Chưa cấu hình</ng-template>
+      </dd></div>
       <div><dt>Ghi chú</dt><dd class="note-value">{{ teacher.note || 'Chưa có ghi chú' }}</dd></div>
       <div><dt>Phiên bản dữ liệu</dt><dd>{{ teacher.version }}</dd></div>
       <div><dt>Cập nhật gần nhất</dt><dd>{{ teacher.updatedAt | date:'dd/MM/yyyy HH:mm' }}</dd></div>

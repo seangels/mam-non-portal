@@ -145,6 +145,35 @@ export interface UpdateStudentRequest extends CreateStudentRequest {
   expectedVersion: number;
 }
 
+export interface RenameStudentDriveFolderRequest {
+  expectedVersion: number;
+}
+
+export interface StudentDriveFolderActionResponse {
+  studentId: string;
+  driveFolderId: string;
+  folderName: string;
+  webViewLink: string;
+}
+
+export interface StudentDriveFolderReconcileError {
+  studentId: string;
+  studentCode: string;
+  fullName: string;
+  code: string;
+  message: string;
+}
+
+export interface StudentDriveFolderReconcileResponse {
+  processed: number;
+  created: number;
+  reused: number;
+  moved: number;
+  unchanged: number;
+  failed: number;
+  errors: StudentDriveFolderReconcileError[];
+}
+
 export interface CurrentUser {
   id: string;
   email: string;
@@ -195,6 +224,7 @@ export interface Teacher {
   fullName: string;
   email: string;
   phoneNumber: string | null;
+  driveFolderId: string | null;
   status: UserStatus;
   attendanceEditWindowDays: number;
   responsibleGroupCount: number;
@@ -221,6 +251,7 @@ export interface CreateTeacherRequest {
   fullName: string;
   email: string;
   phoneNumber: string | null;
+  driveFolderId: string | null;
   status: UserStatus;
   password: string;
   note: string | null;
@@ -231,6 +262,7 @@ export interface UpdateTeacherRequest {
   fullName: string;
   email: string;
   phoneNumber: string | null;
+  driveFolderId: string | null;
   status: UserStatus;
   note: string | null;
   expectedVersion: number;

@@ -1,5 +1,11 @@
 # Frontend role memory
 
+## 2026-10-17 — DRV student/teacher Drive folders
+
+- Teacher DTO/form/list/detail now carries nullable `driveFolderId`, accepts either an ID or Drive URL, and exposes safe new-tab folder links. Student UI keeps the manual override, adds versioned `POST students/{id}/drive-folder/rename` only for a clean saved edit form, and adds guarded global `POST students/drive-folders/reconcile` with Vietnamese counters and per-student partial-failure details.
+- Central `ApiError` labels cover the DRV problem codes (`StudentDrivePoolNotConfigured`, invalid/duplicate folder, missing teacher folder, Drive operation/compensation failure) so raw Google details/problem codes are not shown. Reconcile response is `{processed, created, reused, moved, unchanged, failed, errors}`; rename response is `{studentId, driveFolderId, folderName, webViewLink}`.
+- Verification with Node portable `v14.21.3`/npm `8.19.4`: `npm.cmd --prefix ui run test:ci` pass **226/226**; `NG_BUILD_MAX_WORKERS=1 npm.cmd --prefix ui run build -- --configuration=development` pass hash `1814ecb6db6687a05511`, known CommonJS warnings only. No production/IIS build or deploy was run by the frontend role.
+
 ## 2026-10-17 — Hướng dẫn cuộn ngang trong authenticated header
 
 - `HeaderComponent` hiển thị thanh gợi ý cố định ngay dưới toolbar trên mọi trang đã đăng nhập: “Mẹo: Đặt con trỏ lên bảng, giữ Shift và lăn chuột để cuộn ngang.” Thanh dùng icon thông tin, màu accent và padding responsive; login/setup không đổi. Chỉ sửa `header.component.html` và `header.component.scss`, không đổi DataGrid/API.

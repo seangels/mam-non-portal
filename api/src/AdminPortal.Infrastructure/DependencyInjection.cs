@@ -25,6 +25,7 @@ using AdminPortal.Application.Assessments;
 using AdminPortal.Application.AssessmentSheets;
 using AdminPortal.Application.GoogleSheets;
 using AdminPortal.Application.AssessmentResults;
+using AdminPortal.Application.StudentDrive;
 
 namespace AdminPortal.Infrastructure;
 
@@ -80,6 +81,7 @@ public static class DependencyInjection
 
         // 3. Đăng ký Service thao tác Sheets
         services.AddScoped<IGoogleSheetsService, GoogleSheetsService>();
+        services.AddScoped<IStudentDriveFolderService, GoogleStudentDriveFolderService>();
 
         services.AddSingleton(TimeProvider.System);
 

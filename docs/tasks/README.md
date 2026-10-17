@@ -32,6 +32,7 @@
 | 08 | `CQRS` | [`08-CQRS/status.md`](08-CQRS/status.md) | [`08-CQRS/log.md`](08-CQRS/log.md) |
 | 09 | `STU` | [`09-STU/status.md`](09-STU/status.md) | [`09-STU/log.md`](09-STU/log.md) |
 | 10 | `SPA` | [`10-SPA/status.md`](10-SPA/status.md) | [`10-SPA/log.md`](10-SPA/log.md) |
+| 11 | `DRV` | [`11-DRV/status.md`](11-DRV/status.md) | [`11-DRV/log.md`](11-DRV/log.md) |
 
 ## Legacy archive
 

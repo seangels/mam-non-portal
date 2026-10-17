@@ -72,6 +72,7 @@ describe('StudentGroupsComponent teacher boundaries', () => {
 function teacherRow(): Teacher {
   return {
     id: 'teacher-1', userId: 'user-1', teacherCode: 'GV-01', fullName: 'Nguyễn An',
+    driveFolderId: 'teacher-folder-1',
     email: 'an@example.com', phoneNumber: null, status: 'Active', attendanceEditWindowDays: 7,
     responsibleGroupCount: 1, createdAt: '', updatedAt: '', version: 4
   };

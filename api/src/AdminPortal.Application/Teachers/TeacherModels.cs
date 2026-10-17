@@ -25,6 +25,7 @@ public sealed record TeacherListItemResponse(
     UserStatus Status,
     int AttendanceEditWindowDays,
     int ResponsibleGroupCount,
+    string? DriveFolderId,
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt,
     int Version);
@@ -46,6 +47,7 @@ public sealed record TeacherDetailResponse(
     UserStatus Status,
     int AttendanceEditWindowDays,
     int ResponsibleGroupCount,
+    string? DriveFolderId,
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt,
     int Version,
@@ -59,7 +61,8 @@ public sealed record CreateTeacherRequest(
     [param: MaxLength(30)] string? PhoneNumber,
     UserStatus Status,
     [param: Required, MaxLength(128)] string Password,
-    [param: MaxLength(2000)] string? Note);
+    [param: MaxLength(2000)] string? Note,
+    [param: MaxLength(2048)] string? DriveFolderId);
 
 public sealed record UpdateTeacherRequest(
     [param: Required, MaxLength(50)] string TeacherCode,
@@ -68,6 +71,7 @@ public sealed record UpdateTeacherRequest(
     [param: MaxLength(30)] string? PhoneNumber,
     UserStatus Status,
     [param: MaxLength(2000)] string? Note,
+    [param: MaxLength(2048)] string? DriveFolderId,
     [param: Range(1, int.MaxValue)] int ExpectedVersion);
 
 public sealed record UpdateAttendancePolicyRequest(

@@ -14,6 +14,7 @@ import { DxPopupModule } from 'devextreme-angular/ui/popup';
 import { DxSelectBoxComponent, DxSelectBoxModule } from 'devextreme-angular/ui/select-box';
 import { DxTextBoxModule } from 'devextreme-angular/ui/text-box';
 import {
+  apiErrorCodeLabel,
   GENDER_LABELS,
   STUDENT_STATUS_LABELS,
   STUDY_MODE_LABELS,
@@ -29,6 +30,8 @@ import {
   CreateStudentRequest,
   Gender,
   Student,
+  StudentDriveFolderReconcileError,
+  StudentDriveFolderReconcileResponse,
   StudentGroup,
   StudentStatus,
   StudyMode,
@@ -123,6 +126,10 @@ export class StudentsComponent {
 
   editorVisible = false;
   saving = false;
+  renamingDriveFolder = false;
+  reconcilingDriveFolders = false;
+  reconcileResult: StudentDriveFolderReconcileResponse | null = null;
+  reconcileResultVisible = false;
   isEditing = false;
   editor: StudentEditor = this.emptyEditor();
   editorError = '';
@@ -228,6 +235,11 @@ export class StudentsComponent {
     return this.editorVisible && this.editorBaseline !== this.serializeEditor(this.editor);
   }
 
+  get canRenameDriveFolder(): boolean {
+    return this.isEditing && !!this.editor.id && !!this.editor.driveFolderId
+      && !this.editorDirty && !this.saving && !this.renamingDriveFolder;
+  }
+
   get assignmentTitle(): string {
     return this.assignmentStudent?.groupId ? 'Chuyển hoặc gỡ nhóm' : 'Phân nhóm học sinh';
   }
@@ -293,7 +305,7 @@ export class StudentsComponent {
       this.allowEditorCloseOnce = false;
       return;
     }
-    if (this.saving) {
+    if (this.saving || this.renamingDriveFolder) {
       event.cancel = true;
       return;
     }
@@ -399,6 +411,65 @@ export class StudentsComponent {
     } catch (error) {
       this.showError(error);
     }
+  }
+
+  async renameDriveFolder(): Promise<void> {
+    if (!this.canRenameDriveFolder || !this.editor.id) return;
+    this.renamingDriveFolder = true;
+    const accepted = await this.confirmDriveFolderRename();
+    if (!accepted) {
+      this.renamingDriveFolder = false;
+      return;
+    }
+
+    this.resetEditorMessages();
+    try {
+      const result = await firstValueFrom(this.students.renameDriveFolder(this.editor.id, {
+        expectedVersion: this.editor.version
+      }));
+      this.editor.driveFolderId = result.driveFolderId;
+      this.editorBaseline = this.serializeEditor(this.editor);
+      notify(`Đã đổi tên thư mục Drive thành “${result.folderName}”.`, 'success', 2200);
+      await this.grid?.instance.refresh();
+    } catch (error) {
+      const apiError = ApiError.from(error);
+      this.editorError = apiError.message;
+      this.editorConflict = apiError.code === 'StudentVersionConflict' ? apiError.message : '';
+    } finally {
+      this.renamingDriveFolder = false;
+    }
+  }
+
+  async reconcileDriveFolders(): Promise<void> {
+    if (this.reconcilingDriveFolders) return;
+    this.reconcilingDriveFolders = true;
+    const accepted = await this.confirmDriveFolderReconcile();
+    if (!accepted) {
+      this.reconcilingDriveFolders = false;
+      return;
+    }
+
+    try {
+      this.reconcileResult = await firstValueFrom(this.students.reconcileDriveFolders());
+      this.reconcileResultVisible = true;
+      const result = this.reconcileResult;
+      notify(
+        result.failed > 0
+          ? `Đã xử lý ${result.processed} học sinh; ${result.failed} học sinh chưa đồng bộ được.`
+          : `Đã đồng bộ thư mục Drive cho ${result.processed} học sinh.`,
+        result.failed > 0 ? 'warning' : 'success',
+        3200
+      );
+      await this.grid?.instance.refresh();
+    } catch (error) {
+      this.showError(error);
+    } finally {
+      this.reconcilingDriveFolders = false;
+    }
+  }
+
+  reconcileErrorText(error: StudentDriveFolderReconcileError): string {
+    return apiErrorCodeLabel(error.code) ?? error.message ?? 'Không thể đồng bộ thư mục Drive.';
   }
 
   openGroupAssignment(student: Student): void {
@@ -598,6 +669,20 @@ export class StudentsComponent {
     return confirm(
       'Thông tin học sinh chưa được lưu sẽ bị mất.',
       'Bỏ thay đổi?'
+    );
+  }
+
+  private confirmDriveFolderRename(): Promise<boolean> {
+    return confirm(
+      `Đổi tên thư mục Drive thành “${this.editor.studentCode.trim()} - ${this.editor.fullName.trim()}”?`,
+      'Cập nhật tên thư mục Drive'
+    );
+  }
+
+  private confirmDriveFolderReconcile(): Promise<boolean> {
+    return confirm(
+      'Đồng bộ thư mục Drive cho toàn bộ học sinh đang lưu trong hệ thống? Quá trình có thể mất một lúc.',
+      'Đồng bộ thư mục Drive'
     );
   }
 

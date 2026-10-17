@@ -43,6 +43,7 @@ Teacher sử dụng dữ liệu tài khoản cho email, họ tên, số điện 
 
 - `teacherCode`: bắt buộc, người dùng tự nhập, được phép sửa, trim/uppercase, tối đa 50 ký tự và không trùng với mã Teacher hiện tại.
 - `note`: tùy chọn, tối đa 2.000 ký tự.
+- `driveFolderId`: tùy chọn khi lưu hồ sơ, nhận ID hoặc URL thư mục Google Drive và chỉ lưu canonical folder ID.
 - `attendanceEditWindowDays`: từ 1 đến 7 ngày, mặc định 7.
 - `version`: dùng để phát hiện dữ liệu cũ khi sửa, xóa hoặc cập nhật policy.
 - Thời điểm tạo/cập nhật do hệ thống quản lý.
@@ -59,6 +60,7 @@ Admin và SuperAdmin phải có thể:
 - Đổi mật khẩu bằng luồng riêng.
 - Soft-delete Teacher khi không còn phụ trách nhóm.
 - Xem danh sách nhóm đang phụ trách ở chế độ chỉ đọc.
+- Mở thư mục Google Drive đã gắn với giáo viên.
 - Đi đến màn hình `Nhóm` để phân/gỡ nhóm hoặc cấu hình policy điểm danh.
 
 Các endpoint chức năng:
@@ -88,6 +90,8 @@ PUT    /api/v1/users/{userId}/password
 - Tạo Teacher yêu cầu mã, họ tên, email, trạng thái, mật khẩu; số điện thoại và ghi chú là tùy chọn.
 - Teacher mới nhận policy sửa điểm danh mặc định 7 ngày; policy không nằm trong form tạo/sửa hồ sơ.
 - Full update phải gửi `expectedVersion`; thành công tăng version đúng một lần.
+- Teacher chưa có thư mục Drive không được gán làm giáo viên phụ trách nhóm. Không được xóa folder khỏi Teacher đang phụ trách nhóm.
+- Đổi folder Teacher phải chuyển folder của toàn bộ học sinh thuộc các nhóm đang phụ trách sang folder mới; lỗi Drive làm thao tác cập nhật thất bại.
 - Cập nhật bằng version cũ phải trả conflict cùng version hiện tại và không ghi dữ liệu một phần.
 - Lỗi trùng mã hoặc email phải được phân biệt rõ.
 - Trường nullable phải có thể xóa bằng `null`.

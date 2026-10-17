@@ -1,4 +1,5 @@
 :host { display: block; }
+.toolbar-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; }
 .filters { align-items: center; }
 .filters dx-check-box { padding: 8px 2px; }
 .status { display: inline-block; padding: 3px 8px; border-radius: 999px; background: #e8f7ef; color: #18794e; font-size: 12px; }
@@ -31,13 +32,24 @@ legend { margin-bottom: 5px; color: #344054; font-size: 12px; font-weight: 600; 
 .field-label > span { display: block; margin-bottom: 6px; font-weight: 600; }
 .helper-text { margin: 7px 0 0; font-size: 13px; }
 .assignment-warning { margin: 14px 0 0; padding: 10px 12px; border-left: 4px solid #d97706; background: #fffbeb; color: #7a4d00; }
+.reconcile-result { padding: 0 3px 8px; }
+.reconcile-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.reconcile-summary span { display: flex; justify-content: space-between; gap: 8px; padding: 10px 12px; border-radius: 6px; background: #f5f7fa; }
+.reconcile-summary .failed { background: #fff5f5; color: #b42318; }
+.reconcile-errors { margin-top: 16px; }
+.reconcile-errors h3 { margin: 0 0 8px; font-size: 16px; }
+.reconcile-errors ul { max-height: 280px; margin: 0; padding: 0; overflow: auto; list-style: none; }
+.reconcile-errors li { display: flex; flex-direction: column; gap: 3px; padding: 9px 0; border-bottom: 1px solid #e3e8ef; }
+.reconcile-errors li span { color: #7a271a; }
 
 @media (max-width: 700px) {
-  .page-toolbar { align-items: flex-start; flex-direction: column; }
+  .page-toolbar { align-items: stretch; flex-direction: column; }
+  .toolbar-actions { display: grid; grid-template-columns: 1fr; }
   .filters > * { width: 100%; }
   .mode-options label, .weekday-options label { flex: 1 1 44%; }
   .schedule-heading { align-items: flex-start; flex-direction: column; gap: 2px; }
   .schedule-controls { grid-template-columns: 1fr; }
   .form-message.conflict, .popup-actions { align-items: stretch; flex-direction: column; }
   .popup-actions dx-button { width: 100%; }
+  .reconcile-summary { grid-template-columns: 1fr; }
 }

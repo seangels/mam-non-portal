@@ -63,4 +63,12 @@ describe('StudentsService', () => {
     service.delete('student-1', 5).subscribe();
     expect(api.delete).toHaveBeenCalledWith('students/student-1', { expectedVersion: 5 });
   });
+
+  it('uses the Drive rename and reconcile endpoints', () => {
+    service.renameDriveFolder('student-1', { expectedVersion: 4 }).subscribe();
+    expect(api.post).toHaveBeenCalledWith('students/student-1/drive-folder/rename', { expectedVersion: 4 });
+
+    service.reconcileDriveFolders().subscribe();
+    expect(api.post).toHaveBeenCalledWith('students/drive-folders/reconcile', {});
+  });
 });

@@ -122,6 +122,7 @@ public sealed class TeacherManagementApiTests(ApiFactory factory) : IClassFixtur
             phoneNumber = (string?)null,
             teacher.Status,
             note = (string?)null,
+            teacher.DriveFolderId,
             expectedVersion = teacher.Version
         }, JsonOptions);
         clearNullable.EnsureSuccessStatusCode();
@@ -140,6 +141,7 @@ public sealed class TeacherManagementApiTests(ApiFactory factory) : IClassFixtur
             phoneNumber = (string?)null,
             status = "Inactive",
             note = "Must roll back",
+            driveFolderId = cleared.DriveFolderId,
             expectedVersion = cleared.Version
         });
         Assert.Equal(HttpStatusCode.Conflict, conflictingEmail.StatusCode);
@@ -164,6 +166,7 @@ public sealed class TeacherManagementApiTests(ApiFactory factory) : IClassFixtur
             renamed.PhoneNumber,
             renamed.Status,
             renamed.Note,
+            renamed.DriveFolderId,
             expectedVersion = cleared.Version
         }, JsonOptions);
         Assert.Equal(HttpStatusCode.Conflict, stale.StatusCode);
@@ -514,7 +517,8 @@ public sealed class TeacherManagementApiTests(ApiFactory factory) : IClassFixtur
             phoneNumber,
             status = "Active",
             password = TeacherPassword,
-            note
+            note,
+            driveFolderId = $"teacher-{Guid.NewGuid():N}"
         };
 
     private static async Task<TeacherDetailResponse> PutTeacherAsync(
@@ -529,6 +533,7 @@ public sealed class TeacherManagementApiTests(ApiFactory factory) : IClassFixtur
             teacher.PhoneNumber,
             teacher.Status,
             teacher.Note,
+            teacher.DriveFolderId,
             expectedVersion = teacher.Version
         }, JsonOptions);
         response.EnsureSuccessStatusCode();

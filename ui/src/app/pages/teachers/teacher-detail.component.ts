@@ -95,6 +95,10 @@ export class TeacherDetailComponent implements OnInit, OnDestroy {
     return status === 'Active' ? 'Đang hoạt động' : 'Ngừng hoạt động';
   }
 
+  driveFolderUrl(driveFolderId: string | null | undefined): string | null {
+    return driveFolderId ? `https://drive.google.com/drive/folders/${encodeURIComponent(driveFolderId)}` : null;
+  }
+
   private async load(id: string): Promise<void> {
     this.loading = true;
     this.loadError = '';

@@ -1,6 +1,9 @@
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using AdminPortal.Application.StudentDrive;
 using Testcontainers.PostgreSql;
 
 namespace AdminPortal.IntegrationTests;
@@ -35,5 +38,10 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
                 ["Jwt:SigningKey"] = "integration-test-signing-key-that-is-longer-than-thirty-two-characters",
                 ["Security:AllowedOrigins:0"] = "https://ui.example.test"
             }));
+        builder.ConfigureServices(services =>
+        {
+            services.RemoveAll<IStudentDriveFolderService>();
+            services.AddSingleton<IStudentDriveFolderService, FakeStudentDriveFolderService>();
+        });
     }
 }

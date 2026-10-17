@@ -1,4 +1,5 @@
 using AdminPortal.Application.Common.Models;
+using AdminPortal.Application.StudentDrive;
 
 namespace AdminPortal.Application.Students;
 
@@ -10,4 +11,7 @@ public interface IStudentService
     Task<StudentResponse> UpdateAsync(Guid id, UpdateStudentRequest request, CancellationToken cancellationToken);
     Task<StudentResponse> AssignGroupAsync(Guid id, AssignStudentGroupRequest request, CancellationToken cancellationToken);
     Task DeleteAsync(Guid id, int expectedVersion, CancellationToken cancellationToken);
+    Task<StudentDriveFolderActionResponse> RenameDriveFolderAsync(
+        Guid id, RenameStudentDriveFolderRequest request, CancellationToken cancellationToken);
+    Task<StudentDriveReconcileResponse> ReconcileDriveFoldersAsync(CancellationToken cancellationToken);
 }

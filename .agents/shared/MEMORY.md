@@ -1,5 +1,11 @@
 # Shared workspace memory
 
+## 2026-10-17 — DRV student/teacher Google Drive folders
+
+- Thêm `GoogleSheets:StudentDriveFolderPoolId`, nullable `Teacher.driveFolderId` và migration `20261017130930_AddTeacherDriveFolder`. Student create/update/reconcile bảo đảm folder; assignment Student/Teacher/Group move folder giữa pool và Teacher folder. Folder chuẩn `<studentCode> - <fullName>`; rename là action riêng có `expectedVersion`, không tăng version; reconcile trả partial result an toàn.
+- API mới: `POST /api/v1/students/{id}/drive-folder/rename` và `POST /api/v1/students/drive-folders/reconcile`. UI Teacher hỗ trợ ID/link Drive; UI Student có rename trong form sạch và toolbar reconcile. Drive/DB dùng preflight và best-effort compensation; OAuth folder service giữ cùng Sheets+Drive scope để không làm hỏng token cache dùng chung.
+- Verification: backend Release build 0 warning/error, unit 131/131, EF pending-model sạch; frontend 226/226, development build hash `1814ecb6db6687a05511` với warnings đã biết. Integration command dừng ở Testcontainers (Docker unavailable), không có test nghiệp vụ chạy. `$gv-portal-production build` dừng trước packaging vì API đang chạy khóa Debug DLL; không tạo ZIP/checksum, không deploy. Cần dừng/restart API theo ý người dùng rồi chạy lại production gate nếu cần package.
+
 ## 2026-10-17 — Google credential smoke return redirect
 
 - `GET /api/v1/google-sheets/credential-smoke` giữ JSON `200` khi không có query `return` hoặc smoke thất bại. Khi smoke `success=true`, API trả `302` nếu `return` là path local an toàn bắt đầu bằng một `/` (gồm `/`, `/#/`) hoặc URL tuyệt đối `http`/`https`; protocol-relative/backslash-relative và scheme khác bị từ chối. Verification: Release build pass 0/0, unit 124/124; integration runtime not run (Docker unavailable). API Debug đang chạy phải restart để nhận code mới.

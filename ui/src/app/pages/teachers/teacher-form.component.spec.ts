@@ -6,6 +6,7 @@ describe('Teacher form request mapping', () => {
     fullName: ' Nguyễn An ',
     email: ' an@example.com ',
     phoneNumber: ' ',
+    driveFolderId: ' https://drive.google.com/drive/folders/folder-1 ',
     status: 'Active',
     note: ' ',
     password: 'Strong#Pass123',
@@ -18,6 +19,7 @@ describe('Teacher form request mapping', () => {
       fullName: 'Nguyễn An',
       email: 'an@example.com',
       phoneNumber: null,
+      driveFolderId: 'https://drive.google.com/drive/folders/folder-1',
       status: 'Active',
       password: 'Strong#Pass123',
       note: null
@@ -29,6 +31,7 @@ describe('Teacher form request mapping', () => {
     expect(request.expectedVersion).toBe(7);
     expect(request.teacherCode).toBe('GV-01');
     expect(request.phoneNumber).toBeNull();
+    expect(request.driveFolderId).toBe('https://drive.google.com/drive/folders/folder-1');
     expect(request.note).toBeNull();
     expect('password' in request).toBeFalse();
     expect('attendanceEditWindowDays' in request).toBeFalse();

@@ -908,7 +908,8 @@ public sealed class AttendanceApiTests(ApiFactory factory) : IClassFixture<ApiFa
             phoneNumber = (string?)null,
             status = "Active",
             password = "StrongTeacherPassword1!",
-            note = (string?)null
+            note = (string?)null,
+            driveFolderId = $"teacher-{Guid.NewGuid():N}"
         });
         create.EnsureSuccessStatusCode();
         return await ReadAsync<TeacherDetailResponse>(create);

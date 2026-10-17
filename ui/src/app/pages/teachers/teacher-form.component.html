@@ -53,6 +53,12 @@
         <dxo-label text="Số điện thoại"></dxo-label>
         <dxi-validation-rule type="stringLength" [max]="30" message="Số điện thoại tối đa 30 ký tự"></dxi-validation-rule>
       </dxi-item>
+      <dxi-item dataField="driveFolderId" [colSpan]="2"
+        [editorOptions]="{ maxLength: 2048, placeholder: 'Dán link thư mục Google Drive hoặc nhập ID', valueChangeEvent: 'input' }">
+        <dxo-label text="Thư mục Google Drive (link hoặc ID)"></dxo-label>
+        <dxi-validation-rule type="stringLength" [max]="2048"
+          message="Link hoặc ID thư mục Google Drive tối đa 2.048 ký tự"></dxi-validation-rule>
+      </dxi-item>
       <dxi-item dataField="note" editorType="dxTextArea" [colSpan]="2"
         [editorOptions]="{ maxLength: 2000, minHeight: 120, autoResizeEnabled: true, valueChangeEvent: 'input' }">
         <dxo-label text="Ghi chú"></dxo-label>

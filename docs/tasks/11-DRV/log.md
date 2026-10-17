@@ -1,0 +1,5 @@
+# Log thực hiện — Google Drive giáo viên/học sinh
+
+- `DRV` (2026-10-17): chốt contract folder pool, Teacher folder, lifecycle move, action rename riêng và reconcile cho dữ liệu cũ. Bắt đầu triển khai backend/frontend song song; `$gv-portal-production` được gọi ở mode mặc định `build`, không deploy.
+- `DRV-BE-01/DRV-FE-01` (2026-10-17): hoàn tất migration `AddTeacherDriveFolder`, Google Drive orchestration có compensation, đồng bộ Student/Teacher/Group, endpoint rename/reconcile và UI tiếng Việt. Cross-review đã sửa OAuth scope dùng chung Sheets+Drive và bảo đảm commit/query hậu-Drive nằm trong vùng compensation.
+- `DRV-INT-01` (2026-10-17): Release build 0/0, unit 131/131, EF pending-model sạch; frontend 226/226 và development build đạt. Integration command đã chạy nhưng cả 47 test dừng khi dựng Testcontainers vì Docker engine không khả dụng. Production gate mặc định `dotnet build ... --no-restore` thất bại do API đang chạy khóa Debug DLL; theo skill đã dừng trước production build/package, không tạo ZIP/checksum và không deploy.
