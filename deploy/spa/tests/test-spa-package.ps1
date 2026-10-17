@@ -6,7 +6,7 @@ $repoRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../..'))
 . (Join-Path $PSScriptRoot '../SpaPackage.ps1')
 . (Join-Path $PSScriptRoot '../GoogleDrive.ps1')
 $fixtureRoot = Get-SpaSafePath $repoRoot ('artifacts/spa-tests/run-' + [Guid]::NewGuid().ToString('N'))
-$global:SpaOfflineTestState = @{ Passed = 0; PageCalls = 0; ReadbackCalls = 0; DownloadCalls = 0; Metadata = $null }
+$global:SpaOfflineTestState = @{ Passed = 0; PageCalls = 0; ReadbackCalls = 0; DownloadCalls = 0; Metadata = $null; EmptyDrive = $false }
 
 function Assert-True {
     param([bool]$Condition, [string]$Message)
@@ -102,6 +102,34 @@ try {
     $backups = @(Get-ChildItem -LiteralPath (Join-Path $fixtureRoot 'artifacts/spa/backups') -Directory)
     Assert-True ($backups.Count -eq 1 -and (Test-Path -LiteralPath (Join-Path $backups[0].FullName 'main.old.js'))) 'Keep previous UI build for recovery'
 
+    Write-FixtureFile 'broken/index.html' '<script src="main.missing.js"></script>' | Out-Null
+    Write-FixtureFile 'broken/main.stale.js' 'old retained bundle' | Out-Null
+    Assert-Throws { Assert-SpaBuild (Join-Path $fixtureRoot 'broken') } 'asset|tham chieu' 'A stale retained main bundle cannot hide a missing bundle referenced by index'
+
+    Write-FixtureFile 'live-next/index.html' '<script src="main.next.js"></script>' | Out-Null
+    Write-FixtureFile 'live-next/main.next.js' 'new bundle' | Out-Null
+    Write-FixtureFile 'live-next/assets/nested/data.json' '{"fixture":"changed"}' | Out-Null
+    $global:SpaOfflineTestState.LiveImplementation = ${function:Set-SpaLiveFile}
+    $global:SpaOfflineTestState.LiveWrites = [Collections.Generic.List[string]]::new()
+    $global:SpaOfflineTestState.FailIndexOnce = $true
+    function Set-SpaLiveFile {
+        param([string]$SourceRoot, [string]$Source, [string]$Target)
+        $global:SpaOfflineTestState.LiveWrites.Add([IO.Path]::GetFileName($Target))
+        if ([IO.Path]::GetFileName($Target) -eq 'index.html' -and $global:SpaOfflineTestState.FailIndexOnce) {
+            $global:SpaOfflineTestState.FailIndexOnce = $false
+            throw 'Fixture index write failure'
+        }
+        & $global:SpaOfflineTestState.LiveImplementation $SourceRoot $Source $Target
+    }
+    $indexHash = (Get-FileHash -LiteralPath (Join-Path $installed 'index.html')).Hash
+    $assetHash = (Get-FileHash -LiteralPath (Join-Path $installed 'assets/nested/data.json')).Hash
+    try { Assert-Throws { Install-SpaClientBuild $fixtureRoot (Join-Path $fixtureRoot 'live-next') -LiveUpdate } 'Fixture index write failure' 'Rollback when the final index publication fails' }
+    finally { Set-Item -LiteralPath Function:\Set-SpaLiveFile -Value $global:SpaOfflineTestState.LiveImplementation }
+    Assert-True ($global:SpaOfflineTestState.LiveWrites.IndexOf('index.html') -eq 2) 'Publish all new assets before index.html'
+    Assert-True ((Get-FileHash -LiteralPath (Join-Path $installed 'index.html')).Hash -eq $indexHash -and
+        (Get-FileHash -LiteralPath (Join-Path $installed 'assets/nested/data.json')).Hash -eq $assetHash -and
+        -not (Test-Path -LiteralPath (Join-Path $installed 'main.next.js'))) 'Failed live update restores overwritten assets/index and removes newly added bundles'
+
     # Simulate failure specifically when moving the staged build to the API target.
     function Move-Item {
         [CmdletBinding()]
@@ -147,6 +175,7 @@ try {
         }
         if ($Uri -match '/drive/v3/files\?') {
             $global:SpaOfflineTestState.PageCalls++
+            if ($global:SpaOfflineTestState.EmptyDrive) { return [pscustomobject]@{ files = @(); incompleteSearch = $false } }
             if ($Uri -notmatch 'pageToken=') {
                 return [pscustomobject]@{ files = @($old) + $unrelated; nextPageToken = 'page-2'; incompleteSearch = $false }
             }
@@ -173,7 +202,10 @@ try {
         }
         if ($Method -eq 'Get' -and $Uri -match '/drive/v3/files/new\?alt=media') {
             $global:SpaOfflineTestState.DownloadCalls++
-            Copy-Item -LiteralPath $package -Destination $OutFile
+            if ($global:SpaOfflineTestState.ContainsKey('CorruptDownload') -and $global:SpaOfflineTestState.CorruptDownload) {
+                Set-Content -LiteralPath $OutFile -Value 'corrupt download fixture'
+            }
+            else { Copy-Item -LiteralPath $package -Destination $OutFile }
             return
         }
         throw "Unexpected web request in offline test: $Method $Uri"
@@ -223,10 +255,47 @@ exit /b 0
     Assert-True ($global:SpaOfflineTestState.DownloadCalls -eq 1 -and (Test-Path -LiteralPath (Join-Path $installed 'main.123.js'))) 'Updater end-to-end: refresh, paginate, select, download, verify, extract and install'
     Assert-True ((Get-FileHash -LiteralPath $credential).Hash -eq $credentialHash -and (Get-FileHash -LiteralPath $config).Hash -eq $configHash) 'Updater preserves copied credential and Development config'
 
+    $statePath = Join-Path $fixtureRoot 'artifacts/spa/installed-ui.json'
+    Assert-True (Test-Path -LiteralPath $statePath) 'Persist installed version after successful install'
+    $current = & (Join-Path $PSScriptRoot '../update-ui-from-drive.ps1') -SourceRoot $fixtureRoot -DriveFolder 'fixture-folder-id' -IfNewer -LiveUpdate -PassThru
+    Assert-True ($current.Status -eq 'Current' -and $global:SpaOfflineTestState.DownloadCalls -eq 1) 'Same package skips download and copy'
+    $state = Get-Content -LiteralPath $statePath -Raw | ConvertFrom-Json
+    $state.timestampUtc = '2099-01-01T00:00:00.0000000Z'
+    $state | ConvertTo-Json | Set-Content -LiteralPath $statePath -Encoding UTF8
+    $current = & (Join-Path $PSScriptRoot '../update-ui-from-drive.ps1') -SourceRoot $fixtureRoot -DriveFolder 'fixture-folder-id' -IfNewer -LiveUpdate -PassThru
+    Assert-True ($current.Status -eq 'Current' -and $global:SpaOfflineTestState.DownloadCalls -eq 1) 'Never downgrade a valid installed UI'
+    Remove-Item -LiteralPath $statePath
+    Write-FixtureFile "$targetRelative/old-page-bundle.js" 'keep for existing browser tabs' | Out-Null
+    $updated = & (Join-Path $PSScriptRoot '../update-ui-from-drive.ps1') -SourceRoot $fixtureRoot -DriveFolder 'fixture-folder-id' -IfNewer -LiveUpdate -PassThru
+    Assert-True ($updated.Status -eq 'Updated' -and $global:SpaOfflineTestState.DownloadCalls -eq 2) 'Missing version state installs latest once'
+    Assert-True (Test-Path -LiteralPath (Join-Path $installed 'old-page-bundle.js')) 'Live update retains assets for existing browser tabs'
+    Remove-Item -LiteralPath (Join-Path $installed 'main.123.js')
+    $updated = & (Join-Path $PSScriptRoot '../update-ui-from-drive.ps1') -SourceRoot $fixtureRoot -DriveFolder 'fixture-folder-id' -IfNewer -LiveUpdate -PassThru
+    Assert-True ($updated.Status -eq 'Updated' -and $global:SpaOfflineTestState.DownloadCalls -eq 3) 'Reinstall when UI is invalid despite matching version state'
+    $global:SpaOfflineTestState.EmptyDrive = $true
+    $noPackage = & (Join-Path $PSScriptRoot '../update-ui-from-drive.ps1') -SourceRoot $fixtureRoot -DriveFolder 'fixture-folder-id' -IfNewer -LiveUpdate -PassThru
+    Assert-True ($noPackage.Status -eq 'NoPackage' -and $global:SpaOfflineTestState.DownloadCalls -eq 3) 'Empty Drive returns NoPackage without download'
+    $global:SpaOfflineTestState.EmptyDrive = $false
+
+    Set-Content -LiteralPath $statePath -Value '{invalid-json' -Encoding UTF8
+    $updated = & (Join-Path $PSScriptRoot '../update-ui-from-drive.ps1') -SourceRoot $fixtureRoot -DriveFolder 'fixture-folder-id' -IfNewer -LiveUpdate -PassThru
+    Assert-True ($updated.Status -eq 'Updated' -and $global:SpaOfflineTestState.DownloadCalls -eq 4) 'Corrupt local state triggers reinstall and writes valid state'
+    $global:SpaOfflineTestState.Metadata.name = 'gv-portal-ui-20261018T000000001Z.zip'
+    $updated = & (Join-Path $PSScriptRoot '../update-ui-from-drive.ps1') -SourceRoot $fixtureRoot -DriveFolder 'fixture-folder-id' -IfNewer -LiveUpdate -PassThru
+    Assert-True ($updated.Status -eq 'Updated' -and $global:SpaOfflineTestState.DownloadCalls -eq 5) 'A newer timestamp installs and advances installed version'
+    $stateHash = (Get-FileHash -LiteralPath $statePath).Hash
+    $indexHash = (Get-FileHash -LiteralPath (Join-Path $installed 'index.html')).Hash
+    $global:SpaOfflineTestState.Metadata.name = 'gv-portal-ui-20261019T000000001Z.zip'
+    $global:SpaOfflineTestState.CorruptDownload = $true
+    Assert-Throws { & (Join-Path $PSScriptRoot '../update-ui-from-drive.ps1') -SourceRoot $fixtureRoot -DriveFolder 'fixture-folder-id' -IfNewer -LiveUpdate -PassThru } 'checksum' 'Reject a corrupt new download before installing or recording its version'
+    Assert-True ((Get-FileHash -LiteralPath $statePath).Hash -eq $stateHash -and
+        (Get-FileHash -LiteralPath (Join-Path $installed 'index.html')).Hash -eq $indexHash) 'Failed download keeps installed version marker and current shell intact'
+    $global:SpaOfflineTestState.CorruptDownload = $false
+
     $before = @(Get-ChildItem -LiteralPath $fixtureRoot -Recurse -File).Count
     & (Join-Path $PSScriptRoot '../build-ui-package.ps1') -SourceRoot $fixtureRoot -WhatIf
     & (Join-Path $PSScriptRoot '../update-ui-from-drive.ps1') -SourceRoot $fixtureRoot -WhatIf
-    Assert-True (@(Get-ChildItem -LiteralPath $fixtureRoot -Recurse -File).Count -eq $before -and $global:SpaOfflineTestState.DownloadCalls -eq 1) 'Both WhatIf entry points perform no write, build or HTTP request'
+    Assert-True (@(Get-ChildItem -LiteralPath $fixtureRoot -Recurse -File).Count -eq $before -and $global:SpaOfflineTestState.DownloadCalls -eq 6) 'Both WhatIf entry points perform no write, build or HTTP request'
 
     Write-Host "SUCCESS: $($global:SpaOfflineTestState.Passed) offline assertions passed."
 }

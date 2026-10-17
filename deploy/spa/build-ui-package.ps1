@@ -11,7 +11,7 @@ Production execution by an agent remains subject to the AGENTS.md production gat
 #>
 [CmdletBinding(SupportsShouldProcess = $true)]
 param(
-    [string]$SourceRoot = (Join-Path $PSScriptRoot '../..'),
+    [string]$SourceRoot,
     [string]$DriveFolder = '1EJK12xqBWBlsVchCeXUlwYOpouzZ_D_B',
     [string]$OutputDirectory = 'release/spa',
     [string]$ClientSecretFile,
@@ -23,6 +23,7 @@ param(
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 Set-StrictMode -Version 3.0
+if ([string]::IsNullOrWhiteSpace($SourceRoot)) { $SourceRoot = Join-Path $PSScriptRoot '../..' }
 . (Join-Path $PSScriptRoot 'SpaPackage.ps1')
 . (Join-Path $PSScriptRoot 'GoogleDrive.ps1')
 

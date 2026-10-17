@@ -10,7 +10,10 @@
     "api": "dotnet run --project api/src/AdminPortal.Api",
     "ui": "powershell -ExecutionPolicy Bypass -File ./scripts/ui.ps1",
     "build:iis": "powershell -ExecutionPolicy Bypass -File ./deploy/iis/build-iis-package.ps1 -SkipNpmInstall",
-    "upload:release": "powershell -ExecutionPolicy Bypass -File ./deploy/iis/upload-release-to-drive.ps1"
+    "upload:release": "powershell -ExecutionPolicy Bypass -File ./deploy/iis/upload-release-to-drive.ps1",
+    "build:spa": "powershell -NoProfile -ExecutionPolicy Bypass -File ./deploy/spa/build-ui-package.ps1 -SkipNpmInstall",
+    "ui:update": "powershell -NoProfile -ExecutionPolicy Bypass -File ./deploy/spa/update-ui-from-drive.ps1 -IfNewer -LiveUpdate",
+    "app:start": "powershell -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File ./deploy/spa/start-app.ps1"
   },
   "repository": {
     "type": "git",

@@ -4,19 +4,23 @@
 |---|---|---|
 | `[x]` | `SPA-PKG-01` | Build UI, copy vào ClientApp/build, ZIP và upload Drive từ máy source |
 | `[x]` | `SPA-UPD-01` | Máy chạy app tải gói mới nhất theo regex/timestamp và cập nhật ClientApp/build |
+| `[x]` | `SPA-RUN-01` | Npm root + shortcut chạy nền: cập nhật UI nếu mới, giữ/chạy API, mở credential-smoke |
 
 ## Phạm vi và quyết định
 
-- Hai entry script PowerShell 5.1 trong `deploy/spa/`; máy app không cần Node/npm.
+- Ba entry script PowerShell 5.1 trong `deploy/spa/`; máy app dùng `start-app.ps1`/shortcut không cần Node/npm. Npm root có `build:spa` (`-SkipNpmInstall`, upload luôn), `ui:update`, `app:start`.
 - Drive folder `1EJK12xqBWBlsVchCeXUlwYOpouzZ_D_B` (`packages`). Gói UI có prefix riêng, timestamp UTC trong tên; không chọn theo ngày sửa Drive.
 - UI production dùng `/api/v1` cùng host; API hiện có `Spa:ServeFromClientAppBuild` và `Spa:BuildPath`.
 - Chỉ gói `ClientApp/build`; giữ cấu hình Development, credential và source API trên máy đích.
 - Kiểm thử offline bằng fixture/mô phỏng Drive; chưa thực thi production build, upload thật hoặc cập nhật máy app.
+- Launcher/shortcut chạy nền: giữ API kể cả khi cập nhật UI, copy asset trước/index sau và giữ bundle cũ. Drive lỗi dùng UI hợp lệ hiện có. Khóa chống bấm đồng thời; kiểm process source/cổng, chờ HTTPS health rồi mở URL credential-smoke đã chốt; log runtime.
 
 ## Kiểm tra
 
-- Windows PowerShell 5.1: `powershell -NoProfile -ExecutionPolicy Bypass -File deploy/spa/tests/test-spa-package.ps1` — **51 assertions pass**.
-- AST parse 5 script pass. `git diff --check` pass. Git ignore xác nhận token, artifacts và release không được theo dõi.
+- Windows PowerShell 5.1: `test-spa-package.ps1` **69 assertions pass**, `test-app-launcher.ps1` **34 assertions pass**, tổng **103**.
+- AST parse 8 script pass. `git diff --check` pass. Git ignore giữ token/artifacts/release ngoài Git.
 - Build orchestration được chạy bằng npm giả lập trong clone fixture: `npm ci`, cấu hình production rõ ràng, output riêng, copy/ZIP; lỗi npm exit 7 giữ nguyên build cũ và không tạo package mới.
-- Updater chạy đầy đủ bằng HTTP mock: refresh token → phân trang Drive → timestamp selection → download → size/MD5 → ZIP validation → install. Có kiểm tra khôi phục build khi swap lỗi, giữ config/credential, không giữ stale asset, không ghi file/HTTP với `-WhatIf`.
-- Không chạy production build, OAuth/upload Google thật, IIS, hoặc máy app. Backend/frontend test/build không chạy vì không đổi source ứng dụng; kiểm tra tập trung vào hai script mới.
+- Updater chạy đầy đủ bằng HTTP mock: refresh token → phân trang Drive → timestamp selection → download → size/MD5 → ZIP validation → install. Có kiểm tra khôi phục build khi swap lỗi, giữ config/credential, bỏ stale asset ở chế độ thay toàn bộ và không ghi file/HTTP với `-WhatIf`.
+- Mới: same/older/newer/missing/corrupt state và UI hỏng, NoPackage, live index-last/giữ bundle/rollback, không ghi state khi download lỗi. Launcher mock startup/port/health/browser/COM, giữ API/fallback, path khoảng trắng; mutex chống hai process được kiểm tra bằng PowerShell con thật.
+- Cả ba npm alias và `start-app.ps1 -CreateDesktopShortcut` chạy native `-WhatIf` pass. Sửa lỗi SourceRoot default param khi PS5.1 `-File`, và null backup File.Replace trên PS5.1 bằng `NullString.Value`.
+- Không chạy production build, OAuth/upload Google thật, API/shortcut Desktop thật, IIS, hoặc máy app. Backend/frontend test/build không chạy vì không đổi source ứng dụng; kiểm tra tập trung vào script triển khai/launcher.
