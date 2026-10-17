@@ -214,8 +214,14 @@ finally {
     }
     $global:SpaAppTests.Listeners = @([pscustomobject]@{ LocalPort = 7158; ProcessId = 4242 })
     & $readinessImplementation -SourceRoot $fixtureRoot -TimeoutSeconds 1
+    function Invoke-WebRequest {
+        [CmdletBinding()]
+        param([string]$Uri, [switch]$UseBasicParsing, [int]$TimeoutSec)
+        throw [Net.WebException]::new('fixture TLS certificate rejected')
+    }
+    Expect-AppError { & $readinessImplementation -SourceRoot $fixtureRoot -TimeoutSeconds 1 } 'fixture TLS certificate rejected' 'Timeout reports the actual HTTPS failure instead of hiding certificate errors'
     $global:SpaAppTests.Listeners = @()
-    Expect-AppError { & $readinessImplementation -SourceRoot $fixtureRoot -TimeoutSeconds 1 } '120|timeout|Het' 'Readiness times out instead of opening browser early'
+    Expect-AppError { & $readinessImplementation -SourceRoot $fixtureRoot -TimeoutSeconds 1 } 'Chua.*7158' 'Timeout distinguishes an API that has not opened the HTTPS port'
     $exitedProcess = [pscustomobject]@{ HasExited = $true; ExitCode = 7 }
     $exitedProcess | Add-Member -MemberType ScriptMethod -Name Refresh -Value { }
     Expect-AppError { & $readinessImplementation -SourceRoot $fixtureRoot -StartedProcess $exitedProcess -TimeoutSeconds 1 } 'thoat.*7' 'Detect dotnet run exiting before readiness instead of waiting or opening browser'

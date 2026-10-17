@@ -125,6 +125,7 @@ function Wait-SpaApiReady {
     param([string]$SourceRoot, $StartedProcess, [ValidateRange(1, 600)][int]$TimeoutSeconds = 120)
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
     $timer = [Diagnostics.Stopwatch]::StartNew()
+    $lastHealthError = 'Chua co API cua source nay lang nghe HTTPS port 7158.'
     while ($timer.Elapsed.TotalSeconds -lt $TimeoutSeconds) {
         if ($null -ne $StartedProcess) {
             $StartedProcess.Refresh()
@@ -137,12 +138,14 @@ function Wait-SpaApiReady {
                 $remaining = [Math]::Max(1, [Math]::Min(3, [Math]::Ceiling($TimeoutSeconds - $timer.Elapsed.TotalSeconds)))
                 $health = Invoke-WebRequest -Uri 'https://localhost:7158/health/live' -UseBasicParsing -TimeoutSec $remaining
                 if ($health.StatusCode -eq 200) { return }
+                $lastHealthError = "HTTPS /health/live tra HTTP $($health.StatusCode)."
             }
-            catch { } # Transient startup or TLS error; do not open the browser early.
+            catch { $lastHealthError = $_.Exception.GetBaseException().Message }
         }
+        else { $lastHealthError = 'Chua co API cua source nay lang nghe HTTPS port 7158.' }
         Start-Sleep -Milliseconds 300
     }
-    throw "Het $TimeoutSeconds giay cho API health (timeout). Kiem tra database, HTTPS dev certificate va api-*.log."
+    throw "Het $TimeoutSeconds giay cho API health (timeout). Loi cuoi: $lastHealthError Kiem tra api-*.stdout.log/stderr.log."
 }
 
 function Update-SpaAppUi {
@@ -190,6 +193,7 @@ function Invoke-SpaAppLauncher {
             Write-SpaRuntimeLog $logPath "Da start dotnet run nen (PID $($apiProcess.Id))."
         }
         else { Write-SpaRuntimeLog $logPath 'Giu nguyen API da chay; khong restart.' }
+        Write-SpaRuntimeLog $logPath "Dang cho https://localhost:7158/health/live, toi da $TimeoutSeconds giay."
         Wait-SpaApiReady -SourceRoot $SourceRoot -StartedProcess $apiProcess -TimeoutSeconds $TimeoutSeconds
         Open-SpaAppBrowser
         Write-SpaRuntimeLog $logPath 'API health OK; da mo credential-smoke tren trinh duyet.'

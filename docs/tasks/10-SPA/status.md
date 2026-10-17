@@ -6,6 +6,7 @@
 | `[x]` | `SPA-UPD-01` | Máy chạy app tải gói mới nhất theo regex/timestamp và cập nhật ClientApp/build |
 | `[x]` | `SPA-RUN-01` | Npm root + shortcut chạy nền: cập nhật UI nếu mới, giữ/chạy API, mở credential-smoke |
 | `[x]` | `SPA-LOCAL-01` | Máy app lấy ZIP từ Drive đồng bộ local, đường dẫn trong start-app.config.json |
+| `[x]` | `SPA-HEALTH-01` | Ghi rõ lỗi HTTPS/cổng khi health timeout để chẩn đoán shortcut không mở browser |
 
 ## Phạm vi và quyết định
 
@@ -26,3 +27,4 @@
 - Local: cấu hình mặc định/chỉnh directory, custom config được launcher/shortcut truyền đúng, chọn tên thay modified time, không HTTP/OAuth, không sửa ZIP nguồn, ZIP chưa sync/hỏng giữ UI/state, folder thiếu/JSON lỗi được báo để fallback. Launcher vẫn tự chạy API khi folder lỗi và UI có sẵn.
 - Cả ba npm alias và `start-app.ps1 -CreateDesktopShortcut` chạy native `-WhatIf` pass. Sửa lỗi SourceRoot default param khi PS5.1 `-File`, và null backup File.Replace trên PS5.1 bằng `NullString.Value`.
 - Không chạy production build, OAuth/upload Google thật, API/shortcut Desktop thật, IIS, ổ G: thật hoặc máy app. Backend/frontend test/build không chạy vì không đổi source ứng dụng; kiểm tra tập trung vào script triển khai/launcher.
+- Health diagnostics: launcher suite **38 assertions pass**, thêm tái hiện TLS exception bị che và phân biệt chưa mở cổng. Giữ nguyên HTTPS/cert validation và điều kiện mở browser. Máy app báo timeout 120 giây và thấy URL health chuyển home; chưa xác định nguyên nhân máy app, đang cần kết quả request PowerShell/log API. Không coi thêm diagnostic là đã sửa lỗi môi trường.

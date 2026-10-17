@@ -87,6 +87,24 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\deploy\spa\update-ui-from-
 
 Log tại `artifacts/spa/runtime/`: `launcher.log` ghi các bước/fallback/lỗi, `update.log` ghi transcript update, `api-<UTC>.stdout.log` và `.stderr.log` ghi API mới do launcher start. API đã chạy từ trước giữ log của cách chạy ban đầu.
 
+Nếu shortcut chưa mở trình duyệt, xem `launcher.log`. Health timeout sẽ ghi `Loi cuoi`: chưa có API mở cổng 7158, HTTP lỗi, hoặc lỗi HTTPS/chứng chỉ thực tế. Có thể chạy hiện cửa sổ để đọc lỗi ngay:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -NoExit -File .\deploy\spa\start-app.ps1
+Get-Content .\artifacts\spa\runtime\launcher.log -Tail 30
+```
+
+Để phân biệt lỗi trình duyệt/SPA với lỗi PowerShell, kiểm tra HTTP trực tiếp trên máy app (không bỏ kiểm tra chứng chỉ):
+
+```powershell
+try {
+  $r = Invoke-WebRequest 'https://localhost:7158/health/live' -UseBasicParsing -TimeoutSec 10
+  $r.StatusCode
+  $r.Headers['Content-Type']
+  $r.BaseResponse.ResponseUri.AbsoluteUri
+} catch { $_.Exception.GetBaseException().Message }
+```
+
 ## OAuth và tên gói
 
 - Máy nguồn upload vẫn dùng OAuth như trước: tìm `api/src/AdminPortal.Api/client_secret.json`, rồi `deploy/iis/client_secret.json`; có thể ghi đè `-ClientSecretFile`, `-TokenFile` (tương đối từ SourceRoot).
