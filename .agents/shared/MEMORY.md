@@ -1,5 +1,9 @@
 # Shared workspace memory
 
+## 2026-10-17 — Google credential smoke return redirect
+
+- `GET /api/v1/google-sheets/credential-smoke` giữ JSON `200` khi không có query `return` hoặc smoke thất bại. Khi smoke `success=true`, API trả `302` nếu `return` là path local an toàn bắt đầu bằng một `/` (gồm `/`, `/#/`) hoặc URL tuyệt đối `http`/`https`; protocol-relative/backslash-relative và scheme khác bị từ chối. Verification: Release build pass 0/0, unit 124/124; integration runtime not run (Docker unavailable). API Debug đang chạy phải restart để nhận code mới.
+
 ## 2026-10-17 — SPA-PKG-01 / SPA-UPD-01 (API chạy từ source)
 
 - Thêm `deploy/spa/build-ui-package.ps1` và `update-ui-from-drive.ps1`, helper `SpaPackage.ps1`/`GoogleDrive.ps1`, hướng dẫn `deploy/spa/README.md`; yêu cầu `docs/requirements/10-cap-nhat-ui-tu-source.md`, task `docs/tasks/10-SPA/`.

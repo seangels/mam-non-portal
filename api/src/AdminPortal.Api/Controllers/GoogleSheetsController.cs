@@ -20,9 +20,41 @@ public sealed class GoogleSheetsController(IGoogleSheetsService googleSheetsServ
     [AllowAnonymous]
     [HttpGet("credential-smoke")]
     [ProducesResponseType<GoogleSheetsCredentialSmokeResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status302Found)]
     public async Task<ActionResult<GoogleSheetsCredentialSmokeResponse>> SmokeTestCredential(
-        CancellationToken cancellationToken) =>
-        Ok(await googleSheetsService.SmokeTestCredentialAsync(cancellationToken));
+        [FromQuery(Name = "return")] string? returnUrl,
+        CancellationToken cancellationToken)
+    {
+        var response = await googleSheetsService.SmokeTestCredentialAsync(cancellationToken);
+        if (response.Success && TryGetSafeReturnUrl(returnUrl, out var safeReturnUrl))
+        {
+            return Redirect(safeReturnUrl);
+        }
+
+        return Ok(response);
+    }
+
+    private static bool TryGetSafeReturnUrl(string? returnUrl, out string safeReturnUrl)
+    {
+        safeReturnUrl = string.Empty;
+        if (!string.IsNullOrEmpty(returnUrl)
+            && returnUrl[0] == '/'
+            && (returnUrl.Length == 1 || (returnUrl[1] != '/' && returnUrl[1] != '\\')))
+        {
+            safeReturnUrl = returnUrl;
+            return true;
+        }
+
+        if (!Uri.TryCreate(returnUrl, UriKind.Absolute, out var uri)
+            || (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps)
+            || string.IsNullOrWhiteSpace(uri.Host))
+        {
+            return false;
+        }
+
+        safeReturnUrl = uri.AbsoluteUri;
+        return true;
+    }
 
     [HttpPost("sync-assessments")]
     [ProducesResponseType<SyncAssessmentsFromGoogleSheetsResponse>(StatusCodes.Status200OK)]

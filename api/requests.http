@@ -498,6 +498,12 @@ GET {{host}}/api/v1/google-sheets/credential-smoke
 
 ###
 
+# Nếu smoke thành công, redirect 302 về đường dẫn local hoặc URL http/https trong query return.
+# Nếu smoke thất bại, vẫn trả JSON để xem errorCode.
+GET {{host}}/api/v1/google-sheets/credential-smoke?return=%2F
+
+###
+
 # Tùy chọn 1 (mặc định): body rỗng hoặc bỏ replaceRecordSnapshots.
 POST {{host}}/api/v1/google-sheets/sync-assessments
 Authorization: Bearer {{accessToken}}

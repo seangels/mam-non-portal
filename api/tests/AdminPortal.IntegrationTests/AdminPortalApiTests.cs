@@ -110,6 +110,84 @@ public sealed class AdminPortalApiTests(ApiFactory factory) : IClassFixture<ApiF
     }
 
     [Fact]
+    public async Task GoogleSheetsCredentialSmokeRedirectsToHttpReturnUrlAfterSuccess()
+    {
+        var googleSheets = new FakeGoogleSheetsService
+        {
+            SmokeResponse = CreateCredentialSmokeResponse(success: true)
+        };
+        using var smokeFactory = CreateGoogleSheetsSmokeFactory(googleSheets);
+        using var client = CreateGoogleSheetsSmokeClient(smokeFactory);
+        const string returnUrl = "https://portal.example.test/settings/google?connected=true#credentials";
+
+        var response = await client.GetAsync(
+            $"/api/v1/google-sheets/credential-smoke?return={Uri.EscapeDataString(returnUrl)}");
+
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        Assert.True(googleSheets.SmokeWasCalled);
+        Assert.Equal(returnUrl, response.Headers.Location?.AbsoluteUri);
+    }
+
+    [Fact]
+    public async Task GoogleSheetsCredentialSmokeRedirectsToLocalRootAfterSuccess()
+    {
+        var googleSheets = new FakeGoogleSheetsService
+        {
+            SmokeResponse = CreateCredentialSmokeResponse(success: true)
+        };
+        using var smokeFactory = CreateGoogleSheetsSmokeFactory(googleSheets);
+        using var client = CreateGoogleSheetsSmokeClient(smokeFactory);
+
+        var response = await client.GetAsync("/api/v1/google-sheets/credential-smoke?return=%2F");
+
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        Assert.True(googleSheets.SmokeWasCalled);
+        Assert.Equal("/", response.Headers.Location?.OriginalString);
+    }
+
+    [Fact]
+    public async Task GoogleSheetsCredentialSmokeReturnsJsonInsteadOfRedirectAfterFailure()
+    {
+        var googleSheets = new FakeGoogleSheetsService
+        {
+            SmokeResponse = CreateCredentialSmokeResponse(success: false, errorCode: "GoogleSheetsReadFailed")
+        };
+        using var smokeFactory = CreateGoogleSheetsSmokeFactory(googleSheets);
+        using var client = CreateGoogleSheetsSmokeClient(smokeFactory);
+
+        var response = await client.GetAsync(
+            "/api/v1/google-sheets/credential-smoke?return=https%3A%2F%2Fportal.example.test%2Fsettings%2Fgoogle");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var smoke = await response.Content.ReadFromJsonAsync<GoogleSheetsCredentialSmokeResponse>(JsonOptions);
+        Assert.NotNull(smoke);
+        Assert.False(smoke.Success);
+        Assert.Equal("GoogleSheetsReadFailed", smoke.ErrorCode);
+    }
+
+    [Theory]
+    [InlineData("javascript%3Aalert%281%29")]
+    [InlineData("%2F%2Fevil.example")]
+    [InlineData("%2F%5Cevil.example")]
+    public async Task GoogleSheetsCredentialSmokeDoesNotRedirectToUnsafeReturnUrl(string encodedReturnUrl)
+    {
+        var googleSheets = new FakeGoogleSheetsService
+        {
+            SmokeResponse = CreateCredentialSmokeResponse(success: true)
+        };
+        using var smokeFactory = CreateGoogleSheetsSmokeFactory(googleSheets);
+        using var client = CreateGoogleSheetsSmokeClient(smokeFactory);
+
+        var response = await client.GetAsync(
+            $"/api/v1/google-sheets/credential-smoke?return={encodedReturnUrl}");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var smoke = await response.Content.ReadFromJsonAsync<GoogleSheetsCredentialSmokeResponse>(JsonOptions);
+        Assert.NotNull(smoke);
+        Assert.True(smoke.Success);
+    }
+
+    [Fact]
     public async Task AssessmentListWithStudentIdReturnsAllAssessmentsAndLatestRecordColumns()
     {
         using var client = CreateClient();
@@ -2047,6 +2125,34 @@ public sealed class AdminPortalApiTests(ApiFactory factory) : IClassFixture<ApiF
         AllowAutoRedirect = false,
         HandleCookies = true
     });
+
+    private WebApplicationFactory<Program> CreateGoogleSheetsSmokeFactory(FakeGoogleSheetsService googleSheets) =>
+        factory.WithWebHostBuilder(builder => builder.ConfigureServices(services =>
+        {
+            services.RemoveAll<IGoogleSheetsService>();
+            services.AddSingleton<IGoogleSheetsService>(googleSheets);
+        }));
+
+    private static HttpClient CreateGoogleSheetsSmokeClient(WebApplicationFactory<Program> smokeFactory) =>
+        smokeFactory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            BaseAddress = new Uri("https://localhost"),
+            AllowAutoRedirect = false,
+            HandleCookies = false
+        });
+
+    private static GoogleSheetsCredentialSmokeResponse CreateCredentialSmokeResponse(
+        bool success,
+        string? errorCode = null) =>
+        new(
+            Success: success,
+            IsConfigured: true,
+            SpreadsheetId: "spreadsheet-test-id",
+            SpreadsheetTitle: success ? "Configured source" : null,
+            FirstSheetTitle: success ? "Data" : null,
+            ReadRange: null,
+            ReadRowCount: null,
+            ErrorCode: errorCode);
 
     private static async Task<HttpResponseMessage> PostExcelAsync(HttpClient client, string requestUri, byte[] workbook)
     {

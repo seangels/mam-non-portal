@@ -245,3 +245,8 @@ _Chưa có hoạt động. Khi chạy `ASH-QA-01`, ghi kết quả từng bướ
 - Thêm `white-space: pre-line` cho `.content-cell` trong `assessment-sheet-plan-preview.component.scss`; gộp markup ô nội dung ở template HTML để không sinh dòng trống từ whitespace. Hai route kế hoạch/kết quả dùng chung component, PDF lấy cùng DOM nên đều nhận bản sửa.
 - Verification: sau dot-source Node portable 14.21.3/npm 8.19.4, `NG_BUILD_MAX_WORKERS=1`, `npm.cmd --prefix ui run build -- --configuration=development` **pass** hash `0fdac87bd007fcea5e30`; `npm.cmd --prefix ui run test:ci` **222/222 pass**. Chỉ CommonJS warnings đã biết; wrapper PowerShell dùng process-local `-ExecutionPolicy Bypass`.
 - Root review source/template, luồng PDF và print styles không có phát hiện; `git diff --check` sạch ngoài cảnh báo LF/CRLF. Chưa smoke trực quan PDF; không thêm test chỉ lặp lại CSS, không đổi API hoặc production/IIS/deploy.
+
+## 2026-10-17 — Google credential smoke return redirect
+
+- `GET /api/v1/google-sheets/credential-smoke` nhận query tùy chọn `return`. Không truyền tham số thì giữ JSON `200`; smoke thành công và URL hợp lệ thì trả `302`. Hỗ trợ path local `/`, `/#/` và URL tuyệt đối `http`/`https`; chặn protocol-relative, backslash-relative, `javascript:` và URL không hợp lệ. Smoke thất bại vẫn trả JSON.
+- Verification: Release solution build pass 0 warning/error; backend unit **124/124** pass; integration runtime **not run (Docker not available)**; integration project đã compile trong Release build. Debug build bị process API đang chạy khóa DLL, nên cần restart API cổng `7158` để nạp code mới. Không schema/migration/UI/production/IIS/deploy.

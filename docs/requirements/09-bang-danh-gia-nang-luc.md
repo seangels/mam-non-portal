@@ -87,6 +87,7 @@
 - Không còn cấu hình `AssessmentSheetTemplateFileId`, `DataSheetName`, `PlanTemplateSheetName/Gid`, `ResultTemplateSheetName/Gid`.
 - Nếu DB cũ còn cột `AssessmentSheetSpreadsheetId`, cột này chỉ là legacy để tránh phá dữ liệu/migration cũ; API/UI v1 không expose và không ghi giá trị mới.
 - Các luồng Google còn dùng trong `AssessmentSheet` v1:
+  - `GET /api/v1/google-sheets/credential-smoke`: mặc định trả JSON smoke như cũ. Query tùy chọn `return` chỉ redirect `302` sau khi smoke thành công; chấp nhận path local bắt đầu bằng một `/` (ví dụ `/`, `/#/`) hoặc URL tuyệt đối `http`/`https`, và từ chối scheme/path không an toàn. Smoke thất bại luôn trả JSON để giữ `errorCode`.
   - `POST /api/v1/google-sheets/sync-assessments`: nạp `Assessment` và latest mirror từ file nguồn `[F0]`.
   - `POST /api/v1/assessment-sheets/{id}/upload-plan-pdf`: nhận PDF do UI render và upload vào `Student.DriveFolderId`.
   - `POST /api/v1/assessment-sheets/{id}/upload-result-pdf`: nhận PDF do UI render và upload vào `Student.DriveFolderId`.
