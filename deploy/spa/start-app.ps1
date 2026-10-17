@@ -10,6 +10,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\deploy\spa\start-app.ps1 -
 [CmdletBinding(SupportsShouldProcess = $true)]
 param(
     [string]$SourceRoot,
+    [string]$ConfigFile,
     [switch]$CreateDesktopShortcut,
     [ValidateRange(1, 600)][int]$TimeoutSeconds = 120
 )
@@ -22,9 +23,9 @@ if ([string]::IsNullOrWhiteSpace($SourceRoot)) { $SourceRoot = Join-Path $PSScri
 $SourceRoot = Get-SpaSourceRoot $SourceRoot
 if ($CreateDesktopShortcut) {
     if ($PSCmdlet.ShouldProcess('Desktop/GV Portal.lnk', 'Create hidden PowerShell shortcut')) {
-        New-SpaDesktopShortcut $SourceRoot | Write-Output
+        New-SpaDesktopShortcut -SourceRoot $SourceRoot -ConfigFile $ConfigFile | Write-Output
     }
     return
 }
 if (-not $PSCmdlet.ShouldProcess($SourceRoot, 'Update UI live, keep/start API hidden and open browser after health')) { return }
-Invoke-SpaAppLauncher -SourceRoot $SourceRoot -TimeoutSeconds $TimeoutSeconds | Out-Null
+Invoke-SpaAppLauncher -SourceRoot $SourceRoot -TimeoutSeconds $TimeoutSeconds -ConfigFile $ConfigFile | Out-Null

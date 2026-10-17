@@ -21,10 +21,10 @@ $fixtureRoot = Get-SpaSafePath $repoRoot ('artifacts/spa-tests/app with spaces-'
 try {
     $npmScripts = (Get-Content -LiteralPath (Join-Path $repoRoot 'package.json') -Raw | ConvertFrom-Json).scripts
     Assert-App ($npmScripts.'build:spa' -match '-SkipNpmInstall' -and $npmScripts.'build:spa' -notmatch '-SkipUpload') 'Root build:spa skips npm ci and keeps upload enabled'
-    Assert-App ($npmScripts.'ui:update' -match '-IfNewer -LiveUpdate') 'Root ui:update uses incremental live update'
+    Assert-App ($npmScripts.'ui:update' -match 'update-ui-from-folder.ps1' -and $npmScripts.'ui:update' -match '-IfNewer -LiveUpdate') 'Root ui:update uses the configured local folder and incremental live update'
     Assert-App ($npmScripts.'app:start' -match '-WindowStyle Hidden' -and $npmScripts.'app:start' -match 'start-app.ps1') 'Root app:start invokes the hidden launcher'
     New-Item -ItemType Directory -Path $fixtureRoot -Force | Out-Null
-    foreach ($entry in @('build-ui-package.ps1', 'update-ui-from-drive.ps1', 'start-app.ps1')) {
+    foreach ($entry in @('build-ui-package.ps1', 'update-ui-from-drive.ps1', 'update-ui-from-folder.ps1', 'start-app.ps1')) {
         $probeOutput = Join-Path $fixtureRoot ($entry + '.stdout.log')
         $probeError = Join-Path $fixtureRoot ($entry + '.stderr.log')
         $entryProbe = Start-Process -FilePath 'powershell.exe' -WorkingDirectory $repoRoot -WindowStyle Hidden -PassThru `
@@ -96,6 +96,9 @@ try {
     New-SpaDesktopShortcut $fixtureRoot | Out-Null
     Assert-App ($global:SpaAppTests.ShortcutPath -like '*GV Portal.lnk' -and $global:SpaAppTests.Shortcut.Arguments.Contains('-WindowStyle Hidden -File "' + (Join-Path $fixtureRoot 'deploy/spa/start-app.ps1') + '"')) 'Desktop shortcut uses hidden PowerShell and a quoted absolute entry path'
     Assert-App ($global:SpaAppTests.Shortcut.WorkingDirectory -eq $fixtureRoot) 'Desktop shortcut works independently of Desktop working directory'
+    $customConfig = Join-Path $fixtureRoot 'custom settings.json'
+    New-SpaDesktopShortcut -SourceRoot $fixtureRoot -ConfigFile $customConfig | Out-Null
+    Assert-App ($global:SpaAppTests.Shortcut.Arguments.Contains('-ConfigFile "' + $customConfig + '"')) 'Shortcut preserves an explicitly selected config path with spaces'
     Remove-Item -LiteralPath 'Function:\New-Object'
 
     # A real second PowerShell process must be excluded by the source-root mutex.
@@ -140,9 +143,9 @@ finally {
         return $global:SpaAppTests.Listeners
     }
     function Update-SpaAppUi {
-        param([string]$SourceRoot)
+        param([string]$SourceRoot, [string]$ConfigFile)
         $global:SpaAppTests.Events.Add('update')
-        if ($global:SpaAppTests.UpdateFails) { throw 'Offline Drive fixture' }
+        if ($global:SpaAppTests.UpdateFails) { throw 'Unavailable package folder fixture' }
         return [pscustomobject]@{ Status = 'Updated' }
     }
     function Start-SpaApiBackground {
@@ -169,10 +172,14 @@ finally {
     $global:SpaAppTests.Events.Clear()
     $global:SpaAppTests.UpdateFails = $true
     Invoke-SpaAppLauncher $fixtureRoot | Out-Null
-    Assert-App ($global:SpaAppTests.Events -contains 'browser' -and $global:SpaAppTests.Events -notcontains 'start') 'Drive failure falls back to valid current UI and keeps API'
+    Assert-App ($global:SpaAppTests.Events -contains 'browser' -and $global:SpaAppTests.Events -notcontains 'start') 'Unavailable package folder falls back to valid current UI and keeps API'
+    $global:SpaAppTests.Listeners = @()
+    $global:SpaAppTests.Events.Clear()
+    Invoke-SpaAppLauncher $fixtureRoot | Out-Null
+    Assert-App ($global:SpaAppTests.Events -contains 'start' -and $global:SpaAppTests.Events -contains 'browser') 'Unavailable folder still starts API when current UI is valid and API is not running'
     Remove-Item -LiteralPath (Join-Path $apiPath 'ClientApp/build/main.js')
     $global:SpaAppTests.Events.Clear()
-    Expect-AppError { Invoke-SpaAppLauncher $fixtureRoot } 'UI' 'Drive failure with no valid UI stops launcher'
+    Expect-AppError { Invoke-SpaAppLauncher $fixtureRoot } 'UI' 'Unavailable folder with no valid UI stops launcher'
     Assert-App ($global:SpaAppTests.Events -notcontains 'browser' -and $global:SpaAppTests.Events -notcontains 'start') 'No valid UI never starts API or opens browser'
     Set-Content -LiteralPath (Join-Path $apiPath 'ClientApp/build/main.js') -Value 'fixture'
     $global:SpaAppTests.UpdateFails = $false
@@ -190,7 +197,7 @@ finally {
     $global:SpaAppTests.StartFails = $true
     Expect-AppError { Invoke-SpaAppLauncher $fixtureRoot } 'dotnet failure' 'API startup failure is reported'
     $global:SpaAppTests.StartFails = $false
-    Assert-App ((Get-Content -LiteralPath (Join-Path $fixtureRoot 'artifacts/spa/runtime/launcher.log') -Raw) -match 'Offline Drive fixture') 'Persist update errors and launcher failures in runtime logs'
+    Assert-App ((Get-Content -LiteralPath (Join-Path $fixtureRoot 'artifacts/spa/runtime/launcher.log') -Raw) -match 'Unavailable package folder fixture') 'Persist update errors and launcher failures in runtime logs'
 
     function Get-SpaLaunchLock { param([string]$SourceRoot) return [pscustomobject]@{ Acquired = $false; Mutex = $null } }
     $global:SpaAppTests.Events.Clear()

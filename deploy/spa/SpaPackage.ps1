@@ -281,7 +281,7 @@ function Set-SpaInstalledPackage {
         @{
             packageName = $Package.File.name
             timestampUtc = $Package.Timestamp.ToUniversalTime().ToString('o')
-            driveFileId = $Package.File.id
+            sourceId = $Package.File.id
             md5Checksum = $Package.File.md5Checksum
         } | ConvertTo-Json | Set-Content -LiteralPath $temp -Encoding UTF8
         if (Test-Path -LiteralPath $path) { [IO.File]::Replace($temp, $path, [System.Management.Automation.Language.NullString]::Value) }

@@ -1,6 +1,23 @@
 #Requires -Version 5.1
 # Launcher helpers; importing this file starts no process and performs no network IO.
 
+function Get-SpaAppConfig {
+    param([string]$ConfigFile)
+    if ([string]::IsNullOrWhiteSpace($ConfigFile)) { $ConfigFile = Join-Path $PSScriptRoot 'start-app.config.json' }
+    elseif (-not [IO.Path]::IsPathRooted($ConfigFile)) { $ConfigFile = Join-Path $PSScriptRoot $ConfigFile }
+    $ConfigFile = [IO.Path]::GetFullPath($ConfigFile)
+    if (-not (Test-Path -LiteralPath $ConfigFile -PathType Leaf)) { throw "Thieu config: $ConfigFile" }
+    try { $config = Get-Content -LiteralPath $ConfigFile -Raw -Encoding UTF8 | ConvertFrom-Json }
+    catch { throw "Config JSON khong hop le: $ConfigFile" }
+    if ($null -eq $config -or -not $config.PSObject.Properties['packagesDirectory'] -or
+        $config.packagesDirectory -isnot [string] -or [string]::IsNullOrWhiteSpace($config.packagesDirectory)) {
+        throw "Config thieu packagesDirectory hop le: $ConfigFile"
+    }
+    $directory = $config.packagesDirectory
+    if (-not [IO.Path]::IsPathRooted($directory)) { $directory = Join-Path (Split-Path -Parent $ConfigFile) $directory }
+    return [pscustomobject]@{ packagesDirectory = [IO.Path]::GetFullPath($directory) }
+}
+
 function Test-SpaApiProcess {
     param([string]$SourceRoot, $Process)
     if (-not $Process -or -not $Process.ExecutablePath) { return $false }
@@ -51,7 +68,7 @@ function Get-SpaLaunchLock {
 }
 
 function New-SpaDesktopShortcut {
-    param([string]$SourceRoot)
+    param([string]$SourceRoot, [string]$ConfigFile)
     $entry = Get-SpaSafePath $SourceRoot 'deploy/spa/start-app.ps1'
     if (-not (Test-Path -LiteralPath $entry -PathType Leaf)) { throw "Thieu launcher: $entry" }
     $desktop = [Environment]::GetFolderPath([Environment+SpecialFolder]::DesktopDirectory)
@@ -61,6 +78,10 @@ function New-SpaDesktopShortcut {
     $link = $shell.CreateShortcut($shortcutPath)
     $link.TargetPath = Join-Path $env:SystemRoot 'System32/WindowsPowerShell/v1.0/powershell.exe'
     $link.Arguments = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$entry`""
+    if ($ConfigFile) {
+        if (-not [IO.Path]::IsPathRooted($ConfigFile)) { $ConfigFile = Join-Path $PSScriptRoot $ConfigFile }
+        $link.Arguments += " -ConfigFile `"$([IO.Path]::GetFullPath($ConfigFile))`""
+    }
     $link.WorkingDirectory = $SourceRoot
     $link.Description = 'Cap nhat UI, giu/chay API nen va mo GV Portal'
     $link.IconLocation = (Join-Path $env:SystemRoot 'System32/shell32.dll') + ',13'
@@ -125,8 +146,8 @@ function Wait-SpaApiReady {
 }
 
 function Update-SpaAppUi {
-    param([string]$SourceRoot)
-    & (Join-Path $PSScriptRoot 'update-ui-from-drive.ps1') -SourceRoot $SourceRoot -IfNewer -LiveUpdate -PassThru
+    param([string]$SourceRoot, [string]$ConfigFile)
+    & (Join-Path $PSScriptRoot 'update-ui-from-folder.ps1') -SourceRoot $SourceRoot -ConfigFile $ConfigFile -IfNewer -LiveUpdate -PassThru
 }
 
 function Open-SpaAppBrowser {
@@ -141,7 +162,7 @@ function Write-SpaRuntimeLog {
 }
 
 function Invoke-SpaAppLauncher {
-    param([string]$SourceRoot, [ValidateRange(1, 600)][int]$TimeoutSeconds = 120)
+    param([string]$SourceRoot, [ValidateRange(1, 600)][int]$TimeoutSeconds = 120, [string]$ConfigFile)
     $SourceRoot = Get-SpaSourceRoot $SourceRoot
     $lock = Get-SpaLaunchLock $SourceRoot
     $logPath = $null
@@ -157,7 +178,7 @@ function Invoke-SpaAppLauncher {
         Write-SpaRuntimeLog $logPath 'Launcher start; API dang chay se duoc giu nguyen.'
         Get-SpaApiListeners $SourceRoot | Out-Null
         try {
-            $result = Update-SpaAppUi $SourceRoot
+            $result = Update-SpaAppUi -SourceRoot $SourceRoot -ConfigFile $ConfigFile
             Write-SpaRuntimeLog $logPath "UI status: $($result.Status)"
         }
         catch { Write-SpaRuntimeLog $logPath "UI update warning; thu dung UI hien co: $($_.Exception.Message)" }
