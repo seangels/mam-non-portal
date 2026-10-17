@@ -33,6 +33,15 @@ Tùy chọn:
 
 Clone/pull repository để có `deploy/spa/`; cài .NET SDK 10, chuẩn bị PostgreSQL, cấu hình API và HTTPS development certificate hợp lệ/được trình duyệt tin cậy. Máy này **không cần Node/npm**.
 
+Trên máy app, dùng đúng tài khoản Windows sẽ chạy shortcut để chuẩn bị development certificate một lần (thao tác thủ công, launcher không tự đổi certificate store):
+
+```powershell
+dotnet dev-certs https --trust
+dotnet dev-certs https --check --trust
+```
+
+Chấp nhận hộp thoại trust certificate của Windows nếu xuất hiện. Kiểm tra lại bằng `Invoke-WebRequest 'https://localhost:7158/health/live' -UseBasicParsing -TimeoutSec 10`; khi trả HTTP 200 thì bấm shortcut lại. Nếu vừa tạo/đổi certificate mới, API đang chạy có thể cần được khởi động lại thủ công để nạp certificate mới; nếu vẫn lỗi, kiểm tra certificate Kestrel thực sự đang dùng. Không dùng `--clean` hoặc bỏ TLS validation để xử lý mặc định. Tham khảo [dotnet dev-certs của Microsoft](https://learn.microsoft.com/en-us/dotnet/core/tools/dotnet-dev-certs).
+
 Copy `appsettings.Development.json` và OAuth Desktop `client_secret.json` vào `api/src/AdminPortal.Api/`. Tên cấu hình đúng là **`appsettings.Development.json`**. Dùng cùng OAuth Desktop client trên hai máy; đăng nhập tài khoản có quyền folder `packages`.
 
 Package trên máy app được lấy từ **folder Drive đã đồng bộ local**, không tải bằng Google API. Sửa đường dẫn trong `deploy/spa/start-app.config.json` (cạnh `start-app.ps1`) nếu máy dùng ổ/thư mục khác:
