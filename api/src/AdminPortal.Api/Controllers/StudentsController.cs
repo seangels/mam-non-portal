@@ -19,6 +19,13 @@ public sealed class StudentsController(IStudentService studentService) : Control
         CancellationToken cancellationToken) =>
         Ok(await studentService.ListAsync(query, cancellationToken));
 
+    [HttpGet("student-code-suggestions")]
+    [Authorize(Policy = "PortalManagers")]
+    [ProducesResponseType<StudentCodeSuggestionsResponse>(StatusCodes.Status200OK)]
+    public async Task<ActionResult<StudentCodeSuggestionsResponse>> GetStudentCodeSuggestions(
+        CancellationToken cancellationToken) =>
+        Ok(await studentService.GetStudentCodeSuggestionsAsync(cancellationToken));
+
     [HttpGet("{id:guid}")]
     [ProducesResponseType<StudentResponse>(StatusCodes.Status200OK)]
     public async Task<ActionResult<StudentResponse>> Get(Guid id, CancellationToken cancellationToken) =>

@@ -7,6 +7,7 @@ public interface IStudentService
 {
     Task<PagedResponse<StudentResponse>> ListAsync(StudentListQuery query, CancellationToken cancellationToken);
     Task<StudentResponse> GetAsync(Guid id, CancellationToken cancellationToken);
+    Task<StudentCodeSuggestionsResponse> GetStudentCodeSuggestionsAsync(CancellationToken cancellationToken);
     Task<StudentResponse> CreateAsync(CreateStudentRequest request, CancellationToken cancellationToken);
     Task<StudentResponse> UpdateAsync(Guid id, UpdateStudentRequest request, CancellationToken cancellationToken);
     Task<StudentResponse> AssignGroupAsync(Guid id, AssignStudentGroupRequest request, CancellationToken cancellationToken);

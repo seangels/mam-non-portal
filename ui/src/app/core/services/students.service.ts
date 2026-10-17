@@ -6,6 +6,7 @@ import {
   PagedResponse,
   RenameStudentDriveFolderRequest,
   Student,
+  StudentCodeSuggestionsResponse,
   StudentDriveFolderActionResponse,
   StudentDriveFolderReconcileResponse,
   StudentListQuery,
@@ -23,6 +24,10 @@ export class StudentsService {
 
   get(id: string): Observable<Student> {
     return this.api.get<Student>(`students/${id}`);
+  }
+
+  getStudentCodeSuggestions(): Observable<StudentCodeSuggestionsResponse> {
+    return this.api.get<StudentCodeSuggestionsResponse>('students/student-code-suggestions');
   }
 
   create(request: CreateStudentRequest): Observable<Student> {

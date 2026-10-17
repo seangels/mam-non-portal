@@ -23,6 +23,41 @@ public static class StudentGoogleSheetsRules
         };
     }
 
+    public static IReadOnlyList<string> FindAvailableStudentCodes(IReadOnlyList<IList<object>> rows)
+    {
+        EnsureUniqueStudentIds(rows);
+        var available = new List<string>();
+        foreach (var row in rows)
+        {
+            var studentCode = CellText(row, 0);
+            if (string.IsNullOrWhiteSpace(studentCode)) continue;
+            if (string.IsNullOrWhiteSpace(CellText(row, 1))) available.Add(studentCode);
+        }
+
+        return available;
+    }
+
+    public static bool HasBlankFullName(IReadOnlyList<IList<object>> rows, int rowNumber)
+    {
+        var index = rowNumber - FirstDataRow;
+        return index >= 0 && index < rows.Count && string.IsNullOrWhiteSpace(CellText(rows[index], 1));
+    }
+
+    public static StudentSheetCreateTarget ResolveCreateTarget(
+        IReadOnlyList<IList<object>> rows,
+        string studentCode)
+    {
+        EnsureUniqueStudentIds(rows);
+        var existingRow = FindUniqueRow(rows, studentCode);
+        if (existingRow is null)
+            return new StudentSheetCreateTarget(FindFirstAvailableRow(rows), StudentSheetCreateDisposition.NewRow);
+        return new StudentSheetCreateTarget(
+            existingRow.Value,
+            HasBlankFullName(rows, existingRow.Value)
+                ? StudentSheetCreateDisposition.AvailableExistingRow
+                : StudentSheetCreateDisposition.UnavailableExistingRow);
+    }
+
     public static int FindFirstAvailableRow(IReadOnlyList<IList<object>> rows)
     {
         for (var index = 0; index < rows.Count; index++)
@@ -41,4 +76,28 @@ public static class StudentGoogleSheetsRules
         string.IsNullOrWhiteSpace(persistedSheetStudentId)
             ? currentStudentCode
             : persistedSheetStudentId;
+
+    private static string? CellText(IList<object> row, int index) =>
+        row.Count > index ? row[index]?.ToString()?.Trim() : null;
+
+    private static void EnsureUniqueStudentIds(IReadOnlyList<IList<object>> rows)
+    {
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var row in rows)
+        {
+            var studentCode = CellText(row, 0);
+            if (string.IsNullOrWhiteSpace(studentCode)) continue;
+            if (!seen.Add(studentCode))
+                throw new InvalidOperationException($"StudentID '{studentCode}' xuất hiện nhiều hơn một lần trong Google Sheets.");
+        }
+    }
 }
+
+public enum StudentSheetCreateDisposition
+{
+    NewRow,
+    AvailableExistingRow,
+    UnavailableExistingRow
+}
+
+public sealed record StudentSheetCreateTarget(int RowNumber, StudentSheetCreateDisposition Disposition);

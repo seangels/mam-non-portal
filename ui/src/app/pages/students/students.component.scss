@@ -11,6 +11,7 @@
 .form-message.error, .form-message.conflict { border-color: #d92d20; background: #fff5f5; color: #7a271a; }
 .form-message.conflict { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .form-message.info { border-color: #337ab7; background: #eff8ff; color: #18496b; }
+.form-message.warning { border-color: #d97706; background: #fffbeb; color: #7a4d00; }
 .schedule-editor { margin-top: 10px; padding: 10px 12px; border: 1px solid #d0d5dd; border-radius: 8px; }
 .schedule-heading { display: flex; align-items: baseline; gap: 10px; margin-bottom: 8px; }
 .schedule-heading h2 { margin: 0; font-size: 16px; }

@@ -145,6 +145,24 @@ public partial class GoogleSheetsService : IGoogleSheetsService, IStudentGoogleS
         ApplicationName = "CleanArchGoogleSheets"
     });
 
+    public async Task<IReadOnlyList<string>> GetAvailableStudentCodesAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            var rows = await ReadStudentRowsAsync(cancellationToken);
+            return StudentGoogleSheetsRules.FindAvailableStudentCodes(rows);
+        }
+        catch (AppException)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            LogStudentSheetFailure(logger, exception.GetType().Name);
+            throw StudentSheetOperationFailed("Không thể đọc danh sách mã học sinh từ Google Sheets.");
+        }
+    }
+
     public async Task<StudentSheetMutation> CreateOrUpdateAsync(
         string studentCode,
         string fullName,
@@ -174,10 +192,16 @@ public partial class GoogleSheetsService : IGoogleSheetsService, IStudentGoogleS
         try
         {
             var rows = await ReadStudentRowsAsync(cancellationToken);
-            var existingRow = StudentGoogleSheetsRules.FindUniqueRow(rows, studentCode);
-            var rowNumber = existingRow ?? StudentGoogleSheetsRules.FindFirstAvailableRow(rows);
+            var target = StudentGoogleSheetsRules.ResolveCreateTarget(rows, studentCode);
+            var rowNumber = target.RowNumber;
             var previous = ReadStudentRow(rows, rowNumber);
-            var writeStudentId = existingRow is null;
+            var writeStudentId = target.Disposition == StudentSheetCreateDisposition.NewRow;
+            if (target.Disposition == StudentSheetCreateDisposition.UnavailableExistingRow)
+            {
+                throw new ConflictException(
+                    $"StudentID '{studentCode}' đã có tên trong Google Sheets.",
+                    ProblemCodes.StudentGoogleSheetsCodeUnavailable);
+            }
 
             await WriteStudentCellsAsync(
                 rowNumber,

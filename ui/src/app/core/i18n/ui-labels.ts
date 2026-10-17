@@ -115,6 +115,7 @@ export const API_ERROR_CODE_LABELS: Record<string, string> = {
   TeacherDriveFolderRequired: 'Giáo viên cần có thư mục Google Drive trước khi được phân công phụ trách nhóm.',
   StudentNotFound: 'Không tìm thấy học sinh hoặc hồ sơ đã bị xóa.',
   StudentVersionConflict: 'Thông tin học sinh đã được người khác cập nhật. Vui lòng tải dữ liệu mới nhất.',
+  StudentGoogleSheetsCodeUnavailable: 'Mã học sinh này vừa được sử dụng trên Google Sheet. Vui lòng chọn mã khác.',
   NoScheduledStudents: 'Không có học sinh có lịch học trong ngày này.',
   GroupHasResponsibleTeacher: 'Cần gỡ giáo viên phụ trách trước khi xóa nhóm.',
   GroupHasStudents: 'Cần gỡ toàn bộ học sinh trước khi xóa nhóm.',

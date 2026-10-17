@@ -145,6 +145,10 @@ export interface UpdateStudentRequest extends CreateStudentRequest {
   expectedVersion: number;
 }
 
+export interface StudentCodeSuggestionsResponse {
+  items: string[];
+}
+
 export interface RenameStudentDriveFolderRequest {
   expectedVersion: number;
 }

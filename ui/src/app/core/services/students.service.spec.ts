@@ -54,6 +54,12 @@ describe('StudentsService', () => {
     expect(api.put).toHaveBeenCalledWith('students/student-1', update);
   });
 
+  it('loads student code suggestions from the dedicated endpoint', () => {
+    service.getStudentCodeSuggestions().subscribe();
+
+    expect(api.get).toHaveBeenCalledWith('students/student-code-suggestions');
+  });
+
   it('uses versioned group and delete commands', () => {
     const assignment = { groupId: 'group-1', expectedVersion: 4 };
 

@@ -41,6 +41,8 @@ public sealed record StudentResponse(
     DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt);
 
+public sealed record StudentCodeSuggestionsResponse(IReadOnlyList<string> Items);
+
 public sealed record StudyScheduleResponse(
     StudyMode Mode,
     IReadOnlyList<StudyWeekday> Weekdays);

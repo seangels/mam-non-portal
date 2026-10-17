@@ -2,6 +2,8 @@ namespace AdminPortal.Application.GoogleSheets;
 
 public interface IStudentGoogleSheetsService
 {
+    Task<IReadOnlyList<string>> GetAvailableStudentCodesAsync(CancellationToken cancellationToken);
+
     Task<StudentSheetMutation> CreateOrUpdateAsync(
         string studentCode,
         string fullName,

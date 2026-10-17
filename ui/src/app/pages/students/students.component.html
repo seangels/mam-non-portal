@@ -112,13 +112,20 @@
         (onClick)="reloadEditor()"></dx-button>
     </div>
     <div *ngIf="editorError && !editorConflict" class="form-message error" role="alert">{{ editorError }}</div>
+    <div *ngIf="!isEditing && studentCodeSuggestionsLoading" class="form-message info" role="status">
+      Đang tải mã trống…
+    </div>
+    <div *ngIf="!isEditing && studentCodeSuggestionWarning" class="form-message warning" role="alert">
+      {{ studentCodeSuggestionWarning }}
+    </div>
     <div *ngIf="editor.groupId" class="form-message info">
       Nhóm hiện tại: <strong>{{ editor.groupCode }} · {{ editor.responsibleTeacherName }}</strong>. Khi chuyển sang Đã nghỉ, học sinh vẫn giữ nguyên nhóm này.
     </div>
 
     <dx-form [formData]="editor" [disabled]="saving" labelLocation="top" [colCount]="4"
       [colCountByScreen]="{ xs: 1, sm: 2, md: 4, lg: 4 }">
-      <dxi-item dataField="studentCode" [editorOptions]="{ valueChangeEvent: 'input' }"><dxo-label text="Mã học sinh"></dxo-label>
+      <dxi-item dataField="studentCode" [editorType]="studentCodeEditorType"
+        [editorOptions]="studentCodeEditorOptions"><dxo-label text="Mã học sinh"></dxo-label>
         <dxi-validation-rule type="required" message="Vui lòng nhập mã học sinh"></dxi-validation-rule>
         <dxi-validation-rule type="stringLength" [max]="50" message="Mã học sinh tối đa 50 ký tự"></dxi-validation-rule>
       </dxi-item>

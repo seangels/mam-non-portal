@@ -1,10 +1,18 @@
 using AdminPortal.Application.GoogleSheets;
+using AdminPortal.Application.Common;
+using AdminPortal.Application.Common.Exceptions;
 
 namespace AdminPortal.IntegrationTests;
 
 internal sealed class FakeStudentGoogleSheetsService : IStudentGoogleSheetsService
 {
     public System.Collections.Concurrent.ConcurrentQueue<StudentSheetCall> Calls { get; } = new();
+    public System.Collections.Concurrent.ConcurrentDictionary<string, byte> UnavailableCodes { get; } =
+        new(StringComparer.OrdinalIgnoreCase);
+    public IReadOnlyList<string> Suggestions { get; set; } = [];
+
+    public Task<IReadOnlyList<string>> GetAvailableStudentCodesAsync(CancellationToken cancellationToken) =>
+        Task.FromResult(Suggestions);
 
     public Task<StudentSheetMutation> CreateOrUpdateAsync(
         string studentCode,
@@ -14,6 +22,12 @@ internal sealed class FakeStudentGoogleSheetsService : IStudentGoogleSheetsServi
         CancellationToken cancellationToken)
     {
         Calls.Enqueue(new StudentSheetCall("Create", studentCode, fullName, nickName, dateOfBirth));
+        if (UnavailableCodes.ContainsKey(studentCode))
+        {
+            throw new ConflictException(
+                $"StudentID '{studentCode}' đã có tên trong Google Sheets.",
+                ProblemCodes.StudentGoogleSheetsCodeUnavailable);
+        }
         return Task.FromResult(new StudentSheetMutation(2, null, null, null, null, true));
     }
 

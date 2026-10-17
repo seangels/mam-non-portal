@@ -44,6 +44,8 @@ DELETE /api/v1/students/{studentId}?expectedVersion={version}
 - Sửa mã/họ tên không tự đổi tên folder Drive; form sửa có action riêng dùng dữ liệu đã lưu và không tăng Student version.
 - Tạo/sửa Student phải đồng bộ sang Google Sheet danh sách học sinh được cấu hình riêng. Dòng được nhận diện bằng `studentCode` tại cột B (`StudentID`): khi chưa có dòng, hệ thống chỉ ghi khóa B để tạo dòng mới; dữ liệu Student chỉ ghi họ tên vào C, nickname vào D và ngày sinh chuẩn vào H. Khi sửa, không được ghi đè công thức hay dữ liệu ở bất kỳ cột nào ngoài C, D, H.
 - Spreadsheet/tab đích phải lấy từ `GoogleSheets:StudentSpreadsheetId` và `GoogleSheets:StudentSheetId` (gid), không hard-code trong nghiệp vụ. Backend nhận diện tab bằng gid để việc đổi tên tab không làm hỏng kết nối. Cấu hình nền chỉ để giá trị rỗng; giá trị môi trường thật đặt trong cấu hình Development hoặc nguồn cấu hình triển khai tương ứng. Lỗi Google Sheets phải được báo rõ và không được trả kết quả thành công giả làm người dùng hiểu rằng hai nguồn đã đồng bộ.
+- Form tạo Student phải lấy danh sách mã gợi ý từ các dòng có `StudentID` ở B nhưng Tên ở C còn trống, giữ thứ tự sheet và chọn sẵn mã đầu tiên; người dùng vẫn được chọn mã khác hoặc nhập thủ công. Nếu không đọc được sheet hoặc không còn gợi ý, form vẫn cho nhập tay và hiển thị cảnh báo.
+- Gợi ý không giữ chỗ. Khi lưu, backend phải kiểm tra lại: mã B có C còn trống mới được ghi C/D/H; nếu C đã có tên thì trả conflict ổn định, không ghi đè, để UI tải lại danh sách và đề xuất mã kế tiếp mà không tự gửi lại request.
 
 ## 3. Danh sách học sinh
 

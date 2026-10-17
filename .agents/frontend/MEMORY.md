@@ -1,5 +1,12 @@
 # Frontend role memory
 
+## 2026-10-17 — STU-GSHEET-02 gợi ý mã học sinh trống
+
+- Form **Thêm học sinh** gọi `GET /students/student-code-suggestions` (`{ items: string[] }`) và dùng `dxSelectBox`: giữ thứ tự API, chọn sẵn mã đầu tiên, cho tìm/chọn hoặc nhập mã tùy chỉnh. Chỉ trường mã bị khóa khi đang tải; empty/lỗi chuyển sang nhập tay kèm cảnh báo. Form sửa vẫn dùng `dxTextBox` và không gọi endpoint gợi ý.
+- Khi POST create trả `StudentGoogleSheetsCodeUnavailable`, UI giữ toàn bộ draft ngoài mã, không tự POST lại, tải lại suggestions, chọn mã đầu tiên mới và yêu cầu người dùng kiểm tra rồi bấm Lưu. Có request sequence guard để response create cũ không ghi vào form edit/form mới.
+- Files: `core/models/api.models.ts`, `core/services/students.service.{ts,spec.ts}`, `core/i18n/ui-labels.ts`, `pages/students/students.component.{ts,html,scss,spec.ts}`. Không đổi frontend route, auth, schema hoặc deployment.
+- Verification bằng Node portable `v14.21.3`/npm `8.19.4`: focused Student/StudentsService **26/26 pass**; full `npm.cmd --prefix ui run test:ci` **233/233 pass**; `NG_BUILD_MAX_WORKERS=1 npm.cmd --prefix ui run build -- --configuration development` pass hash `9de9c4ef05cb5d81e8b8`, chỉ có CommonJS warnings đã biết; `git diff --check -- ui` sạch ngoài cảnh báo LF/CRLF. Chưa browser/live API smoke; không production/IIS build hoặc deploy.
+
 ## 2026-10-17 — DRV student/teacher Drive folders
 
 - Teacher DTO/form/list/detail now carries nullable `driveFolderId`, accepts either an ID or Drive URL, and exposes safe new-tab folder links. Student UI keeps the manual override, adds versioned `POST students/{id}/drive-folder/rename` only for a clean saved edit form, and adds guarded global `POST students/drive-folders/reconcile` with Vietnamese counters and per-student partial-failure details.

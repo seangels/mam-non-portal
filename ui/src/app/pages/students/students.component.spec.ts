@@ -15,14 +15,95 @@ describe('StudentsComponent schedule and remote list', () => {
 
   beforeEach(() => {
     students = jasmine.createSpyObj<StudentsService>('StudentsService', [
-      'list', 'get', 'create', 'update', 'assignGroup', 'renameDriveFolder', 'reconcileDriveFolders', 'delete'
+      'list', 'get', 'getStudentCodeSuggestions', 'create', 'update', 'assignGroup', 'renameDriveFolder',
+      'reconcileDriveFolders', 'delete'
     ]);
     groups = jasmine.createSpyObj<StudentGroupsService>('StudentGroupsService', ['list', 'get']);
     students.list.and.returnValue(of({
       items: [studentRow()],
       pagination: { page: 2, pageSize: 20, totalItems: 37, totalPages: 2 }
     }));
+    students.getStudentCodeSuggestions.and.returnValue(of({ items: ['S118', 'S119'] }));
     component = new StudentsComponent(students, groups);
+  });
+
+  it('loads sheet suggestions for create and selects the first code', async () => {
+    component.openCreate();
+
+    expect(component.studentCodeSuggestionsLoading).toBeTrue();
+    expect(component.studentCodeEditorType).toBe('dxSelectBox');
+    await settlePromises();
+
+    expect(students.getStudentCodeSuggestions).toHaveBeenCalledTimes(1);
+    expect(component.studentCodeSuggestions).toEqual(['S118', 'S119']);
+    expect(component.editor.studentCode).toBe('S118');
+    expect(component.studentCodeSuggestionsLoading).toBeFalse();
+    expect(component.editorDirty).toBeFalse();
+  });
+
+  it('allows a custom student code and sends it on create', async () => {
+    component.openCreate();
+    await settlePromises();
+    fillCreateEditor(component);
+    component.editor.studentCode = 'CUSTOM-01';
+    students.create.and.returnValue(of({ ...studentRow(), studentCode: 'CUSTOM-01' }));
+
+    await component.save(new Event('submit'));
+
+    expect(students.create).toHaveBeenCalledWith(jasmine.objectContaining({ studentCode: 'CUSTOM-01' }));
+  });
+
+  it('falls back to manual entry when suggestions cannot be loaded', async () => {
+    students.getStudentCodeSuggestions.and.returnValue(throwError(() => new ApiError('Sheet unavailable', 503)));
+
+    component.openCreate();
+    await settlePromises();
+
+    expect(component.studentCodeSuggestions).toEqual([]);
+    expect(component.studentCodeSuggestionsLoading).toBeFalse();
+    expect(component.studentCodeSuggestionWarning).toContain('nhập mã học sinh thủ công');
+    expect((component.studentCodeEditorOptions as { disabled: boolean }).disabled).toBeFalse();
+  });
+
+  it('uses manual entry when the sheet has no available codes', async () => {
+    students.getStudentCodeSuggestions.and.returnValue(of({ items: [] }));
+
+    component.openCreate();
+    await settlePromises();
+
+    expect(component.editor.studentCode).toBe('');
+    expect(component.studentCodeSuggestionWarning).toContain('Không tìm thấy mã trống');
+  });
+
+  it('does not load suggestions for edit and keeps the code editor as a text box', () => {
+    component.openEdit(studentRow());
+
+    expect(students.getStudentCodeSuggestions).not.toHaveBeenCalled();
+    expect(component.studentCodeEditorType).toBe('dxTextBox');
+    expect(component.editor.studentCode).toBe('HS-01');
+  });
+
+  it('keeps the create draft and selects a fresh code after a stale sheet conflict', async () => {
+    students.getStudentCodeSuggestions.and.returnValues(
+      of({ items: ['S118'] }),
+      of({ items: ['S119', 'S120'] })
+    );
+    students.create.and.returnValue(throwError(() => new ApiError(
+      'Code unavailable', 409, {}, undefined, 'StudentGoogleSheetsCodeUnavailable'
+    )));
+    component.openCreate();
+    await settlePromises();
+    fillCreateEditor(component);
+
+    await component.save(new Event('submit'));
+
+    expect(students.create).toHaveBeenCalledTimes(1);
+    expect(students.getStudentCodeSuggestions).toHaveBeenCalledTimes(2);
+    expect(component.editorVisible).toBeTrue();
+    expect(component.editor.studentCode).toBe('S119');
+    expect(component.editor.fullName).toBe('Nguyễn An');
+    expect(component.editor.nickName).toBe('Bé An');
+    expect(component.editorError).toContain('kiểm tra rồi bấm Lưu lại');
   });
 
   it('maps all filters and nested schedule sorting to the server contract', async () => {
@@ -256,12 +337,14 @@ describe('StudentsComponent DevExtreme form text-area integration', () => {
 
   beforeEach(async () => {
     students = jasmine.createSpyObj<StudentsService>('StudentsService', [
-      'list', 'get', 'create', 'update', 'assignGroup', 'renameDriveFolder', 'reconcileDriveFolders', 'delete'
+      'list', 'get', 'getStudentCodeSuggestions', 'create', 'update', 'assignGroup', 'renameDriveFolder',
+      'reconcileDriveFolders', 'delete'
     ]);
     students.list.and.returnValue(of({
       items: [],
       pagination: { page: 1, pageSize: 20, totalItems: 0, totalPages: 0 }
     }));
+    students.getStudentCodeSuggestions.and.returnValue(of({ items: ['S118'] }));
     const groups = jasmine.createSpyObj<StudentGroupsService>('StudentGroupsService', ['list', 'get']);
     groups.list.and.returnValue(of({
       items: [],
@@ -392,6 +475,12 @@ function studentRow(): Student {
     updatedAt: '',
     version: 4
   };
+}
+
+function fillCreateEditor(component: StudentsComponent): void {
+  component.editor.fullName = 'Nguyễn An';
+  component.editor.nickName = 'Bé An';
+  component.editor.dateOfBirth = new Date(2021, 4, 10);
 }
 
 function groupRow(id: string, studentCount: number) {

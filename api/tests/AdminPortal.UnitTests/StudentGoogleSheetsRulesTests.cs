@@ -43,6 +43,67 @@ public sealed class StudentGoogleSheetsRulesTests
         Assert.Equal(3, StudentGoogleSheetsRules.FindFirstAvailableRow(rows));
     }
 
+    [Fact]
+    public void FindAvailableStudentCodesUsesBlankFullNameAndPreservesSheetOrder()
+    {
+        IReadOnlyList<IList<object>> rows =
+        [
+            new List<object> { "S10", "" },
+            new List<object> { "S11", "Đã có tên" },
+            new List<object> { "S12", "   " },
+            new List<object> { "", "Không có mã" }
+        ];
+
+        Assert.Equal(["S10", "S12"], StudentGoogleSheetsRules.FindAvailableStudentCodes(rows));
+        Assert.True(StudentGoogleSheetsRules.HasBlankFullName(rows, 2));
+        Assert.False(StudentGoogleSheetsRules.HasBlankFullName(rows, 3));
+    }
+
+    [Fact]
+    public void FindAvailableStudentCodesRejectsDuplicateStudentIdsEvenWhenOneIsUnavailable()
+    {
+        IReadOnlyList<IList<object>> rows =
+        [
+            new List<object> { "S10", "" },
+            new List<object> { "s10", "Đã có tên" }
+        ];
+
+        Assert.Throws<InvalidOperationException>(() => StudentGoogleSheetsRules.FindAvailableStudentCodes(rows));
+    }
+
+    [Fact]
+    public void ResolveCreateTargetDistinguishesAvailableUnavailableAndNewRows()
+    {
+        IReadOnlyList<IList<object>> rows =
+        [
+            new List<object> { "S10", "" },
+            new List<object> { "S11", "Đã có tên" },
+            new List<object>()
+        ];
+
+        Assert.Equal(
+            new StudentSheetCreateTarget(2, StudentSheetCreateDisposition.AvailableExistingRow),
+            StudentGoogleSheetsRules.ResolveCreateTarget(rows, "S10"));
+        Assert.Equal(
+            new StudentSheetCreateTarget(3, StudentSheetCreateDisposition.UnavailableExistingRow),
+            StudentGoogleSheetsRules.ResolveCreateTarget(rows, "S11"));
+        Assert.Equal(
+            new StudentSheetCreateTarget(4, StudentSheetCreateDisposition.NewRow),
+            StudentGoogleSheetsRules.ResolveCreateTarget(rows, "S12"));
+    }
+
+    [Fact]
+    public void ResolveCreateTargetRejectsUnrelatedDuplicateStudentIdsAsStructuralError()
+    {
+        IReadOnlyList<IList<object>> rows =
+        [
+            new List<object> { "S10", "" },
+            new List<object> { "S10", "Đã có tên" }
+        ];
+
+        Assert.Throws<InvalidOperationException>(() => StudentGoogleSheetsRules.ResolveCreateTarget(rows, "S99"));
+    }
+
     [Theory]
     [InlineData(1899, 12, 30, 0)]
     [InlineData(2026, 10, 17, 46312)]

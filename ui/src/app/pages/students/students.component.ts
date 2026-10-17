@@ -30,6 +30,7 @@ import {
   CreateStudentRequest,
   Gender,
   Student,
+  StudentCodeSuggestionsResponse,
   StudentDriveFolderReconcileError,
   StudentDriveFolderReconcileResponse,
   StudentGroup,
@@ -134,11 +135,16 @@ export class StudentsComponent {
   editor: StudentEditor = this.emptyEditor();
   editorError = '';
   editorConflict = '';
+  studentCodeSuggestions: string[] = [];
+  studentCodeSuggestionsLoading = false;
+  studentCodeSuggestionWarning = '';
+  studentCodeEditorOptions: Record<string, unknown> = { valueChangeEvent: 'input' };
   scheduleModeError = '';
   scheduleWeekdaysError = '';
   private editorBaseline = '';
   private editorDiscardConfirmationPending = false;
   private allowEditorCloseOnce = false;
+  private studentCodeSuggestionRequest = 0;
 
   groupAssignmentVisible = false;
   assignmentSaving = false;
@@ -235,6 +241,10 @@ export class StudentsComponent {
     return this.editorVisible && this.editorBaseline !== this.serializeEditor(this.editor);
   }
 
+  get studentCodeEditorType(): string {
+    return this.isEditing ? 'dxTextBox' : 'dxSelectBox';
+  }
+
   get canRenameDriveFolder(): boolean {
     return this.isEditing && !!this.editor.id && !!this.editor.driveFolderId
       && !this.editorDirty && !this.saving && !this.renamingDriveFolder;
@@ -289,12 +299,21 @@ export class StudentsComponent {
     this.isEditing = false;
     this.editor = this.emptyEditor();
     this.resetEditorMessages();
+    this.studentCodeSuggestions = [];
+    this.studentCodeSuggestionWarning = '';
+    this.refreshStudentCodeEditorOptions();
     this.editorBaseline = this.serializeEditor(this.editor);
     this.editorVisible = true;
+    void this.loadStudentCodeSuggestions(true, true);
   }
 
   openEdit(student: Student): void {
+    this.studentCodeSuggestionRequest += 1;
+    this.studentCodeSuggestionsLoading = false;
+    this.studentCodeSuggestions = [];
+    this.studentCodeSuggestionWarning = '';
     this.isEditing = true;
+    this.refreshStudentCodeEditorOptions();
     this.setEditor(student);
     this.resetEditorMessages();
     this.editorVisible = true;
@@ -392,7 +411,7 @@ export class StudentsComponent {
       this.editorVisible = false;
       await this.grid?.instance.refresh();
     } catch (error) {
-      this.handleEditorError(error);
+      await this.handleEditorError(error);
     } finally {
       this.saving = false;
     }
@@ -693,10 +712,15 @@ export class StudentsComponent {
     this.scheduleWeekdaysError = '';
   }
 
-  private handleEditorError(error: unknown): void {
+  private async handleEditorError(error: unknown): Promise<void> {
     const apiError = ApiError.from(error);
     this.editorError = apiError.message;
     this.editorConflict = apiError.code === 'StudentVersionConflict' ? apiError.message : '';
+    if (!this.isEditing && apiError.code === 'StudentGoogleSheetsCodeUnavailable') {
+      this.editor.studentCode = '';
+      this.editorError = 'Mã học sinh này vừa được sử dụng. Hệ thống đã tải lại danh sách mã trống; vui lòng kiểm tra rồi bấm Lưu lại.';
+      await this.loadStudentCodeSuggestions(true, false);
+    }
     Object.keys(apiError.fieldErrors).forEach(field => {
       const normalized = field.toLocaleLowerCase('en-US');
       if (normalized.includes('studyschedule.mode')) {
@@ -707,6 +731,62 @@ export class StudentsComponent {
         setTimeout(() => this.weekdayFieldset?.nativeElement.focus());
       }
     });
+  }
+
+  private async loadStudentCodeSuggestions(selectFirst: boolean, updateBaseline: boolean): Promise<void> {
+    const requestId = ++this.studentCodeSuggestionRequest;
+    this.studentCodeSuggestionsLoading = true;
+    this.studentCodeSuggestionWarning = '';
+    this.refreshStudentCodeEditorOptions();
+
+    try {
+      const response: StudentCodeSuggestionsResponse = await firstValueFrom(
+        this.students.getStudentCodeSuggestions()
+      );
+      if (requestId !== this.studentCodeSuggestionRequest || this.isEditing || !this.editorVisible) return;
+
+      this.studentCodeSuggestions = response.items;
+      this.refreshStudentCodeEditorOptions();
+      if (response.items.length === 0) {
+        this.studentCodeSuggestionWarning = 'Không tìm thấy mã trống trên Google Sheet. Bạn vẫn có thể nhập mã học sinh thủ công.';
+        return;
+      }
+
+      if (selectFirst && !this.editor.studentCode.trim()) {
+        this.editor.studentCode = response.items[0];
+        if (updateBaseline) {
+          const baseline = this.emptyEditor();
+          baseline.studentCode = response.items[0];
+          this.editorBaseline = this.serializeEditor(baseline);
+        }
+      }
+    } catch {
+      if (requestId !== this.studentCodeSuggestionRequest || this.isEditing || !this.editorVisible) return;
+      this.studentCodeSuggestions = [];
+      this.studentCodeSuggestionWarning = 'Không tải được danh sách mã trống. Bạn vẫn có thể nhập mã học sinh thủ công.';
+      this.refreshStudentCodeEditorOptions();
+    } finally {
+      if (requestId === this.studentCodeSuggestionRequest) {
+        this.studentCodeSuggestionsLoading = false;
+        this.refreshStudentCodeEditorOptions();
+      }
+    }
+  }
+
+  private refreshStudentCodeEditorOptions(): void {
+    this.studentCodeEditorOptions = this.isEditing
+      ? { valueChangeEvent: 'input' }
+      : {
+        items: this.studentCodeSuggestions,
+        acceptCustomValue: true,
+        searchEnabled: true,
+        disabled: this.studentCodeSuggestionsLoading,
+        placeholder: this.studentCodeSuggestionsLoading ? 'Đang tải mã trống…' : 'Chọn hoặc nhập mã học sinh',
+        valueChangeEvent: 'input',
+        onCustomItemCreating: (event: { text?: string; customItem?: string }) => {
+          event.customItem = (event.text ?? '').trim();
+        }
+      };
   }
 
   private rejectLoad(error: unknown): Promise<never> {

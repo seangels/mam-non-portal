@@ -1,5 +1,11 @@
 # Shared workspace memory
 
+## 2026-10-17 — STU-GSHEET-02 Student code suggestions
+
+- `GET /api/v1/students/student-code-suggestions` (`PortalManagers`) trả `{ items: string[] }`: B nonblank/C blank theo thứ tự sheet, loại Student chưa soft-delete; duplicate B là lỗi cấu trúc. Create revalidate và trả `409 StudentGoogleSheetsCodeUnavailable` nếu C vừa có tên, không ghi đè/không commit DB.
+- Form create dùng searchable/custom `dxSelectBox`, chọn sẵn mã đầu; sheet lỗi/rỗng vẫn cho nhập tay. Stale conflict giữ draft, refresh/chọn mã đầu mới, không auto-submit. Edit không gọi suggestions.
+- Không schema/migration. Verification: backend Release 0 warning/error, unit 142/142; frontend 233/233, development build `9de9c4ef05cb5d81e8b8`; integration runtime not run (Docker unavailable). Không Google live, production package hoặc deploy.
+
 ## 2026-10-17 — STU-GSHEET-01 Student roster sync
 
 - Student create/full PUT đồng bộ Google roster cấu hình bằng `GoogleSheets:StudentSpreadsheetId` và `StudentSheetId` (gid; runtime resolve tên tab). Cột B `StudentID` là khóa bất biến: create chỉ ghi B khi tạo dòng; create/update dữ liệu chỉ ghi C/D/H, H là RAW numeric date serial, không chạm F/G hay cột khác.

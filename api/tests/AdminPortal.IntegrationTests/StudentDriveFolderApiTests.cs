@@ -2,7 +2,9 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Net;
 using AdminPortal.Application.Auth;
+using AdminPortal.Application.Common.Models;
 using AdminPortal.Application.StudentDrive;
 using AdminPortal.Application.GoogleSheets;
 using AdminPortal.Application.Students;
@@ -39,11 +41,12 @@ public sealed class StudentDriveFolderApiTests(ApiFactory factory) : IClassFixtu
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", login.AccessToken);
 
         var teacherFolderId = $"teacher-{Guid.NewGuid():N}";
+        var teacherEmail = $"drive-{Guid.NewGuid():N}@example.test";
         var teacherResponse = await client.PostAsJsonAsync("/api/v1/teachers", new
         {
             teacherCode = $"GV-{Guid.NewGuid():N}"[..20],
             fullName = "Drive Teacher",
-            email = $"drive-{Guid.NewGuid():N}@example.test",
+            email = teacherEmail,
             phoneNumber = (string?)null,
             status = "Active",
             password = "StrongTeacherPassword1!",
@@ -54,6 +57,20 @@ public sealed class StudentDriveFolderApiTests(ApiFactory factory) : IClassFixtu
         var teacher = await teacherResponse.Content.ReadFromJsonAsync<TeacherDetailResponse>(JsonOptions);
         Assert.NotNull(teacher);
         Assert.Equal(teacherFolderId, teacher.DriveFolderId);
+
+        using (var teacherClient = factory.CreateClient())
+        {
+            var teacherLoginResponse = await teacherClient.PostAsJsonAsync(
+                "/api/v1/auth/login",
+                new LoginRequest(teacherEmail, "StrongTeacherPassword1!"));
+            teacherLoginResponse.EnsureSuccessStatusCode();
+            var teacherLogin = await teacherLoginResponse.Content.ReadFromJsonAsync<AccessTokenResponse>(JsonOptions);
+            Assert.NotNull(teacherLogin);
+            teacherClient.DefaultRequestHeaders.Authorization =
+                new AuthenticationHeaderValue("Bearer", teacherLogin.AccessToken);
+            var forbiddenSuggestions = await teacherClient.GetAsync("/api/v1/students/student-code-suggestions");
+            Assert.Equal(HttpStatusCode.Forbidden, forbiddenSuggestions.StatusCode);
+        }
 
         var studentCode = $"HS-{Guid.NewGuid():N}"[..20].ToUpperInvariant();
         var studentResponse = await client.PostAsJsonAsync("/api/v1/students", new
@@ -137,6 +154,44 @@ public sealed class StudentDriveFolderApiTests(ApiFactory factory) : IClassFixtu
             x.NickName == "Nickname lần hai" && x.DateOfBirth == new DateOnly(2021, 3, 4));
         Assert.DoesNotContain(sheetService.Calls, x =>
             x.Operation == "Update" && string.Equals(x.SheetStudentId, changedCode, StringComparison.OrdinalIgnoreCase));
+
+        var freeCode1 = $"FREE-{Guid.NewGuid():N}"[..20].ToUpperInvariant();
+        var freeCode2 = $"FREE-{Guid.NewGuid():N}"[..20].ToUpperInvariant();
+        sheetService.Suggestions = [freeCode1, changedCode, freeCode2];
+        var suggestionsResponse = await client.GetAsync("/api/v1/students/student-code-suggestions");
+        suggestionsResponse.EnsureSuccessStatusCode();
+        var suggestions = await suggestionsResponse.Content.ReadFromJsonAsync<StudentCodeSuggestionsResponse>(JsonOptions);
+        Assert.NotNull(suggestions);
+        Assert.Equal([freeCode1, freeCode2], suggestions.Items);
+
+        var unavailableCode = $"USED-{Guid.NewGuid():N}"[..20].ToUpperInvariant();
+        sheetService.UnavailableCodes[unavailableCode] = 0;
+        var unavailableResponse = await client.PostAsJsonAsync("/api/v1/students", new
+        {
+            studentCode = unavailableCode,
+            fullName = "Không được ghi đè",
+            nickName = "Blocked",
+            dateOfBirth = "2021-04-05",
+            gender = "Male",
+            status = "Active",
+            guardianName = (string?)null,
+            guardianPhone = (string?)null,
+            note = (string?)null,
+            driveFolderId = (string?)null,
+            studySchedule = new { mode = "FullDay", weekdays = FullDayWeekdays }
+        });
+        Assert.Equal(HttpStatusCode.Conflict, unavailableResponse.StatusCode);
+        using (var problem = JsonDocument.Parse(await unavailableResponse.Content.ReadAsStringAsync()))
+        {
+            Assert.Equal("StudentGoogleSheetsCodeUnavailable", problem.RootElement.GetProperty("code").GetString());
+        }
+
+        var rolledBackResponse = await client.GetAsync(
+            $"/api/v1/students?search={Uri.EscapeDataString(unavailableCode)}");
+        rolledBackResponse.EnsureSuccessStatusCode();
+        var rolledBackList = await rolledBackResponse.Content.ReadFromJsonAsync<PagedResponse<StudentResponse>>(JsonOptions);
+        Assert.NotNull(rolledBackList);
+        Assert.Equal(0, rolledBackList.Pagination.TotalItems);
 
         var reconcileResponse = await client.PostAsync("/api/v1/students/drive-folders/reconcile", null);
         reconcileResponse.EnsureSuccessStatusCode();

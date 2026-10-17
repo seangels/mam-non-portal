@@ -34,6 +34,7 @@ public static class ProblemCodes
     public const string StudentDriveOperationFailed = nameof(StudentDriveOperationFailed);
     public const string StudentDriveCompensationFailed = nameof(StudentDriveCompensationFailed);
     public const string StudentGoogleSheetsOperationFailed = nameof(StudentGoogleSheetsOperationFailed);
+    public const string StudentGoogleSheetsCodeUnavailable = nameof(StudentGoogleSheetsCodeUnavailable);
     public const string StudentVersionConflict = nameof(StudentVersionConflict);
     public const string NoScheduledStudents = nameof(NoScheduledStudents);
     public const string HistoricalRecoveryNotAllowed = nameof(HistoricalRecoveryNotAllowed);

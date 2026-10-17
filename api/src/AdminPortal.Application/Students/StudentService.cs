@@ -22,6 +22,22 @@ public sealed partial class StudentService(
     TimeProvider timeProvider,
     ILogger<StudentService> logger) : IStudentService
 {
+    public async Task<StudentCodeSuggestionsResponse> GetStudentCodeSuggestionsAsync(
+        CancellationToken cancellationToken)
+    {
+        var actor = currentActor.GetRequired();
+        AuthorizationRules.EnsurePortalManager(actor);
+        var sheetCodes = await studentGoogleSheetsService.GetAvailableStudentCodesAsync(cancellationToken);
+        if (sheetCodes.Count == 0) return new StudentCodeSuggestionsResponse([]);
+
+        var activeDatabaseCodes = await dbContext.Students
+            .AsNoTracking()
+            .Select(student => student.StudentCode)
+            .ToListAsync(cancellationToken);
+        var used = activeDatabaseCodes.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        return new StudentCodeSuggestionsResponse(sheetCodes.Where(code => !used.Contains(code)).ToList());
+    }
+
     public async Task<PagedResponse<StudentResponse>> ListAsync(StudentListQuery query, CancellationToken cancellationToken)
     {
         var actor = currentActor.GetRequired();
