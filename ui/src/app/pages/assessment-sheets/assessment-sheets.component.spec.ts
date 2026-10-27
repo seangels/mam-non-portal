@@ -1,5 +1,6 @@
 import { of, throwError } from 'rxjs';
 import { HttpHeaders, HttpResponse } from '@angular/common/http';
+import { ApiError } from '../../core/models/api-error';
 import {
   ASSESSMENT_GROUP_LV2_CONFIGS,
   assessmentGroupLv2Order,
@@ -1309,6 +1310,99 @@ describe('Assessment sheet form DevExtreme option stability', () => {
     expect(clickSpy).toHaveBeenCalledTimes(1);
   });
 
+  it('adds a saved-file image download button and disables it for missing or edited links', () => {
+    const component = createComponent('edit');
+    component.isCreate = false;
+    (component as any).applyAssessmentSheet({
+      id: 'sheet-1',
+      studentId: 'student-1',
+      studentCode: 'S101',
+      studentFullName: 'Bé An',
+      status: 'Planed',
+      planFileLinkPdf: 'https://drive.google.com/plan.pdf',
+      resultFileLinkPdf: null,
+      records: []
+    } as any);
+
+    const planButtons = () => component.planLinkEditorOptions['buttons'] as any[];
+    const resultButtons = () => component.resultLinkEditorOptions['buttons'] as any[];
+    expect(planButtons().length).toBe(2);
+    expect(planButtons()[0].name).toBe('openLink');
+    expect(planButtons()[1].name).toBe('downloadImages');
+    expect(planButtons()[1].options.disabled).toBeFalse();
+    expect(resultButtons()[1].options.disabled).toBeTrue();
+
+    component.editor.planFileLinkPdf = 'https://drive.google.com/edited.pdf';
+    expect(planButtons()[1].options.disabled).toBeTrue();
+
+    (component as any).applyAssessmentSheet({
+      id: 'sheet-1',
+      studentId: 'student-1',
+      studentCode: 'S101',
+      studentFullName: 'Bé An',
+      status: 'Planed',
+      planFileLinkPdf: 'https://drive.google.com/edited.pdf',
+      resultFileLinkPdf: 'https://drive.google.com/result.pdf',
+      records: []
+    } as any);
+    expect(planButtons()[1].options.disabled).toBeFalse();
+    expect(resultButtons()[1].options.disabled).toBeFalse();
+
+    component.isCreate = true;
+    expect(planButtons()[1].options.disabled).toBeTrue();
+  });
+
+  it('downloads saved PDF images with the API filename, fallback name, loading state and surfaced errors', async () => {
+    const component = createComponent('edit');
+    component.isCreate = false;
+    const blob = new Blob(['image archive'], { type: 'application/zip' });
+    const downloadBlob = spyOn<any>(component, 'downloadBlob');
+    const downloadPdfArchive = jasmine.createSpy('downloadPdfArchive').and.returnValue(of(new HttpResponse({
+      body: blob,
+      headers: new HttpHeaders({ 'content-disposition': `attachment; filename*=UTF-8''plan%20images.zip` })
+    })));
+    (component as any).assessmentSheets = { downloadPdfArchive };
+    (component as any).applyAssessmentSheet({
+      id: 'sheet-1',
+      studentId: 'student-1',
+      studentCode: 'S101',
+      studentFullName: 'Bé An',
+      status: 'Planed',
+      planFileLinkPdf: 'https://drive.google.com/plan.pdf',
+      resultFileLinkPdf: 'https://drive.google.com/result.pdf',
+      records: []
+    } as any);
+
+    const planDownload = () => (component.planLinkEditorOptions['buttons'] as any[])[1].options;
+    const pendingDownload = planDownload().onClick();
+    expect(downloadPdfArchive).toHaveBeenCalledWith(['sheet-1'], 'Plan', 'Images');
+    expect(planDownload().disabled).toBeTrue();
+    await pendingDownload;
+    expect(downloadBlob).toHaveBeenCalledWith(blob, 'plan images.zip');
+    expect(planDownload().disabled).toBeFalse();
+
+    await (component.resultLinkEditorOptions['buttons'] as any[])[1].options.onClick();
+    expect(downloadPdfArchive).toHaveBeenCalledWith(['sheet-1'], 'Result', 'Images');
+
+    downloadPdfArchive.and.returnValue(of(new HttpResponse({
+      body: new Blob(['png'], { type: 'image/png' }),
+      headers: new HttpHeaders()
+    })));
+    await planDownload().onClick();
+    expect(downloadBlob).toHaveBeenCalledWith(jasmine.any(Blob), 'khcn - Bé An - trang 001.png');
+
+    downloadPdfArchive.and.returnValue(of(new HttpResponse({
+      body: new Blob(['zip'], { type: 'application/zip' }),
+      headers: new HttpHeaders()
+    })));
+    await planDownload().onClick();
+    expect(downloadBlob).toHaveBeenCalledWith(jasmine.any(Blob), 'khcn - Bé An - ảnh.zip');
+
+    downloadPdfArchive.and.returnValue(throwError(() => new ApiError('API tải ảnh lỗi', 500)));
+    await planDownload().onClick();
+    expect(component.formError).toContain('API tải ảnh lỗi');
+  });
+
   it('keeps editor option object references stable across change detection reads', () => {
     const component = createComponent();
 
@@ -1842,35 +1936,32 @@ describe('Assessment picker filter and selection', () => {
     expect(component.isAddSelectionDisabled(existing)).toBeFalse();
     expect(component.selectedAddCount).toBe(2);
     expect(component.selectedRemoveCount).toBe(1);
-    expect(component.bulkAddText).toBe('Thêm các mục đã chọn (2)');
-    expect(component.bulkRemoveText).toBe('Bỏ các mục đã chọn (1)');
+    expect(component.bulkAddText).toBe('Thêm đã chọn (2)');
+    expect(component.bulkRemoveText).toBe('Bỏ đã chọn (1)');
     expect(emitted).toEqual([['assessment-2', 'assessment-3']]);
     expect(removed).toEqual([['assessment-1']]);
   });
 
-  it('adds a bulk button to the add-mode toolbar and clears its selection on request', () => {
+  it('keeps bulk action buttons off the add-mode grid toolbar and preserves its other controls', () => {
     const { component } = createPicker();
     const selected = assessment({ id: 'assessment-2', code: 'A02' });
     const existing = assessment({ id: 'assessment-1', code: 'A01' });
-    const emitted: string[][] = [];
     component.mode = 'add';
     component.allAssessments = [existing, selected];
     component.existingCodes = ['A01'];
     component.selectedIds = [existing.id, selected.id];
     component.ngOnChanges({ existingCodes: {} as any, selectedIds: {} as any });
-    component.selectedIdsChange.subscribe(ids => emitted.push(ids));
     const items: any[] = [];
 
     component.onToolbarPreparing({ toolbarOptions: { items } });
-    const bulkButton = items.find(item => item.options?.text === 'Thêm các mục đã chọn (1)');
-    const bulkRemoveButton = items.find(item => item.options?.text === 'Bỏ các mục đã chọn (1)');
-    component.clearBulkSelection();
 
-    expect(bulkButton).toBeTruthy();
-    expect(bulkButton.options.disabled).toBeFalse();
-    expect(bulkRemoveButton.options.disabled).toBeFalse();
-    expect(emitted).toEqual([[]]);
-    expect(component.bulkAddDisabled).toBeTrue();
+    expect(items.some(item => item.options?.text === 'Thêm đã chọn (1)')).toBeFalse();
+    expect(items.some(item => item.options?.text === 'Bỏ đã chọn (1)')).toBeFalse();
+    expect(items.some(item => item.widget === 'dxCheckBox')).toBeTrue();
+    expect(items.some(item => item.widget === 'dxTagBox')).toBeTrue();
+    expect(items.some(item => item.options?.text === 'Đặt lại lọc lưới')).toBeTrue();
+    expect(component.bulkAddText).toBe('Thêm đã chọn (1)');
+    expect(component.bulkRemoveText).toBe('Bỏ đã chọn (1)');
   });
 
   it('selects every eligible row in the current grid filter across pages and preserves selections outside it', () => {
@@ -2319,6 +2410,42 @@ describe('Assessment sheet edit sticky-bar actions (G6a/G6b)', () => {
     );
     return { component, router };
   };
+
+  it('exposes bulk picker counts and disabled state to the sticky-bar actions and forwards their handlers', () => {
+    const { component } = makeForm('edit');
+    const picker = new AssessmentPickerComponent({} as any);
+    picker.mode = 'add';
+    picker.allAssessments = [
+      { id: 'existing', code: 'A01' } as any,
+      { id: 'new', code: 'A02' } as any
+    ];
+    picker.existingCodes = ['A01'];
+    picker.selectedIds = ['existing', 'new'];
+    picker.ngOnChanges({ existingCodes: {} as any, selectedIds: {} as any });
+    component.assessmentPicker = picker;
+
+    expect(component.bulkAddButtonText).toBe('Thêm đã chọn (1)');
+    expect(component.bulkRemoveButtonText).toBe('Bỏ đã chọn (1)');
+    expect(component.bulkAddButtonDisabled).toBeFalse();
+    expect(component.bulkRemoveButtonDisabled).toBeFalse();
+
+    const addClick = spyOn(picker, 'onAddSelectedAssessmentsClick');
+    const removeClick = spyOn(picker, 'onRemoveSelectedAssessmentsClick');
+    component.onBulkAddSelectedAssessmentsClick();
+    component.onBulkRemoveSelectedAssessmentsClick();
+    expect(addClick).toHaveBeenCalledTimes(1);
+    expect(removeClick).toHaveBeenCalledTimes(1);
+
+    picker.addDisabled = true;
+    picker.ngOnChanges({ addDisabled: {} as any });
+    expect(component.bulkAddButtonDisabled).toBeTrue();
+    expect(component.bulkRemoveButtonDisabled).toBeTrue();
+
+    picker.addDisabled = false;
+    picker.clearBulkSelection();
+    expect(component.bulkAddButtonDisabled).toBeTrue();
+    expect(component.bulkRemoveButtonDisabled).toBeTrue();
+  });
 
   it('cancels permanent deletion without calling the API or navigating', async () => {
     const assessmentSheets = { delete: jasmine.createSpy('delete') };

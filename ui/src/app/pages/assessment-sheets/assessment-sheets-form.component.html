@@ -614,8 +614,18 @@
       <small *ngIf="dirty">Có thay đổi chưa lưu</small>
     </span>
     <div class="form-action-buttons">
+      <dx-button *ngIf="!isCreate && showAddAssessmentPicker"
+        [text]="bulkAddButtonText" icon="add" type="default"
+        hint="Thêm tất cả mục đang chọn vào bảng đánh giá trong một lần lưu"
+        [disabled]="bulkAddButtonDisabled"
+        (onClick)="onBulkAddSelectedAssessmentsClick()"></dx-button>
+      <dx-button *ngIf="!isCreate && showAddAssessmentPicker"
+        [text]="bulkRemoveButtonText" icon="trash" type="danger" stylingMode="outlined"
+        hint="Bỏ tất cả mục đã chọn đang có trong kế hoạch bằng một lần lưu"
+        [disabled]="bulkRemoveButtonDisabled"
+        (onClick)="onBulkRemoveSelectedAssessmentsClick()"></dx-button>
       <dx-button *ngIf="canShowDeleteAssessmentSheet"
-        [text]="deleting ? 'Đang xóa...' : 'Xóa bảng đánh giá'"
+        [text]="deleting ? 'Đang xóa...' : 'Xóa ĐG'"
         icon="trash" type="danger" stylingMode="outlined"
         hint="Xóa vĩnh viễn bảng đánh giá này khỏi ứng dụng; không xóa dữ liệu Google Sheet hoặc Google Drive"
         aria-label="Xóa bảng đánh giá khỏi ứng dụng"
@@ -627,17 +637,17 @@
       <dx-button *ngIf="!isCreate" icon="arrowdown" stylingMode="outlined"
         hint="Xuống cuối trang" aria-label="Xuống cuối trang"
         (onClick)="scrollToBottom()"></dx-button>
-      <dx-button *ngIf="!isCreate" text="Tạo mới đánh giá" icon="plus" stylingMode="outlined"
+      <dx-button *ngIf="!isCreate" text="Tạo ĐG" icon="plus" stylingMode="outlined"
         hint="Mở màn tạo bảng đánh giá mới"
         [disabled]="saving || recordMutationInProgress || submittingResults || completingPlan"
         (onClick)="openCreateNew()"></dx-button>
       <dx-button *ngIf="canShowCompletePlan"
-        [text]="completingPlan ? 'Đang hoàn thành...' : 'Hoàn thành kế hoạch'" icon="todo" type="success"
+        [text]="completingPlan ? 'Đang hoàn thành...' : 'Hoàn thành KH'" icon="todo" type="success"
         hint="Lưu, chuyển sang Đã lập kế hoạch, rồi tạo PDF kế hoạch lên Google Drive"
         [disabled]="!canCompletePlan"
         (onClick)="completePlan()"></dx-button>
       <dx-button text="Hủy" stylingMode="outlined" [disabled]="saving || recordMutationInProgress || submittingResults || completingPlan" (onClick)="cancel()"></dx-button>
-      <dx-button [text]="isCreate ? 'Tạo bảng đánh giá' : 'Lưu thay đổi'" icon="save" type="default"
+      <dx-button text="Lưu" icon="save" type="default"
         [disabled]="saving || recordMutationInProgress || submittingResults || completingPlan" (onClick)="save()"></dx-button>
     </div>
   </div>

@@ -256,3 +256,16 @@ _Chưa có hoạt động. Khi chạy `ASH-QA-01`, ghi kết quả từng bướ
 - Màn danh sách KH cá nhân thu cột `Giáo viên phụ trách` về `width/minWidth = 80`; chuyển `Hạn hoàn thành` và `Ngày nộp` xuống ngay sau `Kết quả`, đặt ẩn mặc định bằng `visible=false` nhưng vẫn giữ trong column chooser.
 - Không đổi logic ngày, filter, cell template, API, backend hoặc schema. Yêu cầu được đồng bộ vào requirement 09 §16.1.
 - `npm --prefix ui run test:ci` đã hoàn tất **222/222 pass** trước khi người dùng chốt thay đổi nhỏ không cần kiểm thử thêm. Development build và browser smoke không chạy; người dùng xác nhận review thủ công đạt ngày 2026-10-17. Không production/IIS/deploy.
+
+## 2026-10-27 — ASH-PICKER-STICKY-01
+
+- Chuyển hai thao tác bulk `Thêm các mục đã chọn (n)` và `Bỏ các mục đã chọn (n)` khỏi toolbar lưới picker lên sticky bar của form AssessmentSheet; chỉ hiện khi picker đang mở. Giữ nguyên bộ đếm, trạng thái disabled và handler; chọn tất cả, lọc và thao tác từng dòng không đổi.
+- Thêm regression test xác nhận toolbar lưới không còn hai nút bulk, các control khác vẫn hiện, và sticky actions đọc đúng trạng thái/ủy quyền handler qua picker.
+- Verification với Node portable `v14.21.3` + npm `8.19.4`: `npm.cmd --prefix ui run test:ci` **234/234 pass**; `NG_BUILD_MAX_WORKERS=1 npm.cmd --prefix ui run build -- --configuration=development` pass hash `4996587c64d43eaef9c1`, chỉ CommonJS warnings hiện có; `git diff --check` sạch. Không chạy browser/live API smoke, production/IIS build hoặc deploy.
+
+## 2026-10-27 — ASH-PICKER-LINK-IMAGE-01
+
+- Rút gọn nhãn sticky bar: `Thêm đã chọn (n)`, `Bỏ đã chọn (n)`, `Xóa ĐG`, `Tạo ĐG`, `Hoàn thành KH`, `Lưu`; giữ nguyên thông báo trạng thái đang chạy.
+- Thêm nút tải ảnh cho link KHCN/KQ cạnh nút mở link; dùng lại `POST /assessment-sheets/pdf-archive` với `format=Images`, nhận tên file từ response hoặc dựng tên dự phòng, thông báo thành công/lỗi và khóa nút khi đang tải. Chỉ tải link đã lưu của sheet; disable khi input đang khác link server để không lấy nhầm bản cũ. Một trang trả PNG, nhiều trang ZIP theo contract hiện có.
+- Regression tests bao phủ nhãn, điều kiện enable/disable, loại Plan/Result, tên file, loading và lỗi. Test-first cycle RED không được quan sát trong lượt triển khai; test suite đã được chạy sau thay đổi.
+- Verification hiện tại với Node portable `v14.21.3` + npm `8.19.4`: `npm.cmd --prefix ui run test:ci` **236/236 pass**; `NG_BUILD_MAX_WORKERS=1 npm.cmd --prefix ui run build -- --configuration=development` pass hash `57a69229a07e5e1f0d46`, chỉ CommonJS warnings hiện có; `git diff --check` sạch. Chưa browser/live API smoke; không backend/schema/production/IIS/deploy.

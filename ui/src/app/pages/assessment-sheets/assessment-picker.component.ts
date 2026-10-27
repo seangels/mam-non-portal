@@ -66,8 +66,6 @@ export class AssessmentPickerComponent implements OnChanges, OnInit, OnDestroy {
   private selectedViewSnapshotIdSet = new Set<string>();
   private initialized = false;
   private loadedStudentId: string | null = null;
-  private bulkAddToolbarButton?: { option: (options: Record<string, unknown>) => void };
-  private bulkRemoveToolbarButton?: { option: (options: Record<string, unknown>) => void };
   private selectAllToolbarCheckBox?: { option: (options: Record<string, unknown>) => void };
   private membershipToolbarTagBox?: { option: (options: Record<string, unknown>) => void };
   readonly gridRemoteOperations = false;
@@ -156,8 +154,6 @@ export class AssessmentPickerComponent implements OnChanges, OnInit, OnDestroy {
     if (this.searchTimer !== undefined) {
       window.clearTimeout(this.searchTimer);
     }
-    this.bulkAddToolbarButton = undefined;
-    this.bulkRemoveToolbarButton = undefined;
     this.selectAllToolbarCheckBox = undefined;
     this.membershipToolbarTagBox = undefined;
   }
@@ -194,7 +190,7 @@ export class AssessmentPickerComponent implements OnChanges, OnInit, OnDestroy {
   }
 
   get bulkAddText(): string {
-    return `Thêm các mục đã chọn (${this.selectedAddCount})`;
+    return `Thêm đã chọn (${this.selectedAddCount})`;
   }
 
   get bulkAddDisabled(): boolean {
@@ -202,7 +198,7 @@ export class AssessmentPickerComponent implements OnChanges, OnInit, OnDestroy {
   }
 
   get bulkRemoveText(): string {
-    return `Bỏ các mục đã chọn (${this.selectedRemoveCount})`;
+    return `Bỏ đã chọn (${this.selectedRemoveCount})`;
   }
 
   get bulkRemoveDisabled(): boolean {
@@ -283,7 +279,7 @@ export class AssessmentPickerComponent implements OnChanges, OnInit, OnDestroy {
   }
 
   // Toolbar của lưới picker (DevExtreme 19.2 chưa có option `toolbar` khai báo được, dùng event này):
-  // giữ nút "Chọn cột" mặc định, thêm nút bulk-add (ở add-mode) và "Đặt lại lọc lưới" ở bên trái.
+  // Giữ các công cụ lọc/chọn của lưới và "Đặt lại lọc lưới" ở bên trái.
   onToolbarPreparing(event: { toolbarOptions?: { items?: any[] } }): void {
     const items = event.toolbarOptions?.items;
     if (!items) {
@@ -324,37 +320,6 @@ export class AssessmentPickerComponent implements OnChanges, OnInit, OnDestroy {
           },
           onValueChanged: (e: { value?: PlanMembershipFilterValue[]; previousValue?: PlanMembershipFilterValue[]; event?: unknown }) =>
             this.onMembershipFilterChanged(e)
-        }
-      }, {
-        location: 'before',
-        widget: 'dxButton',
-        options: {
-          icon: 'add',
-          text: this.bulkAddText,
-          type: 'default',
-          hint: 'Thêm tất cả mục đang chọn vào bảng đánh giá trong một lần lưu',
-          disabled: this.bulkAddDisabled,
-          onInitialized: (e: { component?: unknown }) => {
-            this.bulkAddToolbarButton = e.component as { option: (options: Record<string, unknown>) => void };
-            this.syncBulkAddToolbar();
-          },
-          onClick: () => this.onAddSelectedAssessmentsClick()
-        }
-      }, {
-        location: 'before',
-        widget: 'dxButton',
-        options: {
-          icon: 'trash',
-          text: this.bulkRemoveText,
-          type: 'danger',
-          stylingMode: 'outlined',
-          hint: 'Bỏ tất cả mục đã chọn đang có trong kế hoạch bằng một lần lưu',
-          disabled: this.bulkRemoveDisabled,
-          onInitialized: (e: { component?: unknown }) => {
-            this.bulkRemoveToolbarButton = e.component as { option: (options: Record<string, unknown>) => void };
-            this.syncBulkRemoveToolbar();
-          },
-          onClick: () => this.onRemoveSelectedAssessmentsClick()
         }
       });
     }
@@ -772,20 +737,6 @@ export class AssessmentPickerComponent implements OnChanges, OnInit, OnDestroy {
     }
   }
 
-  private syncBulkAddToolbar(): void {
-    this.bulkAddToolbarButton?.option({
-      text: this.bulkAddText,
-      disabled: this.bulkAddDisabled
-    });
-  }
-
-  private syncBulkRemoveToolbar(): void {
-    this.bulkRemoveToolbarButton?.option({
-      text: this.bulkRemoveText,
-      disabled: this.bulkRemoveDisabled
-    });
-  }
-
   private syncSelectAllToolbar(): void {
     const state = this.filteredSelectionState();
     const value = state.selectedCount === 0
@@ -804,8 +755,6 @@ export class AssessmentPickerComponent implements OnChanges, OnInit, OnDestroy {
   }
 
   private syncSelectionToolbar(): void {
-    this.syncBulkAddToolbar();
-    this.syncBulkRemoveToolbar();
     this.syncSelectAllToolbar();
     this.syncMembershipToolbar();
   }

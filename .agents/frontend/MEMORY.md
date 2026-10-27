@@ -1,5 +1,17 @@
 # Frontend role memory
 
+## 2026-10-27 — ASH-PICKER-LINK-IMAGE-01
+
+- Sticky AssessmentSheet labels shortened to the requested Vietnamese labels, retaining running-state text. Link KHCN/KQ input groups have image-download buttons that reuse `downloadPdfArchive([sheetId], kind, 'Images')`. Only enabled for a saved sheet/link when the corresponding input still matches the saved value; busy states are disabled, API errors shown in the form, and response/fallback filenames downloaded. One-page PDF yields PNG; multipage yields ZIP.
+- Files: `assessment-picker.component.ts`, `assessment-sheets-form.component.{html,ts}`, `assessment-sheets.component.spec.ts`.
+- Verification with Node portable `v14.21.3`/npm `8.19.4`: `npm.cmd --prefix ui run test:ci` **236/236 pass**; `NG_BUILD_MAX_WORKERS=1 npm.cmd --prefix ui run build -- --configuration=development` pass hash `57a69229a07e5e1f0d46`, known CommonJS warnings only; `git diff --check` clean. Red-phase test execution was not observed by implementer. No browser/live API smoke or production/IIS build/deploy.
+
+## 2026-10-27 — ASH-PICKER-STICKY-01
+
+- AssessmentSheet edit form chuyển bulk add/remove của `AssessmentPickerComponent` sang sticky `.form-actions`, chỉ hiện khi picker mở. Bộ đếm, disabled state, handler và thao tác chọn/bỏ từng dòng/chọn tất cả/filter giữ nguyên.
+- Files: `assessment-picker.component.ts`, `assessment-sheets-form.component.{html,ts}`, `assessment-sheets.component.spec.ts`.
+- Verification bằng Node portable `v14.21.3`/npm `8.19.4`: `npm.cmd --prefix ui run test:ci` **234/234 pass**; `NG_BUILD_MAX_WORKERS=1 npm.cmd --prefix ui run build -- --configuration=development` pass hash `4996587c64d43eaef9c1`, chỉ CommonJS warnings hiện có; `git diff --check` sạch. Chưa browser smoke; không production/IIS/deploy.
+
 ## 2026-10-17 — STU-GSHEET-02 gợi ý mã học sinh trống
 
 - Form **Thêm học sinh** gọi `GET /students/student-code-suggestions` (`{ items: string[] }`) và dùng `dxSelectBox`: giữ thứ tự API, chọn sẵn mã đầu tiên, cho tìm/chọn hoặc nhập mã tùy chỉnh. Chỉ trường mã bị khóa khi đang tải; empty/lỗi chuyển sang nhập tay kèm cảnh báo. Form sửa vẫn dùng `dxTextBox` và không gọi endpoint gợi ý.

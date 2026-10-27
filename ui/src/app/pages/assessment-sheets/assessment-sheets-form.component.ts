@@ -471,6 +471,7 @@ export class AssessmentSheetFormComponent implements OnInit, OnDestroy {
   saving = false;
   deleting = false;
   completingPlan = false;
+  downloadingPdfKind: 'Plan' | 'Result' | null = null;
   addingRecord = false;
   removingRecordId: string | null = null;
   submittingResults = false;
@@ -489,6 +490,9 @@ export class AssessmentSheetFormComponent implements OnInit, OnDestroy {
   conflict = false;
   assessmentCache: Assessment[] = [];
   private assessmentCacheStudentId: string | null = null;
+  private savedPlanPdfLink = '';
+  private savedResultPdfLink = '';
+  private assessmentSheetDownloadName = '';
   private baseline = this.serialize(this.editor);
   private allowPreviewNavigationOnce = false;
 
@@ -561,7 +565,13 @@ export class AssessmentSheetFormComponent implements OnInit, OnDestroy {
   // (dx-form re-apply editor mỗi khi object đổi tham chiếu, làm nút bấm bên trong bị dựng lại và mất click).
   private linkEditorOptionsCache = new Map<
     'planFileLinkPdf' | 'resultFileLinkPdf',
-    { hasLink: boolean; readOnly: boolean; options: Record<string, unknown> }
+    {
+      hasLink: boolean;
+      readOnly: boolean;
+      canDownload: boolean;
+      downloading: boolean;
+      options: Record<string, unknown>;
+    }
   >();
   // Cache tương tự cho responsibleTeacherId/startDate/dueDate/note/feedback: AssessmentSheetService.UpdateAsync
   // chỉ ghi 5 field này khi bảng đang 'Open'/'Canceled' — 'Planed'/'Done' âm thầm bỏ qua thay đổi.
@@ -610,16 +620,23 @@ export class AssessmentSheetFormComponent implements OnInit, OnDestroy {
     return this.buildLinkEditorOptions('resultFileLinkPdf', 'Mở link Kết quả (KQ)');
   }
 
-  // Ô nhập link dạng input-group: text box + nút mở link bên phải, chỉ bấm được khi đã có link.
+  // Ô link dùng input-group với nút mở link và tải ảnh PDF ở bên phải.
   private buildLinkEditorOptions(
     field: 'planFileLinkPdf' | 'resultFileLinkPdf',
     openHint: string
   ): Record<string, unknown> {
     const hasLink = !!this.linkHref(field);
+    const canDownload = this.canDownloadEditorImages(field);
+    const kind = field === 'planFileLinkPdf' ? 'Plan' : 'Result';
+    const downloading = this.downloadingPdfKind === kind;
     // Nhập tay link chỉ mở ở 'Planed'/'Done'; 'Open' và 'Canceled' để nút upload PDF quản lý link.
     const readOnly = this.originalStatus === 'Open' || this.originalStatus === 'Canceled';
     const cached = this.linkEditorOptionsCache.get(field);
-    if (cached && cached.hasLink === hasLink && cached.readOnly === readOnly) {
+    if (cached
+      && cached.hasLink === hasLink
+      && cached.readOnly === readOnly
+      && cached.canDownload === canDownload
+      && cached.downloading === downloading) {
       return cached.options;
     }
     const options: Record<string, unknown> = {
@@ -637,10 +654,25 @@ export class AssessmentSheetFormComponent implements OnInit, OnDestroy {
             hint: hasLink ? openHint : 'Chưa có link để mở',
             onClick: () => this.openEditorLink(field)
           }
+        },
+        {
+          name: 'downloadImages',
+          location: 'after',
+          options: {
+            icon: downloading ? 'refresh' : 'download',
+            stylingMode: 'text',
+            disabled: !canDownload,
+            hint: downloading
+              ? 'Đang tải ảnh PDF...'
+              : canDownload
+                ? 'Tải ảnh PDF đã lưu'
+                : 'Chỉ tải được ảnh từ link PDF đã lưu',
+            onClick: () => this.downloadEditorImages(field)
+          }
         }
       ]
     };
-    this.linkEditorOptionsCache.set(field, { hasLink, readOnly, options });
+    this.linkEditorOptionsCache.set(field, { hasLink, readOnly, canDownload, downloading, options });
     return options;
   }
 
@@ -668,6 +700,83 @@ export class AssessmentSheetFormComponent implements OnInit, OnDestroy {
     anchor.click();
     anchor.remove();
   }
+
+  canDownloadEditorImages(field: 'planFileLinkPdf' | 'resultFileLinkPdf'): boolean {
+    const savedLink = field === 'planFileLinkPdf' ? this.savedPlanPdfLink : this.savedResultPdfLink;
+    return !this.isCreate
+      && !!this.assessmentSheetId
+      && !!savedLink.trim()
+      && this.editor[field] === savedLink
+      && !this.loading
+      && !this.saving
+      && !this.deleting
+      && !this.completingPlan
+      && !this.recordMutationInProgress
+      && !this.submittingResults
+      && !this.downloadingPdfKind;
+  }
+
+  async downloadEditorImages(field: 'planFileLinkPdf' | 'resultFileLinkPdf'): Promise<void> {
+    if (!this.canDownloadEditorImages(field)) {
+      return;
+    }
+
+    const kind = field === 'planFileLinkPdf' ? 'Plan' : 'Result';
+    const sheetId = this.assessmentSheetId;
+    this.downloadingPdfKind = kind;
+    this.formError = '';
+    try {
+      const response = await firstValueFrom(
+        this.assessmentSheets.downloadPdfArchive([sheetId], kind, 'Images')
+      );
+      const blob = response.body;
+      if (!blob) {
+        throw new Error('API không trả về file tải xuống.');
+      }
+      const fileName = this.fileNameFromResponse(response.headers.get('content-disposition'))
+        || this.singleImageDownloadName(kind, blob.type);
+      this.downloadBlob(blob, fileName);
+      notify(`Đã tải ảnh ${kind === 'Plan' ? 'kế hoạch' : 'kết quả'}.`, 'success', 3000);
+    } catch (error) {
+      const apiError = ApiError.from(error);
+      this.formError = this.withTrace(apiError);
+      notify(this.formError, 'error', 3500);
+    } finally {
+      this.downloadingPdfKind = null;
+    }
+  }
+
+  private fileNameFromResponse(contentDisposition: string | null): string | null {
+    const encoded = contentDisposition?.match(/filename\*=UTF-8''([^;]+)/i)?.[1];
+    if (encoded) {
+      return decodeURIComponent(encoded.replace(/^"|"$/g, ''));
+    }
+    return contentDisposition?.match(/filename="?([^";]+)"?/i)?.[1] ?? null;
+  }
+
+  private singleImageDownloadName(kind: 'Plan' | 'Result', contentType: string): string {
+    const stem = `${kind === 'Plan' ? 'khcn' : 'KQ'} - ${this.assessmentSheetDownloadName || this.assessmentSheetId}`;
+    if (contentType === 'application/pdf') {
+      return `${stem}.pdf`;
+    }
+    if (contentType === 'application/zip') {
+      return `${stem} - ảnh.zip`;
+    }
+    return `${stem} - trang 001.png`;
+  }
+
+  private downloadBlob(blob: Blob, fileName: string): void {
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = fileName;
+    anchor.style.display = 'none';
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 0);
+  }
+
   readonly standaloneNgModelOptions = { standalone: true };
   get showPlan(): boolean {
     // 'Canceled' hành xử như 'Open' (chỉ là nhãn) — luôn hiện cột kế hoạch để còn sửa được.
@@ -1161,6 +1270,30 @@ export class AssessmentSheetFormComponent implements OnInit, OnDestroy {
       return;
     }
     this.showAddAssessmentPicker = !this.showAddAssessmentPicker;
+  }
+
+  get bulkAddButtonText(): string {
+    return this.assessmentPicker?.bulkAddText ?? 'Thêm đã chọn (0)';
+  }
+
+  get bulkAddButtonDisabled(): boolean {
+    return !this.assessmentPicker || this.assessmentPicker.bulkAddDisabled;
+  }
+
+  onBulkAddSelectedAssessmentsClick(): void {
+    this.assessmentPicker?.onAddSelectedAssessmentsClick();
+  }
+
+  get bulkRemoveButtonText(): string {
+    return this.assessmentPicker?.bulkRemoveText ?? 'Bỏ đã chọn (0)';
+  }
+
+  get bulkRemoveButtonDisabled(): boolean {
+    return !this.assessmentPicker || this.assessmentPicker.bulkRemoveDisabled;
+  }
+
+  onBulkRemoveSelectedAssessmentsClick(): void {
+    this.assessmentPicker?.onRemoveSelectedAssessmentsClick();
   }
 
   async addAssessmentToSheet(assessment: Assessment): Promise<void> {
@@ -1807,6 +1940,9 @@ export class AssessmentSheetFormComponent implements OnInit, OnDestroy {
       this.assessmentCacheStudentId = null;
     }
     this.assessmentSheetId = sheet.id;
+    this.assessmentSheetDownloadName = sheet.studentFullName || sheet.studentCode || sheet.id;
+    this.savedPlanPdfLink = sheet.planFileLinkPdf ?? '';
+    this.savedResultPdfLink = sheet.resultFileLinkPdf ?? '';
     this.originalStatus = sheet.status;
     this.editor = {
       studentId: sheet.studentId,
